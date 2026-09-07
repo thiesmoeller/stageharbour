@@ -20,6 +20,8 @@ const schema = z.object({
   OIDC_CLIENT_ID: optionalSecret,
   OIDC_CLIENT_SECRET: optionalSecret,
   OIDC_REDIRECT_URI: optionalUrl,
+  MAIL_FROM: z.string().optional(),
+  BREVO_API_KEY: z.string().optional(),
 });
 export type Config = z.infer<typeof schema>;
 

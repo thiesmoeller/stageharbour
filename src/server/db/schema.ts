@@ -58,6 +58,32 @@ export const membership = pgTable('membership', {
   userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
   role: workspaceRole('role').notNull(),
 }, table => [primaryKey({ columns: [table.workspaceId, table.userId] }), index('membership_user_idx').on(table.userId)]);
+export const invitation = pgTable('invitation', {
+  id: uuid('id').primaryKey(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspace.id, { onDelete: 'cascade' }),
+  email: text('email').notNull(),
+  name: text('name').notNull(),
+  role: workspaceRole('role').notNull(),
+  tokenHash: text('token_hash').notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  consumedAt: timestamp('consumed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, table => [
+  uniqueIndex('invitation_workspace_id').on(table.workspaceId, table.id),
+  uniqueIndex('invitation_token_hash').on(table.tokenHash),
+  index('invitation_workspace_email_idx').on(table.workspaceId, table.email),
+]);
+export const passwordReset = pgTable('password_reset', {
+  id: uuid('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  tokenHash: text('token_hash').notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  consumedAt: timestamp('consumed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, table => [
+  uniqueIndex('password_reset_token_hash').on(table.tokenHash),
+  index('password_reset_user_idx').on(table.userId),
+]);
 
 export const venue = pgTable('venue', {
   id: uuid('id').primaryKey(), workspaceId: uuid('workspace_id').notNull().references(() => workspace.id),

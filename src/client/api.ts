@@ -2,13 +2,18 @@ export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
 
-export async function request(path: string, body?: unknown, method = 'POST'): Promise<unknown> {
+export async function request(path: string, body?: unknown, method?: string): Promise<unknown> {
   let response: Response;
   try {
-    response = await fetch(path, {
-      credentials: 'same-origin',
-      ...(body === undefined ? {} : { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
-    });
+    const init: RequestInit = { credentials: 'same-origin' };
+    if (body !== undefined) {
+      init.method = method ?? 'POST';
+      init.headers = { 'Content-Type': 'application/json' };
+      init.body = JSON.stringify(body);
+    } else if (method) {
+      init.method = method;
+    }
+    response = await fetch(path, init);
   } catch {
     throw new ApiError(0, 'Keine Verbindung zum Server. Bitte versuchen Sie es erneut.');
   }
