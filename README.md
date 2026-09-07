@@ -2,7 +2,7 @@
 
 German-language stage planner for a single theatre group's private workspace.
 
-Implemented: [slice 01](docs/issue-breakdown.md#01-enter-a-private-workspace-with-password-sign-in), [slice 02](docs/issue-breakdown.md#02-create-and-edit-a-saved-rectangular-stage-layout), and [slice 28](docs/issue-breakdown.md#28-protect-editing-with-exclusive-leases-and-stale-write-checks). After sign-in, editors can create a production with a rectangular venue, a venue adaptation and a scene, place 1200 × 2400 × 28 mm walls in a millimetre top-down plan, undo or redo session edits, and reload the autosaved layout. Opening a plan for editing takes an exclusive lease: other members see who is editing and remain in view-only mode. Invitations, Pocket ID, the linked 3D view and construction-plan exports are subsequent slices.
+Implemented: [slice 01](docs/issue-breakdown.md#01-enter-a-private-workspace-with-password-sign-in), [slice 02](docs/issue-breakdown.md#02-create-and-edit-a-saved-rectangular-stage-layout), [slice 03](docs/issue-breakdown.md#03-inspect-the-saved-layout-in-linked-threejs-views), [slice 26](docs/issue-breakdown.md#26-sign-in-through-pocket-id-and-manage-linked-accounts), and [slice 28](docs/issue-breakdown.md#28-protect-editing-with-exclusive-leases-and-stale-write-checks). After sign-in, editors can create a production with a rectangular venue, a venue adaptation and a scene, place 1200 × 2400 × 28 mm walls in a millimetre top-down plan, inspect the same layout in a linked Three.js view, undo or redo session edits, and reload the autosaved layout. Opening a plan for editing takes an exclusive lease: other members see who is editing and remain in view-only mode. Optional Pocket ID OIDC sits beside password sign-in; membership remains invitation-only. Invitations, Brevo recovery and construction-plan exports are subsequent slices.
 
 ## Local setup
 
@@ -50,4 +50,4 @@ Dependencies are exact-pinned in `package.json` and `package-lock.json`, with Ty
 
 For the built server, set `NODE_ENV=production`, an HTTPS `APP_ORIGIN`, and run `npm start` with `.env` configured. The server then serves the built UI and API together. The application currently trusts only the socket peer for authentication throttling. Trusted reverse-proxy configuration, persistent/shared rate-limit storage, deployment packaging and HTTPS termination must be addressed in the installation slice. Authentication cookies are HttpOnly, SameSite=Lax and Secure when the configured origin uses HTTPS. Membership is read afresh on every protected request.
 
-Next: slice 03 — inspect the same saved layout in linked Three.js views with orbit controls and an audience viewpoint, keeping precise top-down editing and geometry independent of rendering.
+Next: slice 04 — frozen A4 overhead construction-plan export — and slice 27 — administrator invitations and password recovery.
