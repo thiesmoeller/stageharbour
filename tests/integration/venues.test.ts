@@ -8,6 +8,7 @@ import { bootstrapAdministrator } from '../../src/server/identity/bootstrap.js';
 import { membership, workspace } from '../../src/server/db/schema.js';
 import { renderConstructionPlan } from '../../src/server/exports/pdf.js';
 import { millimetresPerUnit } from '../../src/shared/venue.js';
+import { newCableRoutingCorridor, newConnectionPoint } from '../../src/shared/infrastructure.js';
 import { type Scene } from '../../src/shared/layout.js';
 import { testAdministrator, testDatabase } from '../helpers/database.js';
 import { pngBytes, twoPagePdf } from '../helpers/references.js';
@@ -111,6 +112,56 @@ test('saves a measured outline and calibration that survive reload', async () =>
     method: 'PUT', url: `${scenes}/${scene.id}/venue`, headers,
     payload: { venue: { schemaVersion: 1, width: 8000, depth: 6000, outline: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 20, y: 0 }] } },
   })).statusCode, 400);
+});
+
+test('saves connection pins and corridors, freeze keeps them, later edits and other workspaces cannot change the snapshot', async () => {
+  const current = (await app.inject({ url: `${scenes}/${scene.id}`, headers })).json<Scene>();
+  const connectionPoints = [
+    { ...newConnectionPoint(randomUUID(), 'power', 2500, 1800), label: 'Lichtstrom', notes: '16A an der Bühnenkante' },
+    newConnectionPoint(randomUUID(), 'audio', 4100, 600),
+  ];
+  const cableRoutingCorridors = [
+    { ...newCableRoutingCorridor(randomUUID(), [{ x: 0, y: 1200 }, { x: 4000, y: 1200 }]), label: 'Seitenbühne', notes: 'am Boden' },
+  ];
+  const saved = await app.inject({
+    method: 'PUT', url: `${scenes}/${scene.id}/venue`, headers,
+    payload: { venue: { ...current.venue, connectionPoints, cableRoutingCorridors } },
+  });
+  assert.equal(saved.statusCode, 200, saved.body);
+  const loaded = (await app.inject({ url: `${scenes}/${scene.id}`, headers })).json<Scene>();
+  assert.deepEqual(loaded.venue.connectionPoints, connectionPoints);
+  assert.deepEqual(loaded.venue.cableRoutingCorridors, cableRoutingCorridors);
+  const frozen = await app.inject({ method: 'POST', url: `${scenes}/${scene.id}/exports`, headers, payload: { name: 'Mit Anschlüssen' } });
+  assert.equal(frozen.statusCode, 201, frozen.body);
+  const original = Buffer.from((await app.inject({ url: `${scenes}/${scene.id}/exports/${frozen.json().id}/file`, headers })).rawPayload);
+  assert.equal(original.subarray(0, 5).toString(), '%PDF-');
+  const shown = [...original.toString('latin1').matchAll(/<([0-9a-fA-F]+)>/g)]
+    .map(match => Buffer.from(match[1] ?? '', 'hex').toString('latin1')).join('');
+  assert(shown.includes('Lichtstrom'), shown);
+  const moved = connectionPoints.map((pin, index) => index ? pin : { ...pin, x: 100 });
+  assert.equal((await app.inject({
+    method: 'PUT', url: `${scenes}/${scene.id}/venue`, headers,
+    payload: { venue: { ...loaded.venue, connectionPoints: moved, cableRoutingCorridors: [] } },
+  })).statusCode, 200);
+  const again = Buffer.from((await app.inject({ url: `${scenes}/${scene.id}/exports/${frozen.json().id}/file`, headers })).rawPayload);
+  assert.deepEqual(again, original);
+  const after = (await app.inject({ url: `${scenes}/${scene.id}`, headers })).json<Scene>();
+  assert.equal(after.venue.connectionPoints?.[0]?.x, 100);
+  assert.deepEqual(after.venue.cableRoutingCorridors, []);
+  const foreignId = randomUUID();
+  await fixture.db.insert(workspace).values({ id: foreignId, name: 'Fremde Spielstätte' });
+  const [member] = await fixture.db.select().from(membership);
+  await fixture.db.insert(membership).values({ workspaceId: foreignId, userId: member!.userId, role: 'editor' });
+  assert.equal((await app.inject({
+    method: 'PUT', url: `/api/workspaces/${foreignId}/scenes/${scene.id}/venue`, headers,
+    payload: { venue: { schemaVersion: 1, width: 8000, depth: 6000, connectionPoints, cableRoutingCorridors } },
+  })).statusCode, 404);
+  await fixture.db.update(membership).set({ role: 'viewer' }).where(eq(membership.workspaceId, fixture.config.WORKSPACE_ID));
+  assert.equal((await app.inject({
+    method: 'PUT', url: `${scenes}/${scene.id}/venue`, headers,
+    payload: { venue: { ...after.venue, connectionPoints, cableRoutingCorridors } },
+  })).statusCode, 403);
+  await fixture.db.update(membership).set({ role: 'administrator' }).where(eq(membership.workspaceId, fixture.config.WORKSPACE_ID));
 });
 
 test('frozen exports keep the measured outline and can still fetch the referenced source after later venue edits', async () => {

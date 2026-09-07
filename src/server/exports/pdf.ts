@@ -39,6 +39,24 @@ export function renderConstructionPlan(snapshot: ConstructionSnapshot) {
       doc.lineTo(mapped.x, mapped.y);
     }
     doc.closePath().lineWidth(0.8).stroke('#718469');
+    for (const corridor of snapshot.venue.cableRoutingCorridors ?? []) {
+      const start = toPage(corridor.path[0]!.x, corridor.path[0]!.y);
+      doc.moveTo(start.x, start.y);
+      for (const point of corridor.path.slice(1)) {
+        const mapped = toPage(point.x, point.y);
+        doc.lineTo(mapped.x, mapped.y);
+      }
+      doc.lineWidth(0.6).dash(2, { space: 2 }).stroke('#5a6e8a');
+      doc.undash();
+      const mid = corridor.path[Math.floor(corridor.path.length / 2)] ?? corridor.path[0]!;
+      const label = toPage(mid.x, mid.y);
+      doc.fontSize(7).fillColor('#395640').text(corridor.label, label.x + mm(2), label.y - mm(2), { lineBreak: false });
+    }
+    for (const pin of snapshot.venue.connectionPoints ?? []) {
+      const at = toPage(pin.x, pin.y);
+      doc.circle(at.x, at.y, mm(1.5)).lineWidth(0.6).fillAndStroke('#d9c6a1', '#986122');
+      doc.fontSize(7).fillColor('#395640').text(pin.label, at.x + mm(2), at.y - mm(2), { lineBreak: false });
+    }
     const front = toPage(snapshot.venue.width / 2, 0);
     doc.fontSize(9).fillColor('#395640').text('↑ Publikum · Blick zur Bühne', front.x - mm(30), front.y + mm(6), { lineBreak: false });
     doc.fontSize(8).text(`${snapshot.venue.width} mm`, front.x - mm(10), front.y + mm(12), { lineBreak: false });
