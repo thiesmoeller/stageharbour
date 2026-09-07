@@ -63,4 +63,30 @@ test('export a named frozen construction plan and download it from history', asy
   const a3Bytes = readFileSync(await a3Download.path() as string);
   expect(a3Bytes.subarray(0, 5).toString()).toBe('%PDF-');
   expect(a3Bytes.toString('latin1')).toMatch(/\/MediaBox \[0 0 841\.89 1190\.55\]/);
+  await page.getByRole('button', { name: 'Wand hinzufügen' }).click();
+  await waitUntilSaved(page);
+  await page.getByLabel('Auswahl').selectOption({ label: '1. Wand' });
+  await page.locator('[data-testid^="wall-"]').nth(1).click({ modifiers: ['Shift'] });
+  await page.getByRole('button', { name: 'Gruppieren' }).click();
+  await waitUntilSaved(page);
+  await page.getByRole('checkbox', { name: /Gruppe 1/ }).check();
+  await page.getByLabel('Bezeichnung der Fassung').fill('Ansichtsexport');
+  await page.getByLabel('Papierformat').selectOption('A4');
+  await page.getByLabel('Maßstab').selectOption('50');
+  await page.getByRole('button', { name: 'Als Konstruktionsplan exportieren' }).click();
+  await expect(page.getByRole('listitem').filter({ hasText: 'Ansichtsexport' })).toContainText('Fertig');
+  await expect(page.getByRole('listitem').filter({ hasText: 'Probeexport' })).toContainText('A4');
+  await expect(page.getByRole('listitem').filter({ hasText: 'Probeexport' })).toContainText('1:50');
+  const [elevationDownload] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('listitem').filter({ hasText: 'Ansichtsexport' }).getByRole('button', { name: 'Herunterladen' }).click(),
+  ]);
+  const elevationBytes = readFileSync(await elevationDownload.path() as string);
+  expect(elevationBytes.subarray(0, 5).toString()).toBe('%PDF-');
+  const elevationText = [...elevationBytes.toString('latin1').matchAll(/<([0-9a-fA-F]+)>/g)]
+    .map(match => Buffer.from(match[1] ?? '', 'hex').toString('latin1')).join('');
+  expect(elevationText).toContain('Frontansicht');
+  expect(elevationText).toContain('Ansicht 0°');
+  expect(elevationText).toContain('Maßstab 1:50');
+  expect(elevationBytes.toString('latin1')).toMatch(/\/MediaBox \[0 0 595\.28 841\.89\]/);
 });

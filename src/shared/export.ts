@@ -19,6 +19,7 @@ export const drawingScaleSchema = z.union([z.literal(25), z.literal(50), z.liter
 export const exportStatusSchema = z.enum(['pending', 'ready', 'failed']);
 export const freezeExportSchema = z.strictObject({
   name, paper: paperSizeSchema.optional().default('A4'), scale: drawingScaleSchema.optional().default(DRAWING_SCALE),
+  elevationGroupIds: z.array(z.uuid()).max(250).optional().default([]),
 });
 export const constructionSnapshotSchema = z.strictObject({
   schemaVersion: z.literal(1),
@@ -31,6 +32,7 @@ export const constructionSnapshotSchema = z.strictObject({
   venueVersionId: z.uuid(),
   venue: venueGeometrySchema,
   layout: layoutSchema,
+  elevationGroupIds: z.array(z.uuid()).max(250).default([]),
   resolvedWalls: z.array(z.strictObject({
     id: z.uuid(), label: name,
     assemblyNumber: z.number().int().positive().max(250).optional(),
@@ -65,16 +67,18 @@ export const exportListSchema = z.array(exportRevisionSchema);
 
 export function freezeSnapshot(
   scene: Scene,
-  revision: { id: string; name: string; issuedAt: Date; paper?: PaperSize; scale?: DrawingScale },
+  revision: { id: string; name: string; issuedAt: Date; paper?: PaperSize; scale?: DrawingScale; elevationGroupIds?: string[] },
   panelLabels: Readonly<Record<string, string>> = {},
 ): ConstructionSnapshot {
   const venue = structuredClone(scene.venue);
   const layout = structuredClone(scene.layout);
+  const knownGroups = new Set((layout.groups ?? []).map(group => group.id));
+  const elevationGroupIds = [...new Set(revision.elevationGroupIds ?? [])].filter(id => knownGroups.has(id));
   return {
     schemaVersion: 1, paper: revision.paper ?? 'A4', scale: revision.scale ?? DRAWING_SCALE,
     revisionId: revision.id, revisionName: revision.name, issuedAt: revision.issuedAt.toISOString(),
     productionName: scene.productionName, venueName: scene.venueName, sceneName: scene.name,
-    venueVersionId: scene.venueVersionId, venue, layout,
+    venueVersionId: scene.venueVersionId, venue, layout, elevationGroupIds,
     warnings: overheadClearance(layout, venue),
     resolvedWalls: scene.layout.walls.map(wall => {
       const resolved = resolveWall(wall, scene.layout.wallTypes ?? []);

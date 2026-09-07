@@ -1,10 +1,14 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { exportListSchema, germanDate, type ExportRevision } from '../../shared/export.js';
+import { ELEVATION_PROJECTION_NOTICE } from '../../shared/elevations.js';
+import type { Group } from '../../shared/groups.js';
+import type { Wall } from '../../shared/layout.js';
 import { ApiError, request } from '../api.js';
 
 const statusText = { pending: 'In Arbeit', ready: 'Fertig', failed: 'Fehlgeschlagen' };
-export function ExportPanel({ workspaceId, sceneId, readOnly, freezeDisabled }: {
+export function ExportPanel({ workspaceId, sceneId, readOnly, freezeDisabled, groups, walls }: {
   workspaceId: string; sceneId: string; readOnly: boolean; freezeDisabled: boolean;
+  groups: Group[]; walls: Wall[];
 }) {
   const base = `/api/workspaces/${workspaceId}/scenes/${sceneId}/exports`;
   const [items, setItems] = useState<ExportRevision[]>([]);
@@ -24,7 +28,10 @@ export function ExportPanel({ workspaceId, sceneId, readOnly, freezeDisabled }: 
     if (!name) return;
     setBusy(true); setError('');
     try {
-      await request(base, { name, paper: data.get('paper'), scale: Number(data.get('scale')) });
+      await request(base, {
+        name, paper: data.get('paper'), scale: Number(data.get('scale')),
+        elevationGroupIds: data.getAll('elevationGroupIds'),
+      });
       (event.target as HTMLFormElement).reset();
       load();
     } catch { setError('Der Konstruktionsplan konnte nicht erzeugt werden.'); setBusy(false); }
@@ -47,7 +54,7 @@ export function ExportPanel({ workspaceId, sceneId, readOnly, freezeDisabled }: 
   }
   return <section className="export-panel" aria-label="Konstruktionsplan">
     <h3>Konstruktionsplan</h3>
-    <p className="muted">A4 oder A3, Maßstab 1:25, 1:50 oder 1:100. Größere Spielstätten werden mit 20 mm Überlappung auf mehrere Blätter verteilt. Die Fassung sichert den gespeicherten Stand; spätere Änderungen ändern sie nicht.</p>
+    <p className="muted">A4 oder A3, Maßstab 1:25, 1:50 oder 1:100. Größere Spielstätten werden mit 20 mm Überlappung auf mehrere Blätter verteilt. Gewählte Wandgruppen erhalten bemaßte Frontansichten. {ELEVATION_PROJECTION_NOTICE} Die Fassung sichert den gespeicherten Stand; spätere Änderungen ändern sie nicht.</p>
     {!readOnly && <form onSubmit={event => void freeze(event)}><fieldset disabled={busy || freezeDisabled}>
       <label htmlFor="export-name">Bezeichnung der Fassung</label>
       <input id="export-name" name="name" required maxLength={120} />
@@ -62,6 +69,17 @@ export function ExportPanel({ workspaceId, sceneId, readOnly, freezeDisabled }: 
         <option value="50">1:50</option>
         <option value="100">1:100</option>
       </select>
+      {groups.length > 0 && <div className="elevation-groups">
+        <p>Frontansichten für gewählte Gruppen</p>
+        {groups.map((group, index) => {
+          const labels = group.members.filter(member => member.kind === 'wall')
+            .map(member => walls.find(wall => wall.id === member.id)?.label ?? 'Wand');
+          return <label key={group.id} htmlFor={`elevation-group-${group.id}`}>
+            <input id={`elevation-group-${group.id}`} type="checkbox" name="elevationGroupIds" value={group.id} />
+            {`Gruppe ${index + 1} · ${labels.join(', ')}`}
+          </label>;
+        })}
+      </div>}
       <button type="submit">Als Konstruktionsplan exportieren</button>
     </fieldset></form>}
     {error && <p className="error" role="alert">{error}</p>}
