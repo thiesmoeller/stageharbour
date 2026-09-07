@@ -157,13 +157,25 @@ export function Plans({ me, onDirty }: { me: Me; onDirty: (value: boolean) => vo
       setInstantiating(undefined); setAttempt(value => value + 1);
     } catch { setError('Die Szenenvorlage konnte nicht in die Produktion eingefügt werden.'); setBusy(false); }
   }
+  async function applyVenue(id: string) {
+    setBusy(true); setError('');
+    try {
+      await request(`${base}/${id}/lease`, {});
+      try { await request(`${base}/${id}/venue-apply`, {}); }
+      finally { await request(`${base}/${id}/lease/release`, {}).catch(() => {}); }
+      setAttempt(value => value + 1);
+    } catch { setError('Die Spielstättenfassung konnte nicht übernommen werden.'); setBusy(false); }
+  }
   function leave() {
     if (opened?.holdsLease) void request(`${base}/${opened.scene.id}/lease/release`, {}).catch(() => {});
     setOpened(undefined); setAttempt(value => value + 1);
   }
   const productions = uniqueBy(scenes, scene => scene.productionId);
-  const venues = uniqueBy(scenes, scene => scene.venueVersionId);
   const destVenue = copying?.destVenue ?? instantiating?.destVenue;
+  const venues = uniqueBy(
+    [...scenes].sort((a, b) => Number(!!a.venueUpdateAvailable) - Number(!!b.venueUpdateAvailable)),
+    scene => scene.venueId,
+  );
   const destSurfaces = [
     { id: AUDIENCE_FLOOR_ID, label: 'Zuschauerboden' },
     ...(destVenue?.platforms ?? []).map(platform => ({ id: platform.id, label: platform.label })),
@@ -248,8 +260,9 @@ export function Plans({ me, onDirty }: { me: Me; onDirty: (value: boolean) => vo
     <div className="scene-list">{scenes.map(scene => <div className="scene-card" key={scene.id}>
       <button className="quiet scene-open" onClick={() => void open(scene.id)} disabled={busy}>
         <strong>{scene.productionName} · {scene.name}</strong>
-        <span>{scene.venueName}{scene.lease ? ` · Bearbeitung durch ${scene.lease.holderName}` : ''} →</span>
+        <span>{scene.venueName}{scene.venueUpdateAvailable ? ' · Aktualisierung verfügbar' : ''}{scene.lease ? ` · Bearbeitung durch ${scene.lease.holderName}` : ''} →</span>
       </button>
+      {!readOnly && scene.venueUpdateAvailable && <button className="quiet" type="button" onClick={() => void applyVenue(scene.id)} disabled={busy}>Spielstättenfassung übernehmen</button>}
       {!readOnly && <button className="quiet" type="button" onClick={() => void duplicate(scene.id)} disabled={busy}>Szene duplizieren</button>}
       {!readOnly && <button className="quiet" type="button" onClick={() => void startCopy(scene.id)} disabled={busy}>In andere Spielstätte kopieren</button>}
       {!readOnly && <button className="quiet" type="button" onClick={() => { dismissForms(); setCapturing({ id: scene.id, name: scene.name }); }} disabled={busy}>Als Szenenvorlage speichern</button>}

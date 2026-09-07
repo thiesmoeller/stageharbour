@@ -122,10 +122,11 @@ test('instantiating a template into a production uses the destination venue and 
     method: 'PUT', url: `${scenes}/${dest.id}/venue`, headers,
     payload: { venue: { ...dest.venue, ceilingHeight: 2000, keepClearZones: [zone], overheadBoxes: [box] } },
   })).statusCode, 200);
+  const destPinned = (await app.inject({ url: `${scenes}/${dest.id}`, headers })).json<Scene>();
   const [template] = (await app.inject({ url: templates, headers })).json<Array<{ id: string }>>();
   const instantiated = await app.inject({
     method: 'POST', url: `${templates}/${template!.id}/instantiate`, headers,
-    payload: { productionId: dest.productionId, venueVersionId: dest.venueVersionId, sceneName: 'Aus Vorlage' },
+    payload: { productionId: dest.productionId, venueVersionId: destPinned.venueVersionId, sceneName: 'Aus Vorlage' },
   });
   assert.equal(instantiated.statusCode, 201, instantiated.body);
   const copy = instantiated.json<Scene>();
@@ -133,7 +134,7 @@ test('instantiating a template into a production uses the destination venue and 
   assert.equal(copy.productionName, 'Gastspiel');
   assert.equal(copy.venueName, 'Stadthalle');
   assert.equal(copy.productionId, dest.productionId);
-  assert.equal(copy.venueVersionId, dest.venueVersionId);
+  assert.equal(copy.venueVersionId, destPinned.venueVersionId);
   assert.equal(copy.name, 'Aus Vorlage');
   assert.equal(copy.revision, 0);
   assert.equal(copy.lease, null);

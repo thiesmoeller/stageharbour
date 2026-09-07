@@ -46,6 +46,13 @@ export class Autosave {
     clearTimeout(this.timer);
     this.publish('conflict', JSON.stringify(this.latest) !== this.saved, this.state.revision, kind);
   }
+  adopt(layout: Layout, revision: number) {
+    clearTimeout(this.timer);
+    this.latest = structuredClone(layout);
+    this.saved = JSON.stringify(layout);
+    this.inFlight = false;
+    this.publish('saved', false, revision);
+  }
   private async flush() {
     if (this.inFlight || this.state.status === 'conflict') return;
     const layout = structuredClone(this.latest);

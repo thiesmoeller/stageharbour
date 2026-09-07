@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -25,7 +25,8 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
     return db.select({
       id: scene.id, name: scene.name, productionName: production.name, venueName: venue.name,
       productionId: production.id, venueId: venue.id, revision: scene.revision,
-      venueVersionId: venueVersion.id, venue: venueVersion.geometry, layout: scene.layout,
+      venueVersionId: venueVersion.id, pinnedCreatedAt: venueVersion.createdAt,
+      venue: venueVersion.geometry, layout: scene.layout,
     })
       .from(scene).innerJoin(adaptation, eq(scene.adaptationId, adaptation.id))
       .innerJoin(production, eq(adaptation.productionId, production.id))
@@ -41,6 +42,26 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
       .where(and(eq(sceneTemplate.workspaceId, workspaceId), templateId ? eq(sceneTemplate.id, templateId) : undefined))
       .orderBy(sceneTemplate.name);
   }
+  async function withVenueUpdate<T extends { venueId: string; pinnedCreatedAt: Date }>(workspaceId: string, records: T[]) {
+    if (!records.length) return [];
+    const latest = await db.select({
+      venueId: venueVersion.venueId,
+      createdAt: sql<string>`max(${venueVersion.createdAt})`.as('createdAt'),
+    }).from(venueVersion)
+      .where(and(
+        eq(venueVersion.workspaceId, workspaceId),
+        inArray(venueVersion.venueId, [...new Set(records.map(record => record.venueId))]),
+      ))
+      .groupBy(venueVersion.venueId);
+    const newest = new Map(latest.map(row => [row.venueId, new Date(row.createdAt).getTime()]));
+    return records.map(({ pinnedCreatedAt, ...record }) => ({
+      ...record,
+      venueUpdateAvailable: (newest.get(record.venueId) ?? 0) > pinnedCreatedAt.getTime(),
+    }));
+  }
+  async function loadScenes(workspaceId: string, sceneId?: string) {
+    return withVenueUpdate(workspaceId, await readScenes(workspaceId, sceneId));
+  }
   async function withLease<T extends { id: string }>(workspaceId: string, record: T) {
     return { ...record, lease: await leases.read(workspaceId, 'scene', record.id) };
   }
@@ -51,11 +72,11 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
   api.get(path, { schema: { params: workspaceParamsSchema, response: { 200: sceneListSchema, ...errors } } }, async request => {
     await access(request, request.params.workspaceId);
     const holders = await leases.holders(request.params.workspaceId, 'scene');
-    return (await readScenes(request.params.workspaceId)).map(record => ({ ...record, lease: holders.get(record.id) ?? null }));
+    return (await loadScenes(request.params.workspaceId)).map(record => ({ ...record, lease: holders.get(record.id) ?? null }));
   });
   api.get(`${path}/:sceneId`, { schema: { params, response: { 200: sceneSchema, ...errors } } }, async request => {
     await access(request, request.params.workspaceId);
-    const [record] = await readScenes(request.params.workspaceId, request.params.sceneId);
+    const [record] = await loadScenes(request.params.workspaceId, request.params.sceneId);
     if (!record) throw new AccessError(404, 'Szene nicht verfügbar.');
     return withLease(request.params.workspaceId, record);
   });
@@ -71,7 +92,7 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
       await tx.insert(adaptation).values({ id: ids.adaptation, workspaceId, productionId: ids.production, venueVersionId: ids.version });
       await tx.insert(scene).values({ id: ids.scene, workspaceId, adaptationId: ids.adaptation, name: input.sceneName, layout: { schemaVersion: 1, walls: [], braces: [] } });
     });
-    const [record] = await readScenes(workspaceId, ids.scene);
+    const [record] = await loadScenes(workspaceId, ids.scene);
     return reply.code(201).send({ ...record!, lease: null });
   });
   // Duplicating reads the source without acquiring its lease: the source is only
@@ -90,7 +111,7 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
       name: request.body.sceneName ?? copiedSceneName(existing.name),
       layout: duplicateLayout(existing.layout, randomUUID),
     });
-    const [record] = await readScenes(workspaceId, copyId);
+    const [record] = await loadScenes(workspaceId, copyId);
     return reply.code(201).send({ ...record!, lease: null });
   });
   // Copying reads the source without acquiring its lease: the source is only
@@ -110,14 +131,18 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
       const [destProduction] = await tx.select({ id: production.id }).from(production)
         .where(and(eq(production.workspaceId, workspaceId), eq(production.id, request.body.productionId)));
       if (!destProduction) throw new AccessError(404, 'Produktion nicht verfügbar.');
-      const [destVersion] = await tx.select({ id: venueVersion.id, geometry: venueVersion.geometry }).from(venueVersion)
+      const [destVersion] = await tx.select({
+        id: venueVersion.id, venueId: venueVersion.venueId, geometry: venueVersion.geometry,
+      }).from(venueVersion)
         .where(and(eq(venueVersion.workspaceId, workspaceId), eq(venueVersion.id, request.body.venueVersionId)));
       if (!destVersion) throw new AccessError(404, 'Spielstätte nicht verfügbar.');
-      const [existingAdaptation] = await tx.select({ id: adaptation.id }).from(adaptation).where(and(
-        eq(adaptation.workspaceId, workspaceId),
-        eq(adaptation.productionId, destProduction.id),
-        eq(adaptation.venueVersionId, destVersion.id),
-      ));
+      const [existingAdaptation] = await tx.select({ id: adaptation.id }).from(adaptation)
+        .innerJoin(venueVersion, eq(adaptation.venueVersionId, venueVersion.id))
+        .where(and(
+          eq(adaptation.workspaceId, workspaceId),
+          eq(adaptation.productionId, destProduction.id),
+          eq(venueVersion.venueId, destVersion.venueId),
+        ));
       const adaptationId = existingAdaptation?.id ?? randomUUID();
       if (!existingAdaptation) {
         await tx.insert(adaptation).values({
@@ -132,7 +157,7 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
         ).layout,
       });
     });
-    const [record] = await readScenes(workspaceId, copyId);
+    const [record] = await loadScenes(workspaceId, copyId);
     return reply.code(201).send({ ...record!, lease: null });
   });
   // Capturing reads the source without acquiring its lease: the source is only
@@ -195,12 +220,12 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
         ).layout,
       });
     });
-    const [record] = await readScenes(workspaceId, copyId);
+    const [record] = await loadScenes(workspaceId, copyId);
     return reply.code(201).send({ ...record!, lease: null });
   });
   api.post(`${path}/:sceneId/lease`, { schema: { params, response: { 200: leaseHolderSchema, ...errors } } }, async request => {
     const { user } = await requireEditor(request, request.params.workspaceId);
-    const [record] = await readScenes(request.params.workspaceId, request.params.sceneId);
+    const [record] = await loadScenes(request.params.workspaceId, request.params.sceneId);
     if (!record) throw new AccessError(404, 'Szene nicht verfügbar.');
     const result = await leases.acquire(request.params.workspaceId, 'scene', request.params.sceneId, { id: user.id, name: user.name });
     if (!result.acquired) throw new LeaseError(423, `Wird bereits von ${result.lease.holderName} bearbeitet.`);

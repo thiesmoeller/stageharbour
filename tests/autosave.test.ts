@@ -56,3 +56,12 @@ test('failed saves retain the latest draft and retry; conflicts never automatica
   assert.equal(lost.getSnapshot().status, 'conflict');
   lost.dispose();
 });
+test('adopting a saved venue apply replaces the draft without queueing another save', () => {
+  const saver = new Autosave(empty, 4, async () => 5, 0);
+  saver.queue(placed);
+  saver.adopt(placed, 6);
+  assert.equal(saver.getSnapshot().status, 'saved');
+  assert.equal(saver.getSnapshot().dirty, false);
+  assert.equal(saver.getSnapshot().revision, 6);
+  saver.dispose();
+});

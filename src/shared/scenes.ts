@@ -136,6 +136,34 @@ export function captureTemplateLayout(layout: Layout): Layout {
   return structuredClone(layout);
 }
 
+/**
+ * Same-venue pin update. Placement ids, panel assignments and rigging stay;
+ * support that no longer exists on the destination venue is cleared so
+ * `layoutDiagnostics` reports a missing surface. Overhead and keep-clear are
+ * recomputed against the destination. The source layout is only read.
+ */
+export function applyVenueVersion(layout: Layout, destination: VenueGeometry): AdaptedLayout {
+  const layoutPlatforms = new Set((layout.platforms ?? []).map(platform => platform.id));
+  const venueSurfaces = new Set((destination.platforms ?? []).map(platform => platform.id));
+  function mappedSupport(id: string | undefined) {
+    if (!id) return undefined;
+    if (layoutPlatforms.has(id) || venueSurfaces.has(id) || id === AUDIENCE_FLOOR_ID) return id;
+    return undefined;
+  }
+  const adapted: Layout = {
+    ...layout,
+    walls: layout.walls.map(wall => ({ ...wall, supportingSurfaceId: mappedSupport(wall.supportingSurfaceId) })),
+    braces: layout.braces.map(brace => ({ ...brace, supportingSurfaceId: mappedSupport(brace.supportingSurfaceId) })),
+    placeholders: layout.placeholders?.map(item => ({ ...item, supportingSurfaceId: mappedSupport(item.supportingSurfaceId) })),
+  };
+  return {
+    layout: adapted,
+    unresolvedSupport: layoutDiagnostics(adapted, destination),
+    warnings: overheadClearance(adapted, destination),
+    unresolvedWarnings: keepClearWarnings(destination, adapted),
+  };
+}
+
 /** A remount unscrews hinges; pin changes stay in `riggingNotes` on the same setup. */
 export function remountRigging(layout: Layout, nextId: () => string): Layout {
   return { ...layout, riggingSetupId: nextId() };

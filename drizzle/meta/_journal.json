@@ -61,6 +61,13 @@
     {
       "idx": 8,
       "version": "7",
+      "when": 1788820000008,
+      "tag": "0008_venue_version_created",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
       "when": 1788820466092,
       "tag": "0009_steady_avengers",
       "breakpoints": true

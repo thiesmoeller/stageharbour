@@ -1,10 +1,10 @@
 import { z } from 'zod';
 import { leaseHolderSchema } from './leases.js';
-import { AUDIENCE_FLOOR_ID, platformSchema, stairSchema, uniqueLevelIds } from './levels.js';
+import { AUDIENCE_FLOOR_ID, placementDiagnosticSchema, platformSchema, stairSchema, uniqueLevelIds } from './levels.js';
 import { type Opening, wallTypeSchema } from './wall-types.js';
 import { cableRoutingCorridorsSchema, connectionPointsSchema } from './infrastructure.js';
-import { ceilingHeightSchema, overheadBoxesSchema } from './overhead.js';
-import { keepClearZonesSchema } from './keepClear.js';
+import { ceilingHeightSchema, overheadBoxesSchema, overheadWarningSchema } from './overhead.js';
+import { keepClearWarningSchema, keepClearZonesSchema } from './keepClear.js';
 import { stageCentrelineSchema } from './snapping.js';
 import { venueOutlineSchema, venueTraceSchema } from './venue.js';
 import { panelConnectionSchema } from './assembly.js';
@@ -81,6 +81,10 @@ export const venueGeometrySchema = z.strictObject({
 }).refine(venue => uniqueLevelIds(venue.platforms ?? [], venue.stairs ?? []), 'Platform and stair IDs must be unique');
 export type VenueGeometry = z.infer<typeof venueGeometrySchema>;
 export const saveVenueSchema = z.strictObject({ venue: venueGeometrySchema });
+export const saveVenueResultSchema = z.strictObject({
+  venue: venueGeometrySchema, venueVersionId: z.uuid(),
+  layout: layoutSchema, revision: z.number().int().nonnegative(),
+});
 export const createSceneSchema = z.strictObject({
   productionName: name, venueName: name, sceneName: name,
   width: dimension, depth: dimension,
@@ -105,6 +109,7 @@ export const sceneTemplateListSchema = z.array(sceneTemplateSummarySchema);
 export const sceneSummarySchema = z.object({
   id: z.uuid(), name, productionName: name, venueName: name,
   productionId: z.uuid(), venueId: z.uuid(), venueVersionId: z.uuid(),
+  venueUpdateAvailable: z.boolean().optional(),
   lease: leaseHolderSchema.nullable(),
 });
 export const sceneSchema = sceneSummarySchema.extend({
@@ -115,6 +120,11 @@ export const sceneSchema = sceneSummarySchema.extend({
 export type Scene = z.infer<typeof sceneSchema>;
 export const sceneListSchema = z.array(sceneSummarySchema);
 export const saveLayoutSchema = z.strictObject({ revision: z.number().int().nonnegative(), layout: layoutSchema });
+export const applyVenueResultSchema = sceneSchema.extend({
+  unresolvedSupport: z.array(placementDiagnosticSchema),
+  warnings: z.array(z.union([overheadWarningSchema, keepClearWarningSchema])),
+  unresolvedWarnings: z.array(keepClearWarningSchema),
+});
 
 export function newWall(id: string, x: number, y: number): Wall {
   return { id, label: 'Wand', x, y, rotation: 0, width: 1200, height: 2400, thickness: 28, supportingSurfaceId: AUDIENCE_FLOOR_ID };

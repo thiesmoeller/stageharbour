@@ -155,9 +155,10 @@ test('copying a scene into another production uses the destination venue and cle
     method: 'PUT', url: `${base}/${dest.id}/venue`, headers,
     payload: { venue: { ...dest.venue, ceilingHeight: 2000, keepClearZones: [zone], overheadBoxes: [box] } },
   })).statusCode, 200);
+  const destPinned = (await app.inject({ url: `${base}/${dest.id}`, headers })).json<Scene>();
   const copied = await app.inject({
     method: 'POST', url: `${base}/${source.id}/copy`, headers,
-    payload: { productionId: dest.productionId, venueVersionId: dest.venueVersionId },
+    payload: { productionId: dest.productionId, venueVersionId: destPinned.venueVersionId },
   });
   assert.equal(copied.statusCode, 201, copied.body);
   const copy = copied.json<Scene>();
@@ -166,7 +167,7 @@ test('copying a scene into another production uses the destination venue and cle
   assert.equal(copy.productionName, 'Gastspiel');
   assert.equal(copy.venueName, 'Stadthalle');
   assert.equal(copy.productionId, dest.productionId);
-  assert.equal(copy.venueVersionId, dest.venueVersionId);
+  assert.equal(copy.venueVersionId, destPinned.venueVersionId);
   assert.equal(copy.lease, null);
   assert.equal(copy.layout.walls[0]?.panelId, undefined);
   assert.equal(copy.layout.walls[0]?.x, 1000);

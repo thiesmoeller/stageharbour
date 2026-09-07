@@ -454,6 +454,39 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByLabel('Auswahl').selectOption({ label: '1. Wand' });
   await expect(page.getByText('Zugewiesen: Beispiel-P01')).toHaveCount(0);
   await expect(page.getByLabel('Platte zuweisen')).toHaveValue('');
+
+  await page.getByRole('button', { name: 'Zur Übersicht' }).click();
+  await expect(page.getByRole('heading', { name: 'Bühnenbilder' })).toBeVisible();
+  const copiedReturn = page.waitForResponse(response => response.url().includes('/copy') && response.request().method() === 'POST');
+  await page.getByRole('button', { name: /Beispielproduktion · Erste Szene Beispielsaal/ })
+    .locator('xpath=ancestor::div[contains(@class,"scene-card")]')
+    .getByRole('button', { name: 'In andere Spielstätte kopieren' }).click();
+  await page.getByLabel('Zielproduktion').selectOption({ label: 'Gastspiel' });
+  await page.getByLabel('Zielspielstätte').selectOption({ label: 'Beispielsaal' });
+  await page.getByRole('textbox', { name: 'Szene' }).fill('Rückkehr');
+  await page.getByRole('button', { name: 'Als Spielstättenanpassung anlegen' }).click();
+  expect((await copiedReturn).ok()).toBeTruthy();
+  await expect(page.getByRole('button', { name: /Gastspiel · Rückkehr/ })).toBeVisible();
+  await page.getByRole('button', { name: /Beispielproduktion · Erste Szene Beispielsaal/ }).click();
+  await expect(page.getByRole('heading', { name: 'Erste Szene', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Spielstätte' }).click();
+  await page.getByLabel('Deckenhöhe über Fußboden (mm)').fill('1800');
+  const savedCeiling = page.waitForResponse(response => /\/scenes\/[^/]+\/venue$/.test(new URL(response.url()).pathname) && response.request().method() === 'PUT');
+  await page.getByRole('button', { name: 'Spielstätte speichern' }).click();
+  expect((await savedCeiling).ok()).toBeTruthy();
+  await page.getByRole('button', { name: 'Zur Übersicht' }).click();
+  await expect(page.getByRole('heading', { name: 'Bühnenbilder' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Gastspiel · Rückkehr/ })).toContainText('Aktualisierung verfügbar');
+  await expect(page.getByRole('button', { name: /Beispielproduktion · Erste Szene Beispielsaal/ })).not.toContainText('Aktualisierung verfügbar');
+  const appliedVenue = page.waitForResponse(response => response.url().includes('/venue-apply') && response.request().method() === 'POST');
+  await page.getByRole('button', { name: /Gastspiel · Rückkehr/ })
+    .locator('xpath=ancestor::div[contains(@class,"scene-card")]')
+    .getByRole('button', { name: 'Spielstättenfassung übernehmen' }).click();
+  expect((await appliedVenue).ok()).toBeTruthy();
+  await expect(page.getByRole('button', { name: /Gastspiel · Rückkehr/ })).not.toContainText('Aktualisierung verfügbar');
+  await page.getByRole('button', { name: /Gastspiel · Rückkehr/ }).click();
+  await expect(page.getByRole('heading', { name: 'Rückkehr' })).toBeVisible();
+  await expect(page.getByTestId('overhead-warning').first()).toContainText('1800');
   expect(errors).toEqual([]);
 });
 

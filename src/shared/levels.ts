@@ -31,7 +31,11 @@ export const stairSchema = z.strictObject({
 export type StairUnit = z.infer<typeof stairSchema>;
 export type SupportingSurface = { id: string; label: string; outline: PlanPoint[]; elevation: number };
 export type PlacementKind = 'missing-surface' | 'unknown-surface' | 'ambiguous-edge';
-export type PlacementDiagnostic = { objectId: string; kind: PlacementKind; message: string };
+export const placementDiagnosticSchema = z.strictObject({
+  objectId: z.uuid(), kind: z.enum(['missing-surface', 'unknown-surface', 'ambiguous-edge']),
+  message: z.string().trim().min(1).max(500),
+});
+export type PlacementDiagnostic = z.infer<typeof placementDiagnosticSchema>;
 
 export function newPlatform(id: string, x: number, y: number): Platform {
   const hx = EXAMPLE_PLATFORM_WIDTH / 2, hy = EXAMPLE_PLATFORM_DEPTH / 2;

@@ -189,7 +189,7 @@ test('saves a ceiling and overhead boxes, PUT of a conflicting wall succeeds wit
   const pinned = (await app.inject({ url: `${base}/${created.id}`, headers })).json<Scene>();
   assert.equal(pinned.venue.ceilingHeight, 2500);
   assert.equal(pinned.venue.overheadBoxes?.[0]?.bottomHeight, 2600);
-  assert.equal(pinned.venueVersionId, loaded.venueVersionId);
+  assert.notEqual(pinned.venueVersionId, loaded.venueVersionId);
   const wall = { ...newWall(randomUUID(), 4000, 4750), supportingSurfaceId: platform.id };
   const saved = await app.inject({
     method: 'PUT', url: `${base}/${created.id}/layout`, headers,
