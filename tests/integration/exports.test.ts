@@ -57,6 +57,7 @@ test('freeze stores a named revision whose PDF stays unchanged after later layou
   assert.equal(revision.name, 'Erste Fassung');
   assert.equal(revision.status, 'ready');
   assert.equal(revision.scale, 50);
+  assert.equal(revision.paper, 'A4');
   readyId = revision.id;
   const file = await app.inject({ url: `${base}/${scene.id}/exports/${revision.id}/file`, headers });
   assert.equal(file.statusCode, 200, file.body);
@@ -170,6 +171,74 @@ test('freeze then later assembly edits do not change stored snapshot labels or n
   assert(laterText.includes('Position 9'), laterText);
   assert(laterText.includes('Geändert nach dem Export.'), laterText);
   assert(!laterText.includes('Stifte an Position 1 belassen.'), laterText);
+});
+
+test('freeze with paper and scale stores them and later layout edits keep the same pagination', async () => {
+  const created = await app.inject({ method: 'POST', url: base, headers, payload: { ...input, sceneName: 'Kachelszene', width: 20000, depth: 6000 } });
+  assert.equal(created.statusCode, 201, created.body);
+  const sceneId = created.json().id as string;
+  const left = newWall(randomUUID(), 2000, 3000);
+  const right = newWall(randomUUID(), 18000, 3000);
+  assert.equal((await app.inject({ method: 'POST', url: `${base}/${sceneId}/lease`, headers })).statusCode, 200);
+  assert.equal((await app.inject({
+    method: 'PUT', url: `${base}/${sceneId}/layout`, headers,
+    payload: { revision: 0, layout: { schemaVersion: 1, walls: [left, right] } },
+  })).statusCode, 200);
+  const tiled = await app.inject({
+    method: 'POST', url: `${base}/${sceneId}/exports`, headers,
+    payload: { name: 'A4-Kachel', paper: 'A4', scale: 50 },
+  });
+  assert.equal(tiled.statusCode, 201, tiled.body);
+  assert.equal(tiled.json().paper, 'A4');
+  assert.equal(tiled.json().scale, 50);
+  const tiledPdf = Buffer.from((await app.inject({ url: `${base}/${sceneId}/exports/${tiled.json().id}/file`, headers })).rawPayload);
+  assert.equal([...tiledPdf.toString('latin1').matchAll(/\/Type \/Page(?!s)/g)].length, 3);
+  const a3 = await app.inject({
+    method: 'POST', url: `${base}/${sceneId}/exports`, headers,
+    payload: { name: 'A3-Detail', paper: 'A3', scale: 25 },
+  });
+  assert.equal(a3.statusCode, 201, a3.body);
+  assert.equal(a3.json().paper, 'A3');
+  assert.equal(a3.json().scale, 25);
+  const original = Buffer.from((await app.inject({ url: `${base}/${sceneId}/exports/${a3.json().id}/file`, headers })).rawPayload);
+  assert.match(original.toString('latin1'), /\/MediaBox \[0 0 841\.89 1190\.55\]/);
+  assert.equal((await app.inject({
+    method: 'PUT', url: `${base}/${sceneId}/layout`, headers,
+    payload: { revision: 1, layout: { schemaVersion: 1, walls: [{ ...left, x: 1000 }, { ...right, x: 17000 }] } },
+  })).statusCode, 200);
+  const again = Buffer.from((await app.inject({ url: `${base}/${sceneId}/exports/${a3.json().id}/file`, headers })).rawPayload);
+  assert.deepEqual(again, original);
+  const listing = await app.inject({ url: `${base}/${sceneId}/exports`, headers });
+  assert.equal(listing.statusCode, 200);
+  assert.equal(listing.json().find((item: { name: string }) => item.name === 'A3-Detail')?.paper, 'A3');
+});
+
+test('retry after a failed A3 freeze uses the same frozen paper and scale', async () => {
+  const created = await app.inject({ method: 'POST', url: base, headers, payload: { ...input, sceneName: 'Wiederholungskachel' } });
+  assert.equal(created.statusCode, 201, created.body);
+  const sceneId = created.json().id as string;
+  assert.equal((await app.inject({ method: 'POST', url: `${base}/${sceneId}/lease`, headers })).statusCode, 200);
+  assert.equal((await app.inject({
+    method: 'PUT', url: `${base}/${sceneId}/layout`, headers,
+    payload: { revision: 0, layout: { schemaVersion: 1, walls: [newWall(randomUUID(), 2000, 3000)] } },
+  })).statusCode, 200);
+  failRender = true;
+  const frozen = await app.inject({
+    method: 'POST', url: `${base}/${sceneId}/exports`, headers,
+    payload: { name: 'A3-Wiederholung', paper: 'A3', scale: 100 },
+  });
+  assert.equal(frozen.statusCode, 201, frozen.body);
+  assert.equal(frozen.json().status, 'failed');
+  assert.equal(frozen.json().paper, 'A3');
+  assert.equal(frozen.json().scale, 100);
+  failRender = false;
+  const retried = await app.inject({ method: 'POST', url: `${base}/${sceneId}/exports/${frozen.json().id}/retry`, headers, payload: {} });
+  assert.equal(retried.statusCode, 200, retried.body);
+  assert.equal(retried.json().status, 'ready');
+  assert.equal(retried.json().paper, 'A3');
+  assert.equal(retried.json().scale, 100);
+  const pdf = Buffer.from((await app.inject({ url: `${base}/${sceneId}/exports/${frozen.json().id}/file`, headers })).rawPayload);
+  assert.match(pdf.toString('latin1'), /\/MediaBox \[0 0 841\.89 1190\.55\]/);
 });
 
 test('workspace substitution is denied and viewers cannot freeze or retry', async () => {
