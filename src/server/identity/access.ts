@@ -7,7 +7,7 @@ import { membership, workspace } from '../db/schema.js';
 import type { Auth } from './auth.js';
 
 export class AccessError extends Error {
-  constructor(public statusCode: 401 | 403 | 404, message: string) { super(message); }
+  constructor(public statusCode: 401 | 403 | 404 | 409 | 503, message: string) { super(message); }
 }
 
 export function createAccess(db: Database, auth: Auth) {

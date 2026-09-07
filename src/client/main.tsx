@@ -1,18 +1,36 @@
-import { StrictMode, useCallback, useEffect, useState, type FormEvent } from 'react';
+import { StrictMode, useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { meSchema, membersSchema, type Me, type Member, type Role } from '../shared/contracts.js';
+import { invitationSchema, meSchema, membersSchema, invitationPreviewSchema, passwordResetPreviewSchema, type Me, type Member, type Role } from '../shared/contracts.js';
 import { ApiError, request } from './api.js';
 import { Plans } from './editor/Plans.js';
 import './style.css';
 
 const roleNames: Record<Role, string> = { administrator: 'Administration', editor: 'Bearbeitung', viewer: 'Ansicht' };
+const roles: Role[] = ['administrator', 'editor', 'viewer'];
 type Screen = { kind: 'loading' } | { kind: 'login' } | { kind: 'workspace'; me: Me } | { kind: 'error'; message: string; denied: boolean };
+type HashRoute = { kind: 'app' } | { kind: 'invite'; token: string } | { kind: 'reset'; token: string } | { kind: 'forgot' };
+
+function readHash(): HashRoute {
+  const raw = location.hash.replace(/^#/, '');
+  const invite = /^\/einladung\/([^/]+)$/.exec(raw);
+  if (invite) return { kind: 'invite', token: invite[1]! };
+  const reset = /^\/passwort\/([^/]+)$/.exec(raw);
+  if (reset) return { kind: 'reset', token: reset[1]! };
+  if (raw === '/passwort-vergessen') return { kind: 'forgot' };
+  return { kind: 'app' };
+}
 
 function App() {
+  const [route, setRoute] = useState(readHash);
   const [screen, setScreen] = useState<Screen>({ kind: 'loading' });
   const [signOutError, setSignOutError] = useState('');
   const [signingOut, setSigningOut] = useState(false);
   const [dirty, setDirty] = useState(false);
+  useEffect(() => {
+    const onHash = () => setRoute(readHash());
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
   const load = useCallback(async () => {
     setScreen({ kind: 'loading' });
     try {
@@ -27,7 +45,7 @@ function App() {
       }
     }
   }, []);
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { if (route.kind === 'app') void load(); }, [load, route.kind]);
   async function signOut() {
     setSigningOut(true);
     setSignOutError('');
@@ -39,13 +57,16 @@ function App() {
     <header className="masthead">
       <a className="brand" href="/" aria-label="Bühnenplaner Startseite"><span className="brand-icon" aria-hidden="true">▱</span> Bühnenplaner</a>
       <span className="edition">GEMEINSAM THEATER MACHEN</span>
-      {(screen.kind === 'workspace' || (screen.kind === 'error' && screen.denied)) && <button className="quiet" onClick={() => void signOut()} disabled={signingOut || dirty} title={dirty ? 'Bitte zuerst Änderungen speichern oder sichern.' : undefined}>{signingOut ? 'Abmeldung …' : 'Abmelden'}</button>}
+      {(screen.kind === 'workspace' || (screen.kind === 'error' && screen.denied)) && route.kind === 'app' && <button className="quiet" onClick={() => void signOut()} disabled={signingOut || dirty} title={dirty ? 'Bitte zuerst Änderungen speichern oder sichern.' : undefined}>{signingOut ? 'Abmeldung …' : 'Abmelden'}</button>}
     </header>
     {signOutError && <p className="error banner" role="alert">{signOutError}</p>}
-    {screen.kind === 'loading' && <main className="loading" role="status">Arbeitsbereich wird geladen …</main>}
-    {screen.kind === 'login' && <Login onSuccess={load} />}
-    {screen.kind === 'workspace' && <Workspace me={screen.me} onDirty={setDirty} />}
-    {screen.kind === 'error' && <main className="error-page"><p className="eyebrow">ARBEITSBEREICH</p><h1>{screen.denied ? 'Zugang erforderlich' : 'Verbindung unterbrochen'}</h1><p role="alert">{screen.message}</p><button onClick={() => void load()}>Erneut versuchen</button></main>}
+    {route.kind === 'invite' && <AcceptInvite token={route.token} />}
+    {route.kind === 'reset' && <CompleteReset token={route.token} />}
+    {route.kind === 'forgot' && <ForgotPassword />}
+    {route.kind === 'app' && screen.kind === 'loading' && <main className="loading" role="status">Arbeitsbereich wird geladen …</main>}
+    {route.kind === 'app' && screen.kind === 'login' && <Login onSuccess={load} />}
+    {route.kind === 'app' && screen.kind === 'workspace' && <Workspace me={screen.me} onDirty={setDirty} />}
+    {route.kind === 'app' && screen.kind === 'error' && <main className="error-page"><p className="eyebrow">ARBEITSBEREICH</p><h1>{screen.denied ? 'Zugang erforderlich' : 'Verbindung unterbrochen'}</h1><p role="alert">{screen.message}</p><button onClick={() => void load()}>Erneut versuchen</button></main>}
     <footer>Für die Bühne. Für die Menschen dahinter.</footer>
   </div>;
 }
@@ -83,32 +104,193 @@ function Login({ onSuccess }: { onSuccess: () => Promise<void> }) {
         {error && <p className="error" role="alert">{error}</p>}
         <button className="primary" type="submit" disabled={pending}>{pending ? 'Anmeldung läuft …' : 'Anmelden'}<span aria-hidden="true">→</span></button>
       </form>
+      <p className="forgot"><a href="#/passwort-vergessen">Passwort vergessen?</a></p>
       <p className="access-note">Der Zugang wird von eurer Administration eingerichtet. Eine öffentliche Registrierung ist nicht möglich.</p>
     </section>
   </main>;
 }
 
-function Workspace({ me, onDirty }: { me: Me; onDirty: (value: boolean) => void }) {
-  const [members, setMembers] = useState<Member[]>([]);
-  const [status, setStatus] = useState('Mitglieder werden geladen …');
-  const [attempt, setAttempt] = useState(0);
+function TokenCard({ title, children }: { title: string; children: ReactNode }) {
+  return <main className="login-layout"><section className="login-card" aria-labelledby="token-title">
+    <span className="card-mark" aria-hidden="true">↗</span><h2 id="token-title">{title}</h2>{children}
+  </section></main>;
+}
+
+function AcceptInvite({ token }: { token: string }) {
+  const [preview, setPreview] = useState<ReturnType<typeof invitationPreviewSchema.parse>>();
+  const [error, setError] = useState('');
+  const [pending, setPending] = useState(false);
   useEffect(() => {
     let cancelled = false;
-    if (me.workspace.role !== 'administrator') return;
-    setStatus('Mitglieder werden geladen …');
-    request(`/api/workspaces/${me.workspace.id}/members`).then(data => {
-      if (!cancelled) { setMembers(membersSchema.parse(data)); setStatus(''); }
-    }).catch(() => { if (!cancelled) setStatus('Mitglieder konnten nicht geladen werden.'); });
+    request(`/api/invitations/${token}`).then(data => { if (!cancelled) setPreview(invitationPreviewSchema.parse(data)); })
+      .catch(() => { if (!cancelled) setError('Diese Einladung ist nicht mehr gültig.'); });
     return () => { cancelled = true; };
-  }, [me.workspace.id, me.workspace.role, attempt]);
+  }, [token]);
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const password = String(data.get('password') ?? '');
+    if (password !== String(data.get('confirm'))) { setError('Die Passwörter stimmen nicht überein.'); return; }
+    setPending(true); setError('');
+    try {
+      await request(`/api/invitations/${token}/accept`, { password });
+      location.hash = '';
+    } catch {
+      setError('Das Konto konnte nicht eingerichtet werden. Der Link ist möglicherweise abgelaufen.');
+    } finally { setPending(false); }
+  }
+  if (!preview && !error) return <main className="loading" role="status">Einladung wird geprüft …</main>;
+  if (!preview) return <TokenCard title="Einladung ungültig"><p role="alert">{error}</p><p className="forgot"><a href="/">Zur Anmeldung</a></p></TokenCard>;
+  return <TokenCard title="Konto einrichten">
+    <p>{preview.name}, Sie wurden als {roleNames[preview.role]} zum Arbeitsbereich {preview.workspaceName} eingeladen.</p>
+    <form onSubmit={event => void submit(event)}>
+      <label htmlFor="invite-password">Passwort</label><input id="invite-password" name="password" type="password" autoComplete="new-password" minLength={12} maxLength={128} required disabled={pending} />
+      <label htmlFor="invite-confirm">Passwort bestätigen</label><input id="invite-confirm" name="confirm" type="password" autoComplete="new-password" minLength={12} maxLength={128} required disabled={pending} />
+      {error && <p className="error" role="alert">{error}</p>}
+      <button className="primary" type="submit" disabled={pending}>{pending ? 'Konto wird eingerichtet …' : 'Passwort speichern'}<span aria-hidden="true">→</span></button>
+    </form>
+  </TokenCard>;
+}
+
+function ForgotPassword() {
+  const [pending, setPending] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState('');
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    setPending(true); setError('');
+    try {
+      await request('/api/password-resets', { email: data.get('email') });
+      setDone(true);
+    } catch { setError('Die Anfrage konnte nicht gesendet werden. Bitte versuchen Sie es erneut.'); }
+    finally { setPending(false); }
+  }
+  return <TokenCard title="Passwort zurücksetzen">
+    {done ? <p role="status">Wenn ein Konto mit dieser E-Mail-Adresse existiert, senden wir einen Link zum Zurücksetzen.</p>
+      : <form onSubmit={event => void submit(event)}>
+        <label htmlFor="reset-email">E-Mail-Adresse</label><input id="reset-email" name="email" type="email" autoComplete="username" required disabled={pending} />
+        {error && <p className="error" role="alert">{error}</p>}
+        <button className="primary" type="submit" disabled={pending}>{pending ? 'Wird gesendet …' : 'Link senden'}<span aria-hidden="true">→</span></button>
+      </form>}
+    <p className="forgot"><a href="#/">Zur Anmeldung</a></p>
+  </TokenCard>;
+}
+
+function CompleteReset({ token }: { token: string }) {
+  const [preview, setPreview] = useState<ReturnType<typeof passwordResetPreviewSchema.parse>>();
+  const [error, setError] = useState('');
+  const [pending, setPending] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    request(`/api/password-resets/${token}`).then(data => { if (!cancelled) setPreview(passwordResetPreviewSchema.parse(data)); })
+      .catch(() => { if (!cancelled) setError('Dieser Link zum Zurücksetzen ist nicht mehr gültig.'); });
+    return () => { cancelled = true; };
+  }, [token]);
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const password = String(data.get('password') ?? '');
+    if (password !== String(data.get('confirm'))) { setError('Die Passwörter stimmen nicht überein.'); return; }
+    setPending(true); setError('');
+    try {
+      await request(`/api/password-resets/${token}`, { password });
+      location.hash = '';
+    } catch { setError('Das Passwort konnte nicht geändert werden. Der Link ist möglicherweise abgelaufen.'); }
+    finally { setPending(false); }
+  }
+  if (!preview && !error) return <main className="loading" role="status">Link wird geprüft …</main>;
+  if (!preview) return <TokenCard title="Link ungültig"><p role="alert">{error}</p><p className="forgot"><a href="/">Zur Anmeldung</a></p></TokenCard>;
+  return <TokenCard title="Neues Passwort">
+    <p>Legen Sie ein neues Passwort für {preview.email} fest.</p>
+    <form onSubmit={event => void submit(event)}>
+      <label htmlFor="new-password">Neues Passwort</label><input id="new-password" name="password" type="password" autoComplete="new-password" minLength={12} maxLength={128} required disabled={pending} />
+      <label htmlFor="new-confirm">Passwort bestätigen</label><input id="new-confirm" name="confirm" type="password" autoComplete="new-password" minLength={12} maxLength={128} required disabled={pending} />
+      {error && <p className="error" role="alert">{error}</p>}
+      <button className="primary" type="submit" disabled={pending}>{pending ? 'Wird gespeichert …' : 'Passwort speichern'}<span aria-hidden="true">→</span></button>
+    </form>
+  </TokenCard>;
+}
+
+function Workspace({ me, onDirty }: { me: Me; onDirty: (value: boolean) => void }) {
   return <main className="workspace">
     <div className="workspace-heading"><div><p className="eyebrow">EUER ARBEITSBEREICH</p><h1>{me.workspace.name}</h1><p>Angemeldet als {me.user.name}</p></div><span className="role-badge">{roleNames[me.workspace.role]}</span></div>
     <Plans me={me} onDirty={onDirty} />
-    {me.workspace.role === 'administrator' && <section className="members" aria-labelledby="members-title"><div className="section-heading"><h2 id="members-title">Mitglieder</h2><span>Nur für die Administration sichtbar</span></div>
-      {status ? <div><p role="status">{status}</p>{status.includes('nicht') && <button className="quiet" onClick={() => setAttempt(value => value + 1)}>Erneut versuchen</button>}</div> : <div className="table-scroll"><table><thead><tr><th scope="col">Name</th><th scope="col">E-Mail-Adresse</th><th scope="col">Berechtigung</th></tr></thead><tbody>{members.map(member => <tr key={member.userId}><td>{member.name}</td><td>{member.email}</td><td>{roleNames[member.role]}</td></tr>)}</tbody></table></div>}
-      <p className="muted">Einladungen und die Verwaltung von Berechtigungen folgen in einem späteren Schritt.</p>
-    </section>}
+    {me.workspace.role === 'administrator' && <Members me={me} />}
   </main>;
+}
+
+function Members({ me }: { me: Me }) {
+  const [members, setMembers] = useState<Member[]>([]);
+  const [status, setStatus] = useState('Mitglieder werden geladen …');
+  const [notice, setNotice] = useState('');
+  const [error, setError] = useState('');
+  const [attempt, setAttempt] = useState(0);
+  const [pending, setPending] = useState(false);
+  const base = `/api/workspaces/${me.workspace.id}`;
+  useEffect(() => {
+    let cancelled = false;
+    setStatus('Mitglieder werden geladen …');
+    request(`${base}/members`).then(data => {
+      if (!cancelled) { setMembers(membersSchema.parse(data)); setStatus(''); }
+    }).catch(() => { if (!cancelled) setStatus('Mitglieder konnten nicht geladen werden.'); });
+    return () => { cancelled = true; };
+  }, [base, attempt]);
+  async function invite(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    setPending(true); setError(''); setNotice('');
+    try {
+      const invited = await request(`${base}/invitations`, { email: data.get('email'), name: data.get('name'), role: data.get('role') });
+      const parsed = invitationSchema.parse(invited);
+      setNotice(`Einladung wurde an ${parsed.email} gesendet.`);
+      form.reset();
+    } catch (caught) {
+      setError(caught instanceof ApiError && caught.status === 409
+        ? 'Diese Person gehört bereits zum Arbeitsbereich.'
+        : caught instanceof ApiError && caught.status === 503
+          ? 'Die Einladung wurde gespeichert, die E-Mail konnte nicht gesendet werden. Bitte erneut einladen.'
+          : 'Die Einladung konnte nicht gesendet werden.');
+    } finally { setPending(false); }
+  }
+  async function changeRole(userId: string, role: Role) {
+    setError('');
+    try {
+      await request(`${base}/members/${userId}`, { role }, 'PATCH');
+      setAttempt(value => value + 1);
+    } catch { setError('Die Berechtigung konnte nicht geändert werden.'); }
+  }
+  async function revoke(userId: string) {
+    setError('');
+    try {
+      await request(`${base}/members/${userId}`, undefined, 'DELETE');
+      setAttempt(value => value + 1);
+    } catch (caught) {
+      setError(caught instanceof ApiError && caught.status === 409
+        ? 'Die letzte Administration kann nicht entfernt oder herabgestuft werden.'
+        : 'Der Zugang konnte nicht entzogen werden.');
+    }
+  }
+  return <section className="members" aria-labelledby="members-title"><div className="section-heading"><h2 id="members-title">Mitglieder</h2><span>Nur für die Administration sichtbar</span></div>
+    {status ? <div><p role="status">{status}</p>{status.includes('nicht') && <button className="quiet" onClick={() => setAttempt(value => value + 1)}>Erneut versuchen</button>}</div>
+      : <div className="table-scroll"><table><thead><tr><th scope="col">Name</th><th scope="col">E-Mail-Adresse</th><th scope="col">Berechtigung</th></tr></thead>
+        <tbody>{members.map(member => <tr key={member.userId}><td>{member.name}</td><td>{member.email}</td><td>
+          <div className="member-actions"><select className="member-role" aria-label={`Berechtigung für ${member.name}`} value={member.role} onChange={event => void changeRole(member.userId, event.target.value as Role)}>
+            {roles.map(role => <option key={role} value={role}>{roleNames[role]}</option>)}
+          </select><button className="quiet" type="button" onClick={() => void revoke(member.userId)}>Zugang entziehen</button></div>
+        </td></tr>)}</tbody></table></div>}
+    <form className="invite-form" onSubmit={event => void invite(event)}>
+      <h3>Mitglied einladen</h3>
+      <label htmlFor="invite-name">Name</label><input id="invite-name" name="name" required maxLength={120} disabled={pending} />
+      <label htmlFor="invite-email">E-Mail-Adresse</label><input id="invite-email" name="email" type="email" required disabled={pending} />
+      <label htmlFor="invite-role">Berechtigung</label>
+      <select id="invite-role" name="role" defaultValue="editor" disabled={pending}>{roles.map(role => <option key={role} value={role}>{roleNames[role]}</option>)}</select>
+      {notice && <p className="success" role="status">{notice}</p>}
+      {error && <p className="error" role="alert">{error}</p>}
+      <button className="primary" type="submit" disabled={pending}>{pending ? 'Einladung wird gesendet …' : 'Einladen'}<span aria-hidden="true">→</span></button>
+    </form>
+  </section>;
 }
 
 createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>);

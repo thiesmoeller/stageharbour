@@ -12,6 +12,8 @@ const schema = z.object({
   HOST: z.string().default('127.0.0.1'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  MAIL_FROM: z.string().optional(),
+  BREVO_API_KEY: z.string().optional(),
 });
 export type Config = z.infer<typeof schema>;
 

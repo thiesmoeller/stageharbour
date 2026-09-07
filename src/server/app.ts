@@ -11,9 +11,12 @@ import type { Database } from './db/connection.js';
 import { membership, user } from './db/schema.js';
 import { createAuth } from './identity/auth.js';
 import { AccessError, createAccess } from './identity/access.js';
+import { createMembership } from './identity/membership.js';
+import { registerIdentityRoutes } from './identity/routes.js';
+import { createFakeMailTransport, createMailTransport, type MailTransport } from './mail/transport.js';
 import { registerProductionRoutes } from './productions/routes.js';
 
-export async function createApp(db: Database, config: Config, options: { staticRoot?: string; logger?: boolean } = {}) {
+export async function createApp(db: Database, config: Config, options: { staticRoot?: string; logger?: boolean; mail?: MailTransport } = {}) {
   const app = Fastify({ logger: options.logger ?? false, bodyLimit: 16 * 1024 });
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
@@ -24,6 +27,8 @@ export async function createApp(db: Database, config: Config, options: { staticR
   const api = app.withTypeProvider<ZodTypeProvider>();
   const auth = createAuth(db, config);
   const access = createAccess(db, auth);
+  const mail = options.mail ?? (config.NODE_ENV === 'test' ? createFakeMailTransport() : createMailTransport(config));
+  registerIdentityRoutes(app, access, createMembership(db, mail, config.APP_ORIGIN), config.APP_ORIGIN);
   registerProductionRoutes(app, db, access, config.APP_ORIGIN);
   app.addHook('onSend', async (request, reply) => {
     reply.header('X-Content-Type-Options', 'nosniff');
