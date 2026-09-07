@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { createApp } from '../../src/server/app.js';
 import { bootstrapAdministrator } from '../../src/server/identity/bootstrap.js';
 import { membership, scene, venueVersion, workspace } from '../../src/server/db/schema.js';
+import { copySelection, pasteClipboard } from '../../src/shared/clipboard.js';
 import { newBrace, newWall, type Scene } from '../../src/shared/layout.js';
 import { AUDIENCE_FLOOR_ID, newPlatform, newStair } from '../../src/shared/levels.js';
 import { newOverheadBox } from '../../src/shared/overhead.js';
@@ -315,6 +316,37 @@ test('freeze then later group edits do not change the stored construction snapsh
   assert.equal(reloaded.layout.walls[0]?.x, 500);
   assert.equal(reloaded.layout.walls[1]?.x, 2500);
   assert.deepEqual(reloaded.layout.groups?.[0]?.members, loaded.layout.groups?.[0]?.members);
+});
+test('pasted copies save and reload without panel assignments; freeze then later paste does not change the snapshot', async () => {
+  const loaded = (await app.inject({ url: `${base}/${created.id}`, headers })).json<Scene>();
+  const left = { ...newWall(randomUUID(), 1000, 2000), panelId: randomUUID(), assemblyNumber: 1 };
+  const right = { ...newWall(randomUUID(), 5000, 2000), assemblyNumber: 2 };
+  const group = { id: randomUUID(), members: [{ kind: 'wall' as const, id: left.id }, { kind: 'wall' as const, id: right.id }], rotation: 0 };
+  const connection = { id: randomUUID(), a: left.id, b: right.id };
+  const source = { schemaVersion: 1 as const, walls: [left, right], braces: [] as [], groups: [group], connections: [connection] };
+  const saved = await app.inject({
+    method: 'PUT', url: `${base}/${created.id}/layout`, headers,
+    payload: { revision: loaded.revision, layout: source },
+  });
+  assert.equal(saved.statusCode, 200, saved.body);
+  const frozen = await app.inject({ method: 'POST', url: `${base}/${created.id}/exports`, headers, payload: { name: 'Vor dem Einfügen' } });
+  assert.equal(frozen.statusCode, 201, frozen.body);
+  const original = Buffer.from((await app.inject({ url: `${base}/${created.id}/exports/${frozen.json().id}/file`, headers })).rawPayload);
+  const clipboard = copySelection(source, [{ kind: 'wall', id: left.id }, { kind: 'wall', id: right.id }]);
+  assert(clipboard);
+  const pasted = pasteClipboard(source, clipboard, randomUUID).layout;
+  assert.equal((await app.inject({
+    method: 'PUT', url: `${base}/${created.id}/layout`, headers,
+    payload: { revision: loaded.revision + 1, layout: pasted },
+  })).statusCode, 200);
+  const reloaded = (await app.inject({ url: `${base}/${created.id}`, headers })).json<Scene>();
+  assert.equal(reloaded.layout.walls.length, 4);
+  assert.equal(reloaded.layout.walls.filter(wall => wall.id === left.id)[0]?.panelId, left.panelId);
+  assert.equal(reloaded.layout.walls.filter(wall => wall.id !== left.id && wall.id !== right.id).every(wall => wall.panelId == null), true);
+  assert.equal(reloaded.layout.groups?.length, 2);
+  assert.equal(reloaded.layout.connections?.length, 2);
+  const again = Buffer.from((await app.inject({ url: `${base}/${created.id}/exports/${frozen.json().id}/file`, headers })).rawPayload);
+  assert.deepEqual(again, original);
 });
 test('workspace substitution and viewer writes are denied', async () => {
   const foreignId = randomUUID();

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type PointerEvent } from 'react';
 import { z } from 'zod';
 import { assemblyCaption } from '../../shared/assembly.js';
+import { copySelection, cutSelection, pasteClipboard, type ClipboardMember, type LayoutClipboard } from '../../shared/clipboard.js';
 import { dropMember, groupContaining, groupOf, groupPivot, transformGroup, type GroupMember } from '../../shared/groups.js';
 import { execute, history, redo, undo, type History } from '../../shared/history.js';
 import { newBrace, newWall, wallCorners, wallSchema, type Brace, type Layout, type Scene, type VenueGeometry, type Wall } from '../../shared/layout.js';
@@ -26,6 +27,7 @@ import { keepClearWarnings } from '../../shared/keepClear.js';
 import { InventoryPanel } from './InventoryPanel.js';
 import { AssemblyPanel } from './AssemblyPanel.js';
 import { GroupInspector } from './GroupInspector.js';
+import { ClipboardPanel } from './ClipboardPanel.js';
 
 const statusText = { saved: 'Gespeichert', pending: 'Änderungen ausstehend …', saving: 'Speichert …', failed: 'Speichern fehlgeschlagen', conflict: 'Neuere Fassung vorhanden' };
 export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
@@ -42,6 +44,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
   const [selectedPlatform, setSelectedPlatform] = useState<string>();
   const [selectedStair, setSelectedStair] = useState<string>();
   const [picked, setPicked] = useState<GroupMember[]>([]);
+  const [clipboard, setClipboard] = useState<LayoutClipboard>();
   const [preview, setPreview] = useState<Wall>();
   const [previewBrace, setPreviewBrace] = useState<Brace>();
   const [groupPreview, setGroupPreview] = useState<Layout>();
@@ -163,6 +166,40 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     }, { kind: 'wall', id: selected }));
     setSelected(undefined); setPicked([]);
   }
+  function selection(): ClipboardMember[] {
+    const members: ClipboardMember[] = picked.length ? [...picked] : [];
+    if (selectedPlatform && !members.some(item => item.kind === 'platform' && item.id === selectedPlatform)) {
+      members.push({ kind: 'platform', id: selectedPlatform });
+    }
+    return members;
+  }
+  function copy() {
+    const taken = copySelection(current.current.present, selection());
+    if (taken) setClipboard(taken);
+  }
+  function cut() {
+    const result = cutSelection(current.current.present, selection());
+    if (!result.clipboard) return;
+    setClipboard(result.clipboard);
+    commit(result.layout);
+    clearSelection(); setPicked([]);
+  }
+  function paste() {
+    if (!clipboard) return;
+    const result = pasteClipboard(current.current.present, clipboard, () => crypto.randomUUID());
+    commit(result.layout);
+    if (result.consumed) setClipboard(undefined);
+    const groupable = result.pasted.filter((item): item is GroupMember => item.kind !== 'platform');
+    setPicked(groupable);
+    const wall = result.pasted.find(item => item.kind === 'wall');
+    const brace = result.pasted.find(item => item.kind === 'brace');
+    const stair = result.pasted.find(item => item.kind === 'stair');
+    const platform = result.pasted.find(item => item.kind === 'platform');
+    if (wall) { setSelected(wall.id); clearSelection('wall'); }
+    else if (brace) { setSelectedBrace(brace.id); clearSelection('brace'); }
+    else if (stair) { setSelectedStair(stair.id); clearSelection('stair'); }
+    else if (platform) { setSelectedPlatform(platform.id); clearSelection('platform'); setPicked([]); }
+  }
   useEffect(() => {
     const shortcut = (event: KeyboardEvent) => {
       if (readOnly || gesture.current || braceDrag.current || groupDrag.current || event.target instanceof HTMLElement && (event.target.closest('input, textarea, select, button') || event.target.isContentEditable)) return;
@@ -170,6 +207,12 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
         event.preventDefault(); apply(event.shiftKey ? redo(current.current) : undo(current.current));
       } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'y') {
         event.preventDefault(); apply(redo(current.current));
+      } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'c') {
+        event.preventDefault(); copy();
+      } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'x') {
+        event.preventDefault(); cut();
+      } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'v') {
+        event.preventDefault(); paste();
       } else if (event.key === 'Delete') { event.preventDefault(); remove(); }
     };
     window.addEventListener('keydown', shortcut);
@@ -386,6 +429,8 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
         onPanels={items => setPanelLabels(Object.fromEntries(items.map(item => [item.id, item.label])))} />
       <AssemblyPanel layout={state.present} selectedWall={selectedWall} readOnly={readOnly} onChange={commit} />
       <GroupInspector layout={state.present} picked={picked} readOnly={readOnly} onChange={commit} />
+      <ClipboardPanel selection={selection()} canPaste={!!clipboard} busy={!!preview || !!previewBrace || !!groupPreview}
+        readOnly={readOnly} onCopy={copy} onCut={cut} onPaste={paste} />
       <h3>{selectedPlatformItem ? 'Podest' : selectedStairItem ? 'Treppe' : selectedBraceItem ? 'Gewichtete Stütze' : 'Wandelement'}</h3>
       <label htmlFor="wall-selection">Auswahl</label>
       <select id="wall-selection" value={selectedWall ? `wall:${selectedWall.id}` : selectedBraceItem ? `brace:${selectedBraceItem.id}` : selectedPlatformItem ? `platform:${selectedPlatformItem.id}` : selectedStairItem ? `stair:${selectedStairItem.id}` : ''} onChange={event => {

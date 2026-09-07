@@ -272,6 +272,25 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('1800');
   await page.getByLabel('Auswahl').selectOption({ label: '2. Wand' });
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('5500');
+  await page.getByLabel('Auswahl').selectOption({ label: '1. Wand' });
+  await page.locator('[data-testid^="wall-"]').nth(1).click({ modifiers: ['Shift'] });
+  await page.getByRole('button', { name: 'Kopieren' }).click();
+  await page.getByRole('button', { name: 'Einfügen' }).click();
+  await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(4);
+  await waitUntilSaved(page);
+  await page.getByLabel('Auswahl').selectOption({ label: '3. Wand' });
+  await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('2100');
+  await expect(page.getByLabel('Platte zuweisen')).toHaveValue('');
+  await expect(page.getByText('Zugewiesen: Beispiel-P01')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Rückgängig' }).click();
+  await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(2);
+  await page.getByLabel('Auswahl').selectOption({ label: '1. Wand' });
+  await expect(page.getByText('Zugewiesen: Beispiel-P01')).toBeVisible();
+  await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('1800');
+  await page.getByLabel('X (mm)', { exact: true }).focus();
+  await page.keyboard.press('ControlOrMeta+v');
+  await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(2);
+  await waitUntilSaved(page);
   expect(errors).toEqual([]);
 });
 
