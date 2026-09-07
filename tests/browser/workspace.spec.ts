@@ -1,0 +1,38 @@
+import { test, expect } from '@playwright/test';
+import { testAdministrator } from '../helpers/database.js';
+
+test('German login, failed credentials, workspace, reload, logout and mobile layout', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Willkommen zurück' })).toBeVisible();
+  await page.getByLabel('E-Mail-Adresse').fill(testAdministrator.email);
+  await page.getByLabel('Passwort', { exact: true }).fill('wrong-test-password');
+  await page.getByRole('button', { name: 'Anmelden', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Anmeldung fehlgeschlagen');
+  await page.getByLabel('Passwort', { exact: true }).fill(testAdministrator.password);
+  await page.getByRole('button', { name: 'Anmelden', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Beispiel-Theatergruppe' })).toBeVisible();
+  await expect(page.getByRole('cell', { name: testAdministrator.email })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Beispiel-Theatergruppe' })).toBeVisible();
+  await page.screenshot({ path: 'test-results/workspace-desktop.png', fullPage: true });
+  await page.getByRole('button', { name: 'Abmelden', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Willkommen zurück' })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Willkommen zurück' })).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole('button', { name: 'Anmelden', exact: true })).toBeInViewport();
+  await page.screenshot({ path: 'test-results/login-mobile.png', fullPage: true });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('workspace network errors offer a working retry', async ({ page }) => {
+  await page.route('**/api/me', route => route.abort());
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Verbindung unterbrochen' })).toBeVisible();
+  await page.unroute('**/api/me');
+  await page.getByRole('button', { name: 'Erneut versuchen' }).click();
+  await expect(page.getByRole('heading', { name: 'Willkommen zurück' })).toBeVisible();
+});
