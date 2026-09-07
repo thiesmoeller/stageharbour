@@ -43,6 +43,13 @@
       "when": 1788812469319,
       "tag": "0005_demonic_leopardon",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788813909612,
+      "tag": "0006_small_silver_samurai",
+      "breakpoints": true
     }
   ]
 }

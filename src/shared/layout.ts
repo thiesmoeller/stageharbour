@@ -12,6 +12,7 @@ export const wallSchema = z.strictObject({
   rotation: z.number().finite().min(-360).max(360),
   width: dimension, height: dimension, thickness: dimension,
   typeId: z.uuid().optional(),
+  panelId: z.uuid().optional(),
 });
 export type Wall = z.infer<typeof wallSchema>;
 // Example-only millimetre placeholders for a new weighted rear brace. Not measured inventory.

@@ -14,6 +14,7 @@ import { StageView } from './StageView.js';
 import { ExportPanel } from './ExportPanel.js';
 import { WallTypePanel } from './WallTypePanel.js';
 import { VenuePanel } from './VenuePanel.js';
+import { InventoryPanel } from './InventoryPanel.js';
 
 const statusText = { saved: 'Gespeichert', pending: 'Änderungen ausstehend …', saving: 'Speichert …', failed: 'Speichern fehlgeschlagen', conflict: 'Neuere Fassung vorhanden' };
 export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
@@ -249,6 +250,9 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     </div><aside className="wall-inspector">
       <WallTypePanel types={wallTypes} selectedId={selectedType} readOnly={readOnly}
         onSelect={setSelectedType} onCreate={applyType} onApply={applyType} onPlace={placeType} onRemove={removeType} />
+      <InventoryPanel workspaceId={workspaceId} layout={state.present} selectedWall={selectedWall} readOnly={readOnly}
+        onAssign={panelId => selectedWall && replace({ ...selectedWall, panelId })}
+        onUnassign={() => selectedWall && replace((({ panelId: _removed, ...rest }) => rest)(selectedWall))} />
       <h3>{selectedBraceItem ? 'Gewichtete Stütze' : 'Wandelement'}</h3>
       <label htmlFor="wall-selection">Auswahl</label>
       <select id="wall-selection" value={selectedWall ? `wall:${selectedWall.id}` : selectedBraceItem ? `brace:${selectedBraceItem.id}` : ''} onChange={event => {
