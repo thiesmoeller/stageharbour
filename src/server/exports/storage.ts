@@ -1,0 +1,25 @@
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { dirname, resolve, sep } from 'node:path';
+
+export type FileStorage = {
+  put(key: string, bytes: Buffer): Promise<void>;
+  get(key: string): Promise<Buffer>;
+};
+
+export function localFilesystem(root: string): FileStorage {
+  const base = resolve(root);
+  function locate(key: string) {
+    if (!key || key.split(/[/\\]/).some(part => !part || part === '..')) throw new Error('invalid storage key');
+    const path = resolve(base, key);
+    if (path !== base && !path.startsWith(base + sep)) throw new Error('invalid storage key');
+    return path;
+  }
+  return {
+    async put(key, bytes) {
+      const path = locate(key);
+      await mkdir(dirname(path), { recursive: true });
+      await writeFile(path, bytes);
+    },
+    get(key) { return readFile(locate(key)); },
+  };
+}

@@ -6,6 +6,7 @@ import { LEASE_HEARTBEAT_MS } from '../../shared/leases.js';
 import { ApiError, request } from '../api.js';
 import { Autosave, SaveConflict } from './autosave.js';
 import { StageView } from './StageView.js';
+import { ExportPanel } from './ExportPanel.js';
 
 const statusText = { saved: 'Gespeichert', pending: 'Änderungen ausstehend …', saving: 'Speichert …', failed: 'Speichern fehlgeschlagen', conflict: 'Neuere Fassung vorhanden' };
 export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
@@ -15,6 +16,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
   const current = useRef(state);
   const [selected, setSelected] = useState<string>();
   const [preview, setPreview] = useState<Wall>();
+  const [exportsOpen, setExportsOpen] = useState(false);
   const gesture = useRef<{ wall: Wall; x: number; y: number; latest: Wall } | undefined>(undefined);
   const svg = useRef<SVGSVGElement>(null);
   const [saver] = useState(() => new Autosave(initial.layout, initial.revision, async (layout, revision) => {
@@ -122,10 +124,12 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
       }}>Wand hinzufügen</button>
       <button className="quiet" disabled={!!preview || !state.past.length} onClick={() => apply(undo(current.current))}>Rückgängig</button>
       <button className="quiet" disabled={!!preview || !state.future.length} onClick={() => apply(redo(current.current))}>Wiederholen</button></>}
+      <button className="quiet" onClick={() => setExportsOpen(open => !open)}>{exportsOpen ? 'Export schließen' : 'Konstruktionsplan'}</button>
       <span className={`save-status ${saveState.status}`} role="status">{readOnly
         ? (initial.lease ? `Nur Ansicht · Bearbeitung durch ${initial.lease.holderName}` : 'Nur Ansicht')
         : saveState.status === 'conflict' && saveState.conflictKind === 'lease' ? 'Bearbeitung abgelaufen' : statusText[saveState.status]}</span>
     </div>
+    {exportsOpen && <ExportPanel workspaceId={workspaceId} sceneId={initial.id} readOnly={readOnly} freezeDisabled={dirty || saveState.status !== 'saved'} />}
     {['failed', 'conflict'].includes(saveState.status) && <div className="error" role="alert">
       <p>{saveState.status === 'conflict'
         ? (saveState.conflictKind === 'lease'

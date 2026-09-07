@@ -17,8 +17,15 @@ import { registerIdentityRoutes } from './identity/routes.js';
 import { createFakeMailTransport, createMailTransport, type MailTransport } from './mail/transport.js';
 import { LeaseError, createLeases } from './productions/leases.js';
 import { registerProductionRoutes } from './productions/routes.js';
+import { registerExportRoutes } from './exports/routes.js';
+import { renderOffThread } from './exports/render.js';
+import { localFilesystem, type FileStorage } from './exports/storage.js';
+import type { ConstructionSnapshot } from '../shared/export.js';
 
-export async function createApp(db: Database, config: Config, options: { staticRoot?: string; logger?: boolean; clock?: () => Date; mail?: MailTransport } = {}) {
+export async function createApp(db: Database, config: Config, options: {
+  staticRoot?: string; logger?: boolean; clock?: () => Date; mail?: MailTransport;
+  storage?: FileStorage; renderPdf?: (snapshot: ConstructionSnapshot) => Promise<Buffer>;
+} = {}) {
   const app = Fastify({ logger: options.logger ?? false, bodyLimit: 16 * 1024 });
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
@@ -33,6 +40,7 @@ export async function createApp(db: Database, config: Config, options: { staticR
   const mail = options.mail ?? (config.NODE_ENV === 'test' ? createFakeMailTransport() : createMailTransport(config));
   registerIdentityRoutes(app, access, createMembership(db, mail, config.APP_ORIGIN), config.APP_ORIGIN);
   registerProductionRoutes(app, db, access, config.APP_ORIGIN, createLeases(db, options.clock));
+  registerExportRoutes(app, db, access, config.APP_ORIGIN, options.storage ?? localFilesystem(config.STORAGE_DIR), options.renderPdf ?? renderOffThread);
   app.addHook('onSend', async (request, reply) => {
     reply.header('X-Content-Type-Options', 'nosniff');
     reply.header('Referrer-Policy', 'same-origin');

@@ -22,6 +22,7 @@ const schema = z.object({
   OIDC_REDIRECT_URI: optionalUrl,
   MAIL_FROM: z.string().optional(),
   BREVO_API_KEY: z.string().optional(),
+  STORAGE_DIR: z.string().min(1).default('data/storage'),
 });
 export type Config = z.infer<typeof schema>;
 
