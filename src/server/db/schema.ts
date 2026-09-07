@@ -1,5 +1,6 @@
 import { pgTable, text, timestamp, boolean, uuid, pgEnum, primaryKey, index, uniqueIndex, integer, jsonb, foreignKey } from 'drizzle-orm/pg-core';
 import type { ConstructionSnapshot } from '../../shared/export.js';
+import type { ConstructionPackage } from '../../shared/package.js';
 import type { Layout, VenueGeometry } from '../../shared/layout.js';
 import type { LeaseKind } from '../../shared/leases.js';
 import type { WallElementType } from '../../shared/wall-types.js';
@@ -130,6 +131,16 @@ export const constructionPlanRevision = pgTable('construction_plan_revision', {
 }, t => [index('construction_plan_scene_idx').on(t.workspaceId, t.sceneId),
   uniqueIndex('construction_plan_workspace_id').on(t.workspaceId, t.id),
   foreignKey({ columns: [t.workspaceId, t.sceneId], foreignColumns: [scene.workspaceId, scene.id] })]);
+export const constructionPackage = pgTable('construction_package', {
+  id: uuid('id').primaryKey(), workspaceId: uuid('workspace_id').notNull(), productionId: uuid('production_id').notNull(),
+  name: text('name').notNull(), scale: integer('scale').notNull(),
+  status: constructionExportStatus('status').notNull(),
+  snapshot: jsonb('snapshot').notNull().$type<ConstructionPackage>(),
+  storageKey: text('storage_key'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [index('construction_package_production_idx').on(t.workspaceId, t.productionId),
+  uniqueIndex('construction_package_workspace_id').on(t.workspaceId, t.id),
+  foreignKey({ columns: [t.workspaceId, t.productionId], foreignColumns: [production.workspaceId, production.id] })]);
 export const venueReference = pgTable('venue_reference', {
   id: uuid('id').primaryKey(),
   workspaceId: uuid('workspace_id').notNull().references(() => workspace.id),

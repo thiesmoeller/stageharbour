@@ -57,6 +57,13 @@
       "when": 1788819946979,
       "tag": "0007_sharp_wallop",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788820466092,
+      "tag": "0009_steady_avengers",
+      "breakpoints": true
     }
   ]
 }

@@ -6,6 +6,7 @@ import { copiedSceneName } from '../../shared/scenes.js';
 import type { Me } from '../../shared/contracts.js';
 import { ApiError, request } from '../api.js';
 import { Editor } from './Editor.js';
+import { PackageExport } from './ExportPanel.js';
 
 function uniqueBy<T>(items: T[], key: (item: T) => string) {
   const seen = new Set<string>();
@@ -259,5 +260,8 @@ export function Plans({ me, onDirty }: { me: Me; onDirty: (value: boolean) => vo
       <div className="scene-open"><strong>{template.name}</strong><span>schreibgeschützt</span></div>
       {!readOnly && <button className="quiet" type="button" onClick={() => void startInstantiate(template.id)} disabled={busy}>In Produktion einfügen</button>}
     </div>)}</div>
+    {productions.map(item => <PackageExport key={item.productionId} workspaceId={me.workspace.id} productionId={item.productionId}
+      scenes={scenes.filter(scene => scene.productionId === item.productionId).map(scene => ({ id: scene.id, name: `${scene.productionName} · ${scene.name}` }))}
+      readOnly={readOnly} freezeDisabled={busy} />)}
   </section>;
 }

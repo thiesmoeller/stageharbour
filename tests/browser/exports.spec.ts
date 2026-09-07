@@ -89,4 +89,24 @@ test('export a named frozen construction plan and download it from history', asy
   expect(elevationText).toContain('Ansicht 0°');
   expect(elevationText).toContain('Maßstab 1:50');
   expect(elevationBytes.toString('latin1')).toMatch(/\/MediaBox \[0 0 595\.28 841\.89\]/);
+  await page.getByLabel('Bezeichnung des Pakets').fill('Paketexport');
+  await page.getByRole('button', { name: 'Als Konstruktionspaket exportieren' }).click();
+  await expect(page.getByRole('listitem').filter({ hasText: 'Paketexport' })).toContainText('Fertig');
+  await expect(page.getByRole('listitem').filter({ hasText: 'Paketexport' })).toContainText('A4');
+  await expect(page.getByRole('listitem').filter({ hasText: 'Paketexport' })).toContainText('1:50');
+  const [packageDownload] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('listitem').filter({ hasText: 'Paketexport' }).getByRole('button', { name: 'Herunterladen' }).click(),
+  ]);
+  expect(packageDownload.suggestedFilename()).toMatch(/konstruktionspaket-.*\.pdf$/);
+  const packageBytes = readFileSync(await packageDownload.path() as string);
+  expect(packageBytes.subarray(0, 5).toString()).toBe('%PDF-');
+  const packageText = [...packageBytes.toString('latin1').matchAll(/<([0-9a-fA-F]+)>/g)]
+    .map(match => Buffer.from(match[1] ?? '', 'hex').toString('latin1')).join('');
+  expect(packageText).toContain('Stückliste');
+  expect(packageText).toContain('Konstruktionspaket');
+  expect(packageText).toContain('Maßstab 1:50');
+  expect(packageBytes.toString('latin1')).toMatch(/\/MediaBox \[ ?0 0 595\.28 841\.89 ?\]/);
+  await expect(page.getByRole('listitem').filter({ hasText: 'Probeexport' })).toContainText('A4');
+  await expect(page.getByRole('listitem').filter({ hasText: 'Probeexport' })).toContainText('1:50');
 });

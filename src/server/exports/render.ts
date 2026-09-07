@@ -1,8 +1,9 @@
 import { fork } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import type { ConstructionSnapshot } from '../../shared/export.js';
+import type { ConstructionPackage } from '../../shared/package.js';
 
-export function renderOffThread(snapshot: ConstructionSnapshot) {
+export function renderOffThread(snapshot: ConstructionSnapshot | ConstructionPackage) {
   return new Promise<Buffer>((resolve, reject) => {
     let settled = false;
     const typescript = import.meta.url.endsWith('.ts');
