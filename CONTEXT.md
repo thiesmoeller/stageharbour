@@ -33,6 +33,10 @@ A saved record of a venue's layout and constraints that an adaptation uses until
 **Stage centreline**:
 A reference line defined for a venue that marks the stage's lateral centre and serves as an alignment and symmetry reference.
 
+**Explicit group**:
+A user-defined set of set pieces that move and rotate together around the centroid of member centres. Panel connections are not groups.
+_Avoid_: Auto-group
+
 **Wall element**:
 A physical panel used to construct a stage arrangement. The group's existing wall elements measure 1.20 × 2.40 metres.
 

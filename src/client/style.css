@@ -37,6 +37,7 @@ fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
 .assembly-panel { margin: 0 0 22px; padding: 0 0 18px; border-bottom: 1px solid #e0e5d8; }
 .assembly-panel ul { list-style: none; padding-left: 0; font-size: .78rem; }
 .assembly-panel li { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; }
+.group-panel { margin: 0 0 22px; padding: 0 0 18px; border-bottom: 1px solid #e0e5d8; }
 .wall-inspector textarea { width: 100%; border: 1px solid #cbd3c8; border-radius: 6px; padding: 8px; color: #203c36; background: #fdfefa; min-width: 0; font: inherit; }
 .opening-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 14px; margin: 8px 0 12px; padding-bottom: 8px; border-bottom: 1px dashed #e0e5d8; }
 .opening-fields p { grid-column: 1 / -1; margin: 8px 0 0; font-size: .75rem; font-weight: 600; }
