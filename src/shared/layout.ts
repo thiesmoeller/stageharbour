@@ -86,10 +86,19 @@ export const createSceneSchema = z.strictObject({
   width: dimension, depth: dimension,
 });
 export const duplicateSceneSchema = z.strictObject({ sceneName: name.optional() });
-export const sceneSummarySchema = z.object({ id: z.uuid(), name, productionName: name, venueName: name, lease: leaseHolderSchema.nullable() });
+export const copySceneSchema = z.strictObject({
+  productionId: z.uuid(),
+  venueVersionId: z.uuid(),
+  sceneName: name.optional(),
+  surfaceMap: z.record(z.uuid(), z.uuid()).optional(),
+});
+export const sceneSummarySchema = z.object({
+  id: z.uuid(), name, productionName: name, venueName: name,
+  productionId: z.uuid(), venueId: z.uuid(), venueVersionId: z.uuid(),
+  lease: leaseHolderSchema.nullable(),
+});
 export const sceneSchema = sceneSummarySchema.extend({
   revision: z.number().int().nonnegative(),
-  venueVersionId: z.uuid(),
   venue: venueGeometrySchema,
   layout: layoutSchema,
 });

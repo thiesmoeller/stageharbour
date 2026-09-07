@@ -7,7 +7,9 @@ import { EXAMPLE_PLAIN, inventoryWarnings, type InventoryPanel } from '../src/sh
 import { layoutSchema, newWall, type Layout } from '../src/shared/layout.js';
 import { AUDIENCE_FLOOR_ID, newPlatform, newStair } from '../src/shared/levels.js';
 import { newPlaceholder } from '../src/shared/placeholders.js';
-import { copiedSceneName, duplicateLayout, remountRigging } from '../src/shared/scenes.js';
+import { newKeepClearZone } from '../src/shared/keepClear.js';
+import { newOverheadBox } from '../src/shared/overhead.js';
+import { copiedSceneName, copyLayoutIntoVenue, duplicateLayout, remountRigging } from '../src/shared/scenes.js';
 import { newWallType } from '../src/shared/wall-types.js';
 
 const panelId = '11111111-1111-4111-8111-111111111111';
@@ -88,6 +90,60 @@ test('the same physical panel in two scenes does not warn; two uses in one scene
     braces: [],
   };
   assert.equal(inventoryWarnings(doubled, stock).some(item => item.kind === 'duplicate' && item.panelId === panelId), true);
+});
+
+test('copying a layout into a destination venue clears panel ids and uses chosen destination surfaces', () => {
+  const type = newWallType(randomUUID());
+  const sourceStage = newPlatform(randomUUID(), 4000, 4750);
+  const leftoverStage = newPlatform(randomUUID(), 2000, 1500);
+  const destStage = newPlatform(randomUUID(), 4000, 4750);
+  const movable = newPlatform(randomUUID(), 3000, 2000);
+  const assigned = { ...newWall(randomUUID(), 1000, 2000), panelId, assemblyNumber: 1, typeId: type.id };
+  const partner = { ...newWall(randomUUID(), 5000, 2000), typeId: type.id };
+  const onSourceStage = { ...newWall(randomUUID(), 4000, 4800), supportingSurfaceId: sourceStage.id, panelId: randomUUID() };
+  const unmapped = { ...newWall(randomUUID(), 2000, 1500), supportingSurfaceId: leftoverStage.id };
+  const onMovable = { ...newWall(randomUUID(), 3000, 2000), supportingSurfaceId: movable.id };
+  const crossing = { ...newWall(randomUUID(), 4000, 3000), label: 'Bühnenwand', height: 2800 };
+  const base: Layout = {
+    schemaVersion: 1, wallTypes: [type], walls: [assigned, partner, onSourceStage, unmapped, onMovable, crossing],
+    braces: [], platforms: [movable],
+  };
+  const layout = recordConnection(
+    formGroup(base, [{ kind: 'wall', id: assigned.id }, { kind: 'wall', id: partner.id }], randomUUID()),
+    assigned.id, partner.id,
+  );
+  const destination = {
+    schemaVersion: 1 as const, width: 8000, depth: 6000,
+    platforms: [destStage], ceilingHeight: 2000,
+    overheadBoxes: [newOverheadBox(randomUUID(), 4000, 3000)],
+    keepClearZones: [newKeepClearZone(randomUUID(), AUDIENCE_FLOOR_ID, 4000, 3000)],
+  };
+  const result = copyLayoutIntoVenue(layout, destination, { [sourceStage.id]: destStage.id }, randomUUID);
+  const copy = layoutSchema.parse(result.layout);
+  assert.equal(copy.walls[0]?.panelId, undefined);
+  assert.equal(copy.walls[0]?.typeId, type.id);
+  assert.equal(copy.walls[0]?.assemblyNumber, 1);
+  assert.equal(copy.walls[0]?.x, 1000);
+  assert.equal(copy.walls[1]?.x, 5000);
+  assert.equal(copy.wallTypes?.[0]?.id, type.id);
+  assert.notEqual(copy.walls[0]?.id, assigned.id);
+  const copyIds = new Set(copy.walls.map(wall => wall.id));
+  assert.equal(copy.groups?.[0]?.members.every(member => copyIds.has(member.id)), true);
+  assert.equal(copy.connections?.[0]?.a, copy.walls[0]?.id);
+  assert.equal(copy.platforms?.some(platform => platform.id === destStage.id), false);
+  assert.equal(copy.platforms?.some(platform => platform.id === sourceStage.id), false);
+  const copyMovable = copy.platforms?.[0];
+  assert(copyMovable);
+  assert.notEqual(copyMovable.id, movable.id);
+  assert.equal(copy.walls[4]?.supportingSurfaceId, copyMovable.id);
+  assert.equal(copy.walls[2]?.supportingSurfaceId, destStage.id);
+  assert.equal(copy.walls[3]?.supportingSurfaceId, undefined);
+  assert.equal(result.unresolvedSupport.some(item => item.objectId === copy.walls[3]?.id && item.kind === 'missing-surface'), true);
+  assert.equal(result.warnings.some(item => item.kind === 'ceiling' && item.objectId === copy.walls[5]?.id), true);
+  assert.equal(result.warnings.some(item => item.kind === 'overhead' && item.objectId === copy.walls[5]?.id), true);
+  assert.equal(result.unresolvedWarnings.some(item => item.kind === 'keep-clear-overlap' && item.objectId === copy.walls[5]?.id), true);
+  assert.equal(layout.walls[0]?.panelId, panelId);
+  assert.equal(layout.walls[2]?.supportingSurfaceId, sourceStage.id);
 });
 
 test('a duplicate shares the rigging setup; remounting is a new setup and pin notes stay notes', () => {

@@ -133,7 +133,7 @@ test('venue geometry stores a configurable centreline; freeze copies it so later
   const parsed = layoutSchema.parse({ schemaVersion: 1, walls: [] });
   const scene = {
     id: randomUUID(), name: 'Erste Szene', productionName: 'Beispielproduktion', venueName: 'Beispielsaal',
-    revision: 1, venueVersionId: randomUUID(), venue, lease: null, layout: parsed,
+    revision: 1, productionId: randomUUID(), venueId: randomUUID(), venueVersionId: randomUUID(), venue, lease: null, layout: parsed,
   };
   const snapshot = freezeSnapshot(scene, { id: randomUUID(), name: 'Fassung Probe', issuedAt: new Date('2026-09-07T12:00:00.000Z') });
   scene.venue.stageCentreline = { x: 100, y: 100, rotation: 0 };

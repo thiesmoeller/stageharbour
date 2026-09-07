@@ -27,6 +27,7 @@ export function registerExportRoutes(
   async function loadScene(workspaceId: string, sceneId: string) {
     const [record] = await db.select({
       id: scene.id, name: scene.name, productionName: production.name, venueName: venue.name,
+      productionId: production.id, venueId: venue.id,
       revision: scene.revision, venueVersionId: venueVersion.id, venue: venueVersion.geometry, layout: scene.layout,
     }).from(scene).innerJoin(adaptation, eq(scene.adaptationId, adaptation.id))
       .innerJoin(production, eq(adaptation.productionId, production.id))

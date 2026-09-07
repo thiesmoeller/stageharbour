@@ -1,6 +1,8 @@
-import { AUDIENCE_FLOOR_ID } from './levels.js';
+import { AUDIENCE_FLOOR_ID, layoutDiagnostics, type PlacementDiagnostic } from './levels.js';
 import type { GroupMemberKind } from './groups.js';
-import type { Layout } from './layout.js';
+import { keepClearWarnings, type KeepClearWarning } from './keepClear.js';
+import type { Layout, VenueGeometry } from './layout.js';
+import { overheadClearance, type OverheadWarning } from './overhead.js';
 
 /**
  * Whole-scene clone for another scene in the same production. Placement records
@@ -64,6 +66,63 @@ export function duplicateLayout(layout: Layout, nextId: () => string): Layout {
       members: group.members.map(member => ({ ...member, id: memberId(member.kind, member.id) })),
     })),
     riggingSetupId: source.riggingSetupId ?? nextId(),
+  };
+}
+
+export type AdaptedLayout = {
+  layout: Layout;
+  unresolvedSupport: PlacementDiagnostic[];
+  warnings: OverheadWarning[];
+  unresolvedWarnings: KeepClearWarning[];
+};
+
+/**
+ * Cross-production or destination-venue copy. Placement records get new ids;
+ * `panelId` is cleared so current inventory can be assigned later. Movable
+ * layout platforms, stairs, placeholders, walls, braces and groups transfer.
+ * Source venue outlines, permanent equipment and constraints stay behind.
+ * `surfaceMap` sends source venue surfaces onto explicitly chosen destination
+ * surfaces; unmapped support becomes a missing-surface diagnostic. Destination
+ * overhead and keep-clear warnings are computed from the destination venue.
+ * The copy is a remount (`riggingSetupId` is always new). The source is only
+ * read; callers must not require a lease on it.
+ */
+export function copyLayoutIntoVenue(
+  layout: Layout, destination: VenueGeometry, surfaceMap: Readonly<Record<string, string>>, nextId: () => string,
+): AdaptedLayout {
+  const transferred = duplicateLayout(layout, nextId);
+  const layoutPlatforms = new Set((transferred.platforms ?? []).map(platform => platform.id));
+  function mappedSupport(id: string | undefined) {
+    if (!id) return undefined;
+    if (layoutPlatforms.has(id)) return id;
+    if (Object.hasOwn(surfaceMap, id)) return surfaceMap[id];
+    if (id === AUDIENCE_FLOOR_ID) return id;
+    return undefined;
+  }
+  function mappedStairSurface(id: string) {
+    if (layoutPlatforms.has(id)) return id;
+    if (Object.hasOwn(surfaceMap, id)) return surfaceMap[id]!;
+    return id;
+  }
+  function withoutPanel<T extends { panelId?: string }>(item: T) {
+    const { panelId: _panelId, ...rest } = item;
+    return rest;
+  }
+  const adapted: Layout = {
+    ...transferred,
+    walls: transferred.walls.map(wall => ({ ...withoutPanel(wall), supportingSurfaceId: mappedSupport(wall.supportingSurfaceId) })),
+    braces: transferred.braces.map(brace => ({ ...brace, supportingSurfaceId: mappedSupport(brace.supportingSurfaceId) })),
+    placeholders: transferred.placeholders?.map(item => ({ ...item, supportingSurfaceId: mappedSupport(item.supportingSurfaceId) })),
+    stairs: transferred.stairs?.map(stair => ({
+      ...stair, lowerSurfaceId: mappedStairSurface(stair.lowerSurfaceId), upperSurfaceId: mappedStairSurface(stair.upperSurfaceId),
+    })),
+    riggingSetupId: nextId(),
+  };
+  return {
+    layout: adapted,
+    unresolvedSupport: layoutDiagnostics(adapted, destination),
+    warnings: overheadClearance(adapted, destination),
+    unresolvedWarnings: keepClearWarnings(destination, adapted),
   };
 }
 

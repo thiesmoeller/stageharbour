@@ -4,8 +4,8 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { errorSchema, workspaceParamsSchema } from '../../shared/contracts.js';
-import { createSceneSchema, duplicateSceneSchema, saveLayoutSchema, sceneSchema, sceneListSchema, venueGeometrySchema } from '../../shared/layout.js';
-import { copiedSceneName, duplicateLayout } from '../../shared/scenes.js';
+import { createSceneSchema, copySceneSchema, duplicateSceneSchema, saveLayoutSchema, sceneSchema, sceneListSchema, venueGeometrySchema } from '../../shared/layout.js';
+import { copiedSceneName, copyLayoutIntoVenue, duplicateLayout } from '../../shared/scenes.js';
 import { overheadClearance, overheadWarningSchema } from '../../shared/overhead.js';
 import { keepClearWarningSchema, keepClearWarnings } from '../../shared/keepClear.js';
 import { leaseHolderSchema } from '../../shared/leases.js';
@@ -20,8 +20,11 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
   const params = workspaceParamsSchema.extend({ sceneId: z.uuid() });
   const errors = { 400: errorSchema, 401: errorSchema, 403: errorSchema, 404: errorSchema, 409: errorSchema, 423: errorSchema };
   function readScenes(workspaceId: string, sceneId?: string) {
-    return db.select({ id: scene.id, name: scene.name, productionName: production.name, venueName: venue.name,
-      revision: scene.revision, venueVersionId: venueVersion.id, venue: venueVersion.geometry, layout: scene.layout })
+    return db.select({
+      id: scene.id, name: scene.name, productionName: production.name, venueName: venue.name,
+      productionId: production.id, venueId: venue.id, revision: scene.revision,
+      venueVersionId: venueVersion.id, venue: venueVersion.geometry, layout: scene.layout,
+    })
       .from(scene).innerJoin(adaptation, eq(scene.adaptationId, adaptation.id))
       .innerJoin(production, eq(adaptation.productionId, production.id))
       .innerJoin(venueVersion, eq(adaptation.venueVersionId, venueVersion.id))
@@ -76,6 +79,48 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
       id: copyId, workspaceId, adaptationId: existing.adaptationId,
       name: request.body.sceneName ?? copiedSceneName(existing.name),
       layout: duplicateLayout(existing.layout, randomUUID),
+    });
+    const [record] = await readScenes(workspaceId, copyId);
+    return reply.code(201).send({ ...record!, lease: null });
+  });
+  // Copying reads the source without acquiring its lease: the source is only
+  // copied into a destination venue. Layout PUT still requires POST .../lease
+  // first; freeze does not. The copy starts unleased on the destination
+  // adaptation. Source venue outlines, permanent equipment and constraints stay
+  // behind; movable pieces transfer and panel assignments are cleared.
+  api.post(`${path}/:sceneId/copy`, { schema: { params, body: copySceneSchema, response: { 201: sceneSchema, ...errors } } }, async (request, reply) => {
+    const { workspaceId, sceneId } = request.params;
+    await requireEditor(request, workspaceId);
+    const copyId = randomUUID();
+    await db.transaction(async tx => {
+      const [existing] = await tx.select({
+        id: scene.id, name: scene.name, layout: scene.layout,
+      }).from(scene).where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, sceneId)));
+      if (!existing) throw new AccessError(404, 'Szene nicht verfügbar.');
+      const [destProduction] = await tx.select({ id: production.id }).from(production)
+        .where(and(eq(production.workspaceId, workspaceId), eq(production.id, request.body.productionId)));
+      if (!destProduction) throw new AccessError(404, 'Produktion nicht verfügbar.');
+      const [destVersion] = await tx.select({ id: venueVersion.id, geometry: venueVersion.geometry }).from(venueVersion)
+        .where(and(eq(venueVersion.workspaceId, workspaceId), eq(venueVersion.id, request.body.venueVersionId)));
+      if (!destVersion) throw new AccessError(404, 'Spielstätte nicht verfügbar.');
+      const [existingAdaptation] = await tx.select({ id: adaptation.id }).from(adaptation).where(and(
+        eq(adaptation.workspaceId, workspaceId),
+        eq(adaptation.productionId, destProduction.id),
+        eq(adaptation.venueVersionId, destVersion.id),
+      ));
+      const adaptationId = existingAdaptation?.id ?? randomUUID();
+      if (!existingAdaptation) {
+        await tx.insert(adaptation).values({
+          id: adaptationId, workspaceId, productionId: destProduction.id, venueVersionId: destVersion.id,
+        });
+      }
+      await tx.insert(scene).values({
+        id: copyId, workspaceId, adaptationId,
+        name: request.body.sceneName ?? copiedSceneName(existing.name),
+        layout: copyLayoutIntoVenue(
+          existing.layout, venueGeometrySchema.parse(destVersion.geometry), request.body.surfaceMap ?? {}, randomUUID,
+        ).layout,
+      });
     });
     const [record] = await readScenes(workspaceId, copyId);
     return reply.code(201).send({ ...record!, lease: null });

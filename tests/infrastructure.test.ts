@@ -88,7 +88,7 @@ test('freeze copies venue pins so later edits cannot change the snapshot', () =>
   const corridor = newCableRoutingCorridor(randomUUID(), [{ x: 0, y: 1200 }, { x: 4000, y: 1200 }]);
   const scene = {
     id: randomUUID(), name: 'Erste Szene', productionName: 'Beispielproduktion', venueName: 'Beispielsaal',
-    revision: 1, venueVersionId: randomUUID(),
+    revision: 1, productionId: randomUUID(), venueId: randomUUID(), venueVersionId: randomUUID(),
     venue: { schemaVersion: 1 as const, width: 8000, depth: 6000, connectionPoints: [pin], cableRoutingCorridors: [corridor] },
     lease: null, layout: { schemaVersion: 1 as const, walls: [], braces: [] },
   };
