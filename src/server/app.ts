@@ -19,8 +19,10 @@ import { LeaseError, createLeases } from './productions/leases.js';
 import { registerProductionRoutes } from './productions/routes.js';
 import { InventoryError, registerInventoryRoutes } from './inventory/routes.js';
 import { registerExportRoutes } from './exports/routes.js';
+import { registerPackageRoutes } from './exports/packageRoutes.js';
 import { registerVenueRoutes, VenueError } from './venues/routes.js';
 import { renderOffThread } from './exports/render.js';
+import { renderPackage } from './exports/packagePdf.js';
 import { localFilesystem, type FileStorage } from './exports/storage.js';
 import type { ConstructionSnapshot } from '../shared/export.js';
 
@@ -47,6 +49,9 @@ export async function createApp(db: Database, config: Config, options: {
   registerInventoryRoutes(app, db, access, config.APP_ORIGIN, leases);
   registerVenueRoutes(app, db, access, config.APP_ORIGIN, storage, leases);
   registerExportRoutes(app, db, access, config.APP_ORIGIN, storage, options.renderPdf ?? renderOffThread);
+  registerPackageRoutes(app, db, access, config.APP_ORIGIN, storage, snapshot => (
+    options.renderPdf ? renderPackage(snapshot) : renderOffThread(snapshot)
+  ));
   app.addHook('onSend', async (request, reply) => {
     reply.header('X-Content-Type-Options', 'nosniff');
     reply.header('Referrer-Policy', 'same-origin');
