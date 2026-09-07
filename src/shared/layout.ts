@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { leaseHolderSchema } from './leases.js';
 import { type Opening, wallTypeSchema } from './wall-types.js';
+import { cableRoutingCorridorsSchema, connectionPointsSchema } from './infrastructure.js';
 import { venueOutlineSchema, venueTraceSchema } from './venue.js';
 
 const name = z.string().trim().min(1).max(120);
@@ -40,6 +41,8 @@ export type Layout = z.infer<typeof layoutSchema>;
 export const venueGeometrySchema = z.strictObject({
   schemaVersion: z.literal(1), width: dimension, depth: dimension,
   outline: venueOutlineSchema.optional(), trace: venueTraceSchema.optional(),
+  connectionPoints: connectionPointsSchema.optional(),
+  cableRoutingCorridors: cableRoutingCorridorsSchema.optional(),
 });
 export type VenueGeometry = z.infer<typeof venueGeometrySchema>;
 export const saveVenueSchema = z.strictObject({ venue: venueGeometrySchema });

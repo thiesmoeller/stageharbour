@@ -13,7 +13,7 @@ import { BraceLayer } from './BraceLayer.js';
 import { StageView } from './StageView.js';
 import { ExportPanel } from './ExportPanel.js';
 import { WallTypePanel } from './WallTypePanel.js';
-import { VenuePanel } from './VenuePanel.js';
+import { VenuePanel, InfrastructureMarks } from './VenuePanel.js';
 
 const statusText = { saved: 'Gespeichert', pending: 'Änderungen ausstehend …', saving: 'Speichert …', failed: 'Speichern fehlgeschlagen', conflict: 'Neuere Fassung vorhanden' };
 export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
@@ -176,10 +176,11 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
   // Bounds stay fixed during a gesture, so moving an object cannot move its coordinate system.
   const corners = [...state.present.walls.flatMap(wall => wallCorners(resolveWall(wall, wallTypes))), ...state.present.braces.flatMap(braceCorners)];
   const floor = measuredOutline(venue);
-  const minX = Math.min(0, ...floor.map(p => p.x), ...corners.map(p => p.x)) - 600;
-  const maxX = Math.max(venue.width, ...floor.map(p => p.x), ...corners.map(p => p.x)) + 600;
-  const minY = Math.min(0, ...floor.map(p => p.y), ...corners.map(p => p.y)) - 800;
-  const maxY = Math.max(venue.depth, ...floor.map(p => p.y), ...corners.map(p => p.y)) + 600;
+  const infra = [...(venue.connectionPoints ?? []), ...(venue.cableRoutingCorridors ?? []).flatMap(corridor => corridor.path)];
+  const minX = Math.min(0, ...floor.map(p => p.x), ...infra.map(p => p.x), ...corners.map(p => p.x)) - 600;
+  const maxX = Math.max(venue.width, ...floor.map(p => p.x), ...infra.map(p => p.x), ...corners.map(p => p.x)) + 600;
+  const minY = Math.min(0, ...floor.map(p => p.y), ...infra.map(p => p.y), ...corners.map(p => p.y)) - 800;
+  const maxY = Math.max(venue.depth, ...floor.map(p => p.y), ...infra.map(p => p.y), ...corners.map(p => p.y)) + 600;
   function downloadDraft() {
     const url = URL.createObjectURL(new Blob([JSON.stringify({ ...initial, revision: saveState.revision, layout: current.current.present }, null, 2)], { type: 'application/json' }));
     const anchor = document.createElement('a'); anchor.href = url; anchor.download = `buehnenentwurf-${initial.id}.json`; anchor.click();
@@ -238,6 +239,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
           </g>;
         })}
         <BraceLayer braces={state.present.braces} selectedId={selectedBrace} preview={previewBrace} readOnly={readOnly} onPointerDown={startBrace} />
+        <InfrastructureMarks pins={venue.connectionPoints ?? []} corridors={venue.cableRoutingCorridors ?? []} />
       </svg>
       <p className="muted">Raster: 1 m · Alle Eingaben in mm · Wände und Stützen zum Verschieben ziehen</p>
     </div>

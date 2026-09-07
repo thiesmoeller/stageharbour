@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { freezeSnapshot } from '../src/shared/export.js';
+import { newCableRoutingCorridor, newConnectionPoint } from '../src/shared/infrastructure.js';
 import { newBrace, newWall, type Scene } from '../src/shared/layout.js';
 import { newWallType } from '../src/shared/wall-types.js';
 import { renderConstructionPlan } from '../src/server/exports/pdf.js';
@@ -93,6 +94,23 @@ test('an 800 mm opening at 1:50 is 16 mm on the A4 page', async () => {
   assert(lengths.some(length => Math.abs(length - 24) < 0.05), lengths.slice(0, 16).join(','));
   assert(lengths.some(length => Math.abs(length - 16) < 0.05), lengths.slice(0, 16).join(','));
 });
+test('a 2500 mm cable corridor and labelled pin are 50 mm and named on the A4 page', async () => {
+  const pin = { ...newConnectionPoint(randomUUID(), 'power', 0, 0), label: 'Lichtstrom' };
+  const corridor = newCableRoutingCorridor(randomUUID(), [{ x: 0, y: 0 }, { x: 2500, y: 0 }]);
+  const snapshot = freezeSnapshot({
+    id: randomUUID(), name: 'Erste Szene', productionName: 'Beispielproduktion', venueName: 'Beispielsaal',
+    revision: 1, venueVersionId: randomUUID(),
+    venue: { schemaVersion: 1, width: 8000, depth: 6000, connectionPoints: [pin], cableRoutingCorridors: [corridor] },
+    lease: null, layout: { schemaVersion: 1, walls: [], braces: [] },
+  }, { id: randomUUID(), name: 'Fassung Probe', issuedAt: new Date('2026-09-07T12:00:00.000Z') });
+  const pdf = await renderConstructionPlan(snapshot);
+  const lengths = pathLengthsMm(pdf);
+  assert(lengths.some(length => Math.abs(length - 50) < 0.05), lengths.slice(0, 20).join(','));
+  const text = shownText(pdf);
+  assert(text.includes('Lichtstrom'), text);
+  assert(!/Ampere|Watt|Kabelmeter/.test(text), text);
+});
+
 test('a frozen 600 x 800 mm brace footprint is 12 mm by 16 mm on the A4 page', async () => {
   const brace = newBrace(randomUUID(), 2000, 3000);
   const snapshot = freezeSnapshot({

@@ -46,7 +46,7 @@ export function freezeSnapshot(scene: Scene, revision: { id: string; name: strin
     schemaVersion: 1, scale: DRAWING_SCALE,
     revisionId: revision.id, revisionName: revision.name, issuedAt: revision.issuedAt.toISOString(),
     productionName: scene.productionName, venueName: scene.venueName, sceneName: scene.name,
-    venueVersionId: scene.venueVersionId, venue: scene.venue,
+    venueVersionId: scene.venueVersionId, venue: structuredClone(scene.venue),
     layout: structuredClone(scene.layout),
     resolvedWalls: scene.layout.walls.map(wall => {
       const resolved = resolveWall(wall, scene.layout.wallTypes ?? []);
