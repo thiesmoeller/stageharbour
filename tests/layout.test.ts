@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { execute, history, redo, undo } from '../src/shared/history.js';
 import { layoutSchema, newBrace, newWall, openingCorners, wallCorners, type Layout } from '../src/shared/layout.js';
+import { AUDIENCE_FLOOR_ID, newPlatform, newStair } from '../src/shared/levels.js';
 import { braceCorners } from '../src/shared/braceTransforms.js';
 import { newWallType, resolveWall, wallTypeSchema } from '../src/shared/wall-types.js';
 
@@ -110,4 +111,16 @@ test('placing a brace is one undoable layout command', () => {
   assert.deepEqual(undo(moved).present, placed.present);
   assert.deepEqual(undo(undo(moved)).present, empty);
   assert.deepEqual(redo(undo(moved)).present, moved.present);
+});
+test('movable platforms and stairs parse into the layout and undo as one command', () => {
+  const platform = newPlatform(randomUUID(), 2000, 1500);
+  const stair = newStair(randomUUID(), AUDIENCE_FLOOR_ID, platform.id, 2000, 400);
+  const empty: Layout = { schemaVersion: 1, walls: [], braces: [] };
+  const placed = execute(history(empty), { schemaVersion: 1, walls: [], braces: [], platforms: [platform], stairs: [stair] });
+  assert.equal(placed.present.platforms?.[0]?.elevation, 400);
+  assert.equal(placed.present.stairs?.[0]?.run, 2000);
+  assert.deepEqual(undo(placed).present, empty);
+  const wall = { ...newWall(randomUUID(), 0, 0), supportingSurfaceId: platform.id };
+  assert(layoutSchema.safeParse({ schemaVersion: 1, walls: [wall], braces: [], platforms: [platform] }).success);
+  assert(!layoutSchema.safeParse({ schemaVersion: 1, walls: [], braces: [], platforms: [platform, platform] }).success);
 });

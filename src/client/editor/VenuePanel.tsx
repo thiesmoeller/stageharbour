@@ -5,7 +5,9 @@ import {
   newCableRoutingCorridor, newConnectionPoint, type CableRoutingCorridor, type ConnectionKind, type ConnectionPoint,
 } from '../../shared/infrastructure.js';
 import { venueReferenceSchema, type VenueReference } from '../../shared/contracts.js';
+import { VenueLevels } from './VenueLevels.js';
 import { calibrationSchema, measuredOutline, millimetresPerUnit, type Calibration, type PlanPoint } from '../../shared/venue.js';
+import { type Platform, type StairUnit } from '../../shared/levels.js';
 import { ApiError, request, upload } from '../api.js';
 
 function optionalNotes(value?: string) {
@@ -18,6 +20,8 @@ export function VenuePanel({ workspaceId, sceneId, venue, readOnly, onSaved }: {
   onSaved: (venue: VenueGeometry) => void;
 }) {
   const [vertices, setVertices] = useState(() => measuredOutline(venue));
+  const [platforms, setPlatforms] = useState<Platform[]>(() => venue.platforms ?? []);
+  const [stairs, setStairs] = useState<StairUnit[]>(() => venue.stairs ?? []);
   const [fileId, setFileId] = useState(venue.trace?.fileId);
   const [page, setPage] = useState(venue.trace?.page ?? 1);
   const [calibration, setCalibration] = useState<Calibration>(venue.trace?.calibration ?? {
@@ -92,6 +96,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, readOnly, onSaved }: {
       schemaVersion: 1, width: venue.width, depth: venue.depth, outline: vertices, trace,
       connectionPoints: pins.map(pin => ({ ...pin, notes: optionalNotes(pin.notes) })),
       cableRoutingCorridors: corridors.map(corridor => ({ ...corridor, notes: optionalNotes(corridor.notes) })),
+      platforms, stairs,
     });
     if (!result.success) { setError('Bitte prüfen Sie den Umriss, die Kalibrierung und die Anschlüsse.'); return; }
     setBusy(true); setError('');
@@ -151,6 +156,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, readOnly, onSaved }: {
       {parsed.success && <p className="muted">Maßstab: {millimetresPerUnit(parsed.data)} mm je Vorlagen-Einheit</p>}
       <InfrastructureFields venue={venue} pins={pins} corridors={corridors} click={click} pinKind={pinKind}
         onClick={setClick} onPinKind={setPinKind} onPins={setPins} onCorridors={setCorridors} />
+      <VenueLevels venue={venue} platforms={platforms} stairs={stairs} readOnly={readOnly} onPlatforms={setPlatforms} onStairs={setStairs} />
       {error && <p className="error" role="alert">{error}</p>}
       <div className="form-actions"><button type="submit">Spielstätte speichern</button></div>
     </fieldset></form>

@@ -1,15 +1,18 @@
 import { useState, type FormEvent } from 'react';
 import { braceSchema, type Brace } from '../../shared/layout.js';
+import type { SupportingSurface } from '../../shared/levels.js';
+import { SurfaceField } from './PlatformLayer.js';
 
-export function BraceInspector({ brace, readOnly, onApply, onRemove }: {
-  brace: Brace; readOnly: boolean; onApply: (brace: Brace) => void; onRemove: () => void;
+export function BraceInspector({ brace, surfaces, readOnly, onApply, onRemove }: {
+  brace: Brace; surfaces: SupportingSurface[]; readOnly: boolean; onApply: (brace: Brace) => void; onRemove: () => void;
 }) {
   const [error, setError] = useState('');
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
+    const surface = String(data.get('supportingSurfaceId') || '');
     const result = braceSchema.safeParse({
-      ...brace, label: data.get('label'),
+      ...brace, label: data.get('label'), supportingSurfaceId: surface || undefined,
       ...Object.fromEntries(['x', 'y', 'rotation', 'footprintWidth', 'footprintDepth', 'height'].map(key => [key, Number(data.get(key))])),
     });
     if (!result.success) { setError('Bitte prüfen Sie die Maße und die Bezeichnung.'); return; }
@@ -17,6 +20,7 @@ export function BraceInspector({ brace, readOnly, onApply, onRemove }: {
   }
   return <form onSubmit={submit}><fieldset disabled={readOnly}>
     <label htmlFor="brace-label">Bezeichnung</label><input id="brace-label" name="label" defaultValue={brace.label} maxLength={120} required />
+    <SurfaceField id="brace-surface" value={brace.supportingSurfaceId} surfaces={surfaces} />
     <div className="numeric-fields">{([
       ['footprintWidth', 'Grundfläche Breite (mm)', 1, 100000], ['footprintDepth', 'Grundfläche Tiefe (mm)', 1, 100000],
       ['height', 'Stützenhöhe (mm)', 1, 100000],

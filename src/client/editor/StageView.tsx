@@ -2,9 +2,10 @@ import { useLayoutEffect, useMemo, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
 import { BoxGeometry, ExtrudeGeometry, Path, Shape } from 'three';
-import type { Layout } from '../../shared/layout.js';
+import type { Layout, VenueGeometry } from '../../shared/layout.js';
 import { stageModel, type WallSolid } from '../../shared/transforms.js';
 import { StageBraceList, StageBraces } from './StageBraces.js';
+import { StageLevelList, StageLevels } from './StageLevels.js';
 
 const plywood = '#315d49';
 const timber = '#d9c6a1';
@@ -52,7 +53,7 @@ function WallMesh({ wall }: { wall: WallSolid }) {
   </mesh>;
 }
 
-export function StageView({ layout, venue }: { layout: Layout; venue: { width: number; depth: number } }) {
+export function StageView({ layout, venue }: { layout: Layout; venue: VenueGeometry }) {
   const model = stageModel(layout, venue);
   const [audience, setAudience] = useState(false);
   const camera = audience ? model.audience.position : { x: model.orbitTarget.x, y: 5500, z: -venue.depth * 0.35 };
@@ -69,6 +70,7 @@ export function StageView({ layout, venue }: { layout: Layout; venue: { width: n
           <planeGeometry args={[venue.width, venue.depth]} />
           <meshBasicMaterial color="#dce4d4" />
         </mesh>
+        <StageLevels model={model} />
         {model.walls.map(wall => <WallMesh key={wall.id} wall={wall} />)}
         <StageBraces braces={model.braces} />
         <OrbitControls makeDefault enableDamping={false} target={[target.x, target.y, target.z]} />
@@ -81,5 +83,6 @@ export function StageView({ layout, venue }: { layout: Layout; venue: { width: n
       data-opening-count={wall.openings.length} data-opening-width={wall.openings[0]?.width ?? ''} data-opening-height={wall.openings[0]?.height ?? ''}>
       {wall.label}: Vorderseite {facing(wall.frontNormal)}</li>)}</ul>
     <StageBraceList braces={model.braces} />
+    <StageLevelList model={model} />
   </div>;
 }
