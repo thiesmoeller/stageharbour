@@ -92,6 +92,16 @@ export const copySceneSchema = z.strictObject({
   sceneName: name.optional(),
   surfaceMap: z.record(z.uuid(), z.uuid()).optional(),
 });
+export const captureTemplateSchema = z.strictObject({ name });
+export const instantiateTemplateSchema = copySceneSchema;
+export const templateSurfaceSchema = z.strictObject({ id: z.uuid(), label: name });
+export const sceneTemplateSummarySchema = z.object({ id: z.uuid(), name });
+export const sceneTemplateSchema = sceneTemplateSummarySchema.extend({
+  layout: layoutSchema,
+  sourceSurfaces: z.array(templateSurfaceSchema),
+});
+export type SceneTemplate = z.infer<typeof sceneTemplateSchema>;
+export const sceneTemplateListSchema = z.array(sceneTemplateSummarySchema);
 export const sceneSummarySchema = z.object({
   id: z.uuid(), name, productionName: name, venueName: name,
   productionId: z.uuid(), venueId: z.uuid(), venueVersionId: z.uuid(),

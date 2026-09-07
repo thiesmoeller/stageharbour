@@ -9,7 +9,7 @@ import { AUDIENCE_FLOOR_ID, newPlatform, newStair } from '../src/shared/levels.j
 import { newPlaceholder } from '../src/shared/placeholders.js';
 import { newKeepClearZone } from '../src/shared/keepClear.js';
 import { newOverheadBox } from '../src/shared/overhead.js';
-import { copiedSceneName, copyLayoutIntoVenue, duplicateLayout, remountRigging } from '../src/shared/scenes.js';
+import { captureTemplateLayout, copiedSceneName, copyLayoutIntoVenue, duplicateLayout, remountRigging } from '../src/shared/scenes.js';
 import { newWallType } from '../src/shared/wall-types.js';
 
 const panelId = '11111111-1111-4111-8111-111111111111';
@@ -144,6 +144,57 @@ test('copying a layout into a destination venue clears panel ids and uses chosen
   assert.equal(result.unresolvedWarnings.some(item => item.kind === 'keep-clear-overlap' && item.objectId === copy.walls[5]?.id), true);
   assert.equal(layout.walls[0]?.panelId, panelId);
   assert.equal(layout.walls[2]?.supportingSurfaceId, sourceStage.id);
+});
+
+test('capturing a scene template clones wall types and arrangement; later millimetre edits leave the clone; instantiating clears panel ids', () => {
+  const type = { ...newWallType(randomUUID()), name: 'Türwand', openings: [{ id: randomUUID(), left: 200, sill: 0, width: 800, height: 2000 }] };
+  const sourceStage = newPlatform(randomUUID(), 4000, 4750);
+  const destStage = newPlatform(randomUUID(), 4000, 4750);
+  const assigned = { ...newWall(randomUUID(), 1000, 2000), panelId, assemblyNumber: 1, typeId: type.id };
+  const partner = { ...newWall(randomUUID(), 5000, 2000), typeId: type.id };
+  const onSourceStage = { ...newWall(randomUUID(), 4000, 4800), supportingSurfaceId: sourceStage.id, panelId: randomUUID(), typeId: type.id };
+  const crossing = { ...newWall(randomUUID(), 4000, 3000), label: 'Bühnenwand', height: 2800, typeId: type.id };
+  const base: Layout = {
+    schemaVersion: 1, wallTypes: [type], walls: [assigned, partner, onSourceStage, crossing], braces: [],
+  };
+  const layout = recordConnection(
+    formGroup(base, [{ kind: 'wall', id: assigned.id }, { kind: 'wall', id: partner.id }], randomUUID()),
+    assigned.id, partner.id,
+  );
+  const captured = captureTemplateLayout(layout);
+  const parsed = layoutSchema.parse(captured);
+  assert.equal(parsed.wallTypes?.[0]?.openings[0]?.width, 800);
+  assert.equal(parsed.walls[0]?.x, 1000);
+  assert.equal(parsed.walls[1]?.x, 5000);
+  assert.equal(parsed.walls[0]?.panelId, panelId);
+  assert.equal(parsed.walls[0]?.typeId, type.id);
+  assert.equal(parsed.groups?.[0]?.members.length, 2);
+  layout.wallTypes![0]!.openings[0]!.width = 400;
+  layout.wallTypes![0]!.width = 900;
+  layout.walls[0]!.x = 1800;
+  layout.groups![0]!.members = [];
+  assert.equal(captured.wallTypes?.[0]?.openings[0]?.width, 800);
+  assert.equal(captured.wallTypes?.[0]?.width, 1200);
+  assert.equal(captured.walls[0]?.x, 1000);
+  assert.equal(captured.groups?.[0]?.members.length, 2);
+  const destination = {
+    schemaVersion: 1 as const, width: 8000, depth: 6000,
+    platforms: [destStage], ceilingHeight: 2000,
+    overheadBoxes: [newOverheadBox(randomUUID(), 4000, 3000)],
+    keepClearZones: [newKeepClearZone(randomUUID(), AUDIENCE_FLOOR_ID, 4000, 3000)],
+  };
+  const result = copyLayoutIntoVenue(captured, destination, { [sourceStage.id]: destStage.id }, randomUUID);
+  const copy = layoutSchema.parse(result.layout);
+  assert.equal(copy.walls[0]?.panelId, undefined);
+  assert.equal(copy.walls[2]?.panelId, undefined);
+  assert.equal(copy.walls[0]?.typeId, type.id);
+  assert.equal(copy.wallTypes?.[0]?.openings[0]?.width, 800);
+  assert.equal(copy.walls[0]?.x, 1000);
+  assert.equal(copy.walls[2]?.supportingSurfaceId, destStage.id);
+  assert.equal(result.warnings.some(item => item.kind === 'ceiling' && item.objectId === copy.walls[3]?.id), true);
+  assert.equal(result.unresolvedWarnings.some(item => item.kind === 'keep-clear-overlap' && item.objectId === copy.walls[3]?.id), true);
+  assert.equal(captured.walls[0]?.panelId, panelId);
+  assert.equal(captured.wallTypes?.[0]?.openings[0]?.width, 800);
 });
 
 test('a duplicate shares the rigging setup; remounting is a new setup and pin notes stay notes', () => {
