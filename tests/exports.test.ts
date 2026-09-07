@@ -3,8 +3,10 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { freezeSnapshot } from '../src/shared/export.js';
 import { newWall } from '../src/shared/layout.js';
+import { newWallType } from '../src/shared/wall-types.js';
 import { renderConstructionPlan } from '../src/server/exports/pdf.js';
 import { renderOffThread } from '../src/server/exports/render.js';
+import type { Scene } from '../src/shared/layout.js';
 
 function pathLengthsMm(pdf: Buffer) {
   const ptPerMm = 72 / 25.4;
@@ -49,4 +51,36 @@ test('construction plan PDF generation runs off the API thread', async () => {
   const pdf = await renderOffThread(sampleSnapshot());
   assert.equal(pdf.subarray(0, 5).toString(), '%PDF-');
   assert(pathLengthsMm(pdf).some(length => Math.abs(length - 24) < 0.05));
+});
+
+function doorScene(): Scene {
+  const type = { ...newWallType(randomUUID()), name: 'Türwand', openings: [{ id: randomUUID(), left: 200, sill: 0, width: 800, height: 2000 }] };
+  const wall = { ...newWall(randomUUID(), 2000, 3000), typeId: type.id, label: type.name };
+  return {
+    id: randomUUID(), name: 'Erste Szene', productionName: 'Beispielproduktion', venueName: 'Beispielsaal',
+    revision: 1, venueVersionId: randomUUID(), venue: { schemaVersion: 1, width: 8000, depth: 6000 },
+    lease: null, layout: { schemaVersion: 1, wallTypes: [type], walls: [wall] },
+  };
+}
+
+test('freeze stores known opening millimetres that later type edits cannot change', () => {
+  const scene = doorScene();
+  const snapshot = freezeSnapshot(scene, { id: randomUUID(), name: 'Fassung Probe', issuedAt: new Date('2026-09-07T12:00:00.000Z') });
+  assert.equal(snapshot.resolvedWalls[0]?.openings[0]?.width, 800);
+  assert.equal(snapshot.resolvedWalls[0]?.openings[0]?.height, 2000);
+  assert.equal(snapshot.resolvedWalls[0]?.openings[0]?.left, 200);
+  assert.equal(snapshot.resolvedWalls[0]?.openings[0]?.sill, 0);
+  scene.layout.wallTypes![0]!.openings[0]!.width = 400;
+  scene.layout.walls[0]!.width = 900;
+  assert.equal(snapshot.layout.wallTypes?.[0]?.openings[0]?.width, 800);
+  assert.equal(snapshot.resolvedWalls[0]?.openings[0]?.width, 800);
+});
+
+test('an 800 mm opening at 1:50 is 16 mm on the A4 page', async () => {
+  const pdf = await renderConstructionPlan(freezeSnapshot(doorScene(), {
+    id: randomUUID(), name: 'Fassung Probe', issuedAt: new Date('2026-09-07T12:00:00.000Z'),
+  }));
+  const lengths = pathLengthsMm(pdf);
+  assert(lengths.some(length => Math.abs(length - 24) < 0.05), lengths.slice(0, 16).join(','));
+  assert(lengths.some(length => Math.abs(length - 16) < 0.05), lengths.slice(0, 16).join(','));
 });

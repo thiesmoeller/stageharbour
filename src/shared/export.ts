@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { layoutSchema, venueGeometrySchema, wallCorners, type Scene } from './layout.js';
+import { layoutSchema, openingCorners, venueGeometrySchema, wallCorners, type Scene } from './layout.js';
+import { resolveWall } from './wall-types.js';
 
 const name = z.string().trim().min(1).max(120);
 const point = z.strictObject({ x: z.number().finite(), y: z.number().finite() });
@@ -20,6 +21,11 @@ export const constructionSnapshotSchema = z.strictObject({
   resolvedWalls: z.array(z.strictObject({
     id: z.uuid(), label: name,
     corners: z.tuple([point, point, point, point]),
+    openings: z.array(z.strictObject({
+      id: z.uuid(), left: z.number().finite(), sill: z.number().finite(),
+      width: z.number().finite(), height: z.number().finite(),
+      corners: z.tuple([point, point, point, point]),
+    })).default([]),
   })),
 });
 export type ConstructionSnapshot = z.infer<typeof constructionSnapshotSchema>;
@@ -38,9 +44,17 @@ export function freezeSnapshot(scene: Scene, revision: { id: string; name: strin
     venueVersionId: scene.venueVersionId, venue: scene.venue,
     layout: structuredClone(scene.layout),
     resolvedWalls: scene.layout.walls.map(wall => {
-      const [a, b, c, d] = wallCorners(wall);
+      const resolved = resolveWall(wall, scene.layout.wallTypes ?? []);
+      const [a, b, c, d] = wallCorners(resolved);
       if (!a || !b || !c || !d) throw new Error('Wall geometry must resolve to four corners.');
-      return { id: wall.id, label: wall.label, corners: [a, b, c, d] as const };
+      return {
+        id: resolved.id, label: resolved.label, corners: [a, b, c, d] as const,
+        openings: resolved.openings.map(opening => {
+          const [oa, ob, oc, od] = openingCorners(resolved, opening);
+          if (!oa || !ob || !oc || !od) throw new Error('Opening geometry must resolve to four corners.');
+          return { id: opening.id, left: opening.left, sill: opening.sill, width: opening.width, height: opening.height, corners: [oa, ob, oc, od] as const };
+        }),
+      };
     }),
   };
 }

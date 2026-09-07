@@ -80,6 +80,53 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   expect(errors).toEqual([]);
 });
 
+test('create a wall type with a rectangular opening, place it, and export the plan', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await signIn(page);
+  await page.getByRole('button', { name: 'Neues Bühnenbild' }).click();
+  await page.getByRole('textbox', { name: 'Produktion' }).fill('Türproduktion');
+  await page.getByRole('textbox', { name: 'Spielstätte' }).fill('Türsaal');
+  await page.getByRole('textbox', { name: 'Szene' }).fill('Türszene');
+  await page.getByRole('spinbutton', { name: 'Spielstättenbreite (mm)' }).fill('8000');
+  await page.getByRole('spinbutton', { name: 'Spielstättentiefe (mm)' }).fill('6000');
+  await page.getByRole('button', { name: 'Bühnenbild anlegen' }).click();
+  await expect(page.getByRole('heading', { name: 'Türszene' })).toBeVisible();
+  await waitUntilSaved(page);
+
+  await page.getByRole('button', { name: 'Wandtyp anlegen' }).click();
+  await page.getByLabel('Wandtyp-Bezeichnung').fill('Türwand');
+  await page.getByRole('button', { name: 'Öffnung hinzufügen' }).click();
+  await expect(page.getByLabel('Öffnungsbreite (mm)')).toHaveValue('800');
+  await page.getByLabel('Öffnungsbreite (mm)').fill('2000');
+  await page.getByRole('button', { name: 'Wandtyp speichern' }).click();
+  await expect(page.getByRole('alert')).toContainText('innerhalb der Platte');
+  await page.getByLabel('Öffnungsbreite (mm)').fill('800');
+  await page.getByRole('button', { name: 'Wandtyp speichern' }).click();
+  await waitUntilSaved(page);
+
+  await page.getByRole('button', { name: 'Wandtyp platzieren' }).click();
+  await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(1);
+  const opening = page.locator('[data-testid^="plan-opening-"]');
+  await expect(opening).toHaveCount(1);
+  await expect(opening).toHaveAttribute('data-width', '800');
+  await expect(opening).toHaveAttribute('data-height', '2000');
+  await expect(opening).toHaveAttribute('data-left', '200');
+  const stageWall = page.locator('[data-testid^="stage-wall-"]');
+  await expect(stageWall).toHaveAttribute('data-opening-count', '1');
+  await expect(stageWall).toHaveAttribute('data-opening-width', '800');
+  await expect(stageWall).toHaveAttribute('data-opening-height', '2000');
+  await expect(stageWall).toHaveAttribute('data-width', '1200');
+  await expect(stageWall).toHaveAttribute('data-height', '2400');
+  await waitUntilSaved(page);
+
+  await page.getByRole('button', { name: 'Konstruktionsplan' }).click();
+  await page.getByLabel('Bezeichnung der Fassung').fill('Türfassung');
+  await page.getByRole('button', { name: 'Als Konstruktionsplan exportieren' }).click();
+  await expect(page.getByRole('listitem').filter({ hasText: 'Türfassung' })).toContainText('Fertig');
+  expect(errors).toEqual([]);
+});
+
 test('a failed autosave keeps the local draft and retries the same revision', async ({ page }) => {
   await signIn(page);
   await page.getByRole('button', { name: 'Neues Bühnenbild' }).click();

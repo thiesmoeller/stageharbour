@@ -2,11 +2,13 @@ import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type
 import { z } from 'zod';
 import { execute, history, redo, undo, type History } from '../../shared/history.js';
 import { newWall, wallCorners, wallSchema, type Layout, type Scene, type Wall } from '../../shared/layout.js';
+import { resolveWall, typesOf, type WallElementType } from '../../shared/wall-types.js';
 import { LEASE_HEARTBEAT_MS } from '../../shared/leases.js';
 import { ApiError, request } from '../api.js';
 import { Autosave, SaveConflict } from './autosave.js';
 import { StageView } from './StageView.js';
 import { ExportPanel } from './ExportPanel.js';
+import { WallTypePanel } from './WallTypePanel.js';
 
 const statusText = { saved: 'Gespeichert', pending: 'Änderungen ausstehend …', saving: 'Speichert …', failed: 'Speichern fehlgeschlagen', conflict: 'Neuere Fassung vorhanden' };
 export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
@@ -15,6 +17,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
   const [state, setState] = useState(() => history(initial.layout));
   const current = useRef(state);
   const [selected, setSelected] = useState<string>();
+  const [selectedType, setSelectedType] = useState<string>();
   const [preview, setPreview] = useState<Wall>();
   const [exportsOpen, setExportsOpen] = useState(false);
   const gesture = useRef<{ wall: Wall; x: number; y: number; latest: Wall } | undefined>(undefined);
@@ -55,6 +58,32 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
   }
   function commit(layout: Layout) { apply(execute(current.current, layout)); }
   function replace(wall: Wall) { commit({ ...current.current.present, walls: current.current.present.walls.map(item => item.id === wall.id ? wall : item) }); }
+  function applyType(type: WallElementType) {
+    const present = current.current.present;
+    const types = typesOf(present);
+    commit({
+      ...present,
+      wallTypes: types.some(item => item.id === type.id) ? types.map(item => item.id === type.id ? type : item) : [...types, type],
+      walls: present.walls.map(wall => wall.typeId === type.id ? { ...wall, width: type.width, height: type.height, thickness: type.thickness } : wall),
+    });
+    setSelectedType(type.id);
+  }
+  function placeType(type: WallElementType) {
+    const present = current.current.present;
+    if (present.walls.length >= 250) return;
+    const wall: Wall = { ...newWall(crypto.randomUUID(), initial.venue.width / 2, initial.venue.depth / 2), typeId: type.id, label: type.name, width: type.width, height: type.height, thickness: type.thickness };
+    commit({ ...present, walls: [...present.walls, wall] });
+    setSelected(wall.id);
+  }
+  function removeType(id: string) {
+    const present = current.current.present;
+    commit({
+      ...present,
+      wallTypes: typesOf(present).filter(type => type.id !== id),
+      walls: present.walls.map(wall => wall.typeId === id ? { ...wall, typeId: undefined } : wall),
+    });
+    setSelectedType(undefined);
+  }
   function remove() {
     if (!selected) return;
     commit({ ...current.current.present, walls: current.current.present.walls.filter(wall => wall.id !== selected) });
@@ -73,6 +102,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     return () => window.removeEventListener('keydown', shortcut);
   });
   const selectedWall = state.present.walls.find(wall => wall.id === selected);
+  const wallTypes = typesOf(state.present);
   function point(event: PointerEvent) {
     const matrix = svg.current?.getScreenCTM();
     if (!matrix) return { x: 0, y: 0 };
@@ -104,7 +134,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     if (drag && !cancelled) replace(drag.latest);
   }
   // Bounds stay fixed during a gesture, so moving an object cannot move its coordinate system.
-  const corners = state.present.walls.flatMap(wallCorners);
+  const corners = state.present.walls.flatMap(wall => wallCorners(resolveWall(wall, wallTypes)));
   const minX = Math.min(0, ...corners.map(p => p.x)) - 600;
   const maxX = Math.max(initial.venue.width, ...corners.map(p => p.x)) + 600;
   const minY = Math.min(0, ...corners.map(p => p.y)) - 800;
@@ -150,9 +180,12 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
         <text x={initial.venue.width / 2} y="420" textAnchor="middle" fontSize="190">↑ Publikum · Blick zur Bühne</text>
         {state.present.walls.map(savedWall => {
           const wall = preview?.id === savedWall.id ? preview : savedWall;
+          const resolved = resolveWall(wall, wallTypes);
           return <g key={wall.id} data-testid={`wall-${wall.id}`} aria-label={wall.label} className={readOnly ? '' : 'draggable-wall'} transform={`translate(${wall.x} ${-wall.y}) rotate(${-wall.rotation})`} onPointerDown={event => start(event, wall)}>
-            <line x1={-wall.width / 2} x2={wall.width / 2} stroke="transparent" strokeWidth="18" vectorEffect="non-scaling-stroke" />
-            <rect x={-wall.width / 2} y={-wall.thickness / 2} width={wall.width} height={wall.thickness} fill={selected === wall.id ? '#b67c35' : '#315d49'} stroke={selected === wall.id ? '#986122' : '#315d49'} strokeWidth="2" vectorEffect="non-scaling-stroke" />
+            <line x1={-resolved.width / 2} x2={resolved.width / 2} stroke="transparent" strokeWidth="18" vectorEffect="non-scaling-stroke" />
+            <rect x={-resolved.width / 2} y={-resolved.thickness / 2} width={resolved.width} height={resolved.thickness} fill={selected === wall.id ? '#b67c35' : '#315d49'} stroke={selected === wall.id ? '#986122' : '#315d49'} strokeWidth="2" vectorEffect="non-scaling-stroke" />
+            {resolved.openings.map(opening => <rect key={opening.id} data-testid={`plan-opening-${opening.id}`} data-width={opening.width} data-height={opening.height} data-left={opening.left} data-sill={opening.sill}
+              x={-resolved.width / 2 + opening.left} y={-resolved.thickness / 2} width={opening.width} height={resolved.thickness} fill="#f8faf5" stroke={selected === wall.id ? '#986122' : '#315d49'} strokeWidth="1" vectorEffect="non-scaling-stroke" />)}
             <text y="-140" textAnchor="middle" fontSize="150" pointerEvents="none">{wall.label}</text>
           </g>;
         })}
@@ -160,29 +193,35 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
       <p className="muted">Raster: 1 m · Alle Eingaben in mm · Wände zum Verschieben ziehen</p>
     </div>
     <StageView layout={{ ...state.present, walls: state.present.walls.map(wall => preview?.id === wall.id ? preview : wall) }} venue={initial.venue} />
-    </div><aside className="wall-inspector"><h3>Wandelement</h3>
+    </div><aside className="wall-inspector">
+      <WallTypePanel types={wallTypes} selectedId={selectedType} readOnly={readOnly}
+        onSelect={setSelectedType} onCreate={applyType} onApply={applyType} onPlace={placeType} onRemove={removeType} />
+      <h3>Wandelement</h3>
       <label htmlFor="wall-selection">Auswahl</label><select id="wall-selection" value={selectedWall?.id ?? ''} onChange={event => setSelected(event.target.value || undefined)}><option value="">Wand auswählen</option>{state.present.walls.map((wall, index) => <option key={wall.id} value={wall.id}>{index + 1}. {wall.label}</option>)}</select>
-      {selectedWall ? <WallForm key={JSON.stringify(selectedWall)} wall={selectedWall} readOnly={readOnly} onApply={replace} onRemove={remove} /> : <p className="muted">Wählen Sie eine Wand im Grundriss oder fügen Sie eine neue hinzu.</p>}
+      {selectedWall ? <WallForm key={JSON.stringify(selectedWall)} wall={selectedWall} typed={!!selectedWall.typeId} readOnly={readOnly} onApply={replace} onRemove={remove} /> : <p className="muted">Wählen Sie eine Wand im Grundriss oder fügen Sie eine neue hinzu.</p>}
     </aside></div>
   </section>;
 }
 
-function WallForm({ wall, readOnly, onApply, onRemove }: { wall: Wall; readOnly: boolean; onApply: (wall: Wall) => void; onRemove: () => void }) {
+function WallForm({ wall, typed, readOnly, onApply, onRemove }: { wall: Wall; typed: boolean; readOnly: boolean; onApply: (wall: Wall) => void; onRemove: () => void }) {
   const [error, setError] = useState('');
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    const result = wallSchema.safeParse({ ...wall, label: data.get('label'), ...Object.fromEntries(['x', 'y', 'rotation', 'width', 'height', 'thickness'].map(key => [key, Number(data.get(key))])) });
+    const keys = typed ? ['x', 'y', 'rotation'] : ['x', 'y', 'rotation', 'width', 'height', 'thickness'];
+    const result = wallSchema.safeParse({ ...wall, label: data.get('label'), ...Object.fromEntries(keys.map(key => [key, Number(data.get(key))])) });
     if (!result.success) { setError('Bitte prüfen Sie die Maße und die Bezeichnung.'); return; }
     setError(''); onApply(result.data);
   }
   return <form onSubmit={submit}><fieldset disabled={readOnly}>
     <label htmlFor="wall-label">Bezeichnung</label><input id="wall-label" name="label" defaultValue={wall.label} maxLength={120} required />
-    <div className="numeric-fields">{([
+    <div className="numeric-fields">{(typed ? [
+      ['x', 'X (mm)', -100000, 100000], ['y', 'Y (mm)', -100000, 100000], ['rotation', 'Drehung (°)', -360, 360],
+    ] as const : [
       ['width', 'Breite (mm)', 1, 100000], ['height', 'Höhe (mm)', 1, 100000], ['thickness', 'Dicke (mm)', 1, 100000],
       ['x', 'X (mm)', -100000, 100000], ['y', 'Y (mm)', -100000, 100000], ['rotation', 'Drehung (°)', -360, 360],
     ] as const).map(([key, label, min, max]) => <div key={key}><label htmlFor={`wall-${key}`}>{label}</label><input id={`wall-${key}`} name={key} type="number" step="any" min={min} max={max} defaultValue={wall[key]} required /></div>)}</div>
-    <p className="muted">X/Y beziehen sich auf die Wandmitte. Ursprung: vordere linke Ecke der Spielstätte.</p>
+    <p className="muted">{typed ? 'Außenmaße und Öffnungen kommen vom Wandtyp.' : 'X/Y beziehen sich auf die Wandmitte. Ursprung: vordere linke Ecke der Spielstätte.'}</p>
     {error && <p role="alert" className="error">{error}</p>}
     {!readOnly && <div className="form-actions"><button type="submit">Übernehmen</button><button className="quiet" type="button" onClick={onRemove}>Wand löschen</button></div>}
   </fieldset></form>;
