@@ -4,6 +4,7 @@ import { execute, history, redo, undo, type History } from '../../shared/history
 import { newWall, wallCorners, wallSchema, type Layout, type Scene, type Wall } from '../../shared/layout.js';
 import { ApiError, request } from '../api.js';
 import { Autosave, SaveConflict } from './autosave.js';
+import { StageView } from './StageView.js';
 
 const statusText = { saved: 'Gespeichert', pending: 'Änderungen ausstehend …', saving: 'Speichert …', failed: 'Speichern fehlgeschlagen', conflict: 'Neuere Fassung vorhanden' };
 export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
@@ -119,7 +120,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
       <button onClick={downloadDraft}>Lokalen Entwurf herunterladen</button>{' '}
       <button className="quiet" onClick={() => { if (window.confirm('Lokale Änderungen verwerfen und die gespeicherte Fassung laden?')) { saver.dispose(); onDirty(false); onClose(); } }}>Gespeicherte Fassung laden</button>
     </div>}
-    <div className="editor-grid"><div className="plan-canvas">
+    <div className="editor-grid"><div className="editor-views"><div className="plan-canvas">
       <svg ref={svg} role="img" aria-label="Grundriss der Spielstätte" viewBox={`${minX} ${-maxY} ${maxX - minX} ${maxY - minY}`}
         onPointerMove={move} onPointerUp={() => finish()} onPointerCancel={() => finish(true)} onLostPointerCapture={() => finish(true)}>
         <defs><pattern id="metre-grid" width="1000" height="1000" patternUnits="userSpaceOnUse"><path d="M 1000 0 L 0 0 0 1000" fill="none" stroke="#dfe5d9" strokeWidth="1" vectorEffect="non-scaling-stroke" /></pattern></defs>
@@ -137,6 +138,8 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
         })}
       </svg>
       <p className="muted">Raster: 1 m · Alle Eingaben in mm · Wände zum Verschieben ziehen</p>
+    </div>
+    <StageView layout={{ ...state.present, walls: state.present.walls.map(wall => preview?.id === wall.id ? preview : wall) }} venue={initial.venue} />
     </div><aside className="wall-inspector"><h3>Wandelement</h3>
       <label htmlFor="wall-selection">Auswahl</label><select id="wall-selection" value={selectedWall?.id ?? ''} onChange={event => setSelected(event.target.value || undefined)}><option value="">Wand auswählen</option>{state.present.walls.map((wall, index) => <option key={wall.id} value={wall.id}>{index + 1}. {wall.label}</option>)}</select>
       {selectedWall ? <WallForm key={JSON.stringify(selectedWall)} wall={selectedWall} readOnly={readOnly} onApply={replace} onRemove={remove} /> : <p className="muted">Wählen Sie eine Wand im Grundriss oder fügen Sie eine neue hinzu.</p>}
