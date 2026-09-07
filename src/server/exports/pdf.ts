@@ -6,6 +6,7 @@ import { strokeLevelFeatures } from './levelPdf.js';
 import { strokeAssemblyLabels } from './assemblyPdf.js';
 import { strokeOverheadFeatures } from './overheadPdf.js';
 import { measuredOutline } from '../../shared/venue.js';
+import { centrelineSpan } from '../../shared/snapping.js';
 
 const mm = (value: number) => value * 72 / 25.4;
 
@@ -64,6 +65,14 @@ export function renderConstructionPlan(snapshot: ConstructionSnapshot) {
       const at = toPage(pin.x, pin.y);
       doc.circle(at.x, at.y, mm(1.5)).lineWidth(0.6).fillAndStroke('#d9c6a1', '#986122');
       doc.fontSize(7).fillColor('#395640').text(pin.label, at.x + mm(2), at.y - mm(2), { lineBreak: false });
+    }
+    if (snapshot.venue.stageCentreline) {
+      const span = centrelineSpan(snapshot.venue.stageCentreline, Math.hypot(snapshot.venue.width, snapshot.venue.depth));
+      const start = toPage(span.a.x, span.a.y), end = toPage(span.b.x, span.b.y);
+      doc.moveTo(start.x, start.y).lineTo(end.x, end.y).lineWidth(0.6).dash(3, { space: 2 }).stroke('#986122');
+      doc.undash();
+      const label = toPage(snapshot.venue.stageCentreline.x, snapshot.venue.stageCentreline.y);
+      doc.fontSize(7).fillColor('#395640').text('Mittellinie', label.x + mm(2), label.y - mm(2), { lineBreak: false });
     }
     const front = toPage(snapshot.venue.width / 2, 0);
     doc.fontSize(9).fillColor('#395640').text('↑ Publikum · Blick zur Bühne', front.x - mm(30), front.y + mm(6), { lineBreak: false });

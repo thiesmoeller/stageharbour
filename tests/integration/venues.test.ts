@@ -217,6 +217,32 @@ test('saves keep-clear zones on the pinned venue version', async () => {
   assert.deepEqual(again.venue.outline, outline);
 });
 
+test('saves a stage centreline, freeze keeps it, later centreline edits do not change the stored PDF', async () => {
+  const loaded = (await app.inject({ url: `${scenes}/${scene.id}`, headers })).json<Scene>();
+  const stageCentreline = { x: 4000, y: 3000, rotation: 90 };
+  const saved = await app.inject({
+    method: 'PUT', url: `${scenes}/${scene.id}/venue`, headers,
+    payload: { venue: { ...loaded.venue, stageCentreline } },
+  });
+  assert.equal(saved.statusCode, 200, saved.body);
+  const again = (await app.inject({ url: `${scenes}/${scene.id}`, headers })).json<Scene>();
+  assert.deepEqual(again.venue.stageCentreline, { x: 4000, y: 3000, rotation: 90 });
+  const frozen = await app.inject({ method: 'POST', url: `${scenes}/${scene.id}/exports`, headers, payload: { name: 'Mit Mittellinie' } });
+  assert.equal(frozen.statusCode, 201, frozen.body);
+  const original = Buffer.from((await app.inject({ url: `${scenes}/${scene.id}/exports/${frozen.json().id}/file`, headers })).rawPayload);
+  const shown = [...original.toString('latin1').matchAll(/<([0-9a-fA-F]+)>/g)]
+    .map(match => Buffer.from(match[1] ?? '', 'hex').toString('latin1')).join('');
+  assert(shown.includes('Mittellinie'), shown);
+  assert.equal((await app.inject({
+    method: 'PUT', url: `${scenes}/${scene.id}/venue`, headers,
+    payload: { venue: { ...again.venue, stageCentreline: { x: 100, y: 200, rotation: 15 } } },
+  })).statusCode, 200);
+  const later = Buffer.from((await app.inject({ url: `${scenes}/${scene.id}/exports/${frozen.json().id}/file`, headers })).rawPayload);
+  assert.deepEqual(later, original);
+  const current = (await app.inject({ url: `${scenes}/${scene.id}`, headers })).json<Scene>();
+  assert.deepEqual(current.venue.stageCentreline, { x: 100, y: 200, rotation: 15 });
+});
+
 test('frozen exports keep the measured outline and can still fetch the referenced source after later venue edits', async () => {
   const loaded = (await app.inject({ url: `${scenes}/${scene.id}`, headers })).json<Scene>();
   const fileId = loaded.venue.trace?.fileId;

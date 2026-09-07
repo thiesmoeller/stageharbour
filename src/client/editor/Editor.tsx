@@ -4,6 +4,7 @@ import { assemblyCaption } from '../../shared/assembly.js';
 import { dropMember, groupContaining, groupOf, groupPivot, transformGroup, type GroupMember } from '../../shared/groups.js';
 import { execute, history, redo, undo, type History } from '../../shared/history.js';
 import { newBrace, newWall, wallCorners, wallSchema, type Brace, type Layout, type Scene, type VenueGeometry, type Wall } from '../../shared/layout.js';
+import { SNAP_NOTICE, snapGroupPose, snapRotation, snapWallPose, type SnapGuide } from '../../shared/snapping.js';
 import { AUDIENCE_FLOOR_ID, layoutDiagnostics, newPlatform, newStair, supportingSurfaces, type Platform, type StairUnit } from '../../shared/levels.js';
 import { overheadBoxCorners, overheadClearance } from '../../shared/overhead.js';
 import { braceCorners } from '../../shared/braceTransforms.js';
@@ -26,6 +27,7 @@ import { keepClearWarnings } from '../../shared/keepClear.js';
 import { InventoryPanel } from './InventoryPanel.js';
 import { AssemblyPanel } from './AssemblyPanel.js';
 import { GroupInspector } from './GroupInspector.js';
+import { AlignmentGuides, CentrelineMark, SnapToggle } from './SnapGuides.js';
 
 const statusText = { saved: 'Gespeichert', pending: 'Änderungen ausstehend …', saving: 'Speichert …', failed: 'Speichern fehlgeschlagen', conflict: 'Neuere Fassung vorhanden' };
 export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
@@ -49,6 +51,8 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
   const [exportsOpen, setExportsOpen] = useState(false);
   const [venueOpen, setVenueOpen] = useState(false);
   const [venue, setVenue] = useState<VenueGeometry>(initial.venue);
+  const [snapEnabled, setSnapEnabled] = useState(true);
+  const [guides, setGuides] = useState<SnapGuide[]>([]);
   const gesture = useRef<{ wall: Wall; x: number; y: number; latest: Wall } | undefined>(undefined);
   const braceDrag = useRef<{ brace: Brace; x: number; y: number; latest: Brace } | undefined>(undefined);
   const groupDrag = useRef<{ groupId: string; x: number; y: number; start: Layout; latest: Layout } | undefined>(undefined);
@@ -92,6 +96,9 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
   }
   function commit(layout: Layout) { apply(execute(current.current, layout)); }
   function replace(wall: Wall) { commit({ ...current.current.present, walls: current.current.present.walls.map(item => item.id === wall.id ? wall : item) }); }
+  function applyWall(wall: Wall) {
+    replace({ ...wall, rotation: snapEnabled ? snapRotation(wall.rotation) : wall.rotation });
+  }
   function applyType(type: WallElementType) {
     const present = current.current.present;
     const types = typesOf(present);
@@ -235,21 +242,30 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
   function move(event: PointerEvent) {
     const position = point(event);
     const clamp = (value: number) => Math.max(-100000, Math.min(100000, Math.round(value)));
+    const bypass = event.altKey || !snapEnabled;
     const grouped = groupDrag.current;
     if (grouped) {
       const pivot = groupPivot(grouped.start, grouped.groupId);
       const group = groupOf(grouped.start, grouped.groupId);
       if (!pivot || !group) return;
-      grouped.latest = transformGroup(grouped.start, grouped.groupId, {
+      const snapped = snapGroupPose(grouped.start, grouped.groupId, {
         x: clamp(pivot.x + position.x - grouped.x), y: clamp(pivot.y + position.y - grouped.y), rotation: group.rotation,
+      }, venue.stageCentreline, { bypass });
+      grouped.latest = transformGroup(grouped.start, grouped.groupId, {
+        x: clamp(snapped.pose.x), y: clamp(snapped.pose.y), rotation: snapped.pose.rotation,
       });
       setGroupPreview(grouped.latest);
+      setGuides(snapped.guides);
       return;
     }
     const wallDrag = gesture.current;
     if (wallDrag) {
-      wallDrag.latest = { ...wallDrag.wall, x: clamp(wallDrag.wall.x + position.x - wallDrag.x), y: clamp(wallDrag.wall.y + position.y - wallDrag.y) };
+      const next = { ...wallDrag.wall, x: clamp(wallDrag.wall.x + position.x - wallDrag.x), y: clamp(wallDrag.wall.y + position.y - wallDrag.y) };
+      const types = typesOf(current.current.present);
+      const snapped = snapWallPose(resolveWall(next, types), current.current.present.walls.filter(wall => wall.id !== next.id).map(wall => resolveWall(wall, types)), venue.stageCentreline, { bypass });
+      wallDrag.latest = { ...next, x: clamp(snapped.x), y: clamp(snapped.y) };
       setPreview(wallDrag.latest);
+      setGuides(snapped.guides);
       return;
     }
     const drag = braceDrag.current;
@@ -261,6 +277,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     const grouped = groupDrag.current;
     groupDrag.current = undefined;
     setGroupPreview(undefined);
+    setGuides([]);
     if (grouped && !cancelled) commit(grouped.latest);
     const wallDrag = gesture.current;
     gesture.current = undefined;
@@ -282,7 +299,8 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
   const floor = measuredOutline(venue);
   const infra = [...(venue.connectionPoints ?? []), ...(venue.cableRoutingCorridors ?? []).flatMap(corridor => corridor.path),
     ...(venue.overheadBoxes ?? []).flatMap(overheadBoxCorners),
-    ...(venue.keepClearZones ?? []).flatMap(zone => zone.polygon)];
+    ...(venue.keepClearZones ?? []).flatMap(zone => zone.polygon),
+    ...(venue.stageCentreline ? [venue.stageCentreline] : [])];
   const minX = Math.min(0, ...floor.map(p => p.x), ...infra.map(p => p.x), ...corners.map(p => p.x)) - 600;
   const maxX = Math.max(venue.width, ...floor.map(p => p.x), ...infra.map(p => p.x), ...corners.map(p => p.x)) + 600;
   const minY = Math.min(0, ...floor.map(p => p.y), ...infra.map(p => p.y), ...corners.map(p => p.y)) - 800;
@@ -317,6 +335,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
       <button className="quiet" disabled={!!preview || !!previewBrace || !!groupPreview || !state.future.length} onClick={() => apply(redo(current.current))}>Wiederholen</button></>}
       <button className="quiet" onClick={() => setVenueOpen(open => !open)}>{venueOpen ? 'Spielstätte schließen' : 'Spielstätte'}</button>
       <button className="quiet" onClick={() => setExportsOpen(open => !open)}>{exportsOpen ? 'Export schließen' : 'Konstruktionsplan'}</button>
+      {!readOnly && <SnapToggle enabled={snapEnabled} onChange={setSnapEnabled} />}
       <span className={`save-status ${saveState.status}`} role="status">{readOnly
         ? (initial.lease ? `Nur Ansicht · Bearbeitung durch ${initial.lease.holderName}` : 'Nur Ansicht')
         : saveState.status === 'conflict' && saveState.conflictKind === 'lease' ? 'Bearbeitung abgelaufen' : statusText[saveState.status]}</span>
@@ -369,8 +388,10 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
         <InfrastructureMarks pins={venue.connectionPoints ?? []} corridors={venue.cableRoutingCorridors ?? []} />
         <OverheadMarks boxes={venue.overheadBoxes ?? []} />
         <KeepClearMarks zones={venue.keepClearZones ?? []} />
+        <CentrelineMark centreline={venue.stageCentreline} />
+        <AlignmentGuides guides={guides} />
       </svg>
-      <p className="muted">Raster: 1 m · Alle Eingaben in mm · Wände, Stützen und Podeste zum Auswählen</p>
+      <p className="muted">Raster: 1 m · Alle Eingaben in mm · Wände, Stützen und Podeste zum Auswählen · {SNAP_NOTICE}</p>
       {diagnostics.map(item => <p key={`${item.kind}-${item.objectId}`} className="warning" role="status">{item.message}</p>)}
       {overheadWarnings.map(item => <p key={`${item.kind}-${item.objectId}-${item.obstructionId ?? ''}`}
         className="warning" role="status" data-testid="overhead-warning">{item.message}</p>)}
@@ -402,7 +423,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
         {(state.present.platforms ?? []).map((platform, index) => <option key={platform.id} value={`platform:${platform.id}`}>P{index + 1}. {platform.label}</option>)}
         {(state.present.stairs ?? []).map((stair, index) => <option key={stair.id} value={`stair:${stair.id}`}>T{index + 1}. {stair.label}</option>)}
       </select>
-      {selectedWall ? <WallForm key={JSON.stringify(selectedWall)} wall={selectedWall} typed={!!selectedWall.typeId} surfaces={surfaces} readOnly={readOnly} onApply={replace} onRemove={remove} />
+      {selectedWall ? <WallForm key={JSON.stringify(selectedWall)} wall={selectedWall} typed={!!selectedWall.typeId} surfaces={surfaces} readOnly={readOnly} onApply={applyWall} onRemove={remove} />
         : selectedBraceItem ? <BraceInspector key={JSON.stringify(selectedBraceItem)} brace={selectedBraceItem} surfaces={surfaces} readOnly={readOnly} onApply={replaceBrace} onRemove={remove} />
           : selectedPlatformItem ? <PlatformInspector key={JSON.stringify(selectedPlatformItem)} platform={selectedPlatformItem} readOnly={readOnly} onApply={replacePlatform} onRemove={remove} />
             : selectedStairItem ? <StairInspector key={JSON.stringify(selectedStairItem)} stair={selectedStairItem} surfaces={surfaces} readOnly={readOnly} onApply={replaceStair} onRemove={remove} />
