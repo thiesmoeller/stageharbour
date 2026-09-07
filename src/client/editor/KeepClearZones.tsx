@@ -26,7 +26,7 @@ export function KeepClearZones({ venue, zones, click, readOnly, onClick, onZones
   const centre = { x: Math.round(venue.width / 2), y: Math.round(venue.depth / 2) };
   return <div className="keep-clear">
     <h4>Freihaltezonen</h4>
-    <p className="muted">Beispielmaße, keine gemessene Spielstättenvorgabe. Beschriftete Flächen mit einem Grund wie Notausgang oder Zugang zur Tontechnik. Überlappungen mit Wänden, Stützen und beweglichen Teilen auf derselben Auflagefläche werden gewarnt; Speichern bleibt möglich.</p>
+    <p className="muted">Beispielmaße, keine gemessene Spielstättenvorgabe. Beschriftete Flächen mit einem Grund wie Notausgang oder Zugang zur Tontechnik. Überlappungen mit Wänden, Stützen, Möbeln und beweglichen Teilen auf derselben Auflagefläche werden gewarnt; Speichern bleibt möglich.</p>
     {!readOnly && <div className="form-actions">
       <button type="button" className="quiet" disabled={zones.length >= 250} onClick={() => {
         onClick('zone');

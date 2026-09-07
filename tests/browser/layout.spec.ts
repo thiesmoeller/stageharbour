@@ -188,6 +188,17 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.locator('.plan-canvas .warning').filter({ hasText: 'Notausgang Ost' })).toHaveCount(2);
   await expect(page.locator('.plan-canvas .warning').filter({ hasText: 'Wand' })).toBeVisible();
   await expect(page.locator('.plan-canvas .warning').filter({ hasText: 'Stütze' })).toBeVisible();
+  await page.getByRole('button', { name: 'Tisch hinzufügen' }).click();
+  await expect(page.locator('.plan-canvas [data-testid^="placeholder-"]')).toHaveCount(1);
+  await expect(page.locator('#placeholder-depth')).toHaveValue('800');
+  await expect(page.locator('#placeholder-height')).toHaveValue('750');
+  await page.locator('#placeholder-x').fill('4000');
+  await page.locator('#placeholder-y').fill('3000');
+  await page.locator('#placeholder-depth').fill('900');
+  await page.locator('#placeholder-depth').locator('xpath=ancestor::form').getByRole('button', { name: 'Übernehmen' }).click();
+  await expect(page.locator('#placeholder-depth')).toHaveValue('900');
+  await waitUntilSaved(page);
+  await expect(page.locator('.plan-canvas .warning').filter({ hasText: 'Tisch' })).toBeVisible();
   await page.screenshot({ path: 'test-results/layout-editor.png', fullPage: true });
 
   await page.getByRole('button', { name: 'Wand hinzufügen' }).click();
@@ -204,6 +215,9 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.reload();
   await page.getByRole('button', { name: /Beispielproduktion · Erste Szene/ }).click();
   await expect(page.getByRole('heading', { name: 'Erste Szene' })).toBeVisible();
+  await expect(page.locator('.plan-canvas [data-testid^="placeholder-"]')).toHaveCount(1);
+  await page.locator('.plan-canvas [data-testid^="placeholder-"]').click();
+  await expect(page.locator('#placeholder-depth')).toHaveValue('900');
   await page.getByLabel('Auswahl').selectOption({ label: '1. Wand' });
   await expect(page.getByText('Zugewiesen: Beispiel-P01')).toBeVisible();
   await expect(page.getByTestId('inventory-warnings')).toContainText('keine Platte zugewiesen');

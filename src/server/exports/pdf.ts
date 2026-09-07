@@ -5,6 +5,7 @@ import { strokeKeepClearZones } from './keepClearPdf.js';
 import { strokeLevelFeatures } from './levelPdf.js';
 import { strokeAssemblyLabels } from './assemblyPdf.js';
 import { strokeOverheadFeatures } from './overheadPdf.js';
+import { strokePlaceholders } from './placeholderPdf.js';
 import { measuredOutline } from '../../shared/venue.js';
 
 const mm = (value: number) => value * 72 / 25.4;
@@ -36,6 +37,7 @@ export function renderConstructionPlan(snapshot: ConstructionSnapshot) {
       doc.fontSize(8).fillColor('#395640').text(`${Math.round(widthMm)} mm`, (a.x + b.x) / 2 - mm(8), (a.y + b.y) / 2 - mm(4), { lineBreak: false });
     }
     strokeBraceFootprints(doc, snapshot, toPage);
+    strokePlaceholders(doc, snapshot, toPage);
     strokeAssemblyLabels(doc, snapshot, toPage);
     strokeOverheadFeatures(doc, snapshot, toPage);
     strokeKeepClearZones(doc, snapshot, toPage);

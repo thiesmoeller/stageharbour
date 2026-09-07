@@ -137,7 +137,8 @@ export function placementDiagnostic(
 export function layoutDiagnostics(
   layout: { walls: { id: string; supportingSurfaceId?: string; x: number; y: number; rotation: number; width: number; thickness: number }[];
     braces: { id: string; supportingSurfaceId?: string; x: number; y: number; rotation: number; footprintWidth: number; footprintDepth: number }[];
-    platforms?: Platform[]; stairs?: StairUnit[] },
+    platforms?: Platform[]; stairs?: StairUnit[];
+    placeholders?: { id: string; supportingSurfaceId?: string; x: number; y: number; rotation: number; width: number; depth: number }[] },
   venue: VenueLevels,
 ): PlacementDiagnostic[] {
   const surfaces = supportingSurfaces(venue, layout);
@@ -160,6 +161,13 @@ export function layoutDiagnostics(
     if (![stair.lowerSurfaceId, stair.upperSurfaceId].every(id => surfaces.some(surface => surface.id === id))) {
       found.push({ objectId: stair.id, kind: 'unknown-surface', message: messages['unknown-surface'] });
     }
+  }
+  for (const item of layout.placeholders ?? []) {
+    const diagnostic = placementDiagnostic({
+      id: item.id, supportingSurfaceId: item.supportingSurfaceId,
+      corners: stairCorners({ x: item.x, y: item.y, rotation: item.rotation, width: item.width, run: item.depth }),
+    }, surfaces);
+    if (diagnostic) found.push(diagnostic);
   }
   return found;
 }

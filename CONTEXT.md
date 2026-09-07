@@ -83,3 +83,10 @@ A set of steps connecting performance surfaces at different heights.
 
 **Overhead obstruction**:
 A physical structure above the stage area, such as a ventilation duct, that locally limits usable space and height.
+
+**Placeholder**:
+A labelled, resizable stand-in for furniture, a person figure, a speaker, or a generic box. Placeholders carry example millimetre dimensions, sit on an explicit supporting surface, and are not measured inventory or CAD models.
+_Avoid_: Fixture, CAD furniture
+
+**Person figure**:
+A simple standing-person placeholder used to mark where someone would be on the set.

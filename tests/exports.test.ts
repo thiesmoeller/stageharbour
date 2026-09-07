@@ -6,6 +6,7 @@ import { freezeSnapshot } from '../src/shared/export.js';
 import { newKeepClearZone } from '../src/shared/keepClear.js';
 import { newCableRoutingCorridor, newConnectionPoint } from '../src/shared/infrastructure.js';
 import { newBrace, newWall, type Scene } from '../src/shared/layout.js';
+import { newPlaceholder } from '../src/shared/placeholders.js';
 import { AUDIENCE_FLOOR_ID, newPlatform, newStair } from '../src/shared/levels.js';
 import { newOverheadBox } from '../src/shared/overhead.js';
 import { newWallType } from '../src/shared/wall-types.js';
@@ -235,6 +236,31 @@ test('freeze stores overhead warnings that later venue edits cannot change', asy
   assert(text.includes('kein statischer Nachweis'), text);
   assert(text.includes('Geometrische Hinweise'), text);
   assert(!/zertifiz|standsicher|freigegeben/i.test(text), text);
+});
+
+test('a frozen 1200 x 800 mm table is 24 mm by 16 mm on the A4 page and later edits cannot change it', async () => {
+  const table = { ...newPlaceholder('table', randomUUID(), 2000, 3000), label: 'Probetisch' };
+  const scene: Scene = {
+    id: randomUUID(), name: 'Platzhalterprobe', productionName: 'Beispielproduktion', venueName: 'Beispielsaal',
+    revision: 1, venueVersionId: randomUUID(), venue: { schemaVersion: 1, width: 8000, depth: 6000 },
+    lease: null, layout: { schemaVersion: 1, walls: [], braces: [], placeholders: [table] },
+  };
+  const snapshot = freezeSnapshot(scene, { id: randomUUID(), name: 'Fassung Tisch', issuedAt: new Date('2026-09-07T12:00:00.000Z') });
+  assert.equal(snapshot.resolvedPlaceholders[0]?.label, 'Probetisch');
+  assert.deepEqual(snapshot.resolvedPlaceholders[0]?.corners, [
+    { x: 1400, y: 2600 }, { x: 2600, y: 2600 }, { x: 2600, y: 3400 }, { x: 1400, y: 3400 },
+  ]);
+  scene.layout.placeholders![0]!.x = 7000;
+  scene.layout.placeholders![0]!.width = 1800;
+  assert.equal(snapshot.layout.placeholders?.[0]?.x, 2000);
+  assert.equal(snapshot.resolvedPlaceholders[0]?.corners[0]?.x, 1400);
+  const pdf = await renderConstructionPlan(snapshot);
+  const lengths = pathLengthsMm(pdf);
+  assert(lengths.some(length => Math.abs(length - 24) < 0.05), lengths.slice(0, 20).join(','));
+  assert(lengths.some(length => Math.abs(length - 16) < 0.05), lengths.slice(0, 20).join(','));
+  const text = shownText(pdf);
+  assert(text.includes('Probetisch'), text);
+  assert(text.includes('1200 x 800 mm'), text);
 });
 
 test('freeze stores unresolved keep-clear warnings that later layout edits cannot change', () => {

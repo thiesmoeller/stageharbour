@@ -3,6 +3,7 @@ import { layoutSchema, openingCorners, venueGeometrySchema, wallCorners, type Sc
 import { braceCorners } from './braceTransforms.js';
 import { overheadClearance, overheadWarningsSchema } from './overhead.js';
 import { keepClearWarningSchema, keepClearWarnings } from './keepClear.js';
+import { placeholderCorners, placeholderKindSchema } from './placeholders.js';
 import { resolveWall } from './wall-types.js';
 
 const name = z.string().trim().min(1).max(120);
@@ -34,6 +35,12 @@ export const constructionSnapshotSchema = z.strictObject({
   })),
   resolvedBraces: z.array(z.strictObject({
     id: z.uuid(), label: name, height: z.number().finite().min(1).max(100000),
+    corners: z.tuple([point, point, point, point]),
+  })).default([]),
+  resolvedPlaceholders: z.array(z.strictObject({
+    id: z.uuid(), kind: placeholderKindSchema, label: name,
+    width: z.number().finite().min(1).max(100000), depth: z.number().finite().min(1).max(100000),
+    height: z.number().finite().min(1).max(100000),
     corners: z.tuple([point, point, point, point]),
   })).default([]),
   warnings: overheadWarningsSchema.default([]),
@@ -75,6 +82,14 @@ export function freezeSnapshot(scene: Scene, revision: { id: string; name: strin
       const [a, b, c, d] = braceCorners(brace);
       if (!a || !b || !c || !d) throw new Error('Brace geometry must resolve to four corners.');
       return { id: brace.id, label: brace.label, height: brace.height, corners: [a, b, c, d] as const };
+    }),
+    resolvedPlaceholders: (scene.layout.placeholders ?? []).map(item => {
+      const [a, b, c, d] = placeholderCorners(item);
+      if (!a || !b || !c || !d) throw new Error('Placeholder geometry must resolve to four corners.');
+      return {
+        id: item.id, kind: item.kind, label: item.label,
+        width: item.width, depth: item.depth, height: item.height, corners: [a, b, c, d] as const,
+      };
     }),
     unresolvedWarnings: keepClearWarnings(venue, layout),
   };

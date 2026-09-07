@@ -26,7 +26,7 @@ export function newKeepClearZone(id: string, supportingSurfaceId: string, x: num
   };
 }
 
-export const keepClearObjectKindSchema = z.enum(['wall', 'brace', 'platform', 'stair']);
+export const keepClearObjectKindSchema = z.enum(['wall', 'brace', 'platform', 'stair', 'placeholder']);
 export type KeepClearObjectKind = z.infer<typeof keepClearObjectKindSchema>;
 export const keepClearWarningSchema = z.strictObject({
   kind: z.literal('keep-clear-overlap'),
@@ -41,11 +41,12 @@ type LayoutObjects = {
   braces: { id: string; label: string; x: number; y: number; rotation: number; footprintWidth: number; footprintDepth: number; supportingSurfaceId?: string }[];
   platforms?: { id: string; label: string; outline: PlanPoint[] }[];
   stairs?: { id: string; label: string; lowerSurfaceId: string; upperSurfaceId: string; x: number; y: number; rotation: number; width: number; run: number }[];
+  placeholders?: { id: string; label: string; x: number; y: number; rotation: number; width: number; depth: number; supportingSurfaceId?: string }[];
 };
 type VenueZones = { keepClearZones?: KeepClearZone[] };
 
 const kindLabel: Record<KeepClearObjectKind, string> = {
-  wall: 'Wand', brace: 'Stütze', platform: 'Podest', stair: 'Treppe',
+  wall: 'Wand', brace: 'Stütze', platform: 'Podest', stair: 'Treppe', placeholder: 'Platzhalter',
 };
 
 function footprint(object: { x: number; y: number; rotation: number; width: number; depth: number }): PlanPoint[] {
@@ -134,6 +135,11 @@ export function keepClearWarnings(venue: VenueZones, layout: LayoutObjects): Kee
       id: stair.id, label: stair.label, kind: 'stair' as const,
       surfaces: [stair.lowerSurfaceId, stair.upperSurfaceId],
       polygon: footprint({ x: stair.x, y: stair.y, rotation: stair.rotation, width: stair.width, depth: stair.run }),
+    })),
+    ...(layout.placeholders ?? []).map(item => ({
+      id: item.id, label: item.label, kind: 'placeholder' as const,
+      surfaces: item.supportingSurfaceId ? [item.supportingSurfaceId] : [],
+      polygon: footprint({ x: item.x, y: item.y, rotation: item.rotation, width: item.width, depth: item.depth }),
     })),
   ];
   for (const zone of venue.keepClearZones ?? []) {

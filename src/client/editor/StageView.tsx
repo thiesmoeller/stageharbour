@@ -7,6 +7,7 @@ import { stageModel, type WallSolid } from '../../shared/transforms.js';
 import { StageBraceList, StageBraces } from './StageBraces.js';
 import { StageLevelList, StageLevels } from './StageLevels.js';
 import { StageOverhead, StageOverheadList } from './StageOverhead.js';
+import { StagePlaceholderList, StagePlaceholders } from './StagePlaceholders.js';
 
 const plywood = '#315d49';
 const timber = '#d9c6a1';
@@ -75,6 +76,7 @@ export function StageView({ layout, venue }: { layout: Layout; venue: VenueGeome
         <StageOverhead boxes={venue.overheadBoxes ?? []} />
         {model.walls.map(wall => <WallMesh key={wall.id} wall={wall} />)}
         <StageBraces braces={model.braces} />
+        <StagePlaceholders placeholders={model.placeholders} />
         <OrbitControls makeDefault enableDamping={false} target={[target.x, target.y, target.z]} />
       </Canvas>
     </div>
@@ -85,6 +87,7 @@ export function StageView({ layout, venue }: { layout: Layout; venue: VenueGeome
       data-opening-count={wall.openings.length} data-opening-width={wall.openings[0]?.width ?? ''} data-opening-height={wall.openings[0]?.height ?? ''}>
       {wall.label}: Vorderseite {facing(wall.frontNormal)}</li>)}</ul>
     <StageBraceList braces={model.braces} />
+    <StagePlaceholderList placeholders={model.placeholders} />
     <StageLevelList model={model} />
     <StageOverheadList boxes={venue.overheadBoxes ?? []} />
   </div>;
