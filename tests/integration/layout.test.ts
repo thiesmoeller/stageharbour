@@ -6,6 +6,7 @@ import { createApp } from '../../src/server/app.js';
 import { bootstrapAdministrator } from '../../src/server/identity/bootstrap.js';
 import { membership, scene, venueVersion, workspace } from '../../src/server/db/schema.js';
 import { newBrace, newWall, type Scene } from '../../src/shared/layout.js';
+import { AUDIENCE_FLOOR_ID, newPlatform, newStair } from '../../src/shared/levels.js';
 import { newWallType } from '../../src/shared/wall-types.js';
 import { testAdministrator, testDatabase } from '../helpers/database.js';
 
@@ -121,6 +122,34 @@ test('saves and reloads weighted rear braces with the layout', async () => {
   const reloaded = (await app.inject({ url: `${base}/${created.id}`, headers })).json<Scene>();
   assert.equal(reloaded.layout.braces.length, 1);
   assert.deepEqual(reloaded.layout.braces[0], brace);
+});
+test('saves movable platforms and a wall on an explicit raised surface', async () => {
+  const loaded = (await app.inject({ url: `${base}/${created.id}`, headers })).json<Scene>();
+  const platform = newPlatform(randomUUID(), 2000, 1500);
+  const stair = newStair(randomUUID(), AUDIENCE_FLOOR_ID, platform.id, 2000, 400);
+  const wall = { ...newWall(randomUUID(), 2000, 1500), supportingSurfaceId: platform.id };
+  const saved = await app.inject({
+    method: 'PUT', url: `${base}/${created.id}/layout`, headers,
+    payload: { revision: loaded.revision, layout: { ...loaded.layout, walls: [wall], platforms: [platform], stairs: [stair] } },
+  });
+  assert.equal(saved.statusCode, 200, saved.body);
+  const reloaded = (await app.inject({ url: `${base}/${created.id}`, headers })).json<Scene>();
+  assert.equal(reloaded.layout.platforms?.[0]?.elevation, 400);
+  assert.equal(reloaded.layout.stairs?.[0]?.run, 2000);
+  assert.equal(reloaded.layout.walls[0]?.supportingSurfaceId, platform.id);
+  const frozen = await app.inject({ method: 'POST', url: `${base}/${created.id}/exports`, headers, payload: { name: 'Mit Podest' } });
+  assert.equal(frozen.statusCode, 201, frozen.body);
+  const original = Buffer.from((await app.inject({ url: `${base}/${created.id}/exports/${frozen.json().id}/file`, headers })).rawPayload);
+  assert.equal((await app.inject({
+    method: 'PUT', url: `${base}/${created.id}/layout`, headers,
+    payload: {
+      revision: reloaded.revision,
+      layout: { ...reloaded.layout, platforms: [{ ...platform, elevation: 900 }], stairs: [] },
+    },
+  })).statusCode, 200);
+  const again = Buffer.from((await app.inject({ url: `${base}/${created.id}/exports/${frozen.json().id}/file`, headers })).rawPayload);
+  assert.deepEqual(again, original);
+  assert.equal((await app.inject({ url: `${base}/${created.id}`, headers })).json<Scene>().layout.platforms?.[0]?.elevation, 900);
 });
 test('workspace substitution and viewer writes are denied', async () => {
   const foreignId = randomUUID();

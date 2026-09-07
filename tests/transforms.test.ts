@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { newBrace, newWall } from '../src/shared/layout.js';
+import { AUDIENCE_FLOOR_ID, newPlatform, newStair } from '../src/shared/levels.js';
 import { newWallType } from '../src/shared/wall-types.js';
 import { braceSolid } from '../src/shared/braceTransforms.js';
 import { stageModel, wallSolid } from '../src/shared/transforms.js';
@@ -72,4 +73,24 @@ test('a known millimetre brace footprint maps to a triangular 3D solid independe
   const model = stageModel({ schemaVersion: 1, walls: [], braces: [brace] }, { width: 8000, depth: 6000 });
   assert.equal(model.braces.length, 1);
   assert.equal(model.braces[0]!.id, brace.id);
+});
+
+test('a wall on a 400 mm platform sits 400 mm above the audience floor; missing surface stays at 0', () => {
+  const platform = newPlatform(randomUUID(), 4000, 4750);
+  platform.elevation = 400;
+  const raised = { ...newWall(randomUUID(), 4000, 5000), supportingSurfaceId: platform.id };
+  const floating = newWall(randomUUID(), 4000, 5000);
+  delete (floating as { supportingSurfaceId?: string }).supportingSurfaceId;
+  const venue = { schemaVersion: 1 as const, width: 8000, depth: 6000, platforms: [platform] };
+  const model = stageModel({ schemaVersion: 1, walls: [raised, floating], braces: [] }, venue);
+  assertVec(model.walls[0]!.center, { x: 4000, y: 1600, z: 5000 });
+  assertVec(model.walls[0]!.corners[0]!, { x: 3400, y: 400, z: 4986 });
+  assertVec(model.walls[1]!.center, { x: 4000, y: 1200, z: 5000 });
+  assertVec(model.walls[1]!.corners[0]!, { x: 3400, y: 0, z: 4986 });
+  assert.equal(model.platforms[0]?.elevation, 400);
+  const stair = newStair(randomUUID(), AUDIENCE_FLOOR_ID, platform.id, 4000, 2500);
+  const withStairs = stageModel({ schemaVersion: 1, walls: [], braces: [], stairs: [stair] }, venue);
+  assert.equal(withStairs.stairs[0]?.rise, 400);
+  assert.equal(withStairs.stairs[0]?.steps.length, 2);
+  assert.equal(withStairs.stairs[0]?.steps[0]?.height, 200);
 });

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type
 import { z } from 'zod';
 import { execute, history, redo, undo, type History } from '../../shared/history.js';
 import { newBrace, newWall, wallCorners, wallSchema, type Brace, type Layout, type Scene, type VenueGeometry, type Wall } from '../../shared/layout.js';
+import { AUDIENCE_FLOOR_ID, layoutDiagnostics, newPlatform, newStair, supportingSurfaces, type Platform, type StairUnit } from '../../shared/levels.js';
 import { braceCorners } from '../../shared/braceTransforms.js';
 import { resolveWall, typesOf, type WallElementType } from '../../shared/wall-types.js';
 import { measuredOutline } from '../../shared/venue.js';
@@ -10,6 +11,8 @@ import { ApiError, request } from '../api.js';
 import { Autosave, SaveConflict } from './autosave.js';
 import { BraceInspector } from './BraceInspector.js';
 import { BraceLayer } from './BraceLayer.js';
+import { PlatformInspector, StairInspector } from './PlatformInspector.js';
+import { PlatformLayer, SurfaceField } from './PlatformLayer.js';
 import { StageView } from './StageView.js';
 import { ExportPanel } from './ExportPanel.js';
 import { WallTypePanel } from './WallTypePanel.js';
@@ -24,6 +27,8 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
   const [selected, setSelected] = useState<string>();
   const [selectedType, setSelectedType] = useState<string>();
   const [selectedBrace, setSelectedBrace] = useState<string>();
+  const [selectedPlatform, setSelectedPlatform] = useState<string>();
+  const [selectedStair, setSelectedStair] = useState<string>();
   const [preview, setPreview] = useState<Wall>();
   const [previewBrace, setPreviewBrace] = useState<Brace>();
   const [exportsOpen, setExportsOpen] = useState(false);
@@ -84,7 +89,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     const wall: Wall = { ...newWall(crypto.randomUUID(), venue.width / 2, venue.depth / 2), typeId: type.id, label: type.name, width: type.width, height: type.height, thickness: type.thickness };
     commit({ ...present, walls: [...present.walls, wall] });
     setSelected(wall.id);
-    setSelectedBrace(undefined);
+    clearSelection('wall');
   }
   function removeType(id: string) {
     const present = current.current.present;
@@ -96,14 +101,34 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     setSelectedType(undefined);
   }
   function replaceBrace(brace: Brace) { commit({ ...current.current.present, braces: current.current.present.braces.map(item => item.id === brace.id ? brace : item) }); }
+  function replacePlatform(platform: Platform) {
+    commit({ ...current.current.present, platforms: (current.current.present.platforms ?? []).map(item => item.id === platform.id ? platform : item) });
+  }
+  function replaceStair(stair: StairUnit) {
+    commit({ ...current.current.present, stairs: (current.current.present.stairs ?? []).map(item => item.id === stair.id ? stair : item) });
+  }
+  function clearSelection(except?: 'wall' | 'brace' | 'platform' | 'stair') {
+    if (except !== 'wall') setSelected(undefined);
+    if (except !== 'brace') setSelectedBrace(undefined);
+    if (except !== 'platform') setSelectedPlatform(undefined);
+    if (except !== 'stair') setSelectedStair(undefined);
+  }
   function remove() {
+    const present = current.current.present;
+    if (selectedPlatform) {
+      commit({ ...present, platforms: (present.platforms ?? []).filter(item => item.id !== selectedPlatform) });
+      setSelectedPlatform(undefined); return;
+    }
+    if (selectedStair) {
+      commit({ ...present, stairs: (present.stairs ?? []).filter(item => item.id !== selectedStair) });
+      setSelectedStair(undefined); return;
+    }
     if (selectedBrace) {
-      commit({ ...current.current.present, braces: current.current.present.braces.filter(brace => brace.id !== selectedBrace) });
-      setSelectedBrace(undefined);
-      return;
+      commit({ ...present, braces: present.braces.filter(brace => brace.id !== selectedBrace) });
+      setSelectedBrace(undefined); return;
     }
     if (!selected) return;
-    commit({ ...current.current.present, walls: current.current.present.walls.filter(wall => wall.id !== selected) });
+    commit({ ...present, walls: present.walls.filter(wall => wall.id !== selected) });
     setSelected(undefined);
   }
   useEffect(() => {
@@ -121,6 +146,11 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
   const selectedWall = state.present.walls.find(wall => wall.id === selected);
   const wallTypes = typesOf(state.present);
   const selectedBraceItem = state.present.braces.find(brace => brace.id === selectedBrace);
+  const selectedPlatformItem = (state.present.platforms ?? []).find(item => item.id === selectedPlatform);
+  const selectedStairItem = (state.present.stairs ?? []).find(item => item.id === selectedStair);
+  const surfaces = supportingSurfaces(venue, state.present);
+  const diagnostics = layoutDiagnostics(state.present, venue);
+  const raised = surfaces.find(surface => surface.id !== AUDIENCE_FLOOR_ID);
   function point(event: PointerEvent) {
     const matrix = svg.current?.getScreenCTM();
     if (!matrix) return { x: 0, y: 0 };
@@ -131,7 +161,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     if (event.button !== 0) return;
     event.stopPropagation();
     setSelected(wall.id);
-    setSelectedBrace(undefined);
+    clearSelection('wall');
     if (readOnly || gesture.current || braceDrag.current) return;
     const position = point(event);
     gesture.current = { wall, ...position, latest: wall };
@@ -142,7 +172,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     if (event.button !== 0) return;
     event.stopPropagation();
     setSelectedBrace(brace.id);
-    setSelected(undefined);
+    clearSelection('brace');
     if (readOnly || gesture.current || braceDrag.current) return;
     const position = point(event);
     braceDrag.current = { brace, ...position, latest: brace };
@@ -191,12 +221,21 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     <div className="editor-toolbar">
       {!readOnly && <><button disabled={!!preview || !!previewBrace || state.present.walls.length >= 250} onClick={() => {
         const wall = newWall(crypto.randomUUID(), venue.width / 2, venue.depth / 2);
-        commit({ ...state.present, walls: [...state.present.walls, wall] }); setSelected(wall.id); setSelectedBrace(undefined);
+        commit({ ...state.present, walls: [...state.present.walls, wall] }); setSelected(wall.id); clearSelection('wall');
       }}>Wand hinzufügen</button>
       <button disabled={!!preview || !!previewBrace || state.present.braces.length >= 250} onClick={() => {
         const brace = newBrace(crypto.randomUUID(), venue.width / 2, venue.depth / 2);
-        commit({ ...state.present, braces: [...state.present.braces, brace] }); setSelectedBrace(brace.id); setSelected(undefined);
+        commit({ ...state.present, braces: [...state.present.braces, brace] }); setSelectedBrace(brace.id); clearSelection('brace');
       }}>Stütze hinzufügen</button>
+      <button disabled={!!preview || !!previewBrace || (state.present.platforms ?? []).length >= 250} onClick={() => {
+        const platform = newPlatform(crypto.randomUUID(), venue.width / 2, venue.depth / 2);
+        commit({ ...state.present, platforms: [...state.present.platforms ?? [], platform] }); setSelectedPlatform(platform.id); clearSelection('platform');
+      }}>Podest hinzufügen</button>
+      <button disabled={!!preview || !!previewBrace || !raised || (state.present.stairs ?? []).length >= 250} onClick={() => {
+        if (!raised) return;
+        const stair = newStair(crypto.randomUUID(), AUDIENCE_FLOOR_ID, raised.id, venue.width / 2, venue.depth / 2);
+        commit({ ...state.present, stairs: [...state.present.stairs ?? [], stair] }); setSelectedStair(stair.id); clearSelection('stair');
+      }}>Treppe hinzufügen</button>
       <button className="quiet" disabled={!!preview || !!previewBrace || !state.past.length} onClick={() => apply(undo(current.current))}>Rückgängig</button>
       <button className="quiet" disabled={!!preview || !!previewBrace || !state.future.length} onClick={() => apply(redo(current.current))}>Wiederholen</button></>}
       <button className="quiet" onClick={() => setVenueOpen(open => !open)}>{venueOpen ? 'Spielstätte schließen' : 'Spielstätte'}</button>
@@ -222,10 +261,14 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
         onPointerMove={move} onPointerUp={() => finish()} onPointerCancel={() => finish(true)} onLostPointerCapture={() => finish(true)}>
         <defs><pattern id="metre-grid" width="1000" height="1000" patternUnits="userSpaceOnUse"><path d="M 1000 0 L 0 0 0 1000" fill="none" stroke="#dfe5d9" strokeWidth="1" vectorEffect="non-scaling-stroke" /></pattern></defs>
         <path data-testid="venue-floor" d={`${floor.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')} Z`}
-          fill="url(#metre-grid)" stroke="#718469" strokeWidth="2" vectorEffect="non-scaling-stroke" onPointerDown={() => { setSelected(undefined); setSelectedBrace(undefined); }} />
+          fill="url(#metre-grid)" stroke="#718469" strokeWidth="2" vectorEffect="non-scaling-stroke" onPointerDown={() => clearSelection()} />
         <text x={venue.width / 2} y={-venue.depth - 200} textAnchor="middle" fontSize="180">{venue.width} mm</text>
         <text x="-170" y={-venue.depth / 2} textAnchor="middle" fontSize="180" transform={`rotate(-90 -170 ${-venue.depth / 2})`}>{venue.depth} mm</text>
         <text x={venue.width / 2} y="420" textAnchor="middle" fontSize="190">↑ Publikum · Blick zur Bühne</text>
+        <PlatformLayer venuePlatforms={venue.platforms ?? []} layoutPlatforms={state.present.platforms ?? []}
+          venueStairs={venue.stairs ?? []} layoutStairs={state.present.stairs ?? []}
+          selectedId={selectedPlatform ?? selectedStair}
+          onSelect={(kind, id) => { if (kind === 'platform') { setSelectedPlatform(id); clearSelection('platform'); } else { setSelectedStair(id); clearSelection('stair'); } }} />
         {state.present.walls.map(savedWall => {
           const wall = preview?.id === savedWall.id ? preview : savedWall;
           const resolved = resolveWall(wall, wallTypes);
@@ -239,7 +282,8 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
         })}
         <BraceLayer braces={state.present.braces} selectedId={selectedBrace} preview={previewBrace} readOnly={readOnly} onPointerDown={startBrace} />
       </svg>
-      <p className="muted">Raster: 1 m · Alle Eingaben in mm · Wände und Stützen zum Verschieben ziehen</p>
+      <p className="muted">Raster: 1 m · Alle Eingaben in mm · Wände, Stützen und Podeste zum Auswählen</p>
+      {diagnostics.map(item => <p key={`${item.kind}-${item.objectId}`} className="warning" role="status">{item.message}</p>)}
     </div>
     <StageView layout={{
       ...state.present,
@@ -249,36 +293,49 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     </div><aside className="wall-inspector">
       <WallTypePanel types={wallTypes} selectedId={selectedType} readOnly={readOnly}
         onSelect={setSelectedType} onCreate={applyType} onApply={applyType} onPlace={placeType} onRemove={removeType} />
-      <h3>{selectedBraceItem ? 'Gewichtete Stütze' : 'Wandelement'}</h3>
+      <h3>{selectedPlatformItem ? 'Podest' : selectedStairItem ? 'Treppe' : selectedBraceItem ? 'Gewichtete Stütze' : 'Wandelement'}</h3>
       <label htmlFor="wall-selection">Auswahl</label>
-      <select id="wall-selection" value={selectedWall ? `wall:${selectedWall.id}` : selectedBraceItem ? `brace:${selectedBraceItem.id}` : ''} onChange={event => {
+      <select id="wall-selection" value={selectedWall ? `wall:${selectedWall.id}` : selectedBraceItem ? `brace:${selectedBraceItem.id}` : selectedPlatformItem ? `platform:${selectedPlatformItem.id}` : selectedStairItem ? `stair:${selectedStairItem.id}` : ''} onChange={event => {
         const value = event.target.value;
-        if (value.startsWith('brace:')) { setSelectedBrace(value.slice(6)); setSelected(undefined); }
-        else { setSelected(value.replace(/^wall:/, '') || undefined); setSelectedBrace(undefined); }
+        if (value.startsWith('brace:')) { setSelectedBrace(value.slice(6)); clearSelection('brace'); }
+        else if (value.startsWith('platform:')) { setSelectedPlatform(value.slice(9)); clearSelection('platform'); }
+        else if (value.startsWith('stair:')) { setSelectedStair(value.slice(6)); clearSelection('stair'); }
+        else { setSelected(value.replace(/^wall:/, '') || undefined); clearSelection(value ? 'wall' : undefined); }
       }}>
         <option value="">Objekt auswählen</option>
         {state.present.walls.map((wall, index) => <option key={wall.id} value={`wall:${wall.id}`}>{index + 1}. {wall.label}</option>)}
         {state.present.braces.map((brace, index) => <option key={brace.id} value={`brace:${brace.id}`}>{state.present.walls.length + index + 1}. {brace.label}</option>)}
+        {(state.present.platforms ?? []).map((platform, index) => <option key={platform.id} value={`platform:${platform.id}`}>P{index + 1}. {platform.label}</option>)}
+        {(state.present.stairs ?? []).map((stair, index) => <option key={stair.id} value={`stair:${stair.id}`}>T{index + 1}. {stair.label}</option>)}
       </select>
-      {selectedWall ? <WallForm key={JSON.stringify(selectedWall)} wall={selectedWall} typed={!!selectedWall.typeId} readOnly={readOnly} onApply={replace} onRemove={remove} />
-        : selectedBraceItem ? <BraceInspector key={JSON.stringify(selectedBraceItem)} brace={selectedBraceItem} readOnly={readOnly} onApply={replaceBrace} onRemove={remove} />
-          : <p className="muted">Wählen Sie eine Wand oder Stütze im Grundriss oder fügen Sie eine neue hinzu.</p>}
+      {selectedWall ? <WallForm key={JSON.stringify(selectedWall)} wall={selectedWall} typed={!!selectedWall.typeId} surfaces={surfaces} readOnly={readOnly} onApply={replace} onRemove={remove} />
+        : selectedBraceItem ? <BraceInspector key={JSON.stringify(selectedBraceItem)} brace={selectedBraceItem} surfaces={surfaces} readOnly={readOnly} onApply={replaceBrace} onRemove={remove} />
+          : selectedPlatformItem ? <PlatformInspector key={JSON.stringify(selectedPlatformItem)} platform={selectedPlatformItem} readOnly={readOnly} onApply={replacePlatform} onRemove={remove} />
+            : selectedStairItem ? <StairInspector key={JSON.stringify(selectedStairItem)} stair={selectedStairItem} surfaces={surfaces} readOnly={readOnly} onApply={replaceStair} onRemove={remove} />
+              : <p className="muted">Wählen Sie ein Objekt im Grundriss oder fügen Sie eine Wand, ein Podest oder eine Treppe hinzu.</p>}
     </aside></div>
   </section>;
 }
 
-function WallForm({ wall, typed, readOnly, onApply, onRemove }: { wall: Wall; typed: boolean; readOnly: boolean; onApply: (wall: Wall) => void; onRemove: () => void }) {
+function WallForm({ wall, typed, surfaces, readOnly, onApply, onRemove }: {
+  wall: Wall; typed: boolean; surfaces: ReturnType<typeof supportingSurfaces>; readOnly: boolean; onApply: (wall: Wall) => void; onRemove: () => void;
+}) {
   const [error, setError] = useState('');
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const keys = typed ? ['x', 'y', 'rotation'] : ['x', 'y', 'rotation', 'width', 'height', 'thickness'];
-    const result = wallSchema.safeParse({ ...wall, label: data.get('label'), ...Object.fromEntries(keys.map(key => [key, Number(data.get(key))])) });
+    const surface = String(data.get('supportingSurfaceId') || '');
+    const result = wallSchema.safeParse({
+      ...wall, label: data.get('label'), supportingSurfaceId: surface || undefined,
+      ...Object.fromEntries(keys.map(key => [key, Number(data.get(key))])),
+    });
     if (!result.success) { setError('Bitte prüfen Sie die Maße und die Bezeichnung.'); return; }
     setError(''); onApply(result.data);
   }
   return <form onSubmit={submit}><fieldset disabled={readOnly}>
     <label htmlFor="wall-label">Bezeichnung</label><input id="wall-label" name="label" defaultValue={wall.label} maxLength={120} required />
+    <SurfaceField id="wall-surface" value={wall.supportingSurfaceId} surfaces={surfaces} />
     <div className="numeric-fields">{(typed ? [
       ['x', 'X (mm)', -100000, 100000], ['y', 'Y (mm)', -100000, 100000], ['rotation', 'Drehung (°)', -360, 360],
     ] as const : [

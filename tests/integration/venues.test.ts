@@ -9,6 +9,7 @@ import { membership, workspace } from '../../src/server/db/schema.js';
 import { renderConstructionPlan } from '../../src/server/exports/pdf.js';
 import { millimetresPerUnit } from '../../src/shared/venue.js';
 import { type Scene } from '../../src/shared/layout.js';
+import { AUDIENCE_FLOOR_ID, newPlatform, newStair } from '../../src/shared/levels.js';
 import { testAdministrator, testDatabase } from '../helpers/database.js';
 import { pngBytes, twoPagePdf } from '../helpers/references.js';
 
@@ -113,10 +114,27 @@ test('saves a measured outline and calibration that survive reload', async () =>
   })).statusCode, 400);
 });
 
+test('saves permanent platforms and stairs on the pinned venue version', async () => {
+  const loaded = (await app.inject({ url: `${scenes}/${scene.id}`, headers })).json<Scene>();
+  const platform = newPlatform(randomUUID(), 4000, 4750);
+  const stair = newStair(randomUUID(), AUDIENCE_FLOOR_ID, platform.id, 4000, 2500);
+  const saved = await app.inject({
+    method: 'PUT', url: `${scenes}/${scene.id}/venue`, headers,
+    payload: { venue: { ...loaded.venue, platforms: [platform], stairs: [stair] } },
+  });
+  assert.equal(saved.statusCode, 200, saved.body);
+  const again = (await app.inject({ url: `${scenes}/${scene.id}`, headers })).json<Scene>();
+  assert.equal(again.venue.platforms?.[0]?.elevation, 400);
+  assert.equal(again.venue.stairs?.[0]?.width, 1200);
+  assert.deepEqual(again.venue.outline, outline);
+  assert.equal(again.venueVersionId, loaded.venueVersionId);
+});
+
 test('frozen exports keep the measured outline and can still fetch the referenced source after later venue edits', async () => {
   const loaded = (await app.inject({ url: `${scenes}/${scene.id}`, headers })).json<Scene>();
   const fileId = loaded.venue.trace?.fileId;
   assert.equal(typeof fileId, 'string');
+  assert.equal(loaded.venue.platforms?.[0]?.elevation, 400);
   const frozen = await app.inject({ method: 'POST', url: `${scenes}/${scene.id}/exports`, headers, payload: { name: 'Mit Umriss' } });
   assert.equal(frozen.statusCode, 201, frozen.body);
   const original = Buffer.from((await app.inject({ url: `${scenes}/${scene.id}/exports/${frozen.json().id}/file`, headers })).rawPayload);

@@ -1,6 +1,7 @@
 import PDFDocument from 'pdfkit';
 import { germanDate, type ConstructionSnapshot } from '../../shared/export.js';
 import { strokeBraceFootprints } from './bracePdf.js';
+import { strokeLevelFeatures } from './levelPdf.js';
 import { measuredOutline } from '../../shared/venue.js';
 
 const mm = (value: number) => value * 72 / 25.4;
@@ -18,6 +19,7 @@ export function renderConstructionPlan(snapshot: ConstructionSnapshot) {
       .text('Konstruktionsplan', mm(15), mm(12), { lineBreak: false });
     doc.fontSize(9).text(`${snapshot.productionName} · ${snapshot.sceneName} · ${snapshot.venueName}`, mm(15), mm(18), { lineBreak: false });
     doc.text(`Fassung ${snapshot.revisionName} · ${snapshot.revisionId} · ${germanDate(snapshot.issuedAt)} · Maßstab 1:${scale}`, mm(15), mm(24), { lineBreak: false });
+    strokeLevelFeatures(doc, snapshot, toPage);
     for (const wall of snapshot.resolvedWalls) {
       const [a, b, c, d] = wall.corners.map(point => toPage(point.x, point.y));
       if (!a || !b || !c || !d) continue;

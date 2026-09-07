@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { freezeSnapshot } from '../src/shared/export.js';
 import { newBrace, newWall, type Scene } from '../src/shared/layout.js';
+import { AUDIENCE_FLOOR_ID, newPlatform, newStair } from '../src/shared/levels.js';
 import { newWallType } from '../src/shared/wall-types.js';
 import { renderConstructionPlan } from '../src/server/exports/pdf.js';
 import { renderOffThread } from '../src/server/exports/render.js';
@@ -112,4 +113,26 @@ test('a frozen 600 x 800 mm brace footprint is 12 mm by 16 mm on the A4 page', a
   assert(text.includes('600 x 800 mm'), text);
   assert(text.includes('1800 mm'), text);
   assert(!/Stabilit/.test(text), text);
+});
+
+test('a frozen 4000 mm platform edge is 80 mm on the A4 page and later venue edits cannot change the snapshot', async () => {
+  const platform = newPlatform(randomUUID(), 4000, 4750);
+  const stair = newStair(randomUUID(), AUDIENCE_FLOOR_ID, platform.id, 4000, 2500);
+  const scene: Scene = {
+    id: randomUUID(), name: 'Ebenenprobe', productionName: 'Beispielproduktion', venueName: 'Beispielsaal',
+    revision: 1, venueVersionId: randomUUID(),
+    venue: { schemaVersion: 1, width: 8000, depth: 6000, platforms: [platform], stairs: [stair] },
+    lease: null, layout: { schemaVersion: 1, walls: [], braces: [] },
+  };
+  const snapshot = freezeSnapshot(scene, { id: randomUUID(), name: 'Fassung Ebenen', issuedAt: new Date('2026-09-07T12:00:00.000Z') });
+  assert.equal(snapshot.venue.platforms?.[0]?.elevation, 400);
+  assert.equal(snapshot.venue.stairs?.[0]?.width, 1200);
+  scene.venue.platforms![0]!.elevation = 900;
+  assert.equal(snapshot.venue.platforms?.[0]?.elevation, 400);
+  const pdf = await renderConstructionPlan(snapshot);
+  const lengths = pathLengthsMm(pdf);
+  assert(lengths.some(length => Math.abs(length - 80) < 0.05), lengths.slice(0, 20).join(','));
+  const text = shownText(pdf);
+  assert(text.includes('400 mm'), text);
+  assert(text.includes('Treppe'), text);
 });

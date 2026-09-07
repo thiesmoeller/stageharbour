@@ -19,17 +19,17 @@ export function braceCorners(brace: Brace): { x: number; y: number }[] {
   });
 }
 
-export function braceSolid(brace: Brace): BraceSolid {
+export function braceSolid(brace: Brace, elevation = 0): BraceSolid {
   const rotationY = -brace.rotation * Math.PI / 180;
   const [a, b, c, d] = braceCorners(brace);
   if (!a || !b || !c || !d) throw new Error('Brace footprint must resolve to four corners.');
-  const footprint = [a, b, c, d].map(point => ({ x: point.x, y: 0, z: point.y }));
+  const footprint = [a, b, c, d].map(point => ({ x: point.x, y: elevation, z: point.y }));
   return {
     id: brace.id, label: brace.label,
     size: { x: brace.footprintWidth, y: brace.height, z: brace.footprintDepth },
-    center: { x: brace.x, y: brace.height / 2, z: brace.y },
+    center: { x: brace.x, y: elevation + brace.height / 2, z: brace.y },
     rotationY,
     footprint,
-    ridge: [{ x: a.x, y: brace.height, z: a.y }, { x: b.x, y: brace.height, z: b.y }],
+    ridge: [{ x: a.x, y: elevation + brace.height, z: a.y }, { x: b.x, y: elevation + brace.height, z: b.y }],
   };
 }

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { leaseHolderSchema } from './leases.js';
+import { AUDIENCE_FLOOR_ID, platformSchema, stairSchema, uniqueLevelIds } from './levels.js';
 import { type Opening, wallTypeSchema } from './wall-types.js';
 import { venueOutlineSchema, venueTraceSchema } from './venue.js';
 
@@ -12,6 +13,7 @@ export const wallSchema = z.strictObject({
   rotation: z.number().finite().min(-360).max(360),
   width: dimension, height: dimension, thickness: dimension,
   typeId: z.uuid().optional(),
+  supportingSurfaceId: z.uuid().optional(),
 });
 export type Wall = z.infer<typeof wallSchema>;
 // Example-only millimetre placeholders for a new weighted rear brace. Not measured inventory.
@@ -23,6 +25,7 @@ export const braceSchema = z.strictObject({
   x: coordinate, y: coordinate,
   rotation: z.number().finite().min(-360).max(360),
   footprintWidth: dimension, footprintDepth: dimension, height: dimension,
+  supportingSurfaceId: z.uuid().optional(),
 });
 export type Brace = z.infer<typeof braceSchema>;
 export const layoutSchema = z.strictObject({
@@ -32,15 +35,21 @@ export const layoutSchema = z.strictObject({
   ).optional(),
   walls: z.array(wallSchema).max(250).refine(walls => new Set(walls.map(wall => wall.id)).size === walls.length, 'Wall IDs must be unique'),
   braces: z.array(braceSchema).max(250).default([]).refine(braces => new Set(braces.map(brace => brace.id)).size === braces.length, 'Brace IDs must be unique'),
+  platforms: z.array(platformSchema).max(250).optional(),
+  stairs: z.array(stairSchema).max(250).optional(),
 }).refine(layout => {
   const ids = new Set((layout.wallTypes ?? []).map(type => type.id));
   return layout.walls.every(wall => !wall.typeId || ids.has(wall.typeId));
-}, 'Walls must reference a defined wall type');
+}, 'Walls must reference a defined wall type').refine(
+  layout => uniqueLevelIds(layout.platforms ?? [], layout.stairs ?? []), 'Platform and stair IDs must be unique',
+);
 export type Layout = z.infer<typeof layoutSchema>;
 export const venueGeometrySchema = z.strictObject({
   schemaVersion: z.literal(1), width: dimension, depth: dimension,
   outline: venueOutlineSchema.optional(), trace: venueTraceSchema.optional(),
-});
+  platforms: z.array(platformSchema).max(250).optional(),
+  stairs: z.array(stairSchema).max(250).optional(),
+}).refine(venue => uniqueLevelIds(venue.platforms ?? [], venue.stairs ?? []), 'Platform and stair IDs must be unique');
 export type VenueGeometry = z.infer<typeof venueGeometrySchema>;
 export const saveVenueSchema = z.strictObject({ venue: venueGeometrySchema });
 export const createSceneSchema = z.strictObject({
@@ -59,7 +68,7 @@ export const sceneListSchema = z.array(sceneSummarySchema);
 export const saveLayoutSchema = z.strictObject({ revision: z.number().int().nonnegative(), layout: layoutSchema });
 
 export function newWall(id: string, x: number, y: number): Wall {
-  return { id, label: 'Wand', x, y, rotation: 0, width: 1200, height: 2400, thickness: 28 };
+  return { id, label: 'Wand', x, y, rotation: 0, width: 1200, height: 2400, thickness: 28, supportingSurfaceId: AUDIENCE_FLOOR_ID };
 }
 export function newBrace(id: string, x: number, y: number): Brace {
   return {
@@ -67,6 +76,7 @@ export function newBrace(id: string, x: number, y: number): Brace {
     footprintWidth: EXAMPLE_BRACE_FOOTPRINT_WIDTH,
     footprintDepth: EXAMPLE_BRACE_FOOTPRINT_DEPTH,
     height: EXAMPLE_BRACE_HEIGHT,
+    supportingSurfaceId: AUDIENCE_FLOOR_ID,
   };
 }
 
