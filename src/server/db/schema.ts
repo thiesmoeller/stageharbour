@@ -1,6 +1,6 @@
 import { pgTable, text, timestamp, boolean, uuid, pgEnum, primaryKey, index, uniqueIndex, integer, jsonb, foreignKey } from 'drizzle-orm/pg-core';
 import type { ConstructionSnapshot } from '../../shared/export.js';
-import type { Layout } from '../../shared/layout.js';
+import type { Layout, VenueGeometry } from '../../shared/layout.js';
 import type { LeaseKind } from '../../shared/leases.js';
 
 const dates = () => ({
@@ -92,7 +92,7 @@ export const venue = pgTable('venue', {
 }, t => [uniqueIndex('venue_workspace_id').on(t.workspaceId, t.id)]);
 export const venueVersion = pgTable('venue_version', {
   id: uuid('id').primaryKey(), workspaceId: uuid('workspace_id').notNull(), venueId: uuid('venue_id').notNull(),
-  geometry: jsonb('geometry').notNull().$type<{ schemaVersion: 1; width: number; depth: number }>(),
+  geometry: jsonb('geometry').notNull().$type<VenueGeometry>(),
 }, t => [uniqueIndex('venue_version_workspace_id').on(t.workspaceId, t.id),
   foreignKey({ columns: [t.workspaceId, t.venueId], foreignColumns: [venue.workspaceId, venue.id] })]);
 export const production = pgTable('production', {
@@ -129,3 +129,15 @@ export const constructionPlanRevision = pgTable('construction_plan_revision', {
 }, t => [index('construction_plan_scene_idx').on(t.workspaceId, t.sceneId),
   uniqueIndex('construction_plan_workspace_id').on(t.workspaceId, t.id),
   foreignKey({ columns: [t.workspaceId, t.sceneId], foreignColumns: [scene.workspaceId, scene.id] })]);
+export const venueReference = pgTable('venue_reference', {
+  id: uuid('id').primaryKey(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspace.id),
+  kind: text('kind').notNull().$type<'image' | 'pdf'>(),
+  mediaType: text('media_type').notNull(),
+  originalName: text('original_name').notNull(),
+  storageKey: text('storage_key').notNull(),
+  pageCount: integer('page_count'),
+  pixelWidth: integer('pixel_width'),
+  pixelHeight: integer('pixel_height'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [uniqueIndex('venue_reference_workspace_id').on(t.workspaceId, t.id)]);

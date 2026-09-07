@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { leaseHolderSchema } from './leases.js';
+import { venueOutlineSchema, venueTraceSchema } from './venue.js';
 
 const name = z.string().trim().min(1).max(120);
 const dimension = z.number().finite().min(1).max(100000);
@@ -16,7 +17,12 @@ export const layoutSchema = z.strictObject({
   walls: z.array(wallSchema).max(250).refine(walls => new Set(walls.map(wall => wall.id)).size === walls.length, 'Wall IDs must be unique'),
 });
 export type Layout = z.infer<typeof layoutSchema>;
-export const venueGeometrySchema = z.strictObject({ schemaVersion: z.literal(1), width: dimension, depth: dimension });
+export const venueGeometrySchema = z.strictObject({
+  schemaVersion: z.literal(1), width: dimension, depth: dimension,
+  outline: venueOutlineSchema.optional(), trace: venueTraceSchema.optional(),
+});
+export type VenueGeometry = z.infer<typeof venueGeometrySchema>;
+export const saveVenueSchema = z.strictObject({ venue: venueGeometrySchema });
 export const createSceneSchema = z.strictObject({
   productionName: name, venueName: name, sceneName: name,
   width: dimension, depth: dimension,

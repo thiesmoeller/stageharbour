@@ -2,6 +2,11 @@ export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
 
+function failure(status: number): never {
+  if (status === 429) throw new ApiError(429, 'Zu viele Versuche. Bitte warten Sie eine Minute.');
+  throw new ApiError(status, 'Die Anfrage konnte nicht abgeschlossen werden. Bitte versuchen Sie es erneut.');
+}
+
 export async function request(path: string, body?: unknown, method?: string): Promise<unknown> {
   let response: Response;
   try {
@@ -17,9 +22,25 @@ export async function request(path: string, body?: unknown, method?: string): Pr
   } catch {
     throw new ApiError(0, 'Keine Verbindung zum Server. Bitte versuchen Sie es erneut.');
   }
-  if (!response.ok) {
-    if (response.status === 429) throw new ApiError(429, 'Zu viele Versuche. Bitte warten Sie eine Minute.');
-    throw new ApiError(response.status, 'Die Anfrage konnte nicht abgeschlossen werden. Bitte versuchen Sie es erneut.');
-  }
+  if (!response.ok) failure(response.status);
   return response.json();
 }
+
+export async function upload(path: string, file: File): Promise<unknown> {
+  const type = file.type || (file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf'
+    : file.name.toLowerCase().endsWith('.png') ? 'image/png'
+    : /\.jpe?g$/i.test(file.name) ? 'image/jpeg' : 'application/octet-stream');
+  let response: Response;
+  try {
+    response = await fetch(path, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': type, 'x-file-name': file.name },
+      body: file,
+    });
+  } catch {
+    throw new ApiError(0, 'Keine Verbindung zum Server. Bitte versuchen Sie es erneut.');
+  }
+  if (!response.ok) failure(response.status);
+  return response.json();
+}
+

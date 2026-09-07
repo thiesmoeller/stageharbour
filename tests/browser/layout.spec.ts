@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { testAdministrator } from '../helpers/database.js';
+import { pngBytes } from '../helpers/references.js';
 
 async function signIn(page: Page) {
   await page.goto('/');
@@ -76,6 +77,38 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByLabel('Y (mm)')).not.toHaveValue(movedY);
   await expect(page.getByRole('button', { name: 'Rückgängig' })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Wiederholen' })).toBeDisabled();
+
+  await page.getByRole('button', { name: 'Spielstätte' }).click();
+  await expect(page.getByRole('heading', { name: 'Spielstätte' })).toBeVisible();
+  await page.getByLabel('Eckpunkt 2 X (mm)').fill('4000');
+  await page.getByLabel('Eckpunkt 3 X (mm)').fill('4200');
+  await page.getByLabel('Eckpunkt 3 Y (mm)').fill('3500');
+  await page.getByLabel('Eckpunkt 4 X (mm)').fill('200');
+  await page.getByLabel('Eckpunkt 4 Y (mm)').fill('3200');
+  const uploaded = page.waitForResponse(response => response.url().includes('/venue-references') && response.request().method() === 'POST');
+  await page.getByLabel('Vorlage hochladen').setInputFiles({
+    name: 'grundriss.png', mimeType: 'image/png', buffer: pngBytes(),
+  });
+  expect((await uploaded).ok()).toBeTruthy();
+  await page.getByLabel('Punkt A X').fill('0');
+  await page.getByLabel('Punkt A Y').fill('0');
+  await page.getByLabel('Punkt B X').fill('30');
+  await page.getByLabel('Punkt B Y').fill('40');
+  await page.getByLabel('Bekannte Strecke (mm)').fill('5000');
+  await expect(page.getByText('Maßstab: 100 mm je Vorlagen-Einheit')).toBeVisible();
+  const saved = page.waitForResponse(response => /\/scenes\/[^/]+\/venue$/.test(new URL(response.url()).pathname) && response.request().method() === 'PUT');
+  await page.getByRole('button', { name: 'Spielstätte speichern' }).click();
+  expect((await saved).ok()).toBeTruthy();
+  await page.getByRole('button', { name: 'Zur Übersicht' }).click();
+  await page.reload();
+  await page.getByRole('button', { name: /Beispielproduktion · Erste Szene/ }).click();
+  await page.getByRole('button', { name: 'Spielstätte' }).click();
+  await expect(page.getByLabel('Eckpunkt 3 X (mm)')).toHaveValue('4200');
+  await expect(page.getByLabel('Eckpunkt 3 Y (mm)')).toHaveValue('3500');
+  await expect(page.getByLabel('Eckpunkt 4 X (mm)')).toHaveValue('200');
+  await expect(page.getByLabel('Punkt B X')).toHaveValue('30');
+  await expect(page.getByLabel('Bekannte Strecke (mm)')).toHaveValue('5000');
+  await expect(page.getByText('Maßstab: 100 mm je Vorlagen-Einheit')).toBeVisible();
   await page.screenshot({ path: 'test-results/layout-editor.png', fullPage: true });
   expect(errors).toEqual([]);
 });
