@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { freezeSnapshot } from '../src/shared/export.js';
-import { newWall } from '../src/shared/layout.js';
+import { newBrace, newWall } from '../src/shared/layout.js';
 import { renderConstructionPlan } from '../src/server/exports/pdf.js';
 import { renderOffThread } from '../src/server/exports/render.js';
 
@@ -29,7 +29,7 @@ function sampleSnapshot() {
   return freezeSnapshot({
     id: randomUUID(), name: 'Erste Szene', productionName: 'Beispielproduktion', venueName: 'Beispielsaal',
     revision: 1, venueVersionId: randomUUID(), venue: { schemaVersion: 1, width: 8000, depth: 6000 },
-    lease: null, layout: { schemaVersion: 1, walls: [wall] },
+    lease: null, layout: { schemaVersion: 1, walls: [wall], braces: [] },
   }, { id: randomUUID(), name: 'Fassung Probe', issuedAt: new Date('2026-09-07T12:00:00.000Z') });
 }
 
@@ -49,4 +49,25 @@ test('construction plan PDF generation runs off the API thread', async () => {
   const pdf = await renderOffThread(sampleSnapshot());
   assert.equal(pdf.subarray(0, 5).toString(), '%PDF-');
   assert(pathLengthsMm(pdf).some(length => Math.abs(length - 24) < 0.05));
+});
+
+test('a frozen 600 x 800 mm brace footprint is 12 mm by 16 mm on the A4 page', async () => {
+  const brace = newBrace(randomUUID(), 2000, 3000);
+  const snapshot = freezeSnapshot({
+    id: randomUUID(), name: 'Stützprobe', productionName: 'Beispielproduktion', venueName: 'Beispielsaal',
+    revision: 1, venueVersionId: randomUUID(), venue: { schemaVersion: 1, width: 8000, depth: 6000 },
+    lease: null, layout: { schemaVersion: 1, walls: [], braces: [brace] },
+  }, { id: randomUUID(), name: 'Fassung Stütze', issuedAt: new Date('2026-09-07T12:00:00.000Z') });
+  assert.deepEqual(snapshot.resolvedBraces[0], {
+    id: brace.id, label: 'Stütze', height: 1800,
+    corners: [{ x: 1700, y: 2600 }, { x: 2300, y: 2600 }, { x: 2300, y: 3400 }, { x: 1700, y: 3400 }],
+  });
+  const pdf = await renderConstructionPlan(snapshot);
+  const lengths = pathLengthsMm(pdf);
+  assert(lengths.some(length => Math.abs(length - 12) < 0.05), lengths.slice(0, 16).join(','));
+  assert(lengths.some(length => Math.abs(length - 16) < 0.05), lengths.slice(0, 16).join(','));
+  const text = shownText(pdf);
+  assert(text.includes('600 x 800 mm'), text);
+  assert(text.includes('1800 mm'), text);
+  assert(!/Stabilit/.test(text), text);
 });

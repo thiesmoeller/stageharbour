@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { newWall } from '../src/shared/layout.js';
+import { newBrace, newWall } from '../src/shared/layout.js';
+import { braceSolid } from '../src/shared/braceTransforms.js';
 import { stageModel, wallSolid } from '../src/shared/transforms.js';
 
 function assertVec(actual: { x: number; y: number; z: number }, expected: { x: number; y: number; z: number }) {
@@ -32,11 +33,32 @@ test('unrotated plywood faces the audience; audience camera looks into the venue
   const solid = wallSolid(wall);
   assertVec(solid.frontNormal, { x: 0, y: 0, z: -1 });
   assertVec(solid.corners[0]!, { x: 1400, y: 0, z: 2986 });
-  const model = stageModel({ schemaVersion: 1, walls: [wall] }, { width: 8000, depth: 6000 });
+  const model = stageModel({ schemaVersion: 1, walls: [wall], braces: [] }, { width: 8000, depth: 6000 });
   assert.equal(model.floor.width, 8000);
   assert.equal(model.floor.depth, 6000);
   assert.equal(model.walls.length, 1);
+  assert.equal(model.braces.length, 0);
   assertVec(model.audience.position, { x: 4000, y: 1600, z: -2000 });
   assertVec(model.audience.target, { x: 4000, y: 1200, z: 3000 });
   assertVec(model.orbitTarget, { x: 4000, y: 0, z: 3000 });
+});
+
+test('a known millimetre brace footprint maps to a triangular 3D solid independently of Three.js', () => {
+  const brace = newBrace(randomUUID(), 2000, 3000);
+  const solid = braceSolid(brace);
+  assert.deepEqual(solid.size, { x: 600, y: 1800, z: 800 });
+  assertVec(solid.center, { x: 2000, y: 900, z: 3000 });
+  assert(Math.abs(solid.rotationY) < 1e-8);
+  assertVec(solid.footprint[0]!, { x: 1700, y: 0, z: 2600 });
+  assertVec(solid.footprint[1]!, { x: 2300, y: 0, z: 2600 });
+  assertVec(solid.footprint[2]!, { x: 2300, y: 0, z: 3400 });
+  assertVec(solid.footprint[3]!, { x: 1700, y: 0, z: 3400 });
+  assertVec(solid.ridge[0]!, { x: 1700, y: 1800, z: 2600 });
+  assertVec(solid.ridge[1]!, { x: 2300, y: 1800, z: 2600 });
+  const rotated = braceSolid({ ...brace, rotation: 90 });
+  assert(Math.abs(rotated.rotationY - (-Math.PI / 2)) < 1e-8);
+  assertVec(rotated.footprint[0]!, { x: 2400, y: 0, z: 2700 });
+  const model = stageModel({ schemaVersion: 1, walls: [], braces: [brace] }, { width: 8000, depth: 6000 });
+  assert.equal(model.braces.length, 1);
+  assert.equal(model.braces[0]!.id, brace.id);
 });

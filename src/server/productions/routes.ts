@@ -53,7 +53,7 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
       await tx.insert(venueVersion).values({ id: ids.version, workspaceId, venueId: ids.venue, geometry: { schemaVersion: 1, width: input.width, depth: input.depth } });
       await tx.insert(production).values({ id: ids.production, workspaceId, name: input.productionName });
       await tx.insert(adaptation).values({ id: ids.adaptation, workspaceId, productionId: ids.production, venueVersionId: ids.version });
-      await tx.insert(scene).values({ id: ids.scene, workspaceId, adaptationId: ids.adaptation, name: input.sceneName, layout: { schemaVersion: 1, walls: [] } });
+      await tx.insert(scene).values({ id: ids.scene, workspaceId, adaptationId: ids.adaptation, name: input.sceneName, layout: { schemaVersion: 1, walls: [], braces: [] } });
     });
     const [record] = await readScenes(workspaceId, ids.scene);
     return reply.code(201).send({ ...record!, lease: null });

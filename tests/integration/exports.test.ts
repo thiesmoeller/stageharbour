@@ -6,7 +6,7 @@ import { createApp } from '../../src/server/app.js';
 import { bootstrapAdministrator } from '../../src/server/identity/bootstrap.js';
 import { membership, workspace } from '../../src/server/db/schema.js';
 import { renderConstructionPlan } from '../../src/server/exports/pdf.js';
-import { newWall, type Scene } from '../../src/shared/layout.js';
+import { newBrace, newWall, type Scene } from '../../src/shared/layout.js';
 import { testAdministrator, testDatabase } from '../helpers/database.js';
 
 let fixture: Awaited<ReturnType<typeof testDatabase>>;
@@ -99,6 +99,31 @@ test('retry after failure uses the same frozen snapshot, not later layout edits'
   const pdf = await app.inject({ url: `${base}/${scene.id}/exports/${id}/file`, headers });
   assert.equal(pdf.statusCode, 200);
   assert.equal(firstWallX(Buffer.from(pdf.rawPayload)), movedWallX);
+});
+
+test('freeze then a later brace move does not change stored snapshot or PDF geometry', async () => {
+  const created = await app.inject({ method: 'POST', url: base, headers, payload: { ...input, sceneName: 'Stützenfassung' } });
+  assert.equal(created.statusCode, 201, created.body);
+  const sceneId = created.json().id as string;
+  const brace = newBrace(randomUUID(), 2000, 3000);
+  assert.equal((await app.inject({ method: 'POST', url: `${base}/${sceneId}/lease`, headers })).statusCode, 200);
+  assert.equal((await app.inject({
+    method: 'PUT', url: `${base}/${sceneId}/layout`, headers,
+    payload: { revision: 0, layout: { schemaVersion: 1, walls: [], braces: [brace] } },
+  })).statusCode, 200);
+  const frozen = await app.inject({ method: 'POST', url: `${base}/${sceneId}/exports`, headers, payload: { name: 'Stützenplan' } });
+  assert.equal(frozen.statusCode, 201, frozen.body);
+  const original = Buffer.from((await app.inject({ url: `${base}/${sceneId}/exports/${frozen.json().id}/file`, headers })).rawPayload);
+  const originalX = firstWallX(original);
+  assert.equal((await app.inject({
+    method: 'PUT', url: `${base}/${sceneId}/layout`, headers,
+    payload: { revision: 1, layout: { schemaVersion: 1, walls: [], braces: [{ ...brace, x: 9000 }] } },
+  })).statusCode, 200);
+  const again = Buffer.from((await app.inject({ url: `${base}/${sceneId}/exports/${frozen.json().id}/file`, headers })).rawPayload);
+  assert.deepEqual(again, original);
+  const later = await app.inject({ method: 'POST', url: `${base}/${sceneId}/exports`, headers, payload: { name: 'Verschobene Stütze' } });
+  assert.equal(later.statusCode, 201, later.body);
+  assert.notEqual(firstWallX(Buffer.from((await app.inject({ url: `${base}/${sceneId}/exports/${later.json().id}/file`, headers })).rawPayload)), originalX);
 });
 
 test('workspace substitution is denied and viewers cannot freeze or retry', async () => {

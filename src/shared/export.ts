@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { layoutSchema, venueGeometrySchema, wallCorners, type Scene } from './layout.js';
+import { braceCorners } from './braceTransforms.js';
 
 const name = z.string().trim().min(1).max(120);
 const point = z.strictObject({ x: z.number().finite(), y: z.number().finite() });
@@ -21,6 +22,10 @@ export const constructionSnapshotSchema = z.strictObject({
     id: z.uuid(), label: name,
     corners: z.tuple([point, point, point, point]),
   })),
+  resolvedBraces: z.array(z.strictObject({
+    id: z.uuid(), label: name, height: z.number().finite().min(1).max(100000),
+    corners: z.tuple([point, point, point, point]),
+  })).default([]),
 });
 export type ConstructionSnapshot = z.infer<typeof constructionSnapshotSchema>;
 export const exportRevisionSchema = z.object({
@@ -41,6 +46,11 @@ export function freezeSnapshot(scene: Scene, revision: { id: string; name: strin
       const [a, b, c, d] = wallCorners(wall);
       if (!a || !b || !c || !d) throw new Error('Wall geometry must resolve to four corners.');
       return { id: wall.id, label: wall.label, corners: [a, b, c, d] as const };
+    }),
+    resolvedBraces: (scene.layout.braces ?? []).map(brace => {
+      const [a, b, c, d] = braceCorners(brace);
+      if (!a || !b || !c || !d) throw new Error('Brace geometry must resolve to four corners.');
+      return { id: brace.id, label: brace.label, height: brace.height, corners: [a, b, c, d] as const };
     }),
   };
 }

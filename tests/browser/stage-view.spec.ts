@@ -66,6 +66,31 @@ test('edits in the plan update the linked 3D view, including front orientation a
   await expect(stageWall).toContainText('Vorderseite zeigt nach rechts');
   await waitUntilSaved(page);
 
+  await page.getByRole('button', { name: 'Stütze hinzufügen' }).click();
+  const stageBrace = page.locator('[data-testid^="stage-brace-"]');
+  await expect(page.locator('[data-testid^="brace-"]')).toHaveCount(1);
+  await expect(stageBrace).toHaveCount(1);
+  await expect(stageBrace).toHaveAttribute('data-x', '4000');
+  await expect(stageBrace).toHaveAttribute('data-z', '3000');
+  await expect(stageBrace).toHaveAttribute('data-y', '900');
+  await expect(stageBrace).toHaveAttribute('data-height', '1800');
+  await expect(stageBrace).toHaveAttribute('data-footprint-width', '600');
+  await expect(stageBrace).toHaveAttribute('data-footprint-depth', '800');
+  await waitUntilSaved(page);
+  await page.getByLabel('X (mm)').fill('2200');
+  await page.getByLabel('Stützenhöhe (mm)').fill('1500');
+  await page.getByRole('button', { name: 'Übernehmen' }).click();
+  await expect(stageBrace).toHaveAttribute('data-x', '2200');
+  await expect(stageBrace).toHaveAttribute('data-height', '1500');
+  await expect(stageBrace).toHaveAttribute('data-y', '750');
+  await waitUntilSaved(page);
+  await page.getByRole('button', { name: 'Rückgängig' }).click();
+  await expect(stageBrace).toHaveAttribute('data-x', '4000');
+  await expect(stageBrace).toHaveAttribute('data-height', '1800');
+  await page.getByRole('button', { name: 'Wiederholen' }).click();
+  await expect(stageBrace).toHaveAttribute('data-x', '2200');
+  await waitUntilSaved(page);
+
   await page.getByTestId('stage-view').getByRole('button', { name: 'Publikumssicht' }).click();
   await expect(page.getByTestId('stage-view')).toHaveAttribute('data-view', 'audience');
   await page.getByRole('button', { name: 'Umlaufansicht' }).click();
@@ -79,5 +104,9 @@ test('edits in the plan update the linked 3D view, including front orientation a
   await expect(page.locator('[data-testid^="stage-wall-"]')).toHaveAttribute('data-x', '2500');
   await expect(page.locator('[data-testid^="stage-wall-"]')).toHaveAttribute('data-z', '3000');
   await expect(page.locator('[data-testid^="stage-wall-"]')).toContainText('Vorderseite zeigt nach rechts');
+  await expect(page.locator('[data-testid^="brace-"]')).toHaveCount(1);
+  await expect(page.locator('[data-testid^="stage-brace-"]')).toHaveAttribute('data-x', '2200');
+  await expect(page.locator('[data-testid^="stage-brace-"]')).toHaveAttribute('data-height', '1500');
   expect(errors).toEqual([]);
 });
+

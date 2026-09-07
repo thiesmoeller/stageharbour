@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { createApp } from '../../src/server/app.js';
 import { bootstrapAdministrator } from '../../src/server/identity/bootstrap.js';
 import { membership, scene, venueVersion, workspace } from '../../src/server/db/schema.js';
-import { newWall, type Scene } from '../../src/shared/layout.js';
+import { newBrace, newWall, type Scene } from '../../src/shared/layout.js';
 import { testAdministrator, testDatabase } from '../helpers/database.js';
 
 let fixture: Awaited<ReturnType<typeof testDatabase>>;
@@ -31,7 +31,7 @@ test('creates a complete production/adaptation/scene with a pinned venue version
   created = response.json();
   assert.equal(created.productionName, input.productionName);
   assert.deepEqual(created.venue, { schemaVersion: 1, width: 8000, depth: 6000 });
-  assert.deepEqual(created.layout, { schemaVersion: 1, walls: [] });
+  assert.deepEqual(created.layout, { schemaVersion: 1, walls: [], braces: [] });
   assert.equal(created.revision, 0);
   assert.equal(created.lease, null);
   const listing = await app.inject({ url: base, headers });
@@ -62,13 +62,28 @@ test('new venue information does not change a scene’s pinned geometry', async 
   assert.deepEqual(loaded.venue, created.venue);
 });
 test('malformed documents and cross-origin writes leave saved data intact', async () => {
-  for (const layout of [{ schemaVersion: 2, walls: [] }, { schemaVersion: 1, walls: [{ ...newWall(randomUUID(), 0, 0), width: -1 }] }]) {
+  for (const layout of [
+    { schemaVersion: 2, walls: [] },
+    { schemaVersion: 1, walls: [{ ...newWall(randomUUID(), 0, 0), width: -1 }] },
+    { schemaVersion: 1, walls: [], braces: [{ ...newBrace(randomUUID(), 0, 0), height: 0 }] },
+  ]) {
     assert.equal((await app.inject({ method: 'PUT', url: `${base}/${created.id}/layout`, headers, payload: { revision: 1, layout } })).statusCode, 400);
   }
   assert.equal((await app.inject({ method: 'POST', url: base, headers, payload: { ...input, width: 0 } })).statusCode, 400);
   assert.equal((await app.inject({ method: 'POST', url: base, headers: { ...headers, origin: 'https://foreign.example' }, payload: input })).statusCode, 403);
   assert.equal((await fixture.db.select().from(scene)).length, 1);
   assert.equal((await app.inject({ url: `${base}/${created.id}`, headers })).json().revision, 1);
+});
+test('saves and reloads weighted rear braces with the layout', async () => {
+  const loaded = (await app.inject({ url: `${base}/${created.id}`, headers })).json<Scene>();
+  const brace = newBrace(randomUUID(), 1500, 2500);
+  assert.equal((await app.inject({
+    method: 'PUT', url: `${base}/${created.id}/layout`, headers,
+    payload: { revision: loaded.revision, layout: { schemaVersion: 1, walls: loaded.layout.walls, braces: [brace] } },
+  })).statusCode, 200);
+  const saved = (await app.inject({ url: `${base}/${created.id}`, headers })).json<Scene>();
+  assert.equal(saved.layout.braces.length, 1);
+  assert.deepEqual(saved.layout.braces[0], brace);
 });
 test('workspace substitution and viewer writes are denied', async () => {
   const foreignId = randomUUID();

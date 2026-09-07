@@ -1,3 +1,4 @@
+import { braceSolid, type BraceSolid } from './braceTransforms.js';
 import { type Layout, type Wall } from './layout.js';
 
 export type Vec3 = { x: number; y: number; z: number };
@@ -9,6 +10,7 @@ export type WallSolid = {
 export type StageModel = {
   floor: { width: number; depth: number };
   walls: WallSolid[];
+  braces: BraceSolid[];
   audience: { position: Vec3; target: Vec3 };
   orbitTarget: Vec3;
 };
@@ -35,6 +37,7 @@ export function stageModel(layout: Layout, venue: { width: number; depth: number
   return {
     floor: { width: venue.width, depth: venue.depth },
     walls: layout.walls.map(wallSolid),
+    braces: (layout.braces ?? []).map(braceSolid),
     audience: { position: { x: venue.width / 2, y: 1600, z: -2000 }, target: { x: venue.width / 2, y: 1200, z: venue.depth / 2 } },
     orbitTarget: { x: venue.width / 2, y: 0, z: venue.depth / 2 },
   };

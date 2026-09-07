@@ -3,6 +3,7 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
 import type { Layout } from '../../shared/layout.js';
 import { stageModel, type WallSolid } from '../../shared/transforms.js';
+import { StageBraceList, StageBraces } from './StageBraces.js';
 
 const plywood = '#315d49';
 const timber = '#d9c6a1';
@@ -43,13 +44,15 @@ export function StageView({ layout, venue }: { layout: Layout; venue: { width: n
           <meshBasicMaterial color="#dce4d4" />
         </mesh>
         {model.walls.map(wall => <WallMesh key={wall.id} wall={wall} />)}
+        <StageBraces braces={model.braces} />
         <OrbitControls makeDefault enableDamping={false} target={[target.x, target.y, target.z]} />
       </Canvas>
     </div>
-    <p className="muted">Vorderseite (Sperrholz, dunkel) · Rückseite (Holzrahmen, hell) · Ziehen zum Drehen</p>
+    <p className="muted">Vorderseite (Sperrholz, dunkel) · Rückseite (Holzrahmen, hell) · Stützen als Dreieckskörper · Ziehen zum Drehen</p>
     <ul aria-label="Wände in der Raumsicht">{model.walls.map(wall => <li key={wall.id} data-testid={`stage-wall-${wall.id}`}
       data-x={wall.center.x} data-y={wall.center.y} data-z={wall.center.z}
       data-height={wall.size.y} data-width={wall.size.x} data-thickness={wall.size.z}>
       {wall.label}: Vorderseite {facing(wall.frontNormal)}</li>)}</ul>
+    <StageBraceList braces={model.braces} />
   </div>;
 }

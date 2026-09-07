@@ -1,5 +1,6 @@
 import PDFDocument from 'pdfkit';
 import { germanDate, type ConstructionSnapshot } from '../../shared/export.js';
+import { strokeBraceFootprints } from './bracePdf.js';
 
 const mm = (value: number) => value * 72 / 25.4;
 
@@ -25,6 +26,7 @@ export function renderConstructionPlan(snapshot: ConstructionSnapshot) {
       const widthMm = Math.hypot(wall.corners[1]!.x - wall.corners[0]!.x, wall.corners[1]!.y - wall.corners[0]!.y);
       doc.fontSize(8).fillColor('#395640').text(`${Math.round(widthMm)} mm`, (a.x + b.x) / 2 - mm(8), (a.y + b.y) / 2 - mm(4), { lineBreak: false });
     }
+    strokeBraceFootprints(doc, snapshot, toPage);
     const front = toPage(snapshot.venue.width / 2, 0);
     doc.fontSize(9).fillColor('#395640').text('↑ Publikum · Blick zur Bühne', front.x - mm(30), front.y + mm(6), { lineBreak: false });
     doc.fontSize(8).text(`${snapshot.venue.width} mm`, front.x - mm(10), front.y + mm(12), { lineBreak: false });

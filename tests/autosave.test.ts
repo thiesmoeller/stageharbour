@@ -4,8 +4,8 @@ import { randomUUID } from 'node:crypto';
 import { Autosave, SaveConflict, type SaveState } from '../src/client/editor/autosave.js';
 import { newWall, type Layout } from '../src/shared/layout.js';
 
-const empty: Layout = { schemaVersion: 1, walls: [] };
-const placed: Layout = { schemaVersion: 1, walls: [newWall(randomUUID(), 1000, 2000)] };
+const empty: Layout = { schemaVersion: 1, walls: [], braces: [] };
+const placed: Layout = { schemaVersion: 1, walls: [newWall(randomUUID(), 1000, 2000)], braces: [] };
 function waitFor(saver: Autosave, status: SaveState['status']) {
   if (saver.getSnapshot().status === status) return Promise.resolve();
   return new Promise<void>(resolve => {
