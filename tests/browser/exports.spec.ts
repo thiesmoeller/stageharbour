@@ -35,9 +35,11 @@ test('export a named frozen construction plan and download it from history', asy
   await page.getByRole('button', { name: 'Als Konstruktionsplan exportieren' }).click();
   await expect(page.getByRole('listitem').filter({ hasText: 'Probeexport' })).toBeVisible();
   await expect(page.getByRole('listitem').filter({ hasText: 'Probeexport' })).toContainText('Fertig');
+  await expect(page.getByRole('listitem').filter({ hasText: 'Probeexport' })).toContainText('A4');
+  await expect(page.getByRole('listitem').filter({ hasText: 'Probeexport' })).toContainText('1:50');
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Herunterladen' }).click(),
+    page.getByRole('listitem').filter({ hasText: 'Probeexport' }).getByRole('button', { name: 'Herunterladen' }).click(),
   ]);
   expect(download.suggestedFilename()).toMatch(/\.pdf$/);
   const bytes = readFileSync(await download.path() as string);
@@ -46,4 +48,19 @@ test('export a named frozen construction plan and download it from history', asy
     .map(match => Buffer.from(match[1] ?? '', 'hex').toString('latin1')).join('');
   expect(text).toContain('Position 1');
   expect(text).toContain('Verbindungskompatibilität prüft die Crew manuell');
+  expect(text).toContain('Maßstab 1:50');
+  await page.getByLabel('Papierformat').selectOption('A3');
+  await page.getByLabel('Maßstab').selectOption('25');
+  await page.getByLabel('Bezeichnung der Fassung').fill('A3-Detail');
+  await page.getByRole('button', { name: 'Als Konstruktionsplan exportieren' }).click();
+  await expect(page.getByRole('listitem').filter({ hasText: 'A3-Detail' })).toContainText('Fertig');
+  await expect(page.getByRole('listitem').filter({ hasText: 'A3-Detail' })).toContainText('A3');
+  await expect(page.getByRole('listitem').filter({ hasText: 'A3-Detail' })).toContainText('1:25');
+  const [a3Download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('listitem').filter({ hasText: 'A3-Detail' }).getByRole('button', { name: 'Herunterladen' }).click(),
+  ]);
+  const a3Bytes = readFileSync(await a3Download.path() as string);
+  expect(a3Bytes.subarray(0, 5).toString()).toBe('%PDF-');
+  expect(a3Bytes.toString('latin1')).toMatch(/\/MediaBox \[0 0 841\.89 1190\.55\]/);
 });

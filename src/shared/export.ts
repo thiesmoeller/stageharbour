@@ -5,16 +5,25 @@ import { overheadClearance, overheadWarningsSchema } from './overhead.js';
 import { keepClearWarningSchema, keepClearWarnings } from './keepClear.js';
 import { placeholderCorners, placeholderKindSchema } from './placeholders.js';
 import { resolveWall } from './wall-types.js';
+import type { DrawingScale, PaperSize } from './tiling.js';
+
+export { planTiles, PAGE_OVERLAP_MM, REGISTRATION_MARK_MM, drawingAreaMm } from './tiling.js';
+export type { DrawingScale, PaperSize, PlanTile } from './tiling.js';
 
 const name = z.string().trim().min(1).max(120);
 const point = z.strictObject({ x: z.number().finite(), y: z.number().finite() });
-/** Fixed 1:50 drawing scale for this slice: 1 mm on the page equals 50 mm on the model. Selectable A3/tiling is a later slice. */
+/** Default 1:50 construction scale: 1 mm on the page equals 50 mm on the model. Also 1:25 and 1:100. */
 export const DRAWING_SCALE = 50;
+export const paperSizeSchema = z.enum(['A4', 'A3']);
+export const drawingScaleSchema = z.union([z.literal(25), z.literal(50), z.literal(100)]);
 export const exportStatusSchema = z.enum(['pending', 'ready', 'failed']);
-export const freezeExportSchema = z.strictObject({ name });
+export const freezeExportSchema = z.strictObject({
+  name, paper: paperSizeSchema.optional().default('A4'), scale: drawingScaleSchema.optional().default(DRAWING_SCALE),
+});
 export const constructionSnapshotSchema = z.strictObject({
   schemaVersion: z.literal(1),
-  scale: z.literal(DRAWING_SCALE),
+  paper: paperSizeSchema.default('A4'),
+  scale: drawingScaleSchema,
   revisionId: z.uuid(),
   revisionName: name,
   issuedAt: z.string(),
@@ -48,17 +57,21 @@ export const constructionSnapshotSchema = z.strictObject({
 });
 export type ConstructionSnapshot = z.infer<typeof constructionSnapshotSchema>;
 export const exportRevisionSchema = z.object({
-  id: z.uuid(), name, scale: z.literal(DRAWING_SCALE),
+  id: z.uuid(), name, paper: paperSizeSchema.default('A4'), scale: drawingScaleSchema,
   status: exportStatusSchema, createdAt: z.string(),
 });
 export type ExportRevision = z.infer<typeof exportRevisionSchema>;
 export const exportListSchema = z.array(exportRevisionSchema);
 
-export function freezeSnapshot(scene: Scene, revision: { id: string; name: string; issuedAt: Date }, panelLabels: Readonly<Record<string, string>> = {}): ConstructionSnapshot {
+export function freezeSnapshot(
+  scene: Scene,
+  revision: { id: string; name: string; issuedAt: Date; paper?: PaperSize; scale?: DrawingScale },
+  panelLabels: Readonly<Record<string, string>> = {},
+): ConstructionSnapshot {
   const venue = structuredClone(scene.venue);
   const layout = structuredClone(scene.layout);
   return {
-    schemaVersion: 1, scale: DRAWING_SCALE,
+    schemaVersion: 1, paper: revision.paper ?? 'A4', scale: revision.scale ?? DRAWING_SCALE,
     revisionId: revision.id, revisionName: revision.name, issuedAt: revision.issuedAt.toISOString(),
     productionName: scene.productionName, venueName: scene.venueName, sceneName: scene.name,
     venueVersionId: scene.venueVersionId, venue, layout,

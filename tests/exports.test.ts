@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { CONNECTION_COMPATIBILITY_NOTICE } from '../src/shared/assembly.js';
-import { freezeSnapshot } from '../src/shared/export.js';
+import { constructionSnapshotSchema, freezeSnapshot, planTiles } from '../src/shared/export.js';
 import { newKeepClearZone } from '../src/shared/keepClear.js';
 import { newCableRoutingCorridor, newConnectionPoint } from '../src/shared/infrastructure.js';
 import { newBrace, newWall, type Scene } from '../src/shared/layout.js';
@@ -296,4 +296,85 @@ test('a frozen centreline is labelled on the PDF and later venue edits cannot ch
   assert.deepEqual(snapshot.venue.stageCentreline, stageCentreline);
   const text = shownText(await renderConstructionPlan(snapshot));
   assert(text.includes('Mittellinie'), text);
+});
+
+function pageBlocks(pdf: Buffer) {
+  return [...pdf.toString('latin1').matchAll(/stream\r?\n([\s\S]*?)\r?\nendstream/g)].map(block => {
+    const content = block[1] ?? '';
+    const text = [...content.matchAll(/<([0-9a-fA-F]+)>/g)]
+      .map(match => Buffer.from(match[1] ?? '', 'hex').toString('latin1')).join('');
+    const lengths: number[] = [];
+    const ptPerMm = 72 / 25.4;
+    let x = 0, y = 0;
+    for (const token of content.matchAll(/(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s+(m|l)/g)) {
+      const nx = Number(token[1]), ny = Number(token[2]);
+      if (token[3] === 'l') lengths.push(Math.hypot(nx - x, ny - y) / ptPerMm);
+      x = nx; y = ny;
+    }
+    return { text, lengths };
+  }).filter(page => page.text.includes('Blatt'));
+}
+
+test('stored 1:50 snapshots without paper still parse as A4', () => {
+  const frozen = sampleSnapshot();
+  const { paper: _paper, ...legacy } = frozen;
+  const parsed = constructionSnapshotSchema.parse(legacy);
+  assert.equal(parsed.paper, 'A4');
+  assert.equal(parsed.scale, 50);
+  assert.deepEqual(parsed.warnings, frozen.warnings);
+  assert.deepEqual(parsed.unresolvedWarnings, frozen.unresolvedWarnings);
+});
+
+test('a 1200 mm wall is 48 mm at 1:25 and 12 mm at 1:100, and 24 mm on A3 at 1:50', async () => {
+  const scene: Scene = {
+    id: randomUUID(), name: 'Erste Szene', productionName: 'Beispielproduktion', venueName: 'Beispielsaal',
+    revision: 1, venueVersionId: randomUUID(), venue: { schemaVersion: 1, width: 8000, depth: 6000 },
+    lease: null, layout: { schemaVersion: 1, walls: [newWall(randomUUID(), 2000, 3000)], braces: [] },
+  };
+  const issued = { id: randomUUID(), name: 'Fassung Probe', issuedAt: new Date('2026-09-07T12:00:00.000Z') };
+  const detail = await renderConstructionPlan(freezeSnapshot(scene, { ...issued, scale: 25 }));
+  assert(pathLengthsMm(detail).some(length => Math.abs(length - 48) < 0.05), pathLengthsMm(detail).slice(0, 12).join(','));
+  const overview = await renderConstructionPlan(freezeSnapshot(scene, { ...issued, scale: 100 }));
+  assert(pathLengthsMm(overview).some(length => Math.abs(length - 12) < 0.05), pathLengthsMm(overview).slice(0, 12).join(','));
+  const a3 = freezeSnapshot(scene, { ...issued, paper: 'A3' });
+  assert.equal(a3.paper, 'A3');
+  assert.equal(a3.scale, 50);
+  const a3Pdf = await renderConstructionPlan(a3);
+  assert.match(a3Pdf.toString('latin1'), /\/MediaBox \[0 0 841\.89 1190\.55\]/);
+  assert(pathLengthsMm(a3Pdf).some(length => Math.abs(length - 24) < 0.05), pathLengthsMm(a3Pdf).slice(0, 12).join(','));
+});
+
+test('a 20000 mm venue at 1:50 tiles across three A4 pages with overlap and registration marks', async () => {
+  const left = newWall(randomUUID(), 2000, 3000);
+  const crossing = newWall(randomUUID(), 8500, 3000);
+  const right = newWall(randomUUID(), 18000, 3000);
+  const snapshot = freezeSnapshot({
+    id: randomUUID(), name: 'Große Szene', productionName: 'Beispielproduktion', venueName: 'Beispielsaal',
+    revision: 1, venueVersionId: randomUUID(), venue: { schemaVersion: 1, width: 20000, depth: 6000 },
+    lease: null, layout: { schemaVersion: 1, walls: [left, crossing, right], braces: [] },
+  }, { id: randomUUID(), name: 'Kachelfassung', issuedAt: new Date('2026-09-07T12:00:00.000Z') });
+  const tiles = planTiles(snapshot.venue, snapshot.paper, snapshot.scale);
+  assert.equal(tiles.length, 3);
+  assert.deepEqual(tiles.map(tile => tile.modelX), [0, 8000, 16000]);
+  const pdf = await renderConstructionPlan(snapshot);
+  const pages = pageBlocks(pdf);
+  assert.equal(pages.length, 3);
+  assert(pages.every(page => page.lengths.some(length => Math.abs(length - 5) < 0.05)), 'expected 5 mm registration ticks');
+  assert(pages.every(page => page.text.includes('Kachelfassung')), pages[0]?.text);
+  assert(pages.every(page => page.text.includes('07.09.2026')));
+  assert(pages.every(page => page.text.includes('Maßstab 1:50')));
+  assert(pages.every(page => page.text.includes('Publikum')));
+  assert(pages.every(page => page.text.includes('Überlappung 20 mm')));
+  assert(pages[0]?.text.includes('Blatt 1 von 3'), pages[0]?.text);
+  assert(pages[1]?.text.includes('Blatt 2 von 3'), pages[1]?.text);
+  assert(pages[2]?.text.includes('Blatt 3 von 3'), pages[2]?.text);
+  assert(pages[0]?.lengths.some(length => Math.abs(length - 24) < 0.05), 'left wall on Blatt 1');
+  assert(pages[1]?.lengths.some(length => Math.abs(length - 24) < 0.05), 'crossing wall on Blatt 2');
+  assert(pages[2]?.lengths.some(length => Math.abs(length - 24) < 0.05), 'right wall on Blatt 3');
+  assert(pages[0]?.lengths.some(length => Math.abs(length - 24) < 0.05) && pages[1]?.lengths.some(length => Math.abs(length - 24) < 0.05), 'crossing wall retained on both overlapping tiles');
+  assert.equal((pages[2]?.lengths ?? []).filter(length => Math.abs(length - 24) < 0.05).length > 0, true);
+  const again = await renderConstructionPlan(snapshot);
+  assert.equal(pageBlocks(again).length, 3);
+  assert.deepEqual(pageBlocks(again).map(page => page.lengths.filter(length => Math.abs(length - 24) < 0.05).length),
+    pages.map(page => page.lengths.filter(length => Math.abs(length - 24) < 0.05).length));
 });

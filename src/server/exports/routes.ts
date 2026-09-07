@@ -4,7 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { errorSchema, workspaceParamsSchema } from '../../shared/contracts.js';
-import { DRAWING_SCALE, exportListSchema, exportRevisionSchema, freezeExportSchema, freezeSnapshot, type ConstructionSnapshot, type ExportRevision } from '../../shared/export.js';
+import { constructionSnapshotSchema, exportListSchema, exportRevisionSchema, freezeExportSchema, freezeSnapshot, type ConstructionSnapshot, type ExportRevision } from '../../shared/export.js';
 import { sceneSchema } from '../../shared/layout.js';
 import type { Database } from '../db/connection.js';
 import { adaptation, constructionPlanRevision, inventoryPanel, production, scene, venue, venueVersion } from '../db/schema.js';
@@ -20,8 +20,9 @@ export function registerExportRoutes(
   const params = workspaceParamsSchema.extend({ sceneId: z.uuid() });
   const item = params.extend({ exportId: z.uuid() });
   const errors = { 400: errorSchema, 401: errorSchema, 403: errorSchema, 404: errorSchema, 409: errorSchema };
-  function asRevision(row: { id: string; name: string; status: ExportRevision['status']; createdAt: Date }): ExportRevision {
-    return { id: row.id, name: row.name, scale: DRAWING_SCALE, status: row.status, createdAt: row.createdAt.toISOString() };
+  function asRevision(row: typeof constructionPlanRevision.$inferSelect): ExportRevision {
+    const snapshot = constructionSnapshotSchema.parse(row.snapshot);
+    return { id: row.id, name: row.name, paper: snapshot.paper, scale: snapshot.scale, status: row.status, createdAt: row.createdAt.toISOString() };
   }
   async function loadScene(workspaceId: string, sceneId: string) {
     const [record] = await db.select({
@@ -73,15 +74,17 @@ export function registerExportRoutes(
     const loaded = await loadScene(request.params.workspaceId, request.params.sceneId);
     const id = randomUUID();
     const issuedAt = new Date();
-    const snapshot = freezeSnapshot(loaded, { id, name: request.body.name, issuedAt }, await panelLabels(
+    const snapshot = freezeSnapshot(loaded, {
+      id, name: request.body.name, issuedAt, paper: request.body.paper, scale: request.body.scale,
+    }, await panelLabels(
       request.params.workspaceId, loaded.layout.walls.flatMap(wall => wall.panelId ? [wall.panelId] : []),
     ));
     await db.insert(constructionPlanRevision).values({
       id, workspaceId: request.params.workspaceId, sceneId: request.params.sceneId, name: request.body.name,
-      scale: DRAWING_SCALE, status: 'pending', snapshot, createdAt: issuedAt,
+      scale: snapshot.scale, status: 'pending', snapshot, createdAt: issuedAt,
     });
     await produce({ id, workspaceId: request.params.workspaceId, sceneId: request.params.sceneId, name: request.body.name,
-      scale: DRAWING_SCALE, status: 'pending', snapshot, storageKey: null, createdAt: issuedAt });
+      scale: snapshot.scale, status: 'pending', snapshot, storageKey: null, createdAt: issuedAt });
     return reply.code(201).send(asRevision(await loadRevision(request.params.workspaceId, request.params.sceneId, id)));
   });
   api.post(`${path}/:exportId/retry`, { schema: { params: item, response: { 200: exportRevisionSchema, ...errors } } }, async (request, reply) => {
