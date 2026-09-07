@@ -13,3 +13,4 @@ export const memberSchema = z.object({ userId: z.string(), name: z.string(), ema
 export const membersSchema = z.array(memberSchema);
 export type Member = z.infer<typeof memberSchema>;
 export const errorSchema = z.object({ message: z.string() });
+export const loginOptionsSchema = z.object({ oidc: z.boolean() });

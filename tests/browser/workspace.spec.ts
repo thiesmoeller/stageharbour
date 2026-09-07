@@ -28,6 +28,14 @@ test('German login, failed credentials, workspace, reload, logout and mobile lay
   expect(errors).toEqual([]);
 });
 
+test('Pocket ID sign-in is offered in German when OIDC is configured', async ({ page }) => {
+  await page.route('**/api/login-options', route => route.fulfill({ json: { oidc: true } }));
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Mit Pocket ID anmelden' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Anmelden', exact: true })).toBeVisible();
+  await expect(page.getByLabel('E-Mail-Adresse')).toBeVisible();
+});
+
 test('workspace network errors offer a working retry', async ({ page }) => {
   await page.route('**/api/me', route => route.abort());
   await page.goto('/');
