@@ -4,6 +4,7 @@
 
 /* Saved layout workflow */
 .plans, .editor { margin: 35px 0; padding: 28px; border: 1px solid #dde3d5; border-radius: 12px; background: #fff; }
+.create-plan { max-width: 650px; padding-bottom: 24px; }
 .plans h4 { margin: 16px 0 8px; font-size: .85rem; }
 fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
 .numeric-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 14px; }

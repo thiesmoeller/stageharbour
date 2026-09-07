@@ -328,7 +328,7 @@ test('stored 1:50 snapshots without paper still parse as A4', () => {
 test('a 1200 mm wall is 48 mm at 1:25 and 12 mm at 1:100, and 24 mm on A3 at 1:50', async () => {
   const scene: Scene = {
     id: randomUUID(), name: 'Erste Szene', productionName: 'Beispielproduktion', venueName: 'Beispielsaal',
-    revision: 1, venueVersionId: randomUUID(), venue: { schemaVersion: 1, width: 8000, depth: 6000 },
+    revision: 1, productionId: randomUUID(), venueId: randomUUID(), venueVersionId: randomUUID(), venue: { schemaVersion: 1, width: 8000, depth: 6000 },
     lease: null, layout: { schemaVersion: 1, walls: [newWall(randomUUID(), 2000, 3000)], braces: [] },
   };
   const issued = { id: randomUUID(), name: 'Fassung Probe', issuedAt: new Date('2026-09-07T12:00:00.000Z') };
@@ -350,7 +350,7 @@ test('a 20000 mm venue at 1:50 tiles across three A4 pages with overlap and regi
   const right = newWall(randomUUID(), 18000, 3000);
   const snapshot = freezeSnapshot({
     id: randomUUID(), name: 'Große Szene', productionName: 'Beispielproduktion', venueName: 'Beispielsaal',
-    revision: 1, venueVersionId: randomUUID(), venue: { schemaVersion: 1, width: 20000, depth: 6000 },
+    revision: 1, productionId: randomUUID(), venueId: randomUUID(), venueVersionId: randomUUID(), venue: { schemaVersion: 1, width: 20000, depth: 6000 },
     lease: null, layout: { schemaVersion: 1, walls: [left, crossing, right], braces: [] },
   }, { id: randomUUID(), name: 'Kachelfassung', issuedAt: new Date('2026-09-07T12:00:00.000Z') });
   const tiles = planTiles(snapshot.venue, snapshot.paper, snapshot.scale);
