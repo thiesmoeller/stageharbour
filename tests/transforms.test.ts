@@ -1,8 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { newWall } from '../src/shared/layout.js';
+import { newBrace, newWall } from '../src/shared/layout.js';
 import { newWallType } from '../src/shared/wall-types.js';
+import { braceSolid } from '../src/shared/braceTransforms.js';
 import { stageModel, wallSolid } from '../src/shared/transforms.js';
 
 function assertVec(actual: { x: number; y: number; z: number }, expected: { x: number; y: number; z: number }) {
@@ -33,10 +34,11 @@ test('unrotated plywood faces the audience; audience camera looks into the venue
   const solid = wallSolid(wall);
   assertVec(solid.frontNormal, { x: 0, y: 0, z: -1 });
   assertVec(solid.corners[0]!, { x: 1400, y: 0, z: 2986 });
-  const model = stageModel({ schemaVersion: 1, walls: [wall] }, { width: 8000, depth: 6000 });
+  const model = stageModel({ schemaVersion: 1, walls: [wall], braces: [] }, { width: 8000, depth: 6000 });
   assert.equal(model.floor.width, 8000);
   assert.equal(model.floor.depth, 6000);
   assert.equal(model.walls.length, 1);
+  assert.equal(model.braces.length, 0);
   assertVec(model.audience.position, { x: 4000, y: 1600, z: -2000 });
   assertVec(model.audience.target, { x: 4000, y: 1200, z: 3000 });
   assertVec(model.orbitTarget, { x: 4000, y: 0, z: 3000 });
@@ -45,10 +47,29 @@ test('unrotated plywood faces the audience; audience camera looks into the venue
 test('stage model carries known opening millimetres from the wall type', () => {
   const type = { ...newWallType(randomUUID()), openings: [{ id: randomUUID(), left: 200, sill: 0, width: 800, height: 2000 }] };
   const wall = { ...newWall(randomUUID(), 2000, 3000), typeId: type.id, width: 1, height: 1, thickness: 1 };
-  const solid = stageModel({ schemaVersion: 1, wallTypes: [type], walls: [wall] }, { width: 8000, depth: 6000 }).walls[0]!;
+  const solid = stageModel({ schemaVersion: 1, wallTypes: [type], walls: [wall], braces: [] }, { width: 8000, depth: 6000 }).walls[0]!;
   assert.deepEqual(solid.size, { x: 1200, y: 2400, z: 28 });
   assert.equal(solid.openings[0]?.width, 800);
   assert.equal(solid.openings[0]?.height, 2000);
   assert.equal(solid.openings[0]?.left, 200);
   assert.equal(solid.openings[0]?.sill, 0);
+});
+test('a known millimetre brace footprint maps to a triangular 3D solid independently of Three.js', () => {
+  const brace = newBrace(randomUUID(), 2000, 3000);
+  const solid = braceSolid(brace);
+  assert.deepEqual(solid.size, { x: 600, y: 1800, z: 800 });
+  assertVec(solid.center, { x: 2000, y: 900, z: 3000 });
+  assert(Math.abs(solid.rotationY) < 1e-8);
+  assertVec(solid.footprint[0]!, { x: 1700, y: 0, z: 2600 });
+  assertVec(solid.footprint[1]!, { x: 2300, y: 0, z: 2600 });
+  assertVec(solid.footprint[2]!, { x: 2300, y: 0, z: 3400 });
+  assertVec(solid.footprint[3]!, { x: 1700, y: 0, z: 3400 });
+  assertVec(solid.ridge[0]!, { x: 1700, y: 1800, z: 2600 });
+  assertVec(solid.ridge[1]!, { x: 2300, y: 1800, z: 2600 });
+  const rotated = braceSolid({ ...brace, rotation: 90 });
+  assert(Math.abs(rotated.rotationY - (-Math.PI / 2)) < 1e-8);
+  assertVec(rotated.footprint[0]!, { x: 2400, y: 0, z: 2700 });
+  const model = stageModel({ schemaVersion: 1, walls: [], braces: [brace] }, { width: 8000, depth: 6000 });
+  assert.equal(model.braces.length, 1);
+  assert.equal(model.braces[0]!.id, brace.id);
 });

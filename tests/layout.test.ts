@@ -2,7 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { execute, history, redo, undo } from '../src/shared/history.js';
-import { layoutSchema, newWall, openingCorners, wallCorners, type Layout } from '../src/shared/layout.js';
+import { layoutSchema, newBrace, newWall, openingCorners, wallCorners, type Layout } from '../src/shared/layout.js';
+import { braceCorners } from '../src/shared/braceTransforms.js';
 import { newWallType, resolveWall, wallTypeSchema } from '../src/shared/wall-types.js';
 
 test('wall defaults, centre coordinates and rotation use millimetres consistently', () => {
@@ -15,9 +16,9 @@ test('wall defaults, centre coordinates and rotation use millimetres consistentl
 });
 test('creation, combined transforms and deletion undo independently; a new edit clears redo', () => {
   const wall = newWall(randomUUID(), 1000, 1000);
-  const empty: Layout = { schemaVersion: 1, walls: [] };
-  const created = execute(history(empty), { schemaVersion: 1, walls: [wall] });
-  const moved = execute(created, { schemaVersion: 1, walls: [{ ...wall, x: 2000, y: 3000, rotation: 45 }] });
+  const empty: Layout = { schemaVersion: 1, walls: [], braces: [] };
+  const created = execute(history(empty), { schemaVersion: 1, walls: [wall], braces: [] });
+  const moved = execute(created, { schemaVersion: 1, walls: [{ ...wall, x: 2000, y: 3000, rotation: 45 }], braces: [] });
   const deleted = execute(moved, empty);
   assert.deepEqual(undo(deleted).present, moved.present);
   assert.deepEqual(undo(undo(deleted)).present, created.present);
@@ -77,4 +78,36 @@ test('resolved geometry exposes known opening millimetres for 3D and PDF', () =>
   assert.equal(resolved.openings[0]?.sill, 0);
   assert.deepEqual(openingCorners(resolved, resolved.openings[0]!)[0], { x: 1600, y: 2986 });
   assert.deepEqual(openingCorners(resolved, resolved.openings[0]!)[1], { x: 2400, y: 2986 });
+});
+test('example brace defaults and a known millimetre footprint map to plan corners', () => {
+  const brace = newBrace(randomUUID(), 2000, 3000);
+  assert.equal(brace.label, 'Stütze');
+  assert.equal(brace.footprintWidth, 600);
+  assert.equal(brace.footprintDepth, 800);
+  assert.equal(brace.height, 1800);
+  assert.deepEqual(braceCorners(brace)[0], { x: 1700, y: 2600 });
+  assert.deepEqual(braceCorners(brace)[1], { x: 2300, y: 2600 });
+  assert.deepEqual(braceCorners(brace)[2], { x: 2300, y: 3400 });
+  assert.deepEqual(braceCorners(brace)[3], { x: 1700, y: 3400 });
+  const rotated = braceCorners({ ...brace, rotation: 90 })[0]!;
+  assert(Math.abs(rotated.x - 2400) < 1e-8);
+  assert(Math.abs(rotated.y - 2700) < 1e-8);
+});
+test('layouts without braces still parse; invalid brace geometry and duplicate IDs are rejected', () => {
+  const parsed = layoutSchema.parse({ schemaVersion: 1, walls: [] });
+  assert.deepEqual(parsed.braces, []);
+  const brace = newBrace(randomUUID(), 0, 0);
+  assert(!layoutSchema.safeParse({ schemaVersion: 1, walls: [], braces: [brace, brace] }).success);
+  assert(!layoutSchema.safeParse({ schemaVersion: 1, walls: [], braces: [{ ...brace, footprintWidth: -1 }] }).success);
+  assert(!layoutSchema.safeParse({ schemaVersion: 1, walls: [], braces: [{ ...brace, height: 0 }] }).success);
+  assert(!layoutSchema.safeParse({ schemaVersion: 1, walls: [], braces: [{ ...brace, x: Infinity }] }).success);
+});
+test('placing a brace is one undoable layout command', () => {
+  const brace = newBrace(randomUUID(), 1500, 2500);
+  const empty: Layout = { schemaVersion: 1, walls: [], braces: [] };
+  const placed = execute(history(empty), { schemaVersion: 1, walls: [], braces: [brace] });
+  const moved = execute(placed, { schemaVersion: 1, walls: [], braces: [{ ...brace, x: 4000, rotation: 30 }] });
+  assert.deepEqual(undo(moved).present, placed.present);
+  assert.deepEqual(undo(undo(moved)).present, empty);
+  assert.deepEqual(redo(undo(moved)).present, moved.present);
 });
