@@ -94,6 +94,7 @@ export const venue = pgTable('venue', {
 export const venueVersion = pgTable('venue_version', {
   id: uuid('id').primaryKey(), workspaceId: uuid('workspace_id').notNull(), venueId: uuid('venue_id').notNull(),
   geometry: jsonb('geometry').notNull().$type<VenueGeometry>(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, t => [uniqueIndex('venue_version_workspace_id').on(t.workspaceId, t.id),
   foreignKey({ columns: [t.workspaceId, t.venueId], foreignColumns: [venue.workspaceId, venue.id] })]);
 export const production = pgTable('production', {

@@ -179,7 +179,7 @@ test('saves permanent platforms and stairs on the pinned venue version', async (
   assert.equal(again.venue.platforms?.[0]?.elevation, 400);
   assert.equal(again.venue.stairs?.[0]?.width, 1200);
   assert.deepEqual(again.venue.outline, outline);
-  assert.equal(again.venueVersionId, loaded.venueVersionId);
+  assert.notEqual(again.venueVersionId, loaded.venueVersionId);
 });
 
 test('saves a ceiling limit and rectangular overhead boxes on the pinned venue version', async () => {
@@ -198,7 +198,7 @@ test('saves a ceiling limit and rectangular overhead boxes on the pinned venue v
   assert.equal(again.venue.overheadBoxes?.length, 2);
   assert.equal(again.venue.overheadBoxes?.[0]?.bottomHeight, 2600);
   assert.equal(again.venue.overheadBoxes?.[0]?.thickness, 400);
-  assert.equal(again.venueVersionId, loaded.venueVersionId);
+  assert.notEqual(again.venueVersionId, loaded.venueVersionId);
 });
 test('saves keep-clear zones on the pinned venue version', async () => {
   const loaded = (await app.inject({ url: `${scenes}/${scene.id}`, headers })).json<Scene>();
@@ -213,7 +213,7 @@ test('saves keep-clear zones on the pinned venue version', async () => {
   assert.equal(again.venue.keepClearZones?.[0]?.reason, 'Notausgang');
   assert.equal(again.venue.keepClearZones?.[0]?.supportingSurfaceId, AUDIENCE_FLOOR_ID);
   assert.deepEqual(again.venue.keepClearZones?.[0]?.polygon, zone.polygon);
-  assert.equal(again.venueVersionId, loaded.venueVersionId);
+  assert.notEqual(again.venueVersionId, loaded.venueVersionId);
   assert.deepEqual(again.venue.outline, outline);
 });
 

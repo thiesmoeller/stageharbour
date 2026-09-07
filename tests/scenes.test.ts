@@ -9,7 +9,7 @@ import { AUDIENCE_FLOOR_ID, newPlatform, newStair } from '../src/shared/levels.j
 import { newPlaceholder } from '../src/shared/placeholders.js';
 import { newKeepClearZone } from '../src/shared/keepClear.js';
 import { newOverheadBox } from '../src/shared/overhead.js';
-import { copiedSceneName, copyLayoutIntoVenue, duplicateLayout, remountRigging } from '../src/shared/scenes.js';
+import { applyVenueVersion, copiedSceneName, copyLayoutIntoVenue, duplicateLayout, remountRigging } from '../src/shared/scenes.js';
 import { newWallType } from '../src/shared/wall-types.js';
 
 const panelId = '11111111-1111-4111-8111-111111111111';
@@ -163,3 +163,45 @@ test('a duplicate shares the rigging setup; remounting is a new setup and pin no
   assert.equal(remounted.walls[0]?.panelId, panelId);
   assert.equal(copiedSceneName('Erste Szene'), 'Erste Szene (Kopie)');
 });
+
+test('applying a newer venue version remaps removed support and reruns clearance; skipping keeps diagnostics against the old pin', () => {
+  const platform = newPlatform(randomUUID(), 4000, 4750);
+  const movable = newPlatform(randomUUID(), 3000, 2000);
+  const onPlatform = { ...newWall(randomUUID(), 4000, 4800), supportingSurfaceId: platform.id, panelId: randomUUID() };
+  const crossing = { ...newWall(randomUUID(), 4000, 3000), label: 'Bühnenwand', height: 2800, panelId };
+  const onMovable = { ...newWall(randomUUID(), 3000, 2000), supportingSurfaceId: movable.id };
+  const layout: Layout = {
+    schemaVersion: 1, walls: [onPlatform, crossing, onMovable], braces: [], platforms: [movable],
+  };
+  const versionA = { schemaVersion: 1 as const, width: 8000, depth: 6000, platforms: [platform], ceilingHeight: 8000 };
+  const versionB = {
+    schemaVersion: 1 as const, width: 8000, depth: 6000, ceilingHeight: 2000,
+    overheadBoxes: [newOverheadBox(randomUUID(), 4000, 3000)],
+    keepClearZones: [newKeepClearZone(randomUUID(), AUDIENCE_FLOOR_ID, 4000, 3000)],
+  };
+  const skipped = applyVenueVersion(layout, versionA);
+  assert.equal(skipped.layout.walls[0]?.supportingSurfaceId, platform.id);
+  assert.equal(skipped.unresolvedSupport.some(item => item.objectId === onPlatform.id), false);
+  assert.equal(skipped.warnings.some(item => item.kind === 'ceiling'), false);
+  assert.equal(skipped.unresolvedWarnings.length, 0);
+  const applied = applyVenueVersion(layout, versionB);
+  const parsed = layoutSchema.parse(applied.layout);
+  assert.equal(parsed.walls[0]?.id, onPlatform.id);
+  assert.equal(parsed.walls[0]?.panelId, onPlatform.panelId);
+  assert.equal(parsed.walls[0]?.supportingSurfaceId, undefined);
+  assert.equal(parsed.walls[1]?.panelId, panelId);
+  assert.equal(parsed.walls[2]?.supportingSurfaceId, movable.id);
+  assert.equal(applied.unresolvedSupport.some(item => item.objectId === onPlatform.id && item.kind === 'missing-surface'), true);
+  assert.equal(applied.warnings.some(item => item.kind === 'ceiling' && item.objectId === crossing.id), true);
+  assert.equal(applied.warnings.some(item => item.kind === 'overhead' && item.objectId === crossing.id), true);
+  assert.equal(applied.unresolvedWarnings.some(item => item.kind === 'keep-clear-overlap' && item.objectId === crossing.id), true);
+  const raised = applyVenueVersion(layout, {
+    ...versionA, platforms: [{ ...platform, elevation: 2000 }], ceilingHeight: 4000,
+  });
+  assert.equal(raised.layout.walls[0]?.supportingSurfaceId, platform.id);
+  assert.equal(raised.warnings.some(item => item.kind === 'ceiling' && item.objectId === onPlatform.id), true);
+  assert.equal(skipped.warnings.some(item => item.objectId === onPlatform.id), false);
+  assert.equal(layout.walls[0]?.supportingSurfaceId, platform.id);
+  assert.equal(layout.walls[1]?.panelId, panelId);
+});
+

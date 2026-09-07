@@ -59,6 +59,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
   const [exportsOpen, setExportsOpen] = useState(false);
   const [venueOpen, setVenueOpen] = useState(false);
   const [venue, setVenue] = useState<VenueGeometry>(initial.venue);
+  const [updateAvailable, setUpdateAvailable] = useState(!!initial.venueUpdateAvailable);
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [guides, setGuides] = useState<SnapGuide[]>([]);
   const gesture = useRef<{ wall: Wall; x: number; y: number; latest: Wall } | undefined>(undefined);
@@ -104,6 +105,17 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     saver.queue(next.present);
   }
   function commit(layout: Layout) { apply(execute(current.current, layout)); }
+  function adoptVenue(result: { venue: VenueGeometry; layout: Layout; revision: number; venueUpdateAvailable: boolean }) {
+    setVenue(result.venue);
+    const next = history({
+      ...result.layout, braces: result.layout.braces ?? [], connections: result.layout.connections ?? [],
+      groups: result.layout.groups ?? [], placeholders: result.layout.placeholders ?? [],
+    });
+    current.current = next;
+    setState(next);
+    saver.adopt(next.present, result.revision);
+    setUpdateAvailable(!!result.venueUpdateAvailable);
+  }
   function replace(wall: Wall) { commit({ ...current.current.present, walls: current.current.present.walls.map(item => item.id === wall.id ? wall : item) }); }
   function applyWall(wall: Wall) {
     replace({ ...wall, rotation: snapEnabled ? snapRotation(wall.rotation) : wall.rotation });
@@ -437,7 +449,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
         ? (initial.lease ? `Nur Ansicht · Bearbeitung durch ${initial.lease.holderName}` : 'Nur Ansicht')
         : saveState.status === 'conflict' && saveState.conflictKind === 'lease' ? 'Bearbeitung abgelaufen' : statusText[saveState.status]}</span>
     </div>
-    {venueOpen && <VenuePanel workspaceId={workspaceId} sceneId={initial.id} venue={venue} readOnly={readOnly} onSaved={setVenue} />}
+    {venueOpen && <VenuePanel workspaceId={workspaceId} sceneId={initial.id} venue={venue} venueUpdateAvailable={updateAvailable} readOnly={readOnly} onSaved={adoptVenue} />}
     {exportsOpen && <ExportPanel workspaceId={workspaceId} sceneId={initial.id} readOnly={readOnly} freezeDisabled={dirty || saveState.status !== 'saved'} />}
     {['failed', 'conflict'].includes(saveState.status) && <div className="error" role="alert">
       <p>{saveState.status === 'conflict'

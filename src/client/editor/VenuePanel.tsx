@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type PointerEvent } from 'react';
-import { z } from 'zod';
-import { venueGeometrySchema, type VenueGeometry } from '../../shared/layout.js';
+import { applyVenueResultSchema, saveVenueResultSchema, venueGeometrySchema, type Layout, type VenueGeometry } from '../../shared/layout.js';
 import {
   newCableRoutingCorridor, newConnectionPoint, type CableRoutingCorridor, type ConnectionKind, type ConnectionPoint,
 } from '../../shared/infrastructure.js';
@@ -21,9 +20,9 @@ function optionalNotes(value?: string) {
   return notes ? notes : undefined;
 }
 
-export function VenuePanel({ workspaceId, sceneId, venue, readOnly, onSaved }: {
-  workspaceId: string; sceneId: string; venue: VenueGeometry; readOnly: boolean;
-  onSaved: (venue: VenueGeometry) => void;
+export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable, readOnly, onSaved }: {
+  workspaceId: string; sceneId: string; venue: VenueGeometry; venueUpdateAvailable: boolean; readOnly: boolean;
+  onSaved: (result: { venue: VenueGeometry; layout: Layout; revision: number; venueUpdateAvailable: boolean }) => void;
 }) {
   const [vertices, setVertices] = useState(() => measuredOutline(venue));
   const [platforms, setPlatforms] = useState<Platform[]>(() => venue.platforms ?? []);
@@ -119,17 +118,29 @@ export function VenuePanel({ workspaceId, sceneId, venue, readOnly, onSaved }: {
     if (!result.success) { setError('Bitte prüfen Sie den Umriss, die Kalibrierung, die Anschlüsse und die Überbauungen.'); return; }
     setBusy(true); setError('');
     try {
-      const body = await request(`/api/workspaces/${workspaceId}/scenes/${sceneId}/venue`, { venue: result.data }, 'PUT');
-      onSaved(z.object({ venue: venueGeometrySchema }).parse(body).venue);
+      const body = saveVenueResultSchema.parse(await request(`/api/workspaces/${workspaceId}/scenes/${sceneId}/venue`, { venue: result.data }, 'PUT'));
+      onSaved({ ...body, venueUpdateAvailable: false });
     } catch (caught) {
       setError(caught instanceof ApiError && caught.status === 400 ? 'Ungültiger Umriss oder ungültige Vorlage.' : 'Die Spielstätte konnte nicht gespeichert werden.');
     } finally { setBusy(false); }
+  }
+  async function applyUpdate() {
+    setBusy(true); setError('');
+    try {
+      const body = applyVenueResultSchema.parse(await request(`/api/workspaces/${workspaceId}/scenes/${sceneId}/venue-apply`, {}));
+      onSaved({ venue: body.venue, layout: body.layout, revision: body.revision, venueUpdateAvailable: !!body.venueUpdateAvailable });
+    } catch { setError('Die Spielstättenfassung konnte nicht übernommen werden.'); }
+    finally { setBusy(false); }
   }
   const width = overlay ? overlay.pixelWidth * unit : Math.max(venue.width, ...vertices.map(point => point.x));
   const height = overlay ? overlay.pixelHeight * unit : Math.max(venue.depth, ...vertices.map(point => point.y));
   return <section className="export-panel" aria-label="Spielstätte">
     <h3>Spielstätte</h3>
     <p className="muted">Umriss in Millimetern. Optional eine Bild- oder PDF-Vorlage nach Kalibrierung nachzeichnen.</p>
+    {venueUpdateAvailable && <div className="form-actions">
+      <p role="status">Aktualisierung verfügbar</p>
+      {!readOnly && <button type="button" disabled={busy} onClick={() => void applyUpdate()}>Spielstättenfassung übernehmen</button>}
+    </div>}
     <div className="venue-plan">
       <svg ref={svg} role="img" aria-label="Umriss der Spielstätte" viewBox={`${Math.min(0, ...vertices.map(p => p.x)) - 400} ${-Math.max(height, ...vertices.map(p => p.y)) - 400} ${Math.max(width, ...vertices.map(p => p.x)) + 800} ${Math.max(height, ...vertices.map(p => p.y)) + 1200}`}
         onPointerDown={onPlan}>
