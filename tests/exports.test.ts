@@ -5,6 +5,7 @@ import { freezeSnapshot } from '../src/shared/export.js';
 import { newCableRoutingCorridor, newConnectionPoint } from '../src/shared/infrastructure.js';
 import { newBrace, newWall, type Scene } from '../src/shared/layout.js';
 import { AUDIENCE_FLOOR_ID, newPlatform, newStair } from '../src/shared/levels.js';
+import { newOverheadBox } from '../src/shared/overhead.js';
 import { newWallType } from '../src/shared/wall-types.js';
 import { renderConstructionPlan } from '../src/server/exports/pdf.js';
 import { renderOffThread } from '../src/server/exports/render.js';
@@ -153,4 +154,33 @@ test('a frozen 4000 mm platform edge is 80 mm on the A4 page and later venue edi
   const text = shownText(pdf);
   assert(text.includes('400 mm'), text);
   assert(text.includes('Treppe'), text);
+});
+
+test('freeze stores overhead warnings that later venue edits cannot change', async () => {
+  const platform = newPlatform(randomUUID(), 4000, 4750);
+  const box = newOverheadBox(randomUUID(), 4000, 4750);
+  box.label = 'Lüftung';
+  const wall = { ...newWall(randomUUID(), 4000, 4750), supportingSurfaceId: platform.id };
+  const scene: Scene = {
+    id: randomUUID(), name: 'Deckenprobe', productionName: 'Beispielproduktion', venueName: 'Beispielsaal',
+    revision: 1, venueVersionId: randomUUID(),
+    venue: { schemaVersion: 1, width: 8000, depth: 6000, platforms: [platform], overheadBoxes: [box], ceilingHeight: 2500 },
+    lease: null, layout: { schemaVersion: 1, walls: [wall], braces: [] },
+  };
+  const snapshot = freezeSnapshot(scene, { id: randomUUID(), name: 'Fassung Überbauung', issuedAt: new Date('2026-09-07T12:00:00.000Z') });
+  assert.equal(snapshot.warnings.some(item => item.kind === 'overhead'), true);
+  assert.equal(snapshot.warnings.some(item => item.kind === 'ceiling'), true);
+  scene.venue.overheadBoxes = [];
+  scene.venue.ceilingHeight = 8000;
+  scene.layout.walls[0]!.supportingSurfaceId = AUDIENCE_FLOOR_ID;
+  assert.equal(snapshot.venue.overheadBoxes?.[0]?.label, 'Lüftung');
+  assert.equal(snapshot.warnings.some(item => item.kind === 'overhead'), true);
+  const pdf = await renderConstructionPlan(snapshot);
+  const lengths = pathLengthsMm(pdf);
+  assert(lengths.some(length => Math.abs(length - 80) < 0.05), lengths.slice(0, 24).join(','));
+  const text = shownText(pdf);
+  assert(text.includes('Lüftung'), text);
+  assert(text.includes('kein statischer Nachweis'), text);
+  assert(text.includes('Geometrische Hinweise'), text);
+  assert(!/zertifiz|standsicher|freigegeben/i.test(text), text);
 });

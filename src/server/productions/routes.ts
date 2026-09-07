@@ -4,7 +4,8 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { errorSchema, workspaceParamsSchema } from '../../shared/contracts.js';
-import { createSceneSchema, saveLayoutSchema, sceneSchema, sceneListSchema } from '../../shared/layout.js';
+import { createSceneSchema, saveLayoutSchema, sceneSchema, sceneListSchema, venueGeometrySchema } from '../../shared/layout.js';
+import { overheadClearance, overheadWarningsSchema } from '../../shared/overhead.js';
 import { leaseHolderSchema } from '../../shared/leases.js';
 import type { Database } from '../db/connection.js';
 import { adaptation, production, scene, venue, venueVersion } from '../db/schema.js';
@@ -77,18 +78,24 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
     return { ok: true as const };
   });
   api.put(`${path}/:sceneId/layout`, { bodyLimit: 128 * 1024, schema: { params, body: saveLayoutSchema,
-    response: { 200: z.object({ revision: z.number().int() }), ...errors } } }, async (request, reply) => {
+    response: { 200: z.object({ revision: z.number().int(), warnings: overheadWarningsSchema }), ...errors } } }, async (request, reply) => {
     const { workspaceId, sceneId } = request.params;
     const { user } = await requireEditor(request, workspaceId);
-    const [updated] = await db.transaction(async tx => {
-      const [existing] = await tx.select({ id: scene.id }).from(scene).where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, sceneId)));
+    const result = await db.transaction(async tx => {
+      const [existing] = await tx.select({ id: scene.id, venue: venueVersion.geometry }).from(scene)
+        .innerJoin(adaptation, eq(scene.adaptationId, adaptation.id))
+        .innerJoin(venueVersion, eq(adaptation.venueVersionId, venueVersion.id))
+        .where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, sceneId)));
       if (!existing) throw new AccessError(404, 'Szene nicht verfügbar.');
       await leases.requireHeld(tx, workspaceId, 'scene', sceneId, user.id);
-      return tx.update(scene).set({ layout: request.body.layout, revision: sql`${scene.revision} + 1` })
+      const [updated] = await tx.update(scene).set({ layout: request.body.layout, revision: sql`${scene.revision} + 1` })
         .where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, sceneId), eq(scene.revision, request.body.revision)))
         .returning({ revision: scene.revision });
+      return updated
+        ? { revision: updated.revision, warnings: overheadClearance(request.body.layout, venueGeometrySchema.parse(existing.venue)) }
+        : undefined;
     });
-    if (updated) return updated;
+    if (result) return result;
     return reply.code(409).send({ message: 'Die Szene wurde inzwischen geändert. Ihre lokalen Änderungen bleiben erhalten.' });
   });
 }

@@ -141,6 +141,11 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByLabel('Kabelkorridor 1 Punkt 1 Y (mm)').fill('1200');
   await page.getByLabel('Kabelkorridor 1 Punkt 2 X (mm)').fill('4000');
   await page.getByLabel('Kabelkorridor 1 Punkt 2 Y (mm)').fill('1200');
+  await page.getByLabel('Deckenhöhe über Fußboden (mm)').fill('4000');
+  await page.getByRole('button', { name: 'Überbauung hinzufügen' }).click();
+  await page.getByLabel('Überbauung 1 Bezeichnung').fill('Lüftung');
+  await page.getByLabel('Überbauung 1 X (mm)').fill('2500');
+  await page.getByLabel('Überbauung 1 Y (mm)').fill('1800');
   const saved = page.waitForResponse(response => /\/scenes\/[^/]+\/venue$/.test(new URL(response.url()).pathname) && response.request().method() === 'PUT');
   await page.getByRole('button', { name: 'Spielstätte speichern' }).click();
   expect((await saved).ok()).toBeTruthy();
@@ -151,6 +156,8 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.locator('.plan-canvas [data-testid^="connection-point-"]')).toContainText('Lichtstrom');
   await expect(page.locator('.plan-canvas [data-testid^="cable-corridor-"]')).toHaveCount(1);
   await expect(page.locator('.plan-canvas [data-testid^="cable-corridor-"]')).toContainText('Seitenbühne');
+  await expect(page.locator('.plan-canvas [data-testid^="overhead-box-"]')).toHaveCount(1);
+  await expect(page.locator('.plan-canvas [data-testid^="overhead-box-"]')).toContainText('Lüftung');
   await page.getByRole('button', { name: 'Spielstätte' }).click();
   await expect(page.getByLabel('Eckpunkt 3 X (mm)')).toHaveValue('4200');
   await expect(page.getByLabel('Eckpunkt 3 Y (mm)')).toHaveValue('3500');
@@ -166,6 +173,11 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByLabel('Kabelkorridor 1 Bezeichnung')).toHaveValue('Seitenbühne');
   await expect(page.getByLabel('Kabelkorridor 1 Punkt 2 X (mm)')).toHaveValue('4000');
   await expect(page.getByLabel('Kabelkorridor 1 Punkt 2 Y (mm)')).toHaveValue('1200');
+  await expect(page.getByLabel('Deckenhöhe über Fußboden (mm)')).toHaveValue('4000');
+  await expect(page.getByLabel('Überbauung 1 Bezeichnung')).toHaveValue('Lüftung');
+  await expect(page.getByLabel('Überbauung 1 X (mm)')).toHaveValue('2500');
+  await expect(page.getByLabel('Überbauung 1 Y (mm)')).toHaveValue('1800');
+  await expect(page.getByLabel('Überbauung 1 Unterkante über Fußboden (mm)')).toHaveValue('2600');
   await page.screenshot({ path: 'test-results/layout-editor.png', fullPage: true });
 
   await page.getByRole('button', { name: 'Wand hinzufügen' }).click();

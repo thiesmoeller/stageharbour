@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { layoutSchema, openingCorners, venueGeometrySchema, wallCorners, type Scene } from './layout.js';
 import { braceCorners } from './braceTransforms.js';
+import { overheadClearance, overheadWarningsSchema } from './overhead.js';
 import { resolveWall } from './wall-types.js';
 
 const name = z.string().trim().min(1).max(120);
@@ -32,6 +33,7 @@ export const constructionSnapshotSchema = z.strictObject({
     id: z.uuid(), label: name, height: z.number().finite().min(1).max(100000),
     corners: z.tuple([point, point, point, point]),
   })).default([]),
+  warnings: overheadWarningsSchema.default([]),
 });
 export type ConstructionSnapshot = z.infer<typeof constructionSnapshotSchema>;
 export const exportRevisionSchema = z.object({
@@ -42,12 +44,14 @@ export type ExportRevision = z.infer<typeof exportRevisionSchema>;
 export const exportListSchema = z.array(exportRevisionSchema);
 
 export function freezeSnapshot(scene: Scene, revision: { id: string; name: string; issuedAt: Date }): ConstructionSnapshot {
+  const venue = structuredClone(scene.venue);
+  const layout = structuredClone(scene.layout);
   return {
     schemaVersion: 1, scale: DRAWING_SCALE,
     revisionId: revision.id, revisionName: revision.name, issuedAt: revision.issuedAt.toISOString(),
     productionName: scene.productionName, venueName: scene.venueName, sceneName: scene.name,
-    venueVersionId: scene.venueVersionId, venue: structuredClone(scene.venue),
-    layout: structuredClone(scene.layout),
+    venueVersionId: scene.venueVersionId, venue, layout,
+    warnings: overheadClearance(layout, venue),
     resolvedWalls: scene.layout.walls.map(wall => {
       const resolved = resolveWall(wall, scene.layout.wallTypes ?? []);
       const [a, b, c, d] = wallCorners(resolved);

@@ -91,6 +91,17 @@ test('edits in the plan update the linked 3D view, including front orientation a
   await expect(stageBrace).toHaveAttribute('data-x', '2200');
   await waitUntilSaved(page);
 
+  await page.getByRole('button', { name: 'Spielstätte' }).click();
+  await page.getByRole('button', { name: 'Überbauung hinzufügen' }).click();
+  await expect(page.getByLabel('Überbauung 1 Unterkante über Fußboden (mm)')).toHaveValue('2600');
+  const savedVenue = page.waitForResponse(response => /\/scenes\/[^/]+\/venue$/.test(new URL(response.url()).pathname) && response.request().method() === 'PUT');
+  await page.getByRole('button', { name: 'Spielstätte speichern' }).click();
+  expect((await savedVenue).ok()).toBeTruthy();
+  await page.getByRole('button', { name: 'Spielstätte schließen' }).click();
+  await expect(page.locator('[data-testid^="overhead-box-"]')).toHaveCount(1);
+  await expect(page.locator('[data-testid^="stage-overhead-"]')).toHaveAttribute('data-bottom', '2600');
+  await expect(page.locator('[data-testid^="stage-overhead-"]')).toHaveAttribute('data-thickness', '400');
+
   await page.getByRole('button', { name: 'Podest hinzufügen' }).click();
   await expect(page.locator('[data-testid^="platform-"]')).toHaveCount(1);
   await expect(page.locator('[data-testid^="stage-platform-"]')).toHaveAttribute('data-elevation', '400');
@@ -101,6 +112,8 @@ test('edits in the plan update the linked 3D view, including front orientation a
   await page.getByLabel('Auflagefläche').selectOption({ label: 'Podest (400 mm)' });
   await page.getByRole('button', { name: 'Übernehmen' }).click();
   await expect(stageWall).toHaveAttribute('data-y', '1600');
+  await expect(page.getByTestId('overhead-warning')).toContainText('ragt von der Auflagefläche in die Überbauung');
+  await expect(page.getByTestId('overhead-warning')).toContainText('kein statischer Nachweis');
   await waitUntilSaved(page);
   await page.getByRole('button', { name: 'Rückgängig' }).click();
   await expect(stageWall).toHaveAttribute('data-y', '1200');

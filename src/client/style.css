@@ -46,6 +46,9 @@ select { font: inherit; width: 100%; padding: 8px; border: 1px solid #cbd3c8; bo
 .warning { background: #fff8e6; border: 1px solid #e0c98a; color: #6a4e16; padding: 12px; border-radius: 6px; font-size: .85rem; margin-top: 10px; }
 .venue-levels { margin-top: 16px; padding-top: 12px; border-top: 1px solid #e0e5d8; width: 100%; }
 .venue-levels h4 { margin: 0 0 8px; font-size: .85rem; }
+.venue-overhead { margin-top: 16px; padding-top: 12px; border-top: 1px solid #e0e5d8; width: 100%; }
+.venue-overhead h4 { margin: 0 0 8px; font-size: .85rem; }
+.export-panel .venue-overhead, .export-panel .venue-levels { flex: 1 1 100%; }
 .export-panel { border: 1px solid #e0e5d8; border-radius: 8px; padding: 16px 18px; margin-bottom: 8px; background: #f8faf5; }
 .export-panel h3 { margin: 0 0 6px; }
 .export-panel form { margin: 12px 0 0; }
