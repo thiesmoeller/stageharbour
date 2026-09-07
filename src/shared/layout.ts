@@ -47,6 +47,7 @@ export const layoutSchema = z.strictObject({
   connections: z.array(panelConnectionSchema).max(250).optional(),
   groups: z.array(groupSchema).max(250).optional(),
   riggingNotes: z.string().max(2000).optional(),
+  riggingSetupId: z.uuid().optional(),
 }).refine(layout => {
   const ids = new Set((layout.wallTypes ?? []).map(type => type.id));
   return layout.walls.every(wall => !wall.typeId || ids.has(wall.typeId));
@@ -80,6 +81,7 @@ export const createSceneSchema = z.strictObject({
   productionName: name, venueName: name, sceneName: name,
   width: dimension, depth: dimension,
 });
+export const duplicateSceneSchema = z.strictObject({ sceneName: name.optional() });
 export const sceneSummarySchema = z.object({ id: z.uuid(), name, productionName: name, venueName: name, lease: leaseHolderSchema.nullable() });
 export const sceneSchema = sceneSummarySchema.extend({
   revision: z.number().int().nonnegative(),

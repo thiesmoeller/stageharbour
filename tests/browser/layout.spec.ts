@@ -291,6 +291,30 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.keyboard.press('ControlOrMeta+v');
   await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(2);
   await waitUntilSaved(page);
+
+  await page.getByRole('button', { name: 'Zur Übersicht' }).click();
+  await expect(page.getByRole('heading', { name: 'Bühnenbilder' })).toBeVisible();
+  const duplicated = page.waitForResponse(response => response.url().includes('/duplicate') && response.request().method() === 'POST');
+  await page.getByRole('button', { name: 'Szene duplizieren' }).click();
+  expect((await duplicated).ok()).toBeTruthy();
+  await expect(page.getByRole('button', { name: /Erste Szene \(Kopie\)/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Beispielproduktion · Erste Szene Beispielsaal/ })).toBeVisible();
+  await page.getByRole('button', { name: /Erste Szene \(Kopie\)/ }).click();
+  await expect(page.getByRole('heading', { name: 'Erste Szene (Kopie)' })).toBeVisible();
+  await page.getByLabel('Auswahl').selectOption({ label: '1. Wand' });
+  await expect(page.getByText('Zugewiesen: Beispiel-P01')).toBeVisible();
+  await page.getByLabel('X (mm)', { exact: true }).fill('2200');
+  await page.locator('#wall-x').locator('xpath=ancestor::form').getByRole('button', { name: 'Übernehmen' }).click();
+  await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('2200');
+  await waitUntilSaved(page);
+  await page.getByRole('button', { name: 'Zur Übersicht' }).click();
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Beispiel-Theatergruppe' })).toBeVisible();
+  await page.getByRole('button', { name: /Beispielproduktion · Erste Szene Beispielsaal/ }).click();
+  await expect(page.getByRole('heading', { name: 'Erste Szene', exact: true })).toBeVisible();
+  await page.getByLabel('Auswahl').selectOption({ label: '1. Wand' });
+  await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('1800');
+  await expect(page.getByText('Zugewiesen: Beispiel-P01')).toBeVisible();
   expect(errors).toEqual([]);
 });
 

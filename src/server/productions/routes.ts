@@ -4,7 +4,8 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { errorSchema, workspaceParamsSchema } from '../../shared/contracts.js';
-import { createSceneSchema, saveLayoutSchema, sceneSchema, sceneListSchema, venueGeometrySchema } from '../../shared/layout.js';
+import { createSceneSchema, duplicateSceneSchema, saveLayoutSchema, sceneSchema, sceneListSchema, venueGeometrySchema } from '../../shared/layout.js';
+import { copiedSceneName, duplicateLayout } from '../../shared/scenes.js';
 import { overheadClearance, overheadWarningSchema } from '../../shared/overhead.js';
 import { keepClearWarningSchema, keepClearWarnings } from '../../shared/keepClear.js';
 import { leaseHolderSchema } from '../../shared/leases.js';
@@ -58,6 +59,25 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
       await tx.insert(scene).values({ id: ids.scene, workspaceId, adaptationId: ids.adaptation, name: input.sceneName, layout: { schemaVersion: 1, walls: [], braces: [] } });
     });
     const [record] = await readScenes(workspaceId, ids.scene);
+    return reply.code(201).send({ ...record!, lease: null });
+  });
+  // Duplicating reads the source without acquiring its lease: the source is only
+  // copied. Layout PUT still requires POST .../lease first; freeze does not.
+  // The copy starts unleased; later edits acquire a lease on the new scene id.
+  api.post(`${path}/:sceneId/duplicate`, { schema: { params, body: duplicateSceneSchema, response: { 201: sceneSchema, ...errors } } }, async (request, reply) => {
+    const { workspaceId, sceneId } = request.params;
+    await requireEditor(request, workspaceId);
+    const [existing] = await db.select({
+      id: scene.id, name: scene.name, adaptationId: scene.adaptationId, layout: scene.layout,
+    }).from(scene).where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, sceneId)));
+    if (!existing) throw new AccessError(404, 'Szene nicht verfügbar.');
+    const copyId = randomUUID();
+    await db.insert(scene).values({
+      id: copyId, workspaceId, adaptationId: existing.adaptationId,
+      name: request.body.sceneName ?? copiedSceneName(existing.name),
+      layout: duplicateLayout(existing.layout, randomUUID),
+    });
+    const [record] = await readScenes(workspaceId, copyId);
     return reply.code(201).send({ ...record!, lease: null });
   });
   api.post(`${path}/:sceneId/lease`, { schema: { params, response: { 200: leaseHolderSchema, ...errors } } }, async request => {

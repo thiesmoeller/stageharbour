@@ -59,6 +59,6 @@ export function AssemblyPanel({ layout, selectedWall, readOnly, onChange }: {
       <textarea id="rigging-notes" name="riggingNotes" maxLength={2000} defaultValue={layout.riggingNotes ?? ''} rows={3} />
       {!readOnly && <div className="form-actions"><button type="submit">Hinweise speichern</button></div>}
     </fieldset></form>
-    <p className="muted">{CONNECTION_COMPATIBILITY_NOTICE}</p>
+    <p className="muted">Stiftwechsel gehören in die Hinweise. Ein Neuverschrauben der Scharniere ist eine eigene Riggingeinrichtung. {CONNECTION_COMPATIBILITY_NOTICE}</p>
   </div>;
 }
