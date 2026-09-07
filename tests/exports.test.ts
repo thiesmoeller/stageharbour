@@ -35,7 +35,7 @@ function sampleSnapshot() {
   const wall = newWall(randomUUID(), 2000, 3000);
   return freezeSnapshot({
     id: randomUUID(), name: 'Erste Szene', productionName: 'Beispielproduktion', venueName: 'Beispielsaal',
-    revision: 1, venueVersionId: randomUUID(), venue: { schemaVersion: 1, width: 8000, depth: 6000 },
+    revision: 1, productionId: randomUUID(), venueId: randomUUID(), venueVersionId: randomUUID(), venue: { schemaVersion: 1, width: 8000, depth: 6000 },
     lease: null, layout: { schemaVersion: 1, walls: [wall], braces: [] },
   }, { id: randomUUID(), name: 'Fassung Probe', issuedAt: new Date('2026-09-07T12:00:00.000Z') });
 }
@@ -73,7 +73,7 @@ function doorScene(): Scene {
   const wall = { ...newWall(randomUUID(), 2000, 3000), typeId: type.id, label: type.name };
   return {
     id: randomUUID(), name: 'Erste Szene', productionName: 'Beispielproduktion', venueName: 'Beispielsaal',
-    revision: 1, venueVersionId: randomUUID(), venue: { schemaVersion: 1, width: 8000, depth: 6000 },
+    revision: 1, productionId: randomUUID(), venueId: randomUUID(), venueVersionId: randomUUID(), venue: { schemaVersion: 1, width: 8000, depth: 6000 },
     lease: null, layout: { schemaVersion: 1, wallTypes: [type], walls: [wall], braces: [] },
   };
 }
@@ -104,7 +104,7 @@ test('a 2500 mm cable corridor and labelled pin are 50 mm and named on the A4 pa
   const corridor = newCableRoutingCorridor(randomUUID(), [{ x: 0, y: 0 }, { x: 2500, y: 0 }]);
   const snapshot = freezeSnapshot({
     id: randomUUID(), name: 'Erste Szene', productionName: 'Beispielproduktion', venueName: 'Beispielsaal',
-    revision: 1, venueVersionId: randomUUID(),
+    revision: 1, productionId: randomUUID(), venueId: randomUUID(), venueVersionId: randomUUID(),
     venue: { schemaVersion: 1, width: 8000, depth: 6000, connectionPoints: [pin], cableRoutingCorridors: [corridor] },
     lease: null, layout: { schemaVersion: 1, walls: [], braces: [] },
   }, { id: randomUUID(), name: 'Fassung Probe', issuedAt: new Date('2026-09-07T12:00:00.000Z') });
@@ -120,7 +120,7 @@ test('a frozen 600 x 800 mm brace footprint is 12 mm by 16 mm on the A4 page', a
   const brace = newBrace(randomUUID(), 2000, 3000);
   const snapshot = freezeSnapshot({
     id: randomUUID(), name: 'Stützprobe', productionName: 'Beispielproduktion', venueName: 'Beispielsaal',
-    revision: 1, venueVersionId: randomUUID(), venue: { schemaVersion: 1, width: 8000, depth: 6000 },
+    revision: 1, productionId: randomUUID(), venueId: randomUUID(), venueVersionId: randomUUID(), venue: { schemaVersion: 1, width: 8000, depth: 6000 },
     lease: null, layout: { schemaVersion: 1, walls: [], braces: [brace] },
   }, { id: randomUUID(), name: 'Fassung Stütze', issuedAt: new Date('2026-09-07T12:00:00.000Z') });
   assert.deepEqual(snapshot.resolvedBraces[0], {
@@ -142,7 +142,7 @@ test('a frozen 4000 mm platform edge is 80 mm on the A4 page and later venue edi
   const stair = newStair(randomUUID(), AUDIENCE_FLOOR_ID, platform.id, 4000, 2500);
   const scene: Scene = {
     id: randomUUID(), name: 'Ebenenprobe', productionName: 'Beispielproduktion', venueName: 'Beispielsaal',
-    revision: 1, venueVersionId: randomUUID(),
+    revision: 1, productionId: randomUUID(), venueId: randomUUID(), venueVersionId: randomUUID(),
     venue: { schemaVersion: 1, width: 8000, depth: 6000, platforms: [platform], stairs: [stair] },
     lease: null, layout: { schemaVersion: 1, walls: [], braces: [] },
   };
@@ -165,7 +165,7 @@ test('freeze keeps assembly labels, connections and rigging notes after later so
   const connection = { id: randomUUID(), a: left.id, b: right.id };
   const scene: Scene = {
     id: randomUUID(), name: 'Montageszene', productionName: 'Beispielproduktion', venueName: 'Beispielsaal',
-    revision: 1, venueVersionId: randomUUID(), venue: { schemaVersion: 1, width: 8000, depth: 6000 },
+    revision: 1, productionId: randomUUID(), venueId: randomUUID(), venueVersionId: randomUUID(), venue: { schemaVersion: 1, width: 8000, depth: 6000 },
     lease: null, layout: {
       schemaVersion: 1, walls: [left, right], braces: [], connections: [connection],
       riggingNotes: 'Stifte an Position 1 belassen.',
@@ -195,7 +195,7 @@ test('construction plan PDF shows assigned position, inventory label, notes and 
   const wall = { ...newWall(randomUUID(), 2000, 3000), assemblyNumber: 3, panelId };
   const snapshot = freezeSnapshot({
     id: randomUUID(), name: 'Erste Szene', productionName: 'Beispielproduktion', venueName: 'Beispielsaal',
-    revision: 1, venueVersionId: randomUUID(), venue: { schemaVersion: 1, width: 8000, depth: 6000 },
+    revision: 1, productionId: randomUUID(), venueId: randomUUID(), venueVersionId: randomUUID(), venue: { schemaVersion: 1, width: 8000, depth: 6000 },
     lease: null, layout: {
       schemaVersion: 1, walls: [wall], braces: [], connections: [],
       riggingNotes: 'Stifte an Position 3 belassen.',
@@ -216,7 +216,7 @@ test('freeze stores overhead warnings that later venue edits cannot change', asy
   const wall = { ...newWall(randomUUID(), 4000, 4750), supportingSurfaceId: platform.id };
   const scene: Scene = {
     id: randomUUID(), name: 'Deckenprobe', productionName: 'Beispielproduktion', venueName: 'Beispielsaal',
-    revision: 1, venueVersionId: randomUUID(),
+    revision: 1, productionId: randomUUID(), venueId: randomUUID(), venueVersionId: randomUUID(),
     venue: { schemaVersion: 1, width: 8000, depth: 6000, platforms: [platform], overheadBoxes: [box], ceilingHeight: 2500 },
     lease: null, layout: { schemaVersion: 1, walls: [wall], braces: [] },
   };
@@ -242,7 +242,7 @@ test('a frozen 1200 x 800 mm table is 24 mm by 16 mm on the A4 page and later ed
   const table = { ...newPlaceholder('table', randomUUID(), 2000, 3000), label: 'Probetisch' };
   const scene: Scene = {
     id: randomUUID(), name: 'Platzhalterprobe', productionName: 'Beispielproduktion', venueName: 'Beispielsaal',
-    revision: 1, venueVersionId: randomUUID(), venue: { schemaVersion: 1, width: 8000, depth: 6000 },
+    revision: 1, productionId: randomUUID(), venueId: randomUUID(), venueVersionId: randomUUID(), venue: { schemaVersion: 1, width: 8000, depth: 6000 },
     lease: null, layout: { schemaVersion: 1, walls: [], braces: [], placeholders: [table] },
   };
   const snapshot = freezeSnapshot(scene, { id: randomUUID(), name: 'Fassung Tisch', issuedAt: new Date('2026-09-07T12:00:00.000Z') });
@@ -268,7 +268,7 @@ test('freeze stores unresolved keep-clear warnings that later layout edits canno
   const wall = { ...newWall(randomUUID(), 1000, 500), label: 'Bühnenwand' };
   const scene: Scene = {
     id: randomUUID(), name: 'Freihalteprobe', productionName: 'Beispielproduktion', venueName: 'Beispielsaal',
-    revision: 1, venueVersionId: randomUUID(),
+    revision: 1, productionId: randomUUID(), venueId: randomUUID(), venueVersionId: randomUUID(),
     venue: { schemaVersion: 1, width: 8000, depth: 6000, keepClearZones: [zone] },
     lease: null, layout: { schemaVersion: 1, walls: [wall], braces: [] },
   };
@@ -286,7 +286,7 @@ test('a frozen centreline is labelled on the PDF and later venue edits cannot ch
   const stageCentreline = { x: 4000, y: 3000, rotation: 90 };
   const scene: Scene = {
     id: randomUUID(), name: 'Mittellinienprobe', productionName: 'Beispielproduktion', venueName: 'Beispielsaal',
-    revision: 1, venueVersionId: randomUUID(),
+    revision: 1, productionId: randomUUID(), venueId: randomUUID(), venueVersionId: randomUUID(),
     venue: { schemaVersion: 1, width: 8000, depth: 6000, stageCentreline },
     lease: null, layout: { schemaVersion: 1, walls: [], braces: [] },
   };
