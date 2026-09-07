@@ -146,6 +146,9 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByLabel('Überbauung 1 Bezeichnung').fill('Lüftung');
   await page.getByLabel('Überbauung 1 X (mm)').fill('2500');
   await page.getByLabel('Überbauung 1 Y (mm)').fill('1800');
+  await page.getByRole('button', { name: 'Freihaltezone hinzufügen' }).click();
+  await page.getByLabel('Freihaltezone 1 Bezeichnung').fill('Notausgang Ost');
+  await page.getByLabel('Freihaltezone 1 Grund').fill('Notausgang');
   const saved = page.waitForResponse(response => /\/scenes\/[^/]+\/venue$/.test(new URL(response.url()).pathname) && response.request().method() === 'PUT');
   await page.getByRole('button', { name: 'Spielstätte speichern' }).click();
   expect((await saved).ok()).toBeTruthy();
@@ -178,6 +181,13 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByLabel('Überbauung 1 X (mm)')).toHaveValue('2500');
   await expect(page.getByLabel('Überbauung 1 Y (mm)')).toHaveValue('1800');
   await expect(page.getByLabel('Überbauung 1 Unterkante über Fußboden (mm)')).toHaveValue('2600');
+  await expect(page.getByLabel('Freihaltezone 1 Bezeichnung')).toHaveValue('Notausgang Ost');
+  await expect(page.getByLabel('Freihaltezone 1 Grund')).toHaveValue('Notausgang');
+  await expect(page.locator('.plan-canvas [data-testid^="keep-clear-zone-"]')).toHaveCount(1);
+  await expect(page.locator('.plan-canvas [data-testid^="keep-clear-zone-"]')).toContainText('Notausgang Ost');
+  await expect(page.locator('.plan-canvas .warning').filter({ hasText: 'Notausgang Ost' })).toHaveCount(2);
+  await expect(page.locator('.plan-canvas .warning').filter({ hasText: 'Wand' })).toBeVisible();
+  await expect(page.locator('.plan-canvas .warning').filter({ hasText: 'Stütze' })).toBeVisible();
   await page.screenshot({ path: 'test-results/layout-editor.png', fullPage: true });
 
   await page.getByRole('button', { name: 'Wand hinzufügen' }).click();

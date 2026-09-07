@@ -5,7 +5,8 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { errorSchema, workspaceParamsSchema } from '../../shared/contracts.js';
 import { createSceneSchema, saveLayoutSchema, sceneSchema, sceneListSchema, venueGeometrySchema } from '../../shared/layout.js';
-import { overheadClearance, overheadWarningsSchema } from '../../shared/overhead.js';
+import { overheadClearance, overheadWarningSchema } from '../../shared/overhead.js';
+import { keepClearWarningSchema, keepClearWarnings } from '../../shared/keepClear.js';
 import { leaseHolderSchema } from '../../shared/leases.js';
 import type { Database } from '../db/connection.js';
 import { adaptation, production, scene, venue, venueVersion } from '../db/schema.js';
@@ -78,7 +79,7 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
     return { ok: true as const };
   });
   api.put(`${path}/:sceneId/layout`, { bodyLimit: 128 * 1024, schema: { params, body: saveLayoutSchema,
-    response: { 200: z.object({ revision: z.number().int(), warnings: overheadWarningsSchema }), ...errors } } }, async (request, reply) => {
+    response: { 200: z.object({ revision: z.number().int(), warnings: z.array(z.union([overheadWarningSchema, keepClearWarningSchema])) }), ...errors } } }, async (request, reply) => {
     const { workspaceId, sceneId } = request.params;
     const { user } = await requireEditor(request, workspaceId);
     const result = await db.transaction(async tx => {
@@ -91,9 +92,12 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
       const [updated] = await tx.update(scene).set({ layout: request.body.layout, revision: sql`${scene.revision} + 1` })
         .where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, sceneId), eq(scene.revision, request.body.revision)))
         .returning({ revision: scene.revision });
-      return updated
-        ? { revision: updated.revision, warnings: overheadClearance(request.body.layout, venueGeometrySchema.parse(existing.venue)) }
-        : undefined;
+      if (!updated) return undefined;
+      const venue = venueGeometrySchema.parse(existing.venue);
+      return {
+        revision: updated.revision,
+        warnings: [...overheadClearance(request.body.layout, venue), ...keepClearWarnings(venue, request.body.layout)],
+      };
     });
     if (result) return result;
     return reply.code(409).send({ message: 'Die Szene wurde inzwischen geändert. Ihre lokalen Änderungen bleiben erhalten.' });

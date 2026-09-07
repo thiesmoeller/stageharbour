@@ -1,6 +1,7 @@
 import PDFDocument from 'pdfkit';
 import { germanDate, type ConstructionSnapshot } from '../../shared/export.js';
 import { strokeBraceFootprints } from './bracePdf.js';
+import { strokeKeepClearZones } from './keepClearPdf.js';
 import { strokeLevelFeatures } from './levelPdf.js';
 import { strokeAssemblyLabels } from './assemblyPdf.js';
 import { strokeOverheadFeatures } from './overheadPdf.js';
@@ -37,6 +38,7 @@ export function renderConstructionPlan(snapshot: ConstructionSnapshot) {
     strokeBraceFootprints(doc, snapshot, toPage);
     strokeAssemblyLabels(doc, snapshot, toPage);
     strokeOverheadFeatures(doc, snapshot, toPage);
+    strokeKeepClearZones(doc, snapshot, toPage);
     const outline = measuredOutline(snapshot.venue);
     const start = toPage(outline[0]!.x, outline[0]!.y);
     doc.moveTo(start.x, start.y);

@@ -20,6 +20,8 @@ import { ExportPanel } from './ExportPanel.js';
 import { WallTypePanel } from './WallTypePanel.js';
 import { VenuePanel, InfrastructureMarks } from './VenuePanel.js';
 import { OverheadMarks } from './VenueOverhead.js';
+import { KeepClearMarks } from './KeepClearZones.js';
+import { keepClearWarnings } from '../../shared/keepClear.js';
 import { InventoryPanel } from './InventoryPanel.js';
 import { AssemblyPanel } from './AssemblyPanel.js';
 
@@ -164,7 +166,13 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
   const selectedStairItem = (state.present.stairs ?? []).find(item => item.id === selectedStair);
   const surfaces = supportingSurfaces(venue, state.present);
   const diagnostics = layoutDiagnostics(state.present, venue);
-  const overheadWarnings = overheadClearance(state.present, venue);
+  const liveLayout = {
+    ...state.present,
+    walls: state.present.walls.map(wall => preview?.id === wall.id ? preview : wall),
+    braces: state.present.braces.map(brace => previewBrace?.id === brace.id ? previewBrace : brace),
+  };
+  const overheadWarnings = overheadClearance(liveLayout, venue);
+  const overlapWarnings = keepClearWarnings(venue, liveLayout);
   const raised = surfaces.find(surface => surface.id !== AUDIENCE_FLOOR_ID);
   function point(event: PointerEvent) {
     const matrix = svg.current?.getScreenCTM();
@@ -222,7 +230,8 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
   const corners = [...state.present.walls.flatMap(wall => wallCorners(resolveWall(wall, wallTypes))), ...state.present.braces.flatMap(braceCorners)];
   const floor = measuredOutline(venue);
   const infra = [...(venue.connectionPoints ?? []), ...(venue.cableRoutingCorridors ?? []).flatMap(corridor => corridor.path),
-    ...(venue.overheadBoxes ?? []).flatMap(overheadBoxCorners)];
+    ...(venue.overheadBoxes ?? []).flatMap(overheadBoxCorners),
+    ...(venue.keepClearZones ?? []).flatMap(zone => zone.polygon)];
   const minX = Math.min(0, ...floor.map(p => p.x), ...infra.map(p => p.x), ...corners.map(p => p.x)) - 600;
   const maxX = Math.max(venue.width, ...floor.map(p => p.x), ...infra.map(p => p.x), ...corners.map(p => p.x)) + 600;
   const minY = Math.min(0, ...floor.map(p => p.y), ...infra.map(p => p.y), ...corners.map(p => p.y)) - 800;
@@ -305,17 +314,15 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
         <BraceLayer braces={state.present.braces} selectedId={selectedBrace} preview={previewBrace} readOnly={readOnly} onPointerDown={startBrace} />
         <InfrastructureMarks pins={venue.connectionPoints ?? []} corridors={venue.cableRoutingCorridors ?? []} />
         <OverheadMarks boxes={venue.overheadBoxes ?? []} />
+        <KeepClearMarks zones={venue.keepClearZones ?? []} />
       </svg>
       <p className="muted">Raster: 1 m · Alle Eingaben in mm · Wände, Stützen und Podeste zum Auswählen</p>
       {diagnostics.map(item => <p key={`${item.kind}-${item.objectId}`} className="warning" role="status">{item.message}</p>)}
       {overheadWarnings.map(item => <p key={`${item.kind}-${item.objectId}-${item.obstructionId ?? ''}`}
         className="warning" role="status" data-testid="overhead-warning">{item.message}</p>)}
+      {overlapWarnings.map(item => <p key={`${item.zoneId}-${item.objectId}`} className="warning" role="status">{item.message}</p>)}
     </div>
-    <StageView layout={{
-      ...state.present,
-      walls: state.present.walls.map(wall => preview?.id === wall.id ? preview : wall),
-      braces: state.present.braces.map(brace => previewBrace?.id === brace.id ? previewBrace : brace),
-    }} venue={venue} />
+    <StageView layout={liveLayout} venue={venue} />
     </div><aside className="wall-inspector">
       <WallTypePanel types={wallTypes} selectedId={selectedType} readOnly={readOnly}
         onSelect={setSelectedType} onCreate={applyType} onApply={applyType} onPlace={placeType} onRemove={removeType} />
