@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { leaseHolderSchema } from './leases.js';
 
 const name = z.string().trim().min(1).max(120);
 const dimension = z.number().finite().min(1).max(100000);
@@ -20,7 +21,7 @@ export const createSceneSchema = z.strictObject({
   productionName: name, venueName: name, sceneName: name,
   width: dimension, depth: dimension,
 });
-export const sceneSummarySchema = z.object({ id: z.uuid(), name, productionName: name, venueName: name });
+export const sceneSummarySchema = z.object({ id: z.uuid(), name, productionName: name, venueName: name, lease: leaseHolderSchema.nullable() });
 export const sceneSchema = sceneSummarySchema.extend({
   revision: z.number().int().nonnegative(),
   venueVersionId: z.uuid(),

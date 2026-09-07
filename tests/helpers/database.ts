@@ -6,6 +6,7 @@ import * as schema from '../../src/server/db/schema.js';
 import { readConfig } from '../../src/server/config.js';
 
 export const testAdministrator = { email: 'admin@example.test', name: 'Test Administration', password: 'test-only-password-7319' };
+export const testEditor = { email: 'editor@example.test', name: 'Zweite Bearbeitung', password: 'test-only-password-7319' };
 
 export async function testDatabase(origin = 'http://localhost:5173') {
   // A separate database also isolates migrations' public-qualified enum names.

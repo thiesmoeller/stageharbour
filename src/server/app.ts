@@ -11,9 +11,10 @@ import type { Database } from './db/connection.js';
 import { membership, user } from './db/schema.js';
 import { createAuth } from './identity/auth.js';
 import { AccessError, createAccess } from './identity/access.js';
+import { LeaseError, createLeases } from './productions/leases.js';
 import { registerProductionRoutes } from './productions/routes.js';
 
-export async function createApp(db: Database, config: Config, options: { staticRoot?: string; logger?: boolean } = {}) {
+export async function createApp(db: Database, config: Config, options: { staticRoot?: string; logger?: boolean; clock?: () => Date } = {}) {
   const app = Fastify({ logger: options.logger ?? false, bodyLimit: 16 * 1024 });
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
@@ -24,14 +25,14 @@ export async function createApp(db: Database, config: Config, options: { staticR
   const api = app.withTypeProvider<ZodTypeProvider>();
   const auth = createAuth(db, config);
   const access = createAccess(db, auth);
-  registerProductionRoutes(app, db, access, config.APP_ORIGIN);
+  registerProductionRoutes(app, db, access, config.APP_ORIGIN, createLeases(db, options.clock));
   app.addHook('onSend', async (request, reply) => {
     reply.header('X-Content-Type-Options', 'nosniff');
     reply.header('Referrer-Policy', 'same-origin');
     if (request.url.startsWith('/api/')) reply.header('Cache-Control', 'no-store');
   });
   app.setErrorHandler<FastifyError>((error, request, reply) => {
-    if (error instanceof AccessError) return reply.code(error.statusCode).send({ message: error.message });
+    if (error instanceof AccessError || error instanceof LeaseError) return reply.code(error.statusCode).send({ message: error.message });
     if (error.validation) return reply.code(400).send({ message: 'Ungültige Anfrage.' });
     if (error.statusCode && error.statusCode >= 400 && error.statusCode < 500) {
       return reply.code(error.statusCode).send({ message: 'Anfrage konnte nicht verarbeitet werden.' });

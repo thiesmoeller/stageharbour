@@ -33,12 +33,15 @@ test('creates a complete production/adaptation/scene with a pinned venue version
   assert.deepEqual(created.venue, { schemaVersion: 1, width: 8000, depth: 6000 });
   assert.deepEqual(created.layout, { schemaVersion: 1, walls: [] });
   assert.equal(created.revision, 0);
+  assert.equal(created.lease, null);
   const listing = await app.inject({ url: base, headers });
   assert.equal(listing.statusCode, 200);
   assert.equal(listing.json()[0].id, created.id);
   assert.equal(listing.json()[0].layout, undefined);
+  assert.equal(listing.json()[0].lease, null);
 });
 test('one competing save wins atomically; stale data cannot overwrite it', async () => {
+  assert.equal((await app.inject({ method: 'POST', url: `${base}/${created.id}/lease`, headers })).statusCode, 200);
   const wall = newWall(randomUUID(), 1200, 1800);
   const saves = await Promise.all([1000, 2000].map(x => app.inject({
     method: 'PUT', url: `${base}/${created.id}/layout`, headers,
@@ -50,6 +53,7 @@ test('one competing save wins atomically; stale data cannot overwrite it', async
   assert.equal(loaded.layout.walls[0]!.x, saves[0]!.statusCode === 200 ? 1000 : 2000);
   assert.equal(loaded.venueVersionId, created.venueVersionId);
   assert.equal(loaded.layout.walls[0]!.rotation, 35);
+  assert.equal(loaded.lease?.holderName, testAdministrator.name);
 });
 test('new venue information does not change a scene’s pinned geometry', async () => {
   const [original] = await fixture.db.select().from(venueVersion).where(eq(venueVersion.id, created.venueVersionId));
