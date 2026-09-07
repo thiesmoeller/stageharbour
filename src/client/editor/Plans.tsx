@@ -48,6 +48,11 @@ export function Plans({ me, onDirty }: { me: Me; onDirty: (value: boolean) => vo
     catch { setError('Das Bühnenbild konnte nicht angelegt werden. Prüfen Sie vor einem erneuten Versuch die Übersicht.'); }
     finally { setBusy(false); }
   }
+  async function duplicate(id: string) {
+    setBusy(true); setError('');
+    try { await request(`${base}/${id}/duplicate`, {}); setAttempt(value => value + 1); }
+    catch { setError('Die Szene konnte nicht dupliziert werden.'); setBusy(false); }
+  }
   function leave() {
     if (opened?.holdsLease) void request(`${base}/${opened.scene.id}/lease/release`, {}).catch(() => {});
     setOpened(undefined); setAttempt(value => value + 1);
@@ -65,6 +70,12 @@ export function Plans({ me, onDirty }: { me: Me; onDirty: (value: boolean) => vo
     </fieldset></form>}
     {busy && <p role="status">Bühnenbilder werden geladen …</p>}
     {!busy && !scenes.length && !creating && !error && <p className="muted">Noch keine Bühnenbilder vorhanden.{!readOnly && ' Legen Sie Ihre erste Produktion mit Spielstätte und Szene an.'}</p>}
-    <div className="scene-list">{scenes.map(scene => <button className="scene-card quiet" key={scene.id} onClick={() => void open(scene.id)} disabled={busy}><strong>{scene.productionName} · {scene.name}</strong><span>{scene.venueName}{scene.lease ? ` · Bearbeitung durch ${scene.lease.holderName}` : ''} →</span></button>)}</div>
+    <div className="scene-list">{scenes.map(scene => <div className="scene-card" key={scene.id}>
+      <button className="quiet scene-open" onClick={() => void open(scene.id)} disabled={busy}>
+        <strong>{scene.productionName} · {scene.name}</strong>
+        <span>{scene.venueName}{scene.lease ? ` · Bearbeitung durch ${scene.lease.holderName}` : ''} →</span>
+      </button>
+      {!readOnly && <button className="quiet" type="button" onClick={() => void duplicate(scene.id)} disabled={busy}>Szene duplizieren</button>}
+    </div>)}</div>
   </section>;
 }
