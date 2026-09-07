@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { leaseHolderSchema } from './leases.js';
 import { type Opening, wallTypeSchema } from './wall-types.js';
 import { venueOutlineSchema, venueTraceSchema } from './venue.js';
+import { panelConnectionSchema } from './assembly.js';
 
 const name = z.string().trim().min(1).max(120);
 const dimension = z.number().finite().min(1).max(100000);
@@ -13,6 +14,7 @@ export const wallSchema = z.strictObject({
   width: dimension, height: dimension, thickness: dimension,
   typeId: z.uuid().optional(),
   panelId: z.uuid().optional(),
+  assemblyNumber: z.number().int().positive().max(250).optional(),
 });
 export type Wall = z.infer<typeof wallSchema>;
 // Example-only millimetre placeholders for a new weighted rear brace. Not measured inventory.
@@ -33,10 +35,21 @@ export const layoutSchema = z.strictObject({
   ).optional(),
   walls: z.array(wallSchema).max(250).refine(walls => new Set(walls.map(wall => wall.id)).size === walls.length, 'Wall IDs must be unique'),
   braces: z.array(braceSchema).max(250).default([]).refine(braces => new Set(braces.map(brace => brace.id)).size === braces.length, 'Brace IDs must be unique'),
+  connections: z.array(panelConnectionSchema).max(250).optional(),
+  riggingNotes: z.string().max(2000).optional(),
 }).refine(layout => {
   const ids = new Set((layout.wallTypes ?? []).map(type => type.id));
   return layout.walls.every(wall => !wall.typeId || ids.has(wall.typeId));
-}, 'Walls must reference a defined wall type');
+}, 'Walls must reference a defined wall type').refine(layout => {
+  const ids = new Set(layout.walls.map(wall => wall.id));
+  return (layout.connections ?? []).every(connection => ids.has(connection.a) && ids.has(connection.b));
+}, 'Connections must reference walls in the layout').refine(layout => {
+  const numbers = layout.walls.flatMap(wall => wall.assemblyNumber == null ? [] : [wall.assemblyNumber]);
+  return new Set(numbers).size === numbers.length;
+}, 'Assembly numbers must be unique').refine(layout => {
+  const pairs = (layout.connections ?? []).map(connection => connection.a < connection.b ? `${connection.a}:${connection.b}` : `${connection.b}:${connection.a}`);
+  return new Set(pairs).size === pairs.length;
+}, 'Connection pairs must be unique');
 export type Layout = z.infer<typeof layoutSchema>;
 export const venueGeometrySchema = z.strictObject({
   schemaVersion: z.literal(1), width: dimension, depth: dimension,

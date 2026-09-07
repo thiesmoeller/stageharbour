@@ -21,6 +21,8 @@ export const constructionSnapshotSchema = z.strictObject({
   layout: layoutSchema,
   resolvedWalls: z.array(z.strictObject({
     id: z.uuid(), label: name,
+    assemblyNumber: z.number().int().positive().max(250).optional(),
+    panelLabel: name.optional(),
     corners: z.tuple([point, point, point, point]),
     openings: z.array(z.strictObject({
       id: z.uuid(), left: z.number().finite(), sill: z.number().finite(),
@@ -41,7 +43,7 @@ export const exportRevisionSchema = z.object({
 export type ExportRevision = z.infer<typeof exportRevisionSchema>;
 export const exportListSchema = z.array(exportRevisionSchema);
 
-export function freezeSnapshot(scene: Scene, revision: { id: string; name: string; issuedAt: Date }): ConstructionSnapshot {
+export function freezeSnapshot(scene: Scene, revision: { id: string; name: string; issuedAt: Date }, panelLabels: Readonly<Record<string, string>> = {}): ConstructionSnapshot {
   return {
     schemaVersion: 1, scale: DRAWING_SCALE,
     revisionId: revision.id, revisionName: revision.name, issuedAt: revision.issuedAt.toISOString(),
@@ -52,8 +54,10 @@ export function freezeSnapshot(scene: Scene, revision: { id: string; name: strin
       const resolved = resolveWall(wall, scene.layout.wallTypes ?? []);
       const [a, b, c, d] = wallCorners(resolved);
       if (!a || !b || !c || !d) throw new Error('Wall geometry must resolve to four corners.');
+      const panelLabel = wall.panelId ? panelLabels[wall.panelId] : undefined;
       return {
         id: resolved.id, label: resolved.label, corners: [a, b, c, d] as const,
+        assemblyNumber: wall.assemblyNumber, panelLabel,
         openings: resolved.openings.map(opening => {
           const [oa, ob, oc, od] = openingCorners(resolved, opening);
           if (!oa || !ob || !oc || !od) throw new Error('Opening geometry must resolve to four corners.');

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -7,7 +7,7 @@ import { errorSchema, workspaceParamsSchema } from '../../shared/contracts.js';
 import { DRAWING_SCALE, exportListSchema, exportRevisionSchema, freezeExportSchema, freezeSnapshot, type ConstructionSnapshot, type ExportRevision } from '../../shared/export.js';
 import { sceneSchema } from '../../shared/layout.js';
 import type { Database } from '../db/connection.js';
-import { adaptation, constructionPlanRevision, production, scene, venue, venueVersion } from '../db/schema.js';
+import { adaptation, constructionPlanRevision, inventoryPanel, production, scene, venue, venueVersion } from '../db/schema.js';
 import { AccessError, type createAccess } from '../identity/access.js';
 import type { FileStorage } from './storage.js';
 
@@ -34,6 +34,13 @@ export function registerExportRoutes(
       .where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, sceneId)));
     if (!record) throw new AccessError(404, 'Szene nicht verfügbar.');
     return sceneSchema.parse({ ...record, lease: null });
+  }
+  async function panelLabels(workspaceId: string, panelIds: string[]) {
+    const ids = [...new Set(panelIds)];
+    if (!ids.length) return {};
+    const rows = await db.select({ id: inventoryPanel.id, label: inventoryPanel.label })
+      .from(inventoryPanel).where(and(eq(inventoryPanel.workspaceId, workspaceId), inArray(inventoryPanel.id, ids)));
+    return Object.fromEntries(rows.map(row => [row.id, row.label]));
   }
   async function loadRevision(workspaceId: string, sceneId: string, exportId: string) {
     const [row] = await db.select().from(constructionPlanRevision)
@@ -66,7 +73,9 @@ export function registerExportRoutes(
     const loaded = await loadScene(request.params.workspaceId, request.params.sceneId);
     const id = randomUUID();
     const issuedAt = new Date();
-    const snapshot = freezeSnapshot(loaded, { id, name: request.body.name, issuedAt });
+    const snapshot = freezeSnapshot(loaded, { id, name: request.body.name, issuedAt }, await panelLabels(
+      request.params.workspaceId, loaded.layout.walls.flatMap(wall => wall.panelId ? [wall.panelId] : []),
+    ));
     await db.insert(constructionPlanRevision).values({
       id, workspaceId: request.params.workspaceId, sceneId: request.params.sceneId, name: request.body.name,
       scale: DRAWING_SCALE, status: 'pending', snapshot, createdAt: issuedAt,

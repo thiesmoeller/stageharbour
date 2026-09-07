@@ -27,6 +27,9 @@ test('export a named frozen construction plan and download it from history', asy
   await waitUntilSaved(page);
   await page.getByRole('button', { name: 'Wand hinzufügen' }).click();
   await waitUntilSaved(page);
+  await page.getByRole('button', { name: 'Montagenummern vergeben' }).click();
+  await waitUntilSaved(page);
+  await expect(page.locator('[data-testid^="assembly-label-"]')).toHaveText(['Position 1']);
   await page.getByRole('button', { name: 'Konstruktionsplan' }).click();
   await page.getByLabel('Bezeichnung der Fassung').fill('Probeexport');
   await page.getByRole('button', { name: 'Als Konstruktionsplan exportieren' }).click();
@@ -39,4 +42,8 @@ test('export a named frozen construction plan and download it from history', asy
   expect(download.suggestedFilename()).toMatch(/\.pdf$/);
   const bytes = readFileSync(await download.path() as string);
   expect(bytes.subarray(0, 5).toString()).toBe('%PDF-');
+  const text = [...bytes.toString('latin1').matchAll(/<([0-9a-fA-F]+)>/g)]
+    .map(match => Buffer.from(match[1] ?? '', 'hex').toString('latin1')).join('');
+  expect(text).toContain('Position 1');
+  expect(text).toContain('Verbindungskompatibilität prüft die Crew manuell');
 });

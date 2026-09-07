@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type PointerEvent } from 'react';
 import { z } from 'zod';
+import { assemblyCaption } from '../../shared/assembly.js';
 import { execute, history, redo, undo, type History } from '../../shared/history.js';
 import { newBrace, newWall, wallCorners, wallSchema, type Brace, type Layout, type Scene, type VenueGeometry, type Wall } from '../../shared/layout.js';
 import { braceCorners } from '../../shared/braceTransforms.js';
@@ -15,25 +16,31 @@ import { ExportPanel } from './ExportPanel.js';
 import { WallTypePanel } from './WallTypePanel.js';
 import { VenuePanel } from './VenuePanel.js';
 import { InventoryPanel } from './InventoryPanel.js';
+import { AssemblyPanel } from './AssemblyPanel.js';
 
 const statusText = { saved: 'Gespeichert', pending: 'Änderungen ausstehend …', saving: 'Speichert …', failed: 'Speichern fehlgeschlagen', conflict: 'Neuere Fassung vorhanden' };
 export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
   initial: Scene; workspaceId: string; readOnly: boolean; onClose: () => void; onDirty: (value: boolean) => void;
 }) {
-  const [state, setState] = useState(() => history({ ...initial.layout, braces: initial.layout.braces ?? [] }));
+  const [state, setState] = useState(() => history({
+    ...initial.layout, braces: initial.layout.braces ?? [], connections: initial.layout.connections ?? [],
+  }));
   const current = useRef(state);
   const [selected, setSelected] = useState<string>();
   const [selectedType, setSelectedType] = useState<string>();
   const [selectedBrace, setSelectedBrace] = useState<string>();
   const [preview, setPreview] = useState<Wall>();
   const [previewBrace, setPreviewBrace] = useState<Brace>();
+  const [panelLabels, setPanelLabels] = useState<Record<string, string>>({});
   const [exportsOpen, setExportsOpen] = useState(false);
   const [venueOpen, setVenueOpen] = useState(false);
   const [venue, setVenue] = useState<VenueGeometry>(initial.venue);
   const gesture = useRef<{ wall: Wall; x: number; y: number; latest: Wall } | undefined>(undefined);
   const braceDrag = useRef<{ brace: Brace; x: number; y: number; latest: Brace } | undefined>(undefined);
   const svg = useRef<SVGSVGElement>(null);
-  const [saver] = useState(() => new Autosave({ ...initial.layout, braces: initial.layout.braces ?? [] }, initial.revision, async (layout, revision) => {
+  const [saver] = useState(() => new Autosave({
+    ...initial.layout, braces: initial.layout.braces ?? [], connections: initial.layout.connections ?? [],
+  }, initial.revision, async (layout, revision) => {
     try {
       const result = await request(`/api/workspaces/${workspaceId}/scenes/${initial.id}/layout`, { revision, layout }, 'PUT');
       return z.object({ revision: z.number().int() }).parse(result).revision;
@@ -104,7 +111,8 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
       return;
     }
     if (!selected) return;
-    commit({ ...current.current.present, walls: current.current.present.walls.filter(wall => wall.id !== selected) });
+    commit({ ...current.current.present, walls: current.current.present.walls.filter(wall => wall.id !== selected),
+      connections: (current.current.present.connections ?? []).filter(connection => connection.a !== selected && connection.b !== selected) });
     setSelected(undefined);
   }
   useEffect(() => {
@@ -227,6 +235,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
         <text x={venue.width / 2} y={-venue.depth - 200} textAnchor="middle" fontSize="180">{venue.width} mm</text>
         <text x="-170" y={-venue.depth / 2} textAnchor="middle" fontSize="180" transform={`rotate(-90 -170 ${-venue.depth / 2})`}>{venue.depth} mm</text>
         <text x={venue.width / 2} y="420" textAnchor="middle" fontSize="190">↑ Publikum · Blick zur Bühne</text>
+        <text x={venue.width / 2} y="620" textAnchor="middle" fontSize="140">V Vorderseite · R Rückseite</text>
         {state.present.walls.map(savedWall => {
           const wall = preview?.id === savedWall.id ? preview : savedWall;
           const resolved = resolveWall(wall, wallTypes);
@@ -235,7 +244,11 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
             <rect x={-resolved.width / 2} y={-resolved.thickness / 2} width={resolved.width} height={resolved.thickness} fill={selected === wall.id ? '#b67c35' : '#315d49'} stroke={selected === wall.id ? '#986122' : '#315d49'} strokeWidth="2" vectorEffect="non-scaling-stroke" />
             {resolved.openings.map(opening => <rect key={opening.id} data-testid={`plan-opening-${opening.id}`} data-width={opening.width} data-height={opening.height} data-left={opening.left} data-sill={opening.sill}
               x={-resolved.width / 2 + opening.left} y={-resolved.thickness / 2} width={opening.width} height={resolved.thickness} fill="#f8faf5" stroke={selected === wall.id ? '#986122' : '#315d49'} strokeWidth="1" vectorEffect="non-scaling-stroke" />)}
-            <text y="-140" textAnchor="middle" fontSize="150" pointerEvents="none">{wall.label}</text>
+            <text y={-resolved.thickness / 2 - 160} textAnchor="middle" fontSize="150" pointerEvents="none" data-testid={`assembly-label-${wall.id}`}>
+              {wall.assemblyNumber ? assemblyCaption(wall.assemblyNumber, wall.panelId ? panelLabels[wall.panelId] : undefined) : wall.label}
+            </text>
+            <text y={resolved.thickness / 2 + 90} textAnchor="middle" fontSize="110" pointerEvents="none">V</text>
+            <text y={-resolved.thickness / 2 - 40} textAnchor="middle" fontSize="110" pointerEvents="none">R</text>
           </g>;
         })}
         <BraceLayer braces={state.present.braces} selectedId={selectedBrace} preview={previewBrace} readOnly={readOnly} onPointerDown={startBrace} />
@@ -252,7 +265,9 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
         onSelect={setSelectedType} onCreate={applyType} onApply={applyType} onPlace={placeType} onRemove={removeType} />
       <InventoryPanel workspaceId={workspaceId} layout={state.present} selectedWall={selectedWall} readOnly={readOnly}
         onAssign={panelId => selectedWall && replace({ ...selectedWall, panelId })}
-        onUnassign={() => selectedWall && replace((({ panelId: _removed, ...rest }) => rest)(selectedWall))} />
+        onUnassign={() => selectedWall && replace((({ panelId: _removed, ...rest }) => rest)(selectedWall))}
+        onPanels={items => setPanelLabels(Object.fromEntries(items.map(item => [item.id, item.label])))} />
+      <AssemblyPanel layout={state.present} selectedWall={selectedWall} readOnly={readOnly} onChange={commit} />
       <h3>{selectedBraceItem ? 'Gewichtete Stütze' : 'Wandelement'}</h3>
       <label htmlFor="wall-selection">Auswahl</label>
       <select id="wall-selection" value={selectedWall ? `wall:${selectedWall.id}` : selectedBraceItem ? `brace:${selectedBraceItem.id}` : ''} onChange={event => {

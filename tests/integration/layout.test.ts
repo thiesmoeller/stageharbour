@@ -122,6 +122,28 @@ test('saves and reloads weighted rear braces with the layout', async () => {
   assert.equal(reloaded.layout.braces.length, 1);
   assert.deepEqual(reloaded.layout.braces[0], brace);
 });
+test('saves and reloads assembly numbers, connections and rigging notes', async () => {
+  const loaded = (await app.inject({ url: `${base}/${created.id}`, headers })).json<Scene>();
+  const left = { ...newWall(randomUUID(), 1000, 2000), assemblyNumber: 1 };
+  const right = { ...newWall(randomUUID(), 5000, 2000), assemblyNumber: 2 };
+  const connection = { id: randomUUID(), a: left.id, b: right.id };
+  const saved = await app.inject({
+    method: 'PUT', url: `${base}/${created.id}/layout`, headers,
+    payload: {
+      revision: loaded.revision, layout: {
+        ...loaded.layout, walls: [left, right], connections: [connection], riggingNotes: 'Stifte belassen.',
+      },
+    },
+  });
+  assert.equal(saved.statusCode, 200, saved.body);
+  const reloaded = (await app.inject({ url: `${base}/${created.id}`, headers })).json<Scene>();
+  assert.equal(reloaded.layout.walls[0]?.assemblyNumber, 1);
+  assert.equal(reloaded.layout.walls[1]?.assemblyNumber, 2);
+  assert.deepEqual(reloaded.layout.connections, [connection]);
+  assert.equal(reloaded.layout.riggingNotes, 'Stifte belassen.');
+  assert.equal(reloaded.layout.walls[0]?.x, 1000);
+  assert.equal(reloaded.layout.walls[1]?.x, 5000);
+});
 test('workspace substitution and viewer writes are denied', async () => {
   const foreignId = randomUUID();
   await fixture.db.insert(workspace).values({ id: foreignId, name: 'Other workspace' });
