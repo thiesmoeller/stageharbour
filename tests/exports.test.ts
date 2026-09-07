@@ -46,6 +46,16 @@ test('a 1200 mm wall at 1:50 is 24 mm on the A4 page', async () => {
   assert(pathLengthsMm(pdf).some(length => Math.abs(length - 24) < 0.05), pathLengthsMm(pdf).slice(0, 12).join(','));
 });
 
+test('an irregular venue outline is drawn at 1:50 from millimetre vertices', async () => {
+  const snapshot = sampleSnapshot();
+  snapshot.venue = {
+    ...snapshot.venue,
+    outline: [{ x: 0, y: 0 }, { x: 3000, y: 0 }, { x: 1500, y: 2000 }],
+  };
+  const pdf = await renderConstructionPlan(snapshot);
+  assert(pathLengthsMm(pdf).some(length => Math.abs(length - 60) < 0.05), pathLengthsMm(pdf).slice(0, 16).join(','));
+});
+
 test('construction plan PDF generation runs off the API thread', async () => {
   const pdf = await renderOffThread(sampleSnapshot());
   assert.equal(pdf.subarray(0, 5).toString(), '%PDF-');

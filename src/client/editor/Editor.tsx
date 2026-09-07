@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type PointerEvent } from 'react';
 import { z } from 'zod';
 import { execute, history, redo, undo, type History } from '../../shared/history.js';
-import { newBrace, newWall, wallCorners, wallSchema, type Brace, type Layout, type Scene, type Wall } from '../../shared/layout.js';
+import { newBrace, newWall, wallCorners, wallSchema, type Brace, type Layout, type Scene, type VenueGeometry, type Wall } from '../../shared/layout.js';
 import { braceCorners } from '../../shared/braceTransforms.js';
 import { resolveWall, typesOf, type WallElementType } from '../../shared/wall-types.js';
+import { measuredOutline } from '../../shared/venue.js';
 import { LEASE_HEARTBEAT_MS } from '../../shared/leases.js';
 import { ApiError, request } from '../api.js';
 import { Autosave, SaveConflict } from './autosave.js';
@@ -12,6 +13,7 @@ import { BraceLayer } from './BraceLayer.js';
 import { StageView } from './StageView.js';
 import { ExportPanel } from './ExportPanel.js';
 import { WallTypePanel } from './WallTypePanel.js';
+import { VenuePanel } from './VenuePanel.js';
 
 const statusText = { saved: 'Gespeichert', pending: 'Änderungen ausstehend …', saving: 'Speichert …', failed: 'Speichern fehlgeschlagen', conflict: 'Neuere Fassung vorhanden' };
 export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
@@ -25,6 +27,8 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
   const [preview, setPreview] = useState<Wall>();
   const [previewBrace, setPreviewBrace] = useState<Brace>();
   const [exportsOpen, setExportsOpen] = useState(false);
+  const [venueOpen, setVenueOpen] = useState(false);
+  const [venue, setVenue] = useState<VenueGeometry>(initial.venue);
   const gesture = useRef<{ wall: Wall; x: number; y: number; latest: Wall } | undefined>(undefined);
   const braceDrag = useRef<{ brace: Brace; x: number; y: number; latest: Brace } | undefined>(undefined);
   const svg = useRef<SVGSVGElement>(null);
@@ -77,7 +81,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
   function placeType(type: WallElementType) {
     const present = current.current.present;
     if (present.walls.length >= 250) return;
-    const wall: Wall = { ...newWall(crypto.randomUUID(), initial.venue.width / 2, initial.venue.depth / 2), typeId: type.id, label: type.name, width: type.width, height: type.height, thickness: type.thickness };
+    const wall: Wall = { ...newWall(crypto.randomUUID(), venue.width / 2, venue.depth / 2), typeId: type.id, label: type.name, width: type.width, height: type.height, thickness: type.thickness };
     commit({ ...present, walls: [...present.walls, wall] });
     setSelected(wall.id);
     setSelectedBrace(undefined);
@@ -171,10 +175,11 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
   }
   // Bounds stay fixed during a gesture, so moving an object cannot move its coordinate system.
   const corners = [...state.present.walls.flatMap(wall => wallCorners(resolveWall(wall, wallTypes))), ...state.present.braces.flatMap(braceCorners)];
-  const minX = Math.min(0, ...corners.map(p => p.x)) - 600;
-  const maxX = Math.max(initial.venue.width, ...corners.map(p => p.x)) + 600;
-  const minY = Math.min(0, ...corners.map(p => p.y)) - 800;
-  const maxY = Math.max(initial.venue.depth, ...corners.map(p => p.y)) + 600;
+  const floor = measuredOutline(venue);
+  const minX = Math.min(0, ...floor.map(p => p.x), ...corners.map(p => p.x)) - 600;
+  const maxX = Math.max(venue.width, ...floor.map(p => p.x), ...corners.map(p => p.x)) + 600;
+  const minY = Math.min(0, ...floor.map(p => p.y), ...corners.map(p => p.y)) - 800;
+  const maxY = Math.max(venue.depth, ...floor.map(p => p.y), ...corners.map(p => p.y)) + 600;
   function downloadDraft() {
     const url = URL.createObjectURL(new Blob([JSON.stringify({ ...initial, revision: saveState.revision, layout: current.current.present }, null, 2)], { type: 'application/json' }));
     const anchor = document.createElement('a'); anchor.href = url; anchor.download = `buehnenentwurf-${initial.id}.json`; anchor.click();
@@ -185,20 +190,22 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
       <button className="quiet" disabled={dirty} onClick={onClose}>Zur Übersicht</button></div>
     <div className="editor-toolbar">
       {!readOnly && <><button disabled={!!preview || !!previewBrace || state.present.walls.length >= 250} onClick={() => {
-        const wall = newWall(crypto.randomUUID(), initial.venue.width / 2, initial.venue.depth / 2);
+        const wall = newWall(crypto.randomUUID(), venue.width / 2, venue.depth / 2);
         commit({ ...state.present, walls: [...state.present.walls, wall] }); setSelected(wall.id); setSelectedBrace(undefined);
       }}>Wand hinzufügen</button>
       <button disabled={!!preview || !!previewBrace || state.present.braces.length >= 250} onClick={() => {
-        const brace = newBrace(crypto.randomUUID(), initial.venue.width / 2, initial.venue.depth / 2);
+        const brace = newBrace(crypto.randomUUID(), venue.width / 2, venue.depth / 2);
         commit({ ...state.present, braces: [...state.present.braces, brace] }); setSelectedBrace(brace.id); setSelected(undefined);
       }}>Stütze hinzufügen</button>
       <button className="quiet" disabled={!!preview || !!previewBrace || !state.past.length} onClick={() => apply(undo(current.current))}>Rückgängig</button>
       <button className="quiet" disabled={!!preview || !!previewBrace || !state.future.length} onClick={() => apply(redo(current.current))}>Wiederholen</button></>}
+      <button className="quiet" onClick={() => setVenueOpen(open => !open)}>{venueOpen ? 'Spielstätte schließen' : 'Spielstätte'}</button>
       <button className="quiet" onClick={() => setExportsOpen(open => !open)}>{exportsOpen ? 'Export schließen' : 'Konstruktionsplan'}</button>
       <span className={`save-status ${saveState.status}`} role="status">{readOnly
         ? (initial.lease ? `Nur Ansicht · Bearbeitung durch ${initial.lease.holderName}` : 'Nur Ansicht')
         : saveState.status === 'conflict' && saveState.conflictKind === 'lease' ? 'Bearbeitung abgelaufen' : statusText[saveState.status]}</span>
     </div>
+    {venueOpen && <VenuePanel workspaceId={workspaceId} sceneId={initial.id} venue={venue} readOnly={readOnly} onSaved={setVenue} />}
     {exportsOpen && <ExportPanel workspaceId={workspaceId} sceneId={initial.id} readOnly={readOnly} freezeDisabled={dirty || saveState.status !== 'saved'} />}
     {['failed', 'conflict'].includes(saveState.status) && <div className="error" role="alert">
       <p>{saveState.status === 'conflict'
@@ -214,10 +221,11 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
       <svg ref={svg} role="img" aria-label="Grundriss der Spielstätte" viewBox={`${minX} ${-maxY} ${maxX - minX} ${maxY - minY}`}
         onPointerMove={move} onPointerUp={() => finish()} onPointerCancel={() => finish(true)} onLostPointerCapture={() => finish(true)}>
         <defs><pattern id="metre-grid" width="1000" height="1000" patternUnits="userSpaceOnUse"><path d="M 1000 0 L 0 0 0 1000" fill="none" stroke="#dfe5d9" strokeWidth="1" vectorEffect="non-scaling-stroke" /></pattern></defs>
-        <rect x="0" y={-initial.venue.depth} width={initial.venue.width} height={initial.venue.depth} fill="url(#metre-grid)" stroke="#718469" strokeWidth="2" vectorEffect="non-scaling-stroke" onPointerDown={() => { setSelected(undefined); setSelectedBrace(undefined); }} />
-        <text x={initial.venue.width / 2} y={-initial.venue.depth - 200} textAnchor="middle" fontSize="180">{initial.venue.width} mm</text>
-        <text x="-170" y={-initial.venue.depth / 2} textAnchor="middle" fontSize="180" transform={`rotate(-90 -170 ${-initial.venue.depth / 2})`}>{initial.venue.depth} mm</text>
-        <text x={initial.venue.width / 2} y="420" textAnchor="middle" fontSize="190">↑ Publikum · Blick zur Bühne</text>
+        <path data-testid="venue-floor" d={`${floor.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')} Z`}
+          fill="url(#metre-grid)" stroke="#718469" strokeWidth="2" vectorEffect="non-scaling-stroke" onPointerDown={() => { setSelected(undefined); setSelectedBrace(undefined); }} />
+        <text x={venue.width / 2} y={-venue.depth - 200} textAnchor="middle" fontSize="180">{venue.width} mm</text>
+        <text x="-170" y={-venue.depth / 2} textAnchor="middle" fontSize="180" transform={`rotate(-90 -170 ${-venue.depth / 2})`}>{venue.depth} mm</text>
+        <text x={venue.width / 2} y="420" textAnchor="middle" fontSize="190">↑ Publikum · Blick zur Bühne</text>
         {state.present.walls.map(savedWall => {
           const wall = preview?.id === savedWall.id ? preview : savedWall;
           const resolved = resolveWall(wall, wallTypes);
@@ -237,7 +245,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
       ...state.present,
       walls: state.present.walls.map(wall => preview?.id === wall.id ? preview : wall),
       braces: state.present.braces.map(brace => previewBrace?.id === brace.id ? previewBrace : brace),
-    }} venue={initial.venue} />
+    }} venue={venue} />
     </div><aside className="wall-inspector">
       <WallTypePanel types={wallTypes} selectedId={selectedType} readOnly={readOnly}
         onSelect={setSelectedType} onCreate={applyType} onApply={applyType} onPlace={placeType} onRemove={removeType} />

@@ -28,4 +28,10 @@ export const completePasswordResetSchema = acceptInvitationSchema;
 export const passwordResetPreviewSchema = z.object({ email: z.email() });
 export const okSchema = z.object({ ok: z.literal(true) });
 export const errorSchema = z.object({ message: z.string() });
+export const venueReferenceSchema = z.object({
+  id: z.uuid(), kind: z.enum(['image', 'pdf']), mediaType: z.string(),
+  originalName: z.string(), pageCount: z.number().int().nullable(),
+  pixelWidth: z.number().int().nullable(), pixelHeight: z.number().int().nullable(),
+});
+export type VenueReference = z.infer<typeof venueReferenceSchema>;
 export const loginOptionsSchema = z.object({ oidc: z.boolean() });
