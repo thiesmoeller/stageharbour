@@ -23,7 +23,7 @@ export function GroupInspector({ layout, picked, readOnly, onChange }: {
   return <div className="group-panel" data-testid={group ? `group-${group.id}` : 'group-picker'}>
     <h3>Gruppe</h3>
     <p className="muted">{GROUP_PIVOT_NOTICE}</p>
-    <p className="muted">Umschalt-Klick wählt weitere Wände, Stützen oder Treppen. Einzelelemente bleiben bearbeitbar.</p>
+    <p className="muted">Umschalt-Klick wählt weitere Wände, Stützen, Treppen oder Platzhalter. Einzelelemente bleiben bearbeitbar.</p>
     {!readOnly && !group && <div className="form-actions">
       <button type="button" disabled={!canFormGroup(layout, picked)}
         onClick={() => onChange(formGroup(layout, picked, crypto.randomUUID()))}>Gruppieren</button>

@@ -1,6 +1,7 @@
 import { braceSolid, type BraceSolid } from './braceTransforms.js';
 import { type Layout, type VenueGeometry, type Wall } from './layout.js';
 import { AUDIENCE_FLOOR_ID, stairRise, stairSteps, supportingSurfaces, surfaceElevation, type Platform, type StairUnit } from './levels.js';
+import { placeholderSolid, type PlaceholderSolid } from './placeholders.js';
 import { resolveWall, type Opening } from './wall-types.js';
 
 export type Vec3 = { x: number; y: number; z: number };
@@ -15,6 +16,7 @@ export type StageModel = {
   floor: { width: number; depth: number };
   walls: WallSolid[];
   braces: BraceSolid[];
+  placeholders: PlaceholderSolid[];
   platforms: Platform[];
   stairs: StairSolid[];
   audience: { position: Vec3; target: Vec3 };
@@ -47,6 +49,7 @@ export function stageModel(layout: Layout, venue: Pick<VenueGeometry, 'width' | 
     floor: { width: venue.width, depth: venue.depth },
     walls: layout.walls.map(wall => wallSolid(resolveWall(wall, types), surfaceElevation(surfaces, wall.supportingSurfaceId))),
     braces: (layout.braces ?? []).map(brace => braceSolid(brace, surfaceElevation(surfaces, brace.supportingSurfaceId))),
+    placeholders: (layout.placeholders ?? []).map(item => placeholderSolid(item, surfaceElevation(surfaces, item.supportingSurfaceId))),
     platforms: surfaces.filter(surface => surface.id !== AUDIENCE_FLOOR_ID),
     stairs: stairs.map(stair => ({ id: stair.id, label: stair.label, rise: stairRise(stair, surfaces), steps: stairSteps(stair, surfaces) })),
     audience: { position: { x: venue.width / 2, y: 1600, z: -2000 }, target: { x: venue.width / 2, y: 1200, z: venue.depth / 2 } },

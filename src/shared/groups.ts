@@ -3,7 +3,7 @@ import { z } from 'zod';
 /** Pivot: centroid of member centres (average plan x/y, mm). +rotation is counterclockwise, matching walls. Connections never form a group. */
 export const GROUP_PIVOT_NOTICE = 'Drehpunkt ist der Schwerpunkt der Mitgliedsmitten in Millimetern. Verbindungen allein bilden keine Gruppe.';
 
-export const groupMemberKindSchema = z.enum(['wall', 'brace', 'stair']);
+export const groupMemberKindSchema = z.enum(['wall', 'brace', 'stair', 'placeholder']);
 export type GroupMemberKind = z.infer<typeof groupMemberKindSchema>;
 export const groupMemberSchema = z.strictObject({ kind: groupMemberKindSchema, id: z.uuid() });
 export type GroupMember = z.infer<typeof groupMemberSchema>;
@@ -21,6 +21,7 @@ export type GroupableLayout = {
   walls: Posed[];
   braces?: Posed[];
   stairs?: Posed[];
+  placeholders?: Posed[];
   groups?: Group[];
 };
 
@@ -42,7 +43,10 @@ export function groupContaining<T extends { groups?: Group[] }>(layout: T, membe
 }
 
 function posedOf<T extends GroupableLayout>(layout: T, member: GroupMember) {
-  const list = member.kind === 'wall' ? layout.walls : member.kind === 'brace' ? layout.braces ?? [] : layout.stairs ?? [];
+  const list = member.kind === 'wall' ? layout.walls
+    : member.kind === 'brace' ? layout.braces ?? []
+      : member.kind === 'stair' ? layout.stairs ?? []
+        : layout.placeholders ?? [];
   return list.find(item => item.id === member.id);
 }
 
@@ -93,6 +97,7 @@ export function transformGroup<T extends GroupableLayout>(layout: T, groupId: st
     walls: patch('wall', layout.walls),
     braces: layout.braces ? patch('brace', layout.braces) : layout.braces,
     stairs: layout.stairs ? patch('stair', layout.stairs) : layout.stairs,
+    placeholders: layout.placeholders ? patch('placeholder', layout.placeholders) : layout.placeholders,
     groups: (layout.groups ?? []).map(item => item.id === groupId ? { ...item, rotation: wrapRotation(pose.rotation) } : item),
   };
 }
@@ -120,6 +125,7 @@ export function groupsReferenceLayout<T extends GroupableLayout>(layout: T) {
     wall: new Set(layout.walls.map(item => item.id)),
     brace: new Set((layout.braces ?? []).map(item => item.id)),
     stair: new Set((layout.stairs ?? []).map(item => item.id)),
+    placeholder: new Set((layout.placeholders ?? []).map(item => item.id)),
   };
   return groups.every(group => group.members.every(member => {
     const key = `${member.kind}:${member.id}`;

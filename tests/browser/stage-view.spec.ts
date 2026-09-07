@@ -91,6 +91,23 @@ test('edits in the plan update the linked 3D view, including front orientation a
   await expect(stageBrace).toHaveAttribute('data-x', '2200');
   await waitUntilSaved(page);
 
+  await page.getByRole('button', { name: 'Tisch hinzufügen' }).click();
+  const stageTable = page.locator('[data-testid^="stage-placeholder-"]');
+  await expect(page.locator('.plan-canvas [data-testid^="placeholder-"]')).toHaveCount(1);
+  await expect(stageTable).toHaveCount(1);
+  await expect(stageTable).toHaveAttribute('data-x', '4000');
+  await expect(stageTable).toHaveAttribute('data-z', '3000');
+  await expect(stageTable).toHaveAttribute('data-y', '375');
+  await expect(stageTable).toHaveAttribute('data-height', '750');
+  await expect(stageTable).toHaveAttribute('data-width', '1200');
+  await expect(stageTable).toHaveAttribute('data-depth', '800');
+  await page.locator('#placeholder-x').fill('1000');
+  await page.locator('#placeholder-y').fill('1000');
+  await page.locator('#placeholder-x').locator('xpath=ancestor::form').getByRole('button', { name: 'Übernehmen' }).click();
+  await expect(stageTable).toHaveAttribute('data-x', '1000');
+  await expect(stageTable).toHaveAttribute('data-z', '1000');
+  await waitUntilSaved(page);
+
   await page.getByRole('button', { name: 'Spielstätte' }).click();
   await page.getByRole('button', { name: 'Überbauung hinzufügen' }).click();
   await expect(page.getByLabel('Überbauung 1 Unterkante über Fußboden (mm)')).toHaveValue('2600');
@@ -140,6 +157,12 @@ test('edits in the plan update the linked 3D view, including front orientation a
   await expect(page.locator('[data-testid^="stage-brace-"]')).toHaveAttribute('data-height', '1500');
   await expect(page.locator('[data-testid^="stage-platform-"]')).toHaveAttribute('data-elevation', '400');
   await expect(page.locator('[data-testid^="stage-stair-"]')).toHaveAttribute('data-rise', '400');
+  await expect(page.locator('.plan-canvas [data-testid^="placeholder-"]')).toHaveCount(1);
+  await expect(page.locator('[data-testid^="stage-placeholder-"]')).toHaveAttribute('data-x', '1000');
+  await expect(page.locator('[data-testid^="stage-placeholder-"]')).toHaveAttribute('data-z', '1000');
+  await expect(page.locator('[data-testid^="stage-placeholder-"]')).toHaveAttribute('data-height', '750');
+  await expect(page.locator('[data-testid^="stage-placeholder-"]')).toHaveAttribute('data-width', '1200');
+  await expect(page.locator('[data-testid^="stage-placeholder-"]')).toHaveAttribute('data-depth', '800');
 
   await page.getByRole('button', { name: 'Wand hinzufügen' }).click();
   await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(2);

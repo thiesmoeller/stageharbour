@@ -55,6 +55,7 @@ select { font: inherit; width: 100%; padding: 8px; border: 1px solid #cbd3c8; bo
 .venue-overhead h4 { margin: 0 0 8px; font-size: .85rem; }
 .keep-clear { margin-top: 16px; padding-top: 12px; border-top: 1px solid #e0e5d8; width: 100%; }
 .keep-clear h4 { margin: 0 0 8px; font-size: .85rem; }
+.placeholder-library { margin: 0 0 22px; padding: 0 0 18px; border-bottom: 1px solid #e0e5d8; }
 .export-panel .venue-overhead, .export-panel .venue-levels, .export-panel .keep-clear { flex: 1 1 100%; }
 .export-panel { border: 1px solid #e0e5d8; border-radius: 8px; padding: 16px 18px; margin-bottom: 8px; background: #f8faf5; }
 .export-panel h3 { margin: 0 0 6px; }

@@ -8,6 +8,7 @@ import { keepClearZonesSchema } from './keepClear.js';
 import { venueOutlineSchema, venueTraceSchema } from './venue.js';
 import { panelConnectionSchema } from './assembly.js';
 import { groupSchema, groupsReferenceLayout } from './groups.js';
+import { placeholdersSchema } from './placeholders.js';
 
 const name = z.string().trim().min(1).max(120);
 const dimension = z.number().finite().min(1).max(100000);
@@ -46,6 +47,7 @@ export const layoutSchema = z.strictObject({
   stairs: z.array(stairSchema).max(250).optional(),
   connections: z.array(panelConnectionSchema).max(250).optional(),
   groups: z.array(groupSchema).max(250).optional(),
+  placeholders: placeholdersSchema.optional(),
   riggingNotes: z.string().max(2000).optional(),
 }).refine(layout => {
   const ids = new Set((layout.wallTypes ?? []).map(type => type.id));

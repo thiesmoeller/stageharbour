@@ -6,6 +6,7 @@ import { createApp } from '../../src/server/app.js';
 import { bootstrapAdministrator } from '../../src/server/identity/bootstrap.js';
 import { membership, scene, venueVersion, workspace } from '../../src/server/db/schema.js';
 import { newBrace, newWall, type Scene } from '../../src/shared/layout.js';
+import { newPlaceholder } from '../../src/shared/placeholders.js';
 import { AUDIENCE_FLOOR_ID, newPlatform, newStair } from '../../src/shared/levels.js';
 import { newOverheadBox } from '../../src/shared/overhead.js';
 import { newKeepClearZone } from '../../src/shared/keepClear.js';
@@ -315,6 +316,36 @@ test('freeze then later group edits do not change the stored construction snapsh
   assert.equal(reloaded.layout.walls[0]?.x, 500);
   assert.equal(reloaded.layout.walls[1]?.x, 2500);
   assert.deepEqual(reloaded.layout.groups?.[0]?.members, loaded.layout.groups?.[0]?.members);
+});
+test('saves and reloads placeholders with the layout; freeze then later edits do not change the snapshot', async () => {
+  const loaded = (await app.inject({ url: `${base}/${created.id}`, headers })).json<Scene>();
+  const table = newPlaceholder('table', randomUUID(), 2000, 1500);
+  const chair = newPlaceholder('chair', randomUUID(), 2800, 1500);
+  const saved = await app.inject({
+    method: 'PUT', url: `${base}/${created.id}/layout`, headers,
+    payload: { revision: loaded.revision, layout: { ...loaded.layout, placeholders: [table, chair] } },
+  });
+  assert.equal(saved.statusCode, 200, saved.body);
+  const reloaded = (await app.inject({ url: `${base}/${created.id}`, headers })).json<Scene>();
+  assert.deepEqual(reloaded.layout.placeholders, [table, chair]);
+  const frozen = await app.inject({ method: 'POST', url: `${base}/${created.id}/exports`, headers, payload: { name: 'Mit Platzhaltern' } });
+  assert.equal(frozen.statusCode, 201, frozen.body);
+  const original = Buffer.from((await app.inject({ url: `${base}/${created.id}/exports/${frozen.json().id}/file`, headers })).rawPayload);
+  const shown = [...original.toString('latin1').matchAll(/<([0-9a-fA-F]+)>/g)]
+    .map(match => Buffer.from(match[1] ?? '', 'hex').toString('latin1')).join('');
+  assert(shown.includes('Tisch'), shown);
+  assert.equal((await app.inject({
+    method: 'PUT', url: `${base}/${created.id}/layout`, headers,
+    payload: {
+      revision: reloaded.revision,
+      layout: { ...reloaded.layout, placeholders: [{ ...table, x: 7000, width: 1800 }, chair] },
+    },
+  })).statusCode, 200);
+  const again = Buffer.from((await app.inject({ url: `${base}/${created.id}/exports/${frozen.json().id}/file`, headers })).rawPayload);
+  assert.deepEqual(again, original);
+  const later = (await app.inject({ url: `${base}/${created.id}`, headers })).json<Scene>();
+  assert.equal(later.layout.placeholders?.[0]?.x, 7000);
+  assert.equal(later.layout.placeholders?.[0]?.width, 1800);
 });
 test('workspace substitution and viewer writes are denied', async () => {
   const foreignId = randomUUID();

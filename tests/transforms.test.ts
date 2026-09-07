@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { newBrace, newWall } from '../src/shared/layout.js';
+import { newPlaceholder } from '../src/shared/placeholders.js';
 import { AUDIENCE_FLOOR_ID, newPlatform, newStair } from '../src/shared/levels.js';
 import { newWallType } from '../src/shared/wall-types.js';
 import { braceSolid } from '../src/shared/braceTransforms.js';
@@ -93,4 +94,15 @@ test('a wall on a 400 mm platform sits 400 mm above the audience floor; missing 
   assert.equal(withStairs.stairs[0]?.rise, 400);
   assert.equal(withStairs.stairs[0]?.steps.length, 2);
   assert.equal(withStairs.stairs[0]?.steps[0]?.height, 200);
+});
+
+test('a table on a 400 mm platform sits 400 mm above the audience floor as a simple box', () => {
+  const platform = newPlatform(randomUUID(), 4000, 4750);
+  platform.elevation = 400;
+  const table = { ...newPlaceholder('table', randomUUID(), 4000, 5000), supportingSurfaceId: platform.id };
+  const venue = { schemaVersion: 1 as const, width: 8000, depth: 6000, platforms: [platform] };
+  const model = stageModel({ schemaVersion: 1, walls: [], braces: [], placeholders: [table] }, venue);
+  assert.equal(model.placeholders.length, 1);
+  assert.deepEqual(model.placeholders[0]!.size, { x: 1200, y: 750, z: 800 });
+  assertVec(model.placeholders[0]!.center, { x: 4000, y: 775, z: 5000 });
 });
