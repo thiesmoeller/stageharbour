@@ -7,6 +7,7 @@ import { bootstrapAdministrator } from '../../src/server/identity/bootstrap.js';
 import { membership, scene, venueVersion, workspace } from '../../src/server/db/schema.js';
 import { newBrace, newWall, type Scene } from '../../src/shared/layout.js';
 import { AUDIENCE_FLOOR_ID, newPlatform, newStair } from '../../src/shared/levels.js';
+import { newKeepClearZone } from '../../src/shared/keepClear.js';
 import { newWallType } from '../../src/shared/wall-types.js';
 import { testAdministrator, testDatabase } from '../helpers/database.js';
 
@@ -151,6 +152,45 @@ test('saves movable platforms and a wall on an explicit raised surface', async (
   assert.deepEqual(again, original);
   assert.equal((await app.inject({ url: `${base}/${created.id}`, headers })).json<Scene>().layout.platforms?.[0]?.elevation, 900);
 });
+
+test('an overlapping layout save succeeds and freeze keeps the unresolved keep-clear warning', async () => {
+  const loaded = (await app.inject({ url: `${base}/${created.id}`, headers })).json<Scene>();
+  const zone = { ...newKeepClearZone(randomUUID(), AUDIENCE_FLOOR_ID, 1000, 500), label: 'Notausgang Ost' };
+  assert.equal((await app.inject({
+    method: 'PUT', url: `${base}/${created.id}/venue`, headers,
+    payload: { venue: { ...loaded.venue, keepClearZones: [zone] } },
+  })).statusCode, 200);
+  const wall = { ...newWall(randomUUID(), 1000, 500), label: 'Bühnenwand' };
+  const saved = await app.inject({
+    method: 'PUT', url: `${base}/${created.id}/layout`, headers,
+    payload: { revision: loaded.revision, layout: { schemaVersion: 1, walls: [wall], braces: [] } },
+  });
+  assert.equal(saved.statusCode, 200, saved.body);
+  assert.match(saved.json().warnings[0]?.message ?? '', /Notausgang Ost/);
+  assert.match(saved.json().warnings[0]?.message ?? '', /Bühnenwand/);
+  const frozen = await app.inject({ method: 'POST', url: `${base}/${created.id}/exports`, headers, payload: { name: 'Mit Freihaltezone' } });
+  assert.equal(frozen.statusCode, 201, frozen.body);
+  const original = Buffer.from((await app.inject({ url: `${base}/${created.id}/exports/${frozen.json().id}/file`, headers })).rawPayload);
+  const shown = [...original.toString('latin1').matchAll(/<([0-9a-fA-F]+)>/g)]
+    .map(match => Buffer.from(match[1] ?? '', 'hex').toString('latin1')).join('');
+  assert(shown.includes('Notausgang Ost'), shown);
+  assert(shown.includes('Bühnenwand'), shown);
+  assert.equal((await app.inject({
+    method: 'PUT', url: `${base}/${created.id}/layout`, headers,
+    payload: { revision: loaded.revision + 1, layout: { schemaVersion: 1, walls: [{ ...wall, x: 7000, y: 5000 }], braces: [] } },
+  })).statusCode, 200);
+  const again = Buffer.from((await app.inject({ url: `${base}/${created.id}/exports/${frozen.json().id}/file`, headers })).rawPayload);
+  assert.deepEqual(again, original);
+  const cleared = await app.inject({
+    method: 'PUT', url: `${base}/${created.id}/layout`, headers,
+    payload: {
+      revision: loaded.revision + 2,
+      layout: { schemaVersion: 1, walls: [{ ...wall, x: 7000, y: 5000 }], braces: [] },
+    },
+  });
+  assert.equal(cleared.statusCode, 200, cleared.body);
+  assert.deepEqual(cleared.json().warnings, []);
+});
 test('workspace substitution and viewer writes are denied', async () => {
   const foreignId = randomUUID();
   await fixture.db.insert(workspace).values({ id: foreignId, name: 'Other workspace' });
@@ -163,6 +203,10 @@ test('workspace substitution and viewer writes are denied', async () => {
   await fixture.db.update(membership).set({ role: 'viewer' }).where(eq(membership.workspaceId, fixture.config.WORKSPACE_ID));
   assert.equal((await app.inject({ url: `${base}/${created.id}`, headers })).statusCode, 200);
   assert.equal((await app.inject({ method: 'PUT', url: `${base}/${created.id}/layout`, headers, payload: { revision: 1, layout: created.layout } })).statusCode, 403);
+  assert.equal((await app.inject({
+    method: 'PUT', url: `${base}/${created.id}/venue`, headers,
+    payload: { venue: { schemaVersion: 1, width: 8000, depth: 6000, keepClearZones: [newKeepClearZone(randomUUID(), AUDIENCE_FLOOR_ID, 1000, 500)] } },
+  })).statusCode, 403);
   assert.equal((await app.inject({ method: 'POST', url: base, headers, payload: input })).statusCode, 403);
   assert.equal((await app.inject({ url: base })).statusCode, 401);
 });

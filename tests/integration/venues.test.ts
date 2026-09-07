@@ -11,6 +11,7 @@ import { millimetresPerUnit } from '../../src/shared/venue.js';
 import { newCableRoutingCorridor, newConnectionPoint } from '../../src/shared/infrastructure.js';
 import { type Scene } from '../../src/shared/layout.js';
 import { AUDIENCE_FLOOR_ID, newPlatform, newStair } from '../../src/shared/levels.js';
+import { newKeepClearZone } from '../../src/shared/keepClear.js';
 import { testAdministrator, testDatabase } from '../helpers/database.js';
 import { pngBytes, twoPagePdf } from '../helpers/references.js';
 
@@ -178,6 +179,23 @@ test('saves permanent platforms and stairs on the pinned venue version', async (
   assert.equal(again.venue.stairs?.[0]?.width, 1200);
   assert.deepEqual(again.venue.outline, outline);
   assert.equal(again.venueVersionId, loaded.venueVersionId);
+});
+
+test('saves keep-clear zones on the pinned venue version', async () => {
+  const loaded = (await app.inject({ url: `${scenes}/${scene.id}`, headers })).json<Scene>();
+  const zone = { ...newKeepClearZone(randomUUID(), AUDIENCE_FLOOR_ID, 1000, 500), label: 'Notausgang Ost', reason: 'Notausgang' };
+  const saved = await app.inject({
+    method: 'PUT', url: `${scenes}/${scene.id}/venue`, headers,
+    payload: { venue: { ...loaded.venue, keepClearZones: [zone] } },
+  });
+  assert.equal(saved.statusCode, 200, saved.body);
+  const again = (await app.inject({ url: `${scenes}/${scene.id}`, headers })).json<Scene>();
+  assert.equal(again.venue.keepClearZones?.[0]?.label, 'Notausgang Ost');
+  assert.equal(again.venue.keepClearZones?.[0]?.reason, 'Notausgang');
+  assert.equal(again.venue.keepClearZones?.[0]?.supportingSurfaceId, AUDIENCE_FLOOR_ID);
+  assert.deepEqual(again.venue.keepClearZones?.[0]?.polygon, zone.polygon);
+  assert.equal(again.venueVersionId, loaded.venueVersionId);
+  assert.deepEqual(again.venue.outline, outline);
 });
 
 test('frozen exports keep the measured outline and can still fetch the referenced source after later venue edits', async () => {

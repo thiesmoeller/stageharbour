@@ -141,6 +141,9 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByLabel('Kabelkorridor 1 Punkt 1 Y (mm)').fill('1200');
   await page.getByLabel('Kabelkorridor 1 Punkt 2 X (mm)').fill('4000');
   await page.getByLabel('Kabelkorridor 1 Punkt 2 Y (mm)').fill('1200');
+  await page.getByRole('button', { name: 'Freihaltezone hinzufügen' }).click();
+  await page.getByLabel('Freihaltezone 1 Bezeichnung').fill('Notausgang Ost');
+  await page.getByLabel('Freihaltezone 1 Grund').fill('Notausgang');
   const saved = page.waitForResponse(response => /\/scenes\/[^/]+\/venue$/.test(new URL(response.url()).pathname) && response.request().method() === 'PUT');
   await page.getByRole('button', { name: 'Spielstätte speichern' }).click();
   expect((await saved).ok()).toBeTruthy();
@@ -166,6 +169,13 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByLabel('Kabelkorridor 1 Bezeichnung')).toHaveValue('Seitenbühne');
   await expect(page.getByLabel('Kabelkorridor 1 Punkt 2 X (mm)')).toHaveValue('4000');
   await expect(page.getByLabel('Kabelkorridor 1 Punkt 2 Y (mm)')).toHaveValue('1200');
+  await expect(page.getByLabel('Freihaltezone 1 Bezeichnung')).toHaveValue('Notausgang Ost');
+  await expect(page.getByLabel('Freihaltezone 1 Grund')).toHaveValue('Notausgang');
+  await expect(page.locator('.plan-canvas [data-testid^="keep-clear-zone-"]')).toHaveCount(1);
+  await expect(page.locator('.plan-canvas [data-testid^="keep-clear-zone-"]')).toContainText('Notausgang Ost');
+  await expect(page.locator('.plan-canvas .warning').filter({ hasText: 'Notausgang Ost' })).toHaveCount(2);
+  await expect(page.locator('.plan-canvas .warning').filter({ hasText: 'Wand' })).toBeVisible();
+  await expect(page.locator('.plan-canvas .warning').filter({ hasText: 'Stütze' })).toBeVisible();
   await page.screenshot({ path: 'test-results/layout-editor.png', fullPage: true });
 
   await page.getByRole('button', { name: 'Wand hinzufügen' }).click();

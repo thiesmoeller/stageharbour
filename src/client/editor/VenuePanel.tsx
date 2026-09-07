@@ -6,8 +6,10 @@ import {
 } from '../../shared/infrastructure.js';
 import { venueReferenceSchema, type VenueReference } from '../../shared/contracts.js';
 import { VenueLevels } from './VenueLevels.js';
+import { KeepClearMarks, KeepClearZones } from './KeepClearZones.js';
 import { calibrationSchema, measuredOutline, millimetresPerUnit, type Calibration, type PlanPoint } from '../../shared/venue.js';
-import { type Platform, type StairUnit } from '../../shared/levels.js';
+import { type Platform, type StairUnit, AUDIENCE_FLOOR_ID } from '../../shared/levels.js';
+import { newKeepClearZone, type KeepClearZone } from '../../shared/keepClear.js';
 import { ApiError, request, upload } from '../api.js';
 
 function optionalNotes(value?: string) {
@@ -27,10 +29,11 @@ export function VenuePanel({ workspaceId, sceneId, venue, readOnly, onSaved }: {
   const [calibration, setCalibration] = useState<Calibration>(venue.trace?.calibration ?? {
     pointA: { x: 0, y: 0 }, pointB: { x: 0, y: 0 }, distanceMm: 1000,
   });
-  const [click, setClick] = useState<'vertex' | 'a' | 'b' | 'pin' | 'corridor'>('vertex');
+  const [click, setClick] = useState<'vertex' | 'a' | 'b' | 'pin' | 'corridor' | 'zone'>('vertex');
   const [pinKind, setPinKind] = useState<ConnectionKind>('power');
   const [pins, setPins] = useState<ConnectionPoint[]>(() => venue.connectionPoints ?? []);
   const [corridors, setCorridors] = useState<CableRoutingCorridor[]>(() => venue.cableRoutingCorridors ?? []);
+  const [zones, setZones] = useState<KeepClearZone[]>(() => venue.keepClearZones ?? []);
   const [meta, setMeta] = useState<VenueReference>();
   const [overlay, setOverlay] = useState<{ href: string; pixelWidth: number; pixelHeight: number }>();
   const [busy, setBusy] = useState(false);
@@ -75,6 +78,12 @@ export function VenuePanel({ workspaceId, sceneId, venue, readOnly, onSaved }: {
       if (last.path.length >= 500) return current;
       return current.map((corridor, index) => index === current.length - 1 ? { ...corridor, path: [...corridor.path, point] } : corridor);
     });
+    else if (click === 'zone') setZones(current => {
+      if (!current.length) return [newKeepClearZone(crypto.randomUUID(), AUDIENCE_FLOOR_ID, point.x, point.y)];
+      const last = current[current.length - 1]!;
+      if (last.polygon.length >= 500) return current;
+      return current.map((zone, index) => index === current.length - 1 ? { ...zone, polygon: [...zone.polygon, point] } : zone);
+    });
     else setCalibration(current => ({ ...current, [click === 'a' ? 'pointA' : 'pointB']: overlay ? toSource(point) : point }));
   }
   async function chooseFile(file?: File) {
@@ -96,7 +105,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, readOnly, onSaved }: {
       schemaVersion: 1, width: venue.width, depth: venue.depth, outline: vertices, trace,
       connectionPoints: pins.map(pin => ({ ...pin, notes: optionalNotes(pin.notes) })),
       cableRoutingCorridors: corridors.map(corridor => ({ ...corridor, notes: optionalNotes(corridor.notes) })),
-      platforms, stairs,
+      platforms, stairs, keepClearZones: zones,
     });
     if (!result.success) { setError('Bitte prüfen Sie den Umriss, die Kalibrierung und die Anschlüsse.'); return; }
     setBusy(true); setError('');
@@ -120,6 +129,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, readOnly, onSaved }: {
           fill="none" stroke="#718469" strokeWidth="2" vectorEffect="non-scaling-stroke" />
         {vertices.map((point, index) => <circle key={index} cx={point.x} cy={-point.y} r="40" fill="#b67c35" />)}
         <InfrastructureMarks pins={pins} corridors={corridors} />
+        <KeepClearMarks zones={zones} />
       </svg>
     </div>
     <form onSubmit={event => void save(event)}><fieldset disabled={readOnly || busy}>
@@ -157,6 +167,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, readOnly, onSaved }: {
       <InfrastructureFields venue={venue} pins={pins} corridors={corridors} click={click} pinKind={pinKind}
         onClick={setClick} onPinKind={setPinKind} onPins={setPins} onCorridors={setCorridors} />
       <VenueLevels venue={venue} platforms={platforms} stairs={stairs} readOnly={readOnly} onPlatforms={setPlatforms} onStairs={setStairs} />
+      <KeepClearZones venue={venue} zones={zones} click={click} readOnly={readOnly} onClick={setClick} onZones={setZones} />
       {error && <p className="error" role="alert">{error}</p>}
       <div className="form-actions"><button type="submit">Spielstätte speichern</button></div>
     </fieldset></form>
@@ -179,8 +190,8 @@ export function InfrastructureMarks({ pins, corridors }: { pins: ConnectionPoint
 
 function InfrastructureFields({ venue, pins, corridors, click, pinKind, onClick, onPinKind, onPins, onCorridors }: {
   venue: VenueGeometry; pins: ConnectionPoint[]; corridors: CableRoutingCorridor[];
-  click: 'vertex' | 'a' | 'b' | 'pin' | 'corridor'; pinKind: ConnectionKind;
-  onClick: (value: 'vertex' | 'a' | 'b' | 'pin' | 'corridor') => void;
+  click: 'vertex' | 'a' | 'b' | 'pin' | 'corridor' | 'zone'; pinKind: ConnectionKind;
+  onClick: (value: 'vertex' | 'a' | 'b' | 'pin' | 'corridor' | 'zone') => void;
   onPinKind: (kind: ConnectionKind) => void;
   onPins: (value: ConnectionPoint[] | ((current: ConnectionPoint[]) => ConnectionPoint[])) => void;
   onCorridors: (value: CableRoutingCorridor[] | ((current: CableRoutingCorridor[]) => CableRoutingCorridor[])) => void;

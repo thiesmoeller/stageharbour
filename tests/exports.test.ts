@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { freezeSnapshot } from '../src/shared/export.js';
+import { newKeepClearZone } from '../src/shared/keepClear.js';
 import { newCableRoutingCorridor, newConnectionPoint } from '../src/shared/infrastructure.js';
 import { newBrace, newWall, type Scene } from '../src/shared/layout.js';
 import { AUDIENCE_FLOOR_ID, newPlatform, newStair } from '../src/shared/levels.js';
@@ -153,4 +154,23 @@ test('a frozen 4000 mm platform edge is 80 mm on the A4 page and later venue edi
   const text = shownText(pdf);
   assert(text.includes('400 mm'), text);
   assert(text.includes('Treppe'), text);
+});
+
+test('freeze stores unresolved keep-clear warnings that later layout edits cannot change', () => {
+  const zone = { ...newKeepClearZone(randomUUID(), AUDIENCE_FLOOR_ID, 1000, 500), label: 'Notausgang Ost' };
+  const wall = { ...newWall(randomUUID(), 1000, 500), label: 'Bühnenwand' };
+  const scene: Scene = {
+    id: randomUUID(), name: 'Freihalteprobe', productionName: 'Beispielproduktion', venueName: 'Beispielsaal',
+    revision: 1, venueVersionId: randomUUID(),
+    venue: { schemaVersion: 1, width: 8000, depth: 6000, keepClearZones: [zone] },
+    lease: null, layout: { schemaVersion: 1, walls: [wall], braces: [] },
+  };
+  const snapshot = freezeSnapshot(scene, { id: randomUUID(), name: 'Fassung Frei', issuedAt: new Date('2026-09-07T12:00:00.000Z') });
+  assert.equal(snapshot.unresolvedWarnings.length, 1);
+  assert.match(snapshot.unresolvedWarnings[0]?.message ?? '', /Notausgang Ost/);
+  assert.match(snapshot.unresolvedWarnings[0]?.message ?? '', /Bühnenwand/);
+  scene.layout.walls[0]!.x = 7000;
+  scene.layout.walls[0]!.y = 5000;
+  assert.equal(snapshot.unresolvedWarnings.length, 1);
+  assert.equal(snapshot.layout.walls[0]?.x, 1000);
 });
