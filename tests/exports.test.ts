@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { CONNECTION_COMPATIBILITY_NOTICE } from '../src/shared/assembly.js';
 import { freezeSnapshot } from '../src/shared/export.js';
 import { newCableRoutingCorridor, newConnectionPoint } from '../src/shared/infrastructure.js';
 import { newBrace, newWall, type Scene } from '../src/shared/layout.js';
@@ -153,4 +154,55 @@ test('a frozen 4000 mm platform edge is 80 mm on the A4 page and later venue edi
   const text = shownText(pdf);
   assert(text.includes('400 mm'), text);
   assert(text.includes('Treppe'), text);
+});
+
+test('freeze keeps assembly labels, connections and rigging notes after later source edits', () => {
+  const panelId = randomUUID();
+  const left = { ...newWall(randomUUID(), 1000, 2000), assemblyNumber: 1, panelId };
+  const right = { ...newWall(randomUUID(), 5000, 2000), assemblyNumber: 2 };
+  const connection = { id: randomUUID(), a: left.id, b: right.id };
+  const scene: Scene = {
+    id: randomUUID(), name: 'Montageszene', productionName: 'Beispielproduktion', venueName: 'Beispielsaal',
+    revision: 1, venueVersionId: randomUUID(), venue: { schemaVersion: 1, width: 8000, depth: 6000 },
+    lease: null, layout: {
+      schemaVersion: 1, walls: [left, right], braces: [], connections: [connection],
+      riggingNotes: 'Stifte an Position 1 belassen.',
+    },
+  };
+  const snapshot = freezeSnapshot(scene, {
+    id: randomUUID(), name: 'Montagefassung', issuedAt: new Date('2026-09-07T12:00:00.000Z'),
+  }, { [panelId]: 'W12' });
+  assert.equal(snapshot.resolvedWalls[0]?.assemblyNumber, 1);
+  assert.equal(snapshot.resolvedWalls[0]?.panelLabel, 'W12');
+  assert.equal(snapshot.layout.walls[0]?.assemblyNumber, 1);
+  assert.deepEqual(snapshot.layout.connections, [connection]);
+  assert.equal(snapshot.layout.riggingNotes, 'Stifte an Position 1 belassen.');
+  scene.layout.walls[0]!.assemblyNumber = 9;
+  scene.layout.walls[0]!.x = 9000;
+  scene.layout.riggingNotes = 'Geändert';
+  scene.layout.connections = [];
+  assert.equal(snapshot.resolvedWalls[0]?.assemblyNumber, 1);
+  assert.equal(snapshot.resolvedWalls[0]?.panelLabel, 'W12');
+  assert.equal(snapshot.layout.walls[0]?.x, 1000);
+  assert.equal(snapshot.layout.riggingNotes, 'Stifte an Position 1 belassen.');
+  assert.deepEqual(snapshot.layout.connections, [connection]);
+});
+
+test('construction plan PDF shows assigned position, inventory label, notes and manual verification', async () => {
+  const panelId = randomUUID();
+  const wall = { ...newWall(randomUUID(), 2000, 3000), assemblyNumber: 3, panelId };
+  const snapshot = freezeSnapshot({
+    id: randomUUID(), name: 'Erste Szene', productionName: 'Beispielproduktion', venueName: 'Beispielsaal',
+    revision: 1, venueVersionId: randomUUID(), venue: { schemaVersion: 1, width: 8000, depth: 6000 },
+    lease: null, layout: {
+      schemaVersion: 1, walls: [wall], braces: [], connections: [],
+      riggingNotes: 'Stifte an Position 3 belassen.',
+    },
+  }, { id: randomUUID(), name: 'Fassung Probe', issuedAt: new Date('2026-09-07T12:00:00.000Z') }, { [panelId]: 'W12' });
+  const text = shownText(await renderConstructionPlan(snapshot));
+  assert(text.includes('Position 3 · Platte W12'), text);
+  assert(text.includes('Vorderseite'), text);
+  assert(text.includes('Rückseite'), text);
+  assert(text.includes('Stifte an Position 3 belassen.'), text);
+  assert(text.includes(CONNECTION_COMPATIBILITY_NOTICE), text);
 });

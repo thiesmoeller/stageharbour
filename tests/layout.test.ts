@@ -124,3 +124,24 @@ test('movable platforms and stairs parse into the layout and undo as one command
   assert(layoutSchema.safeParse({ schemaVersion: 1, walls: [wall], braces: [], platforms: [platform] }).success);
   assert(!layoutSchema.safeParse({ schemaVersion: 1, walls: [], braces: [], platforms: [platform, platform] }).success);
 });
+test('layout documents store assembly numbers, connections and rigging notes without moving walls', () => {
+  const left = { ...newWall(randomUUID(), 1000, 2000), assemblyNumber: 1 };
+  const right = { ...newWall(randomUUID(), 5000, 2000), assemblyNumber: 2 };
+  const connection = { id: randomUUID(), a: left.id, b: right.id };
+  const parsed = layoutSchema.parse({
+    schemaVersion: 1, walls: [left, right], connections: [connection], riggingNotes: 'Scharniere an der Bühnenkante.',
+  });
+  assert.equal(parsed.walls[0]?.assemblyNumber, 1);
+  assert.equal(parsed.walls[1]?.assemblyNumber, 2);
+  assert.deepEqual(parsed.connections, [connection]);
+  assert.equal(parsed.riggingNotes, 'Scharniere an der Bühnenkante.');
+  assert.equal(parsed.walls[0]?.x, 1000);
+  assert.equal(parsed.walls[1]?.x, 5000);
+  assert.deepEqual((layoutSchema.parse({ schemaVersion: 1, walls: [] }).connections ?? []), []);
+  assert(!layoutSchema.safeParse({
+    schemaVersion: 1, walls: [left], connections: [{ id: randomUUID(), a: left.id, b: randomUUID() }],
+  }).success);
+  assert(!layoutSchema.safeParse({
+    schemaVersion: 1, walls: [left, right], connections: [{ id: randomUUID(), a: left.id, b: left.id }],
+  }).success);
+});

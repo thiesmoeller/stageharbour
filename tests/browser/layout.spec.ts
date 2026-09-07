@@ -185,6 +185,35 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByLabel('Auswahl').selectOption({ label: '1. Wand' });
   await expect(page.getByText('Zugewiesen: Beispiel-P01')).toBeVisible();
   await expect(page.getByTestId('inventory-warnings')).toContainText('keine Platte zugewiesen');
+  await page.getByLabel('Auswahl').selectOption({ label: '1. Wand' });
+  await page.getByLabel('X (mm)').fill('1500');
+  await page.getByRole('button', { name: 'Übernehmen' }).click();
+  await waitUntilSaved(page);
+  await page.getByLabel('Auswahl').selectOption({ label: '2. Wand' });
+  await page.getByLabel('X (mm)').fill('5500');
+  await page.getByRole('button', { name: 'Übernehmen' }).click();
+  await waitUntilSaved(page);
+  await expect(page.getByText('V Vorderseite · R Rückseite')).toBeVisible();
+  await expect(page.getByText('Verbindungskompatibilität prüft die Crew manuell')).toBeVisible();
+  await page.getByRole('button', { name: 'Montagenummern vergeben' }).click();
+  await waitUntilSaved(page);
+  await expect(page.locator('[data-testid^="assembly-label-"]')).toHaveText([
+    'Position 1 · Platte Beispiel-P01', 'Position 2',
+  ]);
+  await page.getByLabel('Auswahl').selectOption({ label: '1. Wand' });
+  const assembledX = await page.getByLabel('X (mm)').inputValue();
+  await page.getByLabel('Verbinden mit').selectOption({ label: 'Position 2' });
+  await page.getByRole('button', { name: 'Verbindung eintragen' }).click();
+  await expect(page.getByTestId('assembly-connections')).toContainText('Position 1 – Position 2');
+  await expect(page.getByLabel('X (mm)')).toHaveValue(assembledX);
+  await page.getByLabel('Rigginghinweise').fill('Stifte belassen.');
+  await page.getByRole('button', { name: 'Hinweise speichern' }).click();
+  await waitUntilSaved(page);
+  await page.reload();
+  await page.getByRole('button', { name: /Beispielproduktion · Erste Szene/ }).click();
+  await expect(page.getByText('Position 1 · Platte Beispiel-P01')).toBeVisible();
+  await expect(page.getByTestId('assembly-connections')).toContainText('Position 1 – Position 2');
+  await expect(page.getByLabel('Rigginghinweise')).toHaveValue('Stifte belassen.');
   expect(errors).toEqual([]);
 });
 

@@ -8,9 +8,9 @@ import type { Layout, Wall } from '../../shared/layout.js';
 import { newWallType, typesOf } from '../../shared/wall-types.js';
 import { ApiError, request } from '../api.js';
 
-export function InventoryPanel({ workspaceId, layout, selectedWall, readOnly, onAssign, onUnassign }: {
+export function InventoryPanel({ workspaceId, layout, selectedWall, readOnly, onAssign, onUnassign, onPanels }: {
   workspaceId: string; layout: Layout; selectedWall?: Wall; readOnly: boolean;
-  onAssign: (panelId: string) => void; onUnassign: () => void;
+  onAssign: (panelId: string) => void; onUnassign: () => void; onPanels?: (panels: InventoryPanel[]) => void;
 }) {
   const [panels, setPanels] = useState<InventoryPanel[]>([]);
   const [holding, setHolding] = useState(false);
@@ -20,6 +20,7 @@ export function InventoryPanel({ workspaceId, layout, selectedWall, readOnly, on
   async function load() {
     const data = inventorySchema.parse(await request(base));
     setPanels(data.panels);
+    onPanels?.(data.panels);
     return data;
   }
   useEffect(() => {

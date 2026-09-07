@@ -126,6 +126,52 @@ test('freeze then a later brace move does not change stored snapshot or PDF geom
   assert.notEqual(firstWallX(Buffer.from((await app.inject({ url: `${base}/${sceneId}/exports/${later.json().id}/file`, headers })).rawPayload)), originalX);
 });
 
+test('freeze then later assembly edits do not change stored snapshot labels or notes', async () => {
+  const created = await app.inject({ method: 'POST', url: base, headers, payload: { ...input, sceneName: 'Montagefassung' } });
+  assert.equal(created.statusCode, 201, created.body);
+  const sceneId = created.json().id as string;
+  const left = { ...newWall(randomUUID(), 1000, 2000), assemblyNumber: 1 };
+  const right = { ...newWall(randomUUID(), 5000, 2000), assemblyNumber: 2 };
+  const connection = { id: randomUUID(), a: left.id, b: right.id };
+  assert.equal((await app.inject({ method: 'POST', url: `${base}/${sceneId}/lease`, headers })).statusCode, 200);
+  assert.equal((await app.inject({
+    method: 'PUT', url: `${base}/${sceneId}/layout`, headers,
+    payload: {
+      revision: 0, layout: {
+        schemaVersion: 1, walls: [left, right], connections: [connection], riggingNotes: 'Stifte an Position 1 belassen.',
+      },
+    },
+  })).statusCode, 200);
+  const frozen = await app.inject({ method: 'POST', url: `${base}/${sceneId}/exports`, headers, payload: { name: 'Montageplan' } });
+  assert.equal(frozen.statusCode, 201, frozen.body);
+  function pdfText(bytes: Buffer) {
+    return [...bytes.toString('latin1').matchAll(/<([0-9a-fA-F]+)>/g)]
+      .map(match => Buffer.from(match[1] ?? '', 'hex').toString('latin1')).join('');
+  }
+  const original = Buffer.from((await app.inject({ url: `${base}/${sceneId}/exports/${frozen.json().id}/file`, headers })).rawPayload);
+  const originalText = pdfText(original);
+  assert(originalText.includes('Position 1'), originalText);
+  assert(originalText.includes('Stifte an Position 1 belassen.'), originalText);
+  assert(originalText.includes('Verbindungskompatibilität prüft die Crew manuell'), originalText);
+  assert.equal((await app.inject({
+    method: 'PUT', url: `${base}/${sceneId}/layout`, headers,
+    payload: {
+      revision: 1, layout: {
+        schemaVersion: 1, walls: [{ ...left, assemblyNumber: 9, x: 9000 }, right],
+        connections: [], riggingNotes: 'Geändert nach dem Export.',
+      },
+    },
+  })).statusCode, 200);
+  const again = Buffer.from((await app.inject({ url: `${base}/${sceneId}/exports/${frozen.json().id}/file`, headers })).rawPayload);
+  assert.deepEqual(again, original);
+  const later = await app.inject({ method: 'POST', url: `${base}/${sceneId}/exports`, headers, payload: { name: 'Geänderte Montage' } });
+  assert.equal(later.statusCode, 201, later.body);
+  const laterText = pdfText(Buffer.from((await app.inject({ url: `${base}/${sceneId}/exports/${later.json().id}/file`, headers })).rawPayload));
+  assert(laterText.includes('Position 9'), laterText);
+  assert(laterText.includes('Geändert nach dem Export.'), laterText);
+  assert(!laterText.includes('Stifte an Position 1 belassen.'), laterText);
+});
+
 test('workspace substitution is denied and viewers cannot freeze or retry', async () => {
   const foreignId = randomUUID();
   await fixture.db.insert(workspace).values({ id: foreignId, name: 'Other workspace' });
