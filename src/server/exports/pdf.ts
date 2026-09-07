@@ -3,6 +3,7 @@ import { germanDate, type ConstructionSnapshot } from '../../shared/export.js';
 import { strokeBraceFootprints } from './bracePdf.js';
 import { strokeLevelFeatures } from './levelPdf.js';
 import { strokeAssemblyLabels } from './assemblyPdf.js';
+import { strokeOverheadFeatures } from './overheadPdf.js';
 import { measuredOutline } from '../../shared/venue.js';
 
 const mm = (value: number) => value * 72 / 25.4;
@@ -35,6 +36,7 @@ export function renderConstructionPlan(snapshot: ConstructionSnapshot) {
     }
     strokeBraceFootprints(doc, snapshot, toPage);
     strokeAssemblyLabels(doc, snapshot, toPage);
+    strokeOverheadFeatures(doc, snapshot, toPage);
     const outline = measuredOutline(snapshot.venue);
     const start = toPage(outline[0]!.x, outline[0]!.y);
     doc.moveTo(start.x, start.y);

@@ -6,6 +6,7 @@ import type { Layout, VenueGeometry } from '../../shared/layout.js';
 import { stageModel, type WallSolid } from '../../shared/transforms.js';
 import { StageBraceList, StageBraces } from './StageBraces.js';
 import { StageLevelList, StageLevels } from './StageLevels.js';
+import { StageOverhead, StageOverheadList } from './StageOverhead.js';
 
 const plywood = '#315d49';
 const timber = '#d9c6a1';
@@ -71,6 +72,7 @@ export function StageView({ layout, venue }: { layout: Layout; venue: VenueGeome
           <meshBasicMaterial color="#dce4d4" />
         </mesh>
         <StageLevels model={model} />
+        <StageOverhead boxes={venue.overheadBoxes ?? []} />
         {model.walls.map(wall => <WallMesh key={wall.id} wall={wall} />)}
         <StageBraces braces={model.braces} />
         <OrbitControls makeDefault enableDamping={false} target={[target.x, target.y, target.z]} />
@@ -84,5 +86,6 @@ export function StageView({ layout, venue }: { layout: Layout; venue: VenueGeome
       {wall.label}: Vorderseite {facing(wall.frontNormal)}</li>)}</ul>
     <StageBraceList braces={model.braces} />
     <StageLevelList model={model} />
+    <StageOverheadList boxes={venue.overheadBoxes ?? []} />
   </div>;
 }

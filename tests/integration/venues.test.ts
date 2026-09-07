@@ -11,6 +11,7 @@ import { millimetresPerUnit } from '../../src/shared/venue.js';
 import { newCableRoutingCorridor, newConnectionPoint } from '../../src/shared/infrastructure.js';
 import { type Scene } from '../../src/shared/layout.js';
 import { AUDIENCE_FLOOR_ID, newPlatform, newStair } from '../../src/shared/levels.js';
+import { newOverheadBox } from '../../src/shared/overhead.js';
 import { testAdministrator, testDatabase } from '../helpers/database.js';
 import { pngBytes, twoPagePdf } from '../helpers/references.js';
 
@@ -177,6 +178,25 @@ test('saves permanent platforms and stairs on the pinned venue version', async (
   assert.equal(again.venue.platforms?.[0]?.elevation, 400);
   assert.equal(again.venue.stairs?.[0]?.width, 1200);
   assert.deepEqual(again.venue.outline, outline);
+  assert.equal(again.venueVersionId, loaded.venueVersionId);
+});
+
+test('saves a ceiling limit and rectangular overhead boxes on the pinned venue version', async () => {
+  const loaded = (await app.inject({ url: `${scenes}/${scene.id}`, headers })).json<Scene>();
+  const boxes = [
+    { ...newOverheadBox(randomUUID(), 2500, 1800), label: 'Lüftung' },
+    newOverheadBox(randomUUID(), 5000, 4000),
+  ];
+  const saved = await app.inject({
+    method: 'PUT', url: `${scenes}/${scene.id}/venue`, headers,
+    payload: { venue: { ...loaded.venue, ceilingHeight: 4000, overheadBoxes: boxes } },
+  });
+  assert.equal(saved.statusCode, 200, saved.body);
+  const again = (await app.inject({ url: `${scenes}/${scene.id}`, headers })).json<Scene>();
+  assert.equal(again.venue.ceilingHeight, 4000);
+  assert.equal(again.venue.overheadBoxes?.length, 2);
+  assert.equal(again.venue.overheadBoxes?.[0]?.bottomHeight, 2600);
+  assert.equal(again.venue.overheadBoxes?.[0]?.thickness, 400);
   assert.equal(again.venueVersionId, loaded.venueVersionId);
 });
 

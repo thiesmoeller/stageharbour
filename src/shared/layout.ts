@@ -3,6 +3,7 @@ import { leaseHolderSchema } from './leases.js';
 import { AUDIENCE_FLOOR_ID, platformSchema, stairSchema, uniqueLevelIds } from './levels.js';
 import { type Opening, wallTypeSchema } from './wall-types.js';
 import { cableRoutingCorridorsSchema, connectionPointsSchema } from './infrastructure.js';
+import { ceilingHeightSchema, overheadBoxesSchema } from './overhead.js';
 import { venueOutlineSchema, venueTraceSchema } from './venue.js';
 import { panelConnectionSchema } from './assembly.js';
 
@@ -66,6 +67,8 @@ export const venueGeometrySchema = z.strictObject({
   cableRoutingCorridors: cableRoutingCorridorsSchema.optional(),
   platforms: z.array(platformSchema).max(250).optional(),
   stairs: z.array(stairSchema).max(250).optional(),
+  ceilingHeight: ceilingHeightSchema.optional(),
+  overheadBoxes: overheadBoxesSchema.optional(),
 }).refine(venue => uniqueLevelIds(venue.platforms ?? [], venue.stairs ?? []), 'Platform and stair IDs must be unique');
 export type VenueGeometry = z.infer<typeof venueGeometrySchema>;
 export const saveVenueSchema = z.strictObject({ venue: venueGeometrySchema });

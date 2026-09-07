@@ -6,8 +6,10 @@ import {
 } from '../../shared/infrastructure.js';
 import { venueReferenceSchema, type VenueReference } from '../../shared/contracts.js';
 import { VenueLevels } from './VenueLevels.js';
+import { OverheadMarks, VenueOverhead } from './VenueOverhead.js';
 import { calibrationSchema, measuredOutline, millimetresPerUnit, type Calibration, type PlanPoint } from '../../shared/venue.js';
 import { type Platform, type StairUnit } from '../../shared/levels.js';
+import { type OverheadBox } from '../../shared/overhead.js';
 import { ApiError, request, upload } from '../api.js';
 
 function optionalNotes(value?: string) {
@@ -22,6 +24,8 @@ export function VenuePanel({ workspaceId, sceneId, venue, readOnly, onSaved }: {
   const [vertices, setVertices] = useState(() => measuredOutline(venue));
   const [platforms, setPlatforms] = useState<Platform[]>(() => venue.platforms ?? []);
   const [stairs, setStairs] = useState<StairUnit[]>(() => venue.stairs ?? []);
+  const [ceilingHeight, setCeilingHeight] = useState<number | ''>(() => venue.ceilingHeight ?? '');
+  const [overheadBoxes, setOverheadBoxes] = useState<OverheadBox[]>(() => venue.overheadBoxes ?? []);
   const [fileId, setFileId] = useState(venue.trace?.fileId);
   const [page, setPage] = useState(venue.trace?.page ?? 1);
   const [calibration, setCalibration] = useState<Calibration>(venue.trace?.calibration ?? {
@@ -97,8 +101,10 @@ export function VenuePanel({ workspaceId, sceneId, venue, readOnly, onSaved }: {
       connectionPoints: pins.map(pin => ({ ...pin, notes: optionalNotes(pin.notes) })),
       cableRoutingCorridors: corridors.map(corridor => ({ ...corridor, notes: optionalNotes(corridor.notes) })),
       platforms, stairs,
+      ...(ceilingHeight === '' ? {} : { ceilingHeight }),
+      overheadBoxes,
     });
-    if (!result.success) { setError('Bitte prüfen Sie den Umriss, die Kalibrierung und die Anschlüsse.'); return; }
+    if (!result.success) { setError('Bitte prüfen Sie den Umriss, die Kalibrierung, die Anschlüsse und die Überbauungen.'); return; }
     setBusy(true); setError('');
     try {
       const body = await request(`/api/workspaces/${workspaceId}/scenes/${sceneId}/venue`, { venue: result.data }, 'PUT');
@@ -120,6 +126,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, readOnly, onSaved }: {
           fill="none" stroke="#718469" strokeWidth="2" vectorEffect="non-scaling-stroke" />
         {vertices.map((point, index) => <circle key={index} cx={point.x} cy={-point.y} r="40" fill="#b67c35" />)}
         <InfrastructureMarks pins={pins} corridors={corridors} />
+        <OverheadMarks boxes={overheadBoxes} />
       </svg>
     </div>
     <form onSubmit={event => void save(event)}><fieldset disabled={readOnly || busy}>
@@ -157,6 +164,8 @@ export function VenuePanel({ workspaceId, sceneId, venue, readOnly, onSaved }: {
       <InfrastructureFields venue={venue} pins={pins} corridors={corridors} click={click} pinKind={pinKind}
         onClick={setClick} onPinKind={setPinKind} onPins={setPins} onCorridors={setCorridors} />
       <VenueLevels venue={venue} platforms={platforms} stairs={stairs} readOnly={readOnly} onPlatforms={setPlatforms} onStairs={setStairs} />
+      <VenueOverhead venue={venue} ceilingHeight={ceilingHeight} boxes={overheadBoxes} readOnly={readOnly}
+        onCeilingHeight={setCeilingHeight} onBoxes={setOverheadBoxes} />
       {error && <p className="error" role="alert">{error}</p>}
       <div className="form-actions"><button type="submit">Spielstätte speichern</button></div>
     </fieldset></form>

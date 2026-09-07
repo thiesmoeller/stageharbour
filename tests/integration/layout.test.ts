@@ -7,6 +7,7 @@ import { bootstrapAdministrator } from '../../src/server/identity/bootstrap.js';
 import { membership, scene, venueVersion, workspace } from '../../src/server/db/schema.js';
 import { newBrace, newWall, type Scene } from '../../src/shared/layout.js';
 import { AUDIENCE_FLOOR_ID, newPlatform, newStair } from '../../src/shared/levels.js';
+import { newOverheadBox } from '../../src/shared/overhead.js';
 import { newWallType } from '../../src/shared/wall-types.js';
 import { testAdministrator, testDatabase } from '../helpers/database.js';
 
@@ -172,6 +173,51 @@ test('saves and reloads assembly numbers, connections and rigging notes', async 
   assert.equal(reloaded.layout.riggingNotes, 'Stifte belassen.');
   assert.equal(reloaded.layout.walls[0]?.x, 1000);
   assert.equal(reloaded.layout.walls[1]?.x, 5000);
+});
+test('saves a ceiling and overhead boxes, PUT of a conflicting wall succeeds with warnings, freeze keeps them', async () => {
+  const loaded = (await app.inject({ url: `${base}/${created.id}`, headers })).json<Scene>();
+  const platform = newPlatform(randomUUID(), 4000, 4750);
+  const box = { ...newOverheadBox(randomUUID(), 4000, 4750), label: 'Lüftung' };
+  const savedVenue = await app.inject({
+    method: 'PUT', url: `${base}/${created.id}/venue`, headers,
+    payload: { venue: { ...loaded.venue, ceilingHeight: 2500, platforms: [platform], overheadBoxes: [box] } },
+  });
+  assert.equal(savedVenue.statusCode, 200, savedVenue.body);
+  const pinned = (await app.inject({ url: `${base}/${created.id}`, headers })).json<Scene>();
+  assert.equal(pinned.venue.ceilingHeight, 2500);
+  assert.equal(pinned.venue.overheadBoxes?.[0]?.bottomHeight, 2600);
+  assert.equal(pinned.venueVersionId, loaded.venueVersionId);
+  const wall = { ...newWall(randomUUID(), 4000, 4750), supportingSurfaceId: platform.id };
+  const saved = await app.inject({
+    method: 'PUT', url: `${base}/${created.id}/layout`, headers,
+    payload: { revision: pinned.revision, layout: { schemaVersion: 1, walls: [wall], braces: [] } },
+  });
+  assert.equal(saved.statusCode, 200, saved.body);
+  const warnings = saved.json().warnings as { kind: string; message: string }[];
+  assert.equal(warnings.some(item => item.kind === 'overhead'), true);
+  assert.equal(warnings.some(item => item.kind === 'ceiling'), true);
+  assert.match(warnings.find(item => item.kind === 'overhead')?.message ?? '', /Lüftung/);
+  const frozen = await app.inject({ method: 'POST', url: `${base}/${created.id}/exports`, headers, payload: { name: 'Mit Überbauung' } });
+  assert.equal(frozen.statusCode, 201, frozen.body);
+  const original = Buffer.from((await app.inject({ url: `${base}/${created.id}/exports/${frozen.json().id}/file`, headers })).rawPayload);
+  const shown = [...original.toString('latin1').matchAll(/<([0-9a-fA-F]+)>/g)]
+    .map(match => Buffer.from(match[1] ?? '', 'hex').toString('latin1')).join('');
+  assert(shown.includes('Lüftung'), shown);
+  assert(shown.includes('kein statischer Nachweis'), shown);
+  assert.equal((await app.inject({
+    method: 'PUT', url: `${base}/${created.id}/venue`, headers,
+    payload: { venue: { schemaVersion: 1, width: 8000, depth: 6000, ceilingHeight: 8000, overheadBoxes: [] } },
+  })).statusCode, 200);
+  const afterLayout = (await app.inject({ url: `${base}/${created.id}`, headers })).json<Scene>();
+  assert.equal((await app.inject({
+    method: 'PUT', url: `${base}/${created.id}/layout`, headers,
+    payload: { revision: afterLayout.revision, layout: { schemaVersion: 1, walls: [{ ...wall, supportingSurfaceId: AUDIENCE_FLOOR_ID }], braces: [] } },
+  })).statusCode, 200);
+  const again = Buffer.from((await app.inject({ url: `${base}/${created.id}/exports/${frozen.json().id}/file`, headers })).rawPayload);
+  assert.deepEqual(again, original);
+  const live = (await app.inject({ url: `${base}/${created.id}`, headers })).json<Scene>();
+  assert.equal(live.venue.ceilingHeight, 8000);
+  assert.deepEqual(live.venue.overheadBoxes, []);
 });
 test('workspace substitution and viewer writes are denied', async () => {
   const foreignId = randomUUID();
