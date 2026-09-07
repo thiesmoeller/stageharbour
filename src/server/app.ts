@@ -17,6 +17,7 @@ import { registerIdentityRoutes } from './identity/routes.js';
 import { createFakeMailTransport, createMailTransport, type MailTransport } from './mail/transport.js';
 import { LeaseError, createLeases } from './productions/leases.js';
 import { registerProductionRoutes } from './productions/routes.js';
+import { InventoryError, registerInventoryRoutes } from './inventory/routes.js';
 import { registerExportRoutes } from './exports/routes.js';
 import { renderOffThread } from './exports/render.js';
 import { localFilesystem, type FileStorage } from './exports/storage.js';
@@ -38,8 +39,10 @@ export async function createApp(db: Database, config: Config, options: {
   await auth.$context;
   const access = createAccess(db, auth);
   const mail = options.mail ?? (config.NODE_ENV === 'test' ? createFakeMailTransport() : createMailTransport(config));
+  const leases = createLeases(db, options.clock);
   registerIdentityRoutes(app, access, createMembership(db, mail, config.APP_ORIGIN), config.APP_ORIGIN);
-  registerProductionRoutes(app, db, access, config.APP_ORIGIN, createLeases(db, options.clock));
+  registerProductionRoutes(app, db, access, config.APP_ORIGIN, leases);
+  registerInventoryRoutes(app, db, access, config.APP_ORIGIN, leases);
   registerExportRoutes(app, db, access, config.APP_ORIGIN, options.storage ?? localFilesystem(config.STORAGE_DIR), options.renderPdf ?? renderOffThread);
   app.addHook('onSend', async (request, reply) => {
     reply.header('X-Content-Type-Options', 'nosniff');
@@ -47,7 +50,7 @@ export async function createApp(db: Database, config: Config, options: {
     if (request.url.startsWith('/api/')) reply.header('Cache-Control', 'no-store');
   });
   app.setErrorHandler<FastifyError>((error, request, reply) => {
-    if (error instanceof AccessError || error instanceof LeaseError) return reply.code(error.statusCode).send({ message: error.message });
+    if (error instanceof AccessError || error instanceof LeaseError || error instanceof InventoryError) return reply.code(error.statusCode).send({ message: error.message });
     if (error.validation) return reply.code(400).send({ message: 'Ungültige Anfrage.' });
     if (error.statusCode && error.statusCode >= 400 && error.statusCode < 500) {
       return reply.code(error.statusCode).send({ message: 'Anfrage konnte nicht verarbeitet werden.' });

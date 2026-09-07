@@ -9,6 +9,7 @@ import { Autosave, SaveConflict } from './autosave.js';
 import { StageView } from './StageView.js';
 import { ExportPanel } from './ExportPanel.js';
 import { WallTypePanel } from './WallTypePanel.js';
+import { InventoryPanel } from './InventoryPanel.js';
 
 const statusText = { saved: 'Gespeichert', pending: 'Änderungen ausstehend …', saving: 'Speichert …', failed: 'Speichern fehlgeschlagen', conflict: 'Neuere Fassung vorhanden' };
 export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
@@ -196,6 +197,9 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     </div><aside className="wall-inspector">
       <WallTypePanel types={wallTypes} selectedId={selectedType} readOnly={readOnly}
         onSelect={setSelectedType} onCreate={applyType} onApply={applyType} onPlace={placeType} onRemove={removeType} />
+      <InventoryPanel workspaceId={workspaceId} layout={state.present} selectedWall={selectedWall} readOnly={readOnly}
+        onAssign={panelId => selectedWall && replace({ ...selectedWall, panelId })}
+        onUnassign={() => selectedWall && replace((({ panelId: _removed, ...rest }) => rest)(selectedWall))} />
       <h3>Wandelement</h3>
       <label htmlFor="wall-selection">Auswahl</label><select id="wall-selection" value={selectedWall?.id ?? ''} onChange={event => setSelected(event.target.value || undefined)}><option value="">Wand auswählen</option>{state.present.walls.map((wall, index) => <option key={wall.id} value={wall.id}>{index + 1}. {wall.label}</option>)}</select>
       {selectedWall ? <WallForm key={JSON.stringify(selectedWall)} wall={selectedWall} typed={!!selectedWall.typeId} readOnly={readOnly} onApply={replace} onRemove={remove} /> : <p className="muted">Wählen Sie eine Wand im Grundriss oder fügen Sie eine neue hinzu.</p>}

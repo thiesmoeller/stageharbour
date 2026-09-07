@@ -2,6 +2,7 @@ import { pgTable, text, timestamp, boolean, uuid, pgEnum, primaryKey, index, uni
 import type { ConstructionSnapshot } from '../../shared/export.js';
 import type { Layout } from '../../shared/layout.js';
 import type { LeaseKind } from '../../shared/leases.js';
+import type { WallElementType } from '../../shared/wall-types.js';
 
 const dates = () => ({
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -129,3 +130,17 @@ export const constructionPlanRevision = pgTable('construction_plan_revision', {
 }, t => [index('construction_plan_scene_idx').on(t.workspaceId, t.sceneId),
   uniqueIndex('construction_plan_workspace_id').on(t.workspaceId, t.id),
   foreignKey({ columns: [t.workspaceId, t.sceneId], foreignColumns: [scene.workspaceId, scene.id] })]);
+export const inventoryWallType = pgTable('inventory_wall_type', {
+  id: uuid('id').primaryKey(), workspaceId: uuid('workspace_id').notNull().references(() => workspace.id),
+  definition: jsonb('definition').notNull().$type<WallElementType>(),
+}, t => [uniqueIndex('inventory_wall_type_workspace_id').on(t.workspaceId, t.id)]);
+export const inventoryPanel = pgTable('inventory_panel', {
+  id: uuid('id').primaryKey(), workspaceId: uuid('workspace_id').notNull(),
+  typeId: uuid('type_id').notNull(), label: text('label').notNull(),
+  available: boolean('available').notNull().default(true), note: text('note'),
+}, t => [
+  uniqueIndex('inventory_panel_workspace_id').on(t.workspaceId, t.id),
+  uniqueIndex('inventory_panel_workspace_label').on(t.workspaceId, t.label),
+  index('inventory_panel_type_idx').on(t.workspaceId, t.typeId),
+  foreignKey({ columns: [t.workspaceId, t.typeId], foreignColumns: [inventoryWallType.workspaceId, inventoryWallType.id] }),
+]);
