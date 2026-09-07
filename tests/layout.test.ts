@@ -2,7 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { execute, history, redo, undo } from '../src/shared/history.js';
-import { layoutSchema, newWall, wallCorners, type Layout } from '../src/shared/layout.js';
+import { layoutSchema, newWall, openingCorners, wallCorners, type Layout } from '../src/shared/layout.js';
+import { newWallType, resolveWall, wallTypeSchema } from '../src/shared/wall-types.js';
 
 test('wall defaults, centre coordinates and rotation use millimetres consistently', () => {
   const wall = newWall(randomUUID(), 2000, 3000);
@@ -33,4 +34,47 @@ test('rejects unsupported schema versions, duplicate IDs and invalid geometry', 
   assert(!layoutSchema.safeParse({ schemaVersion: 1, walls: [wall, wall] }).success);
   assert(!layoutSchema.safeParse({ schemaVersion: 1, walls: [{ ...wall, width: -1 }] }).success);
   assert(!layoutSchema.safeParse({ schemaVersion: 1, walls: [{ ...wall, x: Infinity }] }).success);
+});
+
+const door = { left: 200, sill: 0, width: 800, height: 2000 };
+const windowA = { left: 80, sill: 1100, width: 420, height: 900 };
+const windowB = { left: 700, sill: 1100, width: 420, height: 900 };
+
+test('rejects openings that leave the panel and invalid type dimensions', () => {
+  const id = randomUUID();
+  assert(!wallTypeSchema.safeParse({ ...newWallType(id), width: 0 }).success);
+  assert(!wallTypeSchema.safeParse({ ...newWallType(id), openings: [{ id: randomUUID(), ...door, left: 500 }] }).success);
+  assert(!wallTypeSchema.safeParse({ ...newWallType(id), openings: [{ id: randomUUID(), ...door, sill: 500 }] }).success);
+  assert(!wallTypeSchema.safeParse({ ...newWallType(id), openings: [{ id: randomUUID(), left: -1, sill: 0, width: 800, height: 2000 }] }).success);
+  assert(!layoutSchema.safeParse({
+    schemaVersion: 1, wallTypes: [newWallType(id)], walls: [{ ...newWall(randomUUID(), 0, 0), typeId: randomUUID() }],
+  }).success);
+});
+
+test('accepts multiple rectangular openings that stay inside the panel', () => {
+  const type = { ...newWallType(randomUUID()), name: 'Fensterwand', openings: [
+    { id: randomUUID(), ...windowA }, { id: randomUUID(), ...windowB },
+  ] };
+  assert(wallTypeSchema.safeParse(type).success);
+  const wall = { ...newWall(randomUUID(), 2000, 3000), typeId: type.id, label: type.name };
+  const parsed = layoutSchema.parse({ schemaVersion: 1, wallTypes: [type], walls: [wall] });
+  assert.equal(parsed.wallTypes?.length, 1);
+  assert.deepEqual(resolveWall(wall, parsed.wallTypes ?? []).openings.map(opening => ({
+    left: opening.left, sill: opening.sill, width: opening.width, height: opening.height,
+  })), [windowA, windowB]);
+});
+
+test('resolved geometry exposes known opening millimetres for 3D and PDF', () => {
+  const type = { ...newWallType(randomUUID()), openings: [{ id: randomUUID(), ...door }] };
+  const wall = { ...newWall(randomUUID(), 2000, 3000), typeId: type.id, width: 999, height: 999, thickness: 9 };
+  const resolved = resolveWall(wall, [type]);
+  assert.equal(resolved.width, 1200);
+  assert.equal(resolved.height, 2400);
+  assert.equal(resolved.thickness, 28);
+  assert.equal(resolved.openings[0]?.width, 800);
+  assert.equal(resolved.openings[0]?.height, 2000);
+  assert.equal(resolved.openings[0]?.left, 200);
+  assert.equal(resolved.openings[0]?.sill, 0);
+  assert.deepEqual(openingCorners(resolved, resolved.openings[0]!)[0], { x: 1600, y: 2986 });
+  assert.deepEqual(openingCorners(resolved, resolved.openings[0]!)[1], { x: 2400, y: 2986 });
 });

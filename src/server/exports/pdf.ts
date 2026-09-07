@@ -22,6 +22,11 @@ export function renderConstructionPlan(snapshot: ConstructionSnapshot) {
       const [a, b, c, d] = wall.corners.map(point => toPage(point.x, point.y));
       if (!a || !b || !c || !d) continue;
       doc.moveTo(a.x, a.y).lineTo(b.x, b.y).lineTo(c.x, c.y).lineTo(d.x, d.y).closePath().fillAndStroke('#315d49', '#315d49');
+      for (const opening of wall.openings ?? []) {
+        const [oa, ob, oc, od] = opening.corners.map(point => toPage(point.x, point.y));
+        if (!oa || !ob || !oc || !od) continue;
+        doc.moveTo(oa.x, oa.y).lineTo(ob.x, ob.y).lineTo(oc.x, oc.y).lineTo(od.x, od.y).closePath().fillAndStroke('#ffffff', '#315d49');
+      }
       const widthMm = Math.hypot(wall.corners[1]!.x - wall.corners[0]!.x, wall.corners[1]!.y - wall.corners[0]!.y);
       doc.fontSize(8).fillColor('#395640').text(`${Math.round(widthMm)} mm`, (a.x + b.x) / 2 - mm(8), (a.y + b.y) / 2 - mm(4), { lineBreak: false });
     }

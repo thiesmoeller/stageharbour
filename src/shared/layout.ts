@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { leaseHolderSchema } from './leases.js';
+import { type Opening, wallTypeSchema } from './wall-types.js';
 
 const name = z.string().trim().min(1).max(120);
 const dimension = z.number().finite().min(1).max(100000);
@@ -9,12 +10,19 @@ export const wallSchema = z.strictObject({
   x: coordinate, y: coordinate,
   rotation: z.number().finite().min(-360).max(360),
   width: dimension, height: dimension, thickness: dimension,
+  typeId: z.uuid().optional(),
 });
 export type Wall = z.infer<typeof wallSchema>;
 export const layoutSchema = z.strictObject({
   schemaVersion: z.literal(1),
+  wallTypes: z.array(wallTypeSchema).max(250).refine(
+    types => new Set(types.map(type => type.id)).size === types.length, 'Wall type IDs must be unique',
+  ).optional(),
   walls: z.array(wallSchema).max(250).refine(walls => new Set(walls.map(wall => wall.id)).size === walls.length, 'Wall IDs must be unique'),
-});
+}).refine(layout => {
+  const ids = new Set((layout.wallTypes ?? []).map(type => type.id));
+  return layout.walls.every(wall => !wall.typeId || ids.has(wall.typeId));
+}, 'Walls must reference a defined wall type');
 export type Layout = z.infer<typeof layoutSchema>;
 export const venueGeometrySchema = z.strictObject({ schemaVersion: z.literal(1), width: dimension, depth: dimension });
 export const createSceneSchema = z.strictObject({
@@ -36,13 +44,19 @@ export function newWall(id: string, x: number, y: number): Wall {
   return { id, label: 'Wand', x, y, rotation: 0, width: 1200, height: 2400, thickness: 28 };
 }
 
+function planPoint(wall: Pick<Wall, 'x' | 'y' | 'rotation'>, dx: number, dy: number) {
+  const angle = wall.rotation * Math.PI / 180;
+  return { x: wall.x + dx * Math.cos(angle) - dy * Math.sin(angle), y: wall.y + dx * Math.sin(angle) + dy * Math.cos(angle) };
+}
+
 // Millimetres, centre anchor, +x audience-right, +y away from the audience.
 // Positive rotation is counterclockwise in the plan's Cartesian coordinates.
-export function wallCorners(wall: Wall): { x: number; y: number }[] {
-  const angle = wall.rotation * Math.PI / 180;
-  return [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([x = 0, y = 0]) => {
-    const dx = x * wall.width / 2;
-    const dy = y * wall.thickness / 2;
-    return { x: wall.x + dx * Math.cos(angle) - dy * Math.sin(angle), y: wall.y + dx * Math.sin(angle) + dy * Math.cos(angle) };
-  });
+export function wallCorners(wall: Pick<Wall, 'x' | 'y' | 'rotation' | 'width' | 'thickness'>): { x: number; y: number }[] {
+  return [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([x = 0, y = 0]) => planPoint(wall, x * wall.width / 2, y * wall.thickness / 2));
+}
+
+// Opening left is millimetres from the panel's left edge when facing the plywood front.
+export function openingCorners(wall: Pick<Wall, 'x' | 'y' | 'rotation' | 'width' | 'thickness'>, opening: Pick<Opening, 'left' | 'width'>): { x: number; y: number }[] {
+  const left = -wall.width / 2 + opening.left;
+  return [[left, -1], [left + opening.width, -1], [left + opening.width, 1], [left, 1]].map(([x = 0, y = 0]) => planPoint(wall, x, y * wall.thickness / 2));
 }
