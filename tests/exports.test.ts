@@ -281,3 +281,19 @@ test('freeze stores unresolved keep-clear warnings that later layout edits canno
   assert.equal(snapshot.unresolvedWarnings.length, 1);
   assert.equal(snapshot.layout.walls[0]?.x, 1000);
 });
+
+test('a frozen centreline is labelled on the PDF and later venue edits cannot change the snapshot', async () => {
+  const stageCentreline = { x: 4000, y: 3000, rotation: 90 };
+  const scene: Scene = {
+    id: randomUUID(), name: 'Mittellinienprobe', productionName: 'Beispielproduktion', venueName: 'Beispielsaal',
+    revision: 1, venueVersionId: randomUUID(),
+    venue: { schemaVersion: 1, width: 8000, depth: 6000, stageCentreline },
+    lease: null, layout: { schemaVersion: 1, walls: [], braces: [] },
+  };
+  const snapshot = freezeSnapshot(scene, { id: randomUUID(), name: 'Fassung Mitte', issuedAt: new Date('2026-09-07T12:00:00.000Z') });
+  assert.deepEqual(snapshot.venue.stageCentreline, stageCentreline);
+  scene.venue.stageCentreline = { x: 100, y: 100, rotation: 0 };
+  assert.deepEqual(snapshot.venue.stageCentreline, stageCentreline);
+  const text = shownText(await renderConstructionPlan(snapshot));
+  assert(text.includes('Mittellinie'), text);
+});

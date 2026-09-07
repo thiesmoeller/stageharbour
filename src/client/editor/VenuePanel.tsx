@@ -12,6 +12,8 @@ import { calibrationSchema, measuredOutline, millimetresPerUnit, type Calibratio
 import { type Platform, type StairUnit, AUDIENCE_FLOOR_ID } from '../../shared/levels.js';
 import { type OverheadBox } from '../../shared/overhead.js';
 import { newKeepClearZone, type KeepClearZone } from '../../shared/keepClear.js';
+import { defaultCentreline, type StageCentreline } from '../../shared/snapping.js';
+import { CentrelineMark } from './SnapGuides.js';
 import { ApiError, request, upload } from '../api.js';
 
 function optionalNotes(value?: string) {
@@ -38,6 +40,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, readOnly, onSaved }: {
   const [pins, setPins] = useState<ConnectionPoint[]>(() => venue.connectionPoints ?? []);
   const [corridors, setCorridors] = useState<CableRoutingCorridor[]>(() => venue.cableRoutingCorridors ?? []);
   const [zones, setZones] = useState<KeepClearZone[]>(() => venue.keepClearZones ?? []);
+  const [centreline, setCentreline] = useState<StageCentreline>(() => venue.stageCentreline ?? defaultCentreline(venue));
   const [meta, setMeta] = useState<VenueReference>();
   const [overlay, setOverlay] = useState<{ href: string; pixelWidth: number; pixelHeight: number }>();
   const [busy, setBusy] = useState(false);
@@ -111,7 +114,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, readOnly, onSaved }: {
       cableRoutingCorridors: corridors.map(corridor => ({ ...corridor, notes: optionalNotes(corridor.notes) })),
       platforms, stairs,
       ...(ceilingHeight === '' ? {} : { ceilingHeight }),
-      overheadBoxes, keepClearZones: zones,
+      overheadBoxes, keepClearZones: zones, stageCentreline: centreline,
     });
     if (!result.success) { setError('Bitte prüfen Sie den Umriss, die Kalibrierung, die Anschlüsse und die Überbauungen.'); return; }
     setBusy(true); setError('');
@@ -137,6 +140,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, readOnly, onSaved }: {
         <InfrastructureMarks pins={pins} corridors={corridors} />
         <OverheadMarks boxes={overheadBoxes} />
         <KeepClearMarks zones={zones} />
+        <CentrelineMark centreline={centreline} />
       </svg>
     </div>
     <form onSubmit={event => void save(event)}><fieldset disabled={readOnly || busy}>
@@ -177,10 +181,31 @@ export function VenuePanel({ workspaceId, sceneId, venue, readOnly, onSaved }: {
       <VenueOverhead venue={venue} ceilingHeight={ceilingHeight} boxes={overheadBoxes} readOnly={readOnly}
         onCeilingHeight={setCeilingHeight} onBoxes={setOverheadBoxes} />
       <KeepClearZones venue={venue} zones={zones} click={click} readOnly={readOnly} onClick={value => setClick(value)} onZones={setZones} />
+      <CentrelineFields centreline={centreline} onChange={setCentreline} />
       {error && <p className="error" role="alert">{error}</p>}
       <div className="form-actions"><button type="submit">Spielstätte speichern</button></div>
     </fieldset></form>
   </section>;
+}
+
+function CentrelineFields({ centreline, onChange }: {
+  centreline: StageCentreline; onChange: (value: StageCentreline) => void;
+}) {
+  return <div className="venue-centreline">
+    <h4>Bühnenmittellinie</h4>
+    <p className="muted">Ein Punkt auf der Linie und die Richtung in Grad. 90° verläuft vom Publikum weg. Beispielwerte, keine gemessene Spielstätte. Spiegeln ist nicht vorgesehen.</p>
+    <div className="numeric-fields">
+      <div><label htmlFor="centreline-x">Mittellinie X (mm)</label>
+        <input id="centreline-x" type="number" step="any" value={centreline.x}
+          onChange={event => onChange({ ...centreline, x: Number(event.target.value) })} /></div>
+      <div><label htmlFor="centreline-y">Mittellinie Y (mm)</label>
+        <input id="centreline-y" type="number" step="any" value={centreline.y}
+          onChange={event => onChange({ ...centreline, y: Number(event.target.value) })} /></div>
+      <div><label htmlFor="centreline-rotation">Mittellinie Drehung (°)</label>
+        <input id="centreline-rotation" type="number" step="any" min={-360} max={360} value={centreline.rotation}
+          onChange={event => onChange({ ...centreline, rotation: Number(event.target.value) })} /></div>
+    </div>
+  </div>;
 }
 
 export function InfrastructureMarks({ pins, corridors }: { pins: ConnectionPoint[]; corridors: CableRoutingCorridor[] }) {

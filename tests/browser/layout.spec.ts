@@ -14,6 +14,15 @@ async function waitUntilSaved(page: Page) {
   await expect(page.locator('.save-status')).toHaveText('Gespeichert', { timeout: 10_000 });
 }
 
+async function planToScreen(page: Page, x: number, y: number) {
+  return page.locator('.plan-canvas svg').evaluate((svg, point) => {
+    const ctm = (svg as SVGSVGElement).getScreenCTM();
+    if (!ctm) return { x: 0, y: 0 };
+    const mapped = new DOMPoint(point.x, -point.y).matrixTransform(ctm);
+    return { x: mapped.x, y: mapped.y };
+  }, { x, y });
+}
+
 test('create a layout, move a panel, undo the move, and reload the saved result', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -305,6 +314,56 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.keyboard.press('ControlOrMeta+v');
   await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(2);
   await waitUntilSaved(page);
+
+  await page.getByRole('button', { name: 'Gruppe auflösen' }).click();
+  await waitUntilSaved(page);
+  await page.getByRole('button', { name: 'Spielstätte' }).click();
+  await page.getByLabel('Mittellinie X (mm)').fill('4000');
+  await page.getByLabel('Mittellinie Y (mm)').fill('3000');
+  await page.getByLabel('Mittellinie Drehung (°)').fill('90');
+  const savedCentreline = page.waitForResponse(response => /\/scenes\/[^/]+\/venue$/.test(new URL(response.url()).pathname) && response.request().method() === 'PUT');
+  await page.getByRole('button', { name: 'Spielstätte speichern' }).click();
+  expect((await savedCentreline).ok()).toBeTruthy();
+  await page.getByRole('button', { name: 'Spielstätte schließen' }).click();
+  await expect(page.getByTestId('stage-centreline')).toBeVisible();
+  await expect(page.getByText('Einrasten', { exact: true })).toBeVisible();
+  await page.getByLabel('Auswahl').selectOption({ label: '1. Wand' });
+  await page.getByLabel('X (mm)', { exact: true }).fill('2500');
+  await page.locator('#wall-x').locator('xpath=ancestor::form').getByRole('button', { name: 'Übernehmen' }).click();
+  await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('2500');
+  await waitUntilSaved(page);
+  const wallY = Number(await page.getByLabel('Y (mm)', { exact: true }).inputValue());
+  const selectedValue = await page.locator('#wall-selection').inputValue();
+  const draggedWall = page.getByTestId(`wall-${selectedValue.replace(/^wall:/, '')}`);
+  const nearCentre = await planToScreen(page, 4050, wallY);
+  await draggedWall.hover();
+  await page.mouse.down();
+  await page.mouse.move(nearCentre.x, nearCentre.y, { steps: 12 });
+  await page.mouse.up();
+  await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('4000');
+  await page.getByLabel('X (mm)', { exact: true }).fill('2500');
+  await page.locator('#wall-x').locator('xpath=ancestor::form').getByRole('button', { name: 'Übernehmen' }).click();
+  await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('2500');
+  await waitUntilSaved(page);
+  const bypassNear = await planToScreen(page, 4050, wallY);
+  await page.keyboard.down('Alt');
+  await draggedWall.hover();
+  await page.mouse.down();
+  await page.mouse.move(bypassNear.x, bypassNear.y, { steps: 12 });
+  await page.mouse.up();
+  await page.keyboard.up('Alt');
+  await expect(page.getByLabel('X (mm)', { exact: true })).not.toHaveValue('4000');
+  await expect(page.getByLabel('X (mm)', { exact: true })).not.toHaveValue('2500');
+  await waitUntilSaved(page);
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Beispiel-Theatergruppe' })).toBeVisible();
+  await page.getByRole('button', { name: /Beispielproduktion · Erste Szene/ }).click();
+  await expect(page.getByRole('heading', { name: 'Erste Szene' })).toBeVisible();
+  await expect(page.getByTestId('stage-centreline')).toBeVisible();
+  await page.getByRole('button', { name: 'Spielstätte' }).click();
+  await expect(page.getByLabel('Mittellinie X (mm)')).toHaveValue('4000');
+  await expect(page.getByLabel('Mittellinie Y (mm)')).toHaveValue('3000');
+  await expect(page.getByLabel('Mittellinie Drehung (°)')).toHaveValue('90');
   expect(errors).toEqual([]);
 });
 
