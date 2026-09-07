@@ -77,6 +77,7 @@ export function registerExportRoutes(
     const issuedAt = new Date();
     const snapshot = freezeSnapshot(loaded, {
       id, name: request.body.name, issuedAt, paper: request.body.paper, scale: request.body.scale,
+      elevationGroupIds: request.body.elevationGroupIds,
     }, await panelLabels(
       request.params.workspaceId, loaded.layout.walls.flatMap(wall => wall.panelId ? [wall.panelId] : []),
     ));

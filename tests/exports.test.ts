@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { CONNECTION_COMPATIBILITY_NOTICE } from '../src/shared/assembly.js';
 import { constructionSnapshotSchema, freezeSnapshot, planTiles } from '../src/shared/export.js';
+import { elevationFaces } from '../src/shared/elevations.js';
+import { formGroup } from '../src/shared/groups.js';
 import { newKeepClearZone } from '../src/shared/keepClear.js';
 import { newCableRoutingCorridor, newConnectionPoint } from '../src/shared/infrastructure.js';
 import { newBrace, newWall, type Scene } from '../src/shared/layout.js';
@@ -315,12 +317,13 @@ function pageBlocks(pdf: Buffer) {
   }).filter(page => page.text.includes('Blatt'));
 }
 
-test('stored 1:50 snapshots without paper still parse as A4', () => {
+test('stored 1:50 snapshots without paper or elevation groups still parse as A4', () => {
   const frozen = sampleSnapshot();
-  const { paper: _paper, ...legacy } = frozen;
+  const { paper: _paper, elevationGroupIds: _ids, ...legacy } = frozen;
   const parsed = constructionSnapshotSchema.parse(legacy);
   assert.equal(parsed.paper, 'A4');
   assert.equal(parsed.scale, 50);
+  assert.deepEqual(parsed.elevationGroupIds, []);
   assert.deepEqual(parsed.warnings, frozen.warnings);
   assert.deepEqual(parsed.unresolvedWarnings, frozen.unresolvedWarnings);
 });
@@ -377,4 +380,91 @@ test('a 20000 mm venue at 1:50 tiles across three A4 pages with overlap and regi
   assert.equal(pageBlocks(again).length, 3);
   assert.deepEqual(pageBlocks(again).map(page => page.lengths.filter(length => Math.abs(length - 24) < 0.05).length),
     pages.map(page => page.lengths.filter(length => Math.abs(length - 24) < 0.05).length));
+});
+
+function angledGroupScene() {
+  const type = {
+    ...newWallType(randomUUID()), name: 'Türwand',
+    openings: [{ id: randomUUID(), left: 200, sill: 0, width: 800, height: 2000 }],
+  };
+  const front = { ...newWall(randomUUID(), 2000, 3000), typeId: type.id, label: 'Frontwand' };
+  const side = { ...newWall(randomUUID(), 2600, 3600), rotation: 90, label: 'Seitenwand' };
+  const groupId = randomUUID();
+  const layout = formGroup(
+    { schemaVersion: 1 as const, wallTypes: [type], walls: [front, side], braces: [] },
+    [{ kind: 'wall' as const, id: front.id }, { kind: 'wall' as const, id: side.id }],
+    groupId,
+  );
+  const scene: Scene = {
+    id: randomUUID(), name: 'Ansichtsprobe', productionName: 'Beispielproduktion', venueName: 'Beispielsaal',
+    revision: 1, productionId: randomUUID(), venueId: randomUUID(), venueVersionId: randomUUID(), venue: { schemaVersion: 1, width: 8000, depth: 6000 },
+    lease: null, layout,
+  };
+  return { scene, groupId, front, side, type };
+}
+
+test('a 90° group freezes two labelled elevation faces at known millimetres, not one flattened width', () => {
+  const { scene, groupId, front, type } = angledGroupScene();
+  const snapshot = freezeSnapshot(scene, {
+    id: randomUUID(), name: 'Fassung Ansichten', issuedAt: new Date('2026-09-07T12:00:00.000Z'),
+    elevationGroupIds: [groupId],
+  });
+  assert.deepEqual(snapshot.elevationGroupIds, [groupId]);
+  scene.layout.groups = [];
+  scene.layout.walls[0]!.x = 9000;
+  assert.deepEqual(snapshot.elevationGroupIds, [groupId]);
+  assert.equal(snapshot.layout.groups?.[0]?.id, groupId);
+  assert.equal(snapshot.layout.walls[0]?.x, 2000);
+  const faces = elevationFaces(snapshot);
+  assert.equal(faces.length, 2);
+  const byFacing = new Map(faces.map(face => [face.facingDegrees, face]));
+  const frontFace = byFacing.get(0);
+  const sideFace = byFacing.get(90);
+  assert.equal(frontFace?.width, 1200);
+  assert.equal(frontFace?.height, 2400);
+  assert.equal(sideFace?.width, 1200);
+  assert.equal(sideFace?.height, 2400);
+  assert.equal(faces.some(face => face.width === 2400), false);
+  assert.equal(frontFace?.panels.some(panel => panel.wallId === front.id), true);
+  assert.deepEqual(frontFace?.panels.find(panel => panel.wallId === front.id)?.openings[0], {
+    id: type.openings[0]!.id, left: 200, sill: 0, width: 800, height: 2000,
+  });
+  assert.equal(sideFace?.panels.every(panel => panel.openings.length === 0), true);
+});
+
+test('selected elevation group ids persist on the snapshot and legacy snapshots omit them', () => {
+  const { scene, groupId } = angledGroupScene();
+  const snapshot = freezeSnapshot(scene, {
+    id: randomUUID(), name: 'Fassung Ansichten', issuedAt: new Date('2026-09-07T12:00:00.000Z'),
+    elevationGroupIds: [groupId],
+  });
+  assert.deepEqual(constructionSnapshotSchema.parse(snapshot).elevationGroupIds, [groupId]);
+  const { elevationGroupIds: _ids, ...without } = snapshot;
+  assert.deepEqual(constructionSnapshotSchema.parse(without).elevationGroupIds, []);
+});
+
+test('a 90° group elevation at 1:50 draws 24 mm widths and 48 mm heights on extra pages, not one flattened 48 mm width', async () => {
+  const { scene, groupId } = angledGroupScene();
+  const snapshot = freezeSnapshot(scene, {
+    id: randomUUID(), name: 'Fassung Ansichten', issuedAt: new Date('2026-09-07T12:00:00.000Z'),
+    elevationGroupIds: [groupId],
+  });
+  const pdf = await renderConstructionPlan(snapshot);
+  const pages = pageBlocks(pdf);
+  const overhead = pages.filter(page => page.text.includes('Konstruktionsplan') && !page.text.includes('Frontansicht'));
+  const elevations = pages.filter(page => page.text.includes('Frontansicht'));
+  assert.equal(overhead.length, 1, pages.map(page => page.text.slice(0, 80)).join(' | '));
+  assert.equal(elevations.length, 1, 'one elevation page for the selected group');
+  assert(overhead[0]?.lengths.some(length => Math.abs(length - 24) < 0.05), 'overhead 1200 mm wall stays 24 mm');
+  assert(overhead[0]?.text.includes('Maßstab 1:50'), overhead[0]?.text);
+  const elevationText = elevations[0]?.text ?? '';
+  assert(elevationText.includes('Ansicht 0°'), elevationText);
+  assert(elevationText.includes('Ansicht 90°'), elevationText);
+  assert(elevationText.includes('2400 mm'), elevationText);
+  assert(elevationText.includes('800 mm'), elevationText);
+  assert(elevationText.includes('2000 mm'), elevationText);
+  assert.equal((elevations[0]?.lengths ?? []).filter(length => Math.abs(length - 24) < 0.05).length >= 2, true, 'two 24 mm face widths');
+  assert.equal((elevations[0]?.lengths ?? []).filter(length => Math.abs(length - 48) < 0.05).length >= 2, true, 'two 48 mm panel heights');
+  assert((elevations[0]?.lengths ?? []).some(length => Math.abs(length - 16) < 0.05), '800 mm opening is 16 mm');
+  assert((elevations[0]?.lengths ?? []).some(length => Math.abs(length - 40) < 0.05), '2000 mm opening is 40 mm');
 });

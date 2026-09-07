@@ -90,3 +90,7 @@ _Avoid_: Fixture, CAD furniture
 
 **Person figure**:
 A simple standing-person placeholder used to mark where someone would be on the set.
+
+**Front elevation**:
+An orthogonal construction-plan view of one wall facing from a selected explicit group, showing panel heights and opening dimensions at the issued scale. Angled groups produce one labelled face per distinct facing rather than a flattened overview of a corner.
+_Avoid_: Flattened elevation

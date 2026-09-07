@@ -7,6 +7,7 @@ import { bootstrapAdministrator } from '../../src/server/identity/bootstrap.js';
 import { membership, workspace } from '../../src/server/db/schema.js';
 import { renderConstructionPlan } from '../../src/server/exports/pdf.js';
 import { newBrace, newWall, type Scene } from '../../src/shared/layout.js';
+import { formGroup } from '../../src/shared/groups.js';
 import { testAdministrator, testDatabase } from '../helpers/database.js';
 
 let fixture: Awaited<ReturnType<typeof testDatabase>>;
@@ -239,6 +240,50 @@ test('retry after a failed A3 freeze uses the same frozen paper and scale', asyn
   assert.equal(retried.json().scale, 100);
   const pdf = Buffer.from((await app.inject({ url: `${base}/${sceneId}/exports/${frozen.json().id}/file`, headers })).rawPayload);
   assert.match(pdf.toString('latin1'), /\/MediaBox \[0 0 841\.89 1190\.55\]/);
+});
+
+test('freeze with selected groups keeps elevation pages after later ungrouping and wall moves', async () => {
+  const created = await app.inject({ method: 'POST', url: base, headers, payload: { ...input, sceneName: 'Ansichtsszene' } });
+  assert.equal(created.statusCode, 201, created.body);
+  const sceneId = created.json().id as string;
+  const front = { ...newWall(randomUUID(), 2000, 3000), label: 'Frontwand' };
+  const side = { ...newWall(randomUUID(), 2600, 3600), rotation: 90, label: 'Seitenwand' };
+  const groupId = randomUUID();
+  const grouped = formGroup(
+    { schemaVersion: 1 as const, walls: [front, side], braces: [] },
+    [{ kind: 'wall', id: front.id }, { kind: 'wall', id: side.id }],
+    groupId,
+  );
+  assert.equal((await app.inject({ method: 'POST', url: `${base}/${sceneId}/lease`, headers })).statusCode, 200);
+  assert.equal((await app.inject({
+    method: 'PUT', url: `${base}/${sceneId}/layout`, headers,
+    payload: { revision: 0, layout: grouped },
+  })).statusCode, 200);
+  const frozen = await app.inject({
+    method: 'POST', url: `${base}/${sceneId}/exports`, headers,
+    payload: { name: 'Ansichtsfassung', elevationGroupIds: [groupId] },
+  });
+  assert.equal(frozen.statusCode, 201, frozen.body);
+  function pdfText(bytes: Buffer) {
+    return [...bytes.toString('latin1').matchAll(/<([0-9a-fA-F]+)>/g)]
+      .map(match => Buffer.from(match[1] ?? '', 'hex').toString('latin1')).join('');
+  }
+  const original = Buffer.from((await app.inject({ url: `${base}/${sceneId}/exports/${frozen.json().id}/file`, headers })).rawPayload);
+  const originalText = pdfText(original);
+  assert(originalText.includes('Frontansicht'), originalText);
+  assert(originalText.includes('Ansicht 0°'), originalText);
+  assert(originalText.includes('Ansicht 90°'), originalText);
+  assert(originalText.includes('Maßstab 1:50'), originalText);
+  assert.equal((await app.inject({
+    method: 'PUT', url: `${base}/${sceneId}/layout`, headers,
+    payload: { revision: 1, layout: { schemaVersion: 1, walls: [{ ...front, x: 9000 }, { ...side, x: 8000, rotation: 0 }], braces: [] } },
+  })).statusCode, 200);
+  const again = Buffer.from((await app.inject({ url: `${base}/${sceneId}/exports/${frozen.json().id}/file`, headers })).rawPayload);
+  assert.deepEqual(again, original);
+  const later = await app.inject({ method: 'POST', url: `${base}/${sceneId}/exports`, headers, payload: { name: 'Ohne Ansichten' } });
+  assert.equal(later.statusCode, 201, later.body);
+  const laterText = pdfText(Buffer.from((await app.inject({ url: `${base}/${sceneId}/exports/${later.json().id}/file`, headers })).rawPayload));
+  assert(!laterText.includes('Frontansicht'), laterText);
 });
 
 test('workspace substitution is denied and viewers cannot freeze or retry', async () => {

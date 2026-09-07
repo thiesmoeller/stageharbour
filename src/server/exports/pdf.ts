@@ -1,5 +1,6 @@
 import PDFDocument from 'pdfkit';
 import { germanDate, type ConstructionSnapshot } from '../../shared/export.js';
+import { elevationFaces } from '../../shared/elevations.js';
 import {
   boundsOverlapTile, drawingAreaMm, PAGE_FOOTER_MM, PAGE_HEADER_MM, PAGE_MARGIN_MM, PAGE_OVERLAP_MM,
   PAPER_SIZE_MM, planTiles, REGISTRATION_MARK_MM, type PlanTile,
@@ -8,6 +9,7 @@ import { strokeBraceFootprints } from './bracePdf.js';
 import { strokeKeepClearZones } from './keepClearPdf.js';
 import { strokeLevelFeatures } from './levelPdf.js';
 import { strokeAssemblyLabels } from './assemblyPdf.js';
+import { strokeElevations } from './elevationPdf.js';
 import { strokeOverheadFeatures } from './overheadPdf.js';
 import { strokePlaceholders } from './placeholderPdf.js';
 import { measuredOutline } from '../../shared/venue.js';
@@ -130,6 +132,10 @@ export function renderConstructionPlan(snapshot: ConstructionSnapshot) {
     const paper = snapshot.paper ?? 'A4';
     const scale = snapshot.scale;
     const tiles = planTiles(snapshot.venue, paper, scale);
+    const faces = elevationFaces(snapshot);
+    const elevationByGroup = [...new Set(faces.map(face => face.groupId))]
+      .map(groupId => faces.filter(face => face.groupId === groupId));
+    const totalPages = tiles.length + elevationByGroup.length;
     const area = drawingAreaMm(paper);
     const issuedAt = new Date(snapshot.issuedAt);
     const doc = new PDFDocument({
@@ -140,15 +146,18 @@ export function renderConstructionPlan(snapshot: ConstructionSnapshot) {
     doc.on('data', chunk => chunks.push(chunk as Buffer));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
+    function header(title: string, blatt: string, extra = '') {
+      doc.font('Helvetica').fillColor('#203c36').fontSize(11)
+        .text(title, mm(15), mm(12), { lineBreak: false });
+      doc.fontSize(9).text(`${snapshot.productionName} · ${snapshot.sceneName} · ${snapshot.venueName}`, mm(15), mm(18), { lineBreak: false });
+      doc.text(`Fassung ${snapshot.revisionName} · ${snapshot.revisionId} · ${germanDate(snapshot.issuedAt)} · Maßstab 1:${scale}`, mm(15), mm(24), { lineBreak: false });
+      doc.fontSize(8).text(`${blatt} · ${paper}${extra}`, mm(15), mm(30), { lineBreak: false });
+    }
     for (const [offset, tile] of tiles.entries()) {
       if (offset > 0) doc.addPage({ size: paper, margin: 0 });
       const tiled = tiles.length > 1;
-      doc.font('Helvetica').fillColor('#203c36').fontSize(11)
-        .text('Konstruktionsplan', mm(15), mm(12), { lineBreak: false });
-      doc.fontSize(9).text(`${snapshot.productionName} · ${snapshot.sceneName} · ${snapshot.venueName}`, mm(15), mm(18), { lineBreak: false });
-      doc.text(`Fassung ${snapshot.revisionName} · ${snapshot.revisionId} · ${germanDate(snapshot.issuedAt)} · Maßstab 1:${scale}`, mm(15), mm(24), { lineBreak: false });
       const overlap = tiled ? ` · Überlappung ${PAGE_OVERLAP_MM} mm` : '';
-      doc.fontSize(8).text(`Blatt ${tile.index} von ${tiles.length} · ${paper} · ↑ Publikum${overlap}`, mm(15), mm(30), { lineBreak: false });
+      header('Konstruktionsplan', `Blatt ${tile.index} von ${totalPages}`, ` · ↑ Publikum${overlap}`);
       const toPage = (x: number, y: number) => ({
         x: mm(PAGE_MARGIN_MM + (x - tile.modelX) / scale),
         y: mm(PAGE_HEADER_MM + (tile.modelYTop - y) / scale),
@@ -159,7 +168,15 @@ export function renderConstructionPlan(snapshot: ConstructionSnapshot) {
       doc.restore();
       strokeRegistration(doc, tile, area);
       doc.fontSize(8).fillColor('#203c36')
-        .text(`Blatt ${tile.index} von ${tiles.length}`, mm(PAGE_MARGIN_MM), mm(PAPER_SIZE_MM[paper].height - PAGE_FOOTER_MM + 4), { lineBreak: false });
+        .text(`Blatt ${tile.index} von ${totalPages}`, mm(PAGE_MARGIN_MM), mm(PAPER_SIZE_MM[paper].height - PAGE_FOOTER_MM + 4), { lineBreak: false });
+    }
+    for (const [offset, groupFaces] of elevationByGroup.entries()) {
+      doc.addPage({ size: paper, margin: 0 });
+      const index = tiles.length + offset + 1;
+      header('Frontansicht', `Blatt ${index} von ${totalPages}`);
+      strokeElevations(doc, groupFaces, scale);
+      doc.fontSize(8).fillColor('#203c36')
+        .text(`Blatt ${index} von ${totalPages}`, mm(PAGE_MARGIN_MM), mm(PAPER_SIZE_MM[paper].height - PAGE_FOOTER_MM + 4), { lineBreak: false });
     }
     doc.end();
   });
