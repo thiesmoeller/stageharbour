@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type
 import { z } from 'zod';
 import { execute, history, redo, undo, type History } from '../../shared/history.js';
 import { newWall, wallCorners, wallSchema, type Layout, type Scene, type Wall } from '../../shared/layout.js';
+import { LEASE_HEARTBEAT_MS } from '../../shared/leases.js';
 import { ApiError, request } from '../api.js';
 import { Autosave, SaveConflict } from './autosave.js';
 import { StageView } from './StageView.js';
@@ -21,13 +22,22 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
       const result = await request(`/api/workspaces/${workspaceId}/scenes/${initial.id}/layout`, { revision, layout }, 'PUT');
       return z.object({ revision: z.number().int() }).parse(result).revision;
     } catch (error) {
-      if (error instanceof ApiError && error.status === 409) throw new SaveConflict();
+      if (error instanceof ApiError && (error.status === 409 || error.status === 423)) throw new SaveConflict(error.status === 423 ? 'lease' : 'revision');
       throw error;
     }
   }));
   const saveState = useSyncExternalStore(saver.subscribe, saver.getSnapshot);
   const dirty = saveState.dirty || !!preview;
   useEffect(() => { onDirty(dirty); }, [dirty, onDirty]);
+  useEffect(() => {
+    if (readOnly) return;
+    const tick = window.setInterval(() => {
+      request(`/api/workspaces/${workspaceId}/scenes/${initial.id}/lease/heartbeat`, {}).catch(error => {
+        if (error instanceof ApiError && error.status === 423) saver.markConflict('lease');
+      });
+    }, LEASE_HEARTBEAT_MS);
+    return () => clearInterval(tick);
+  }, [readOnly, saver, workspaceId, initial.id]);
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
       if (saver.getSnapshot().dirty || gesture.current) { event.preventDefault(); event.returnValue = ''; }
@@ -112,10 +122,16 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
       }}>Wand hinzufügen</button>
       <button className="quiet" disabled={!!preview || !state.past.length} onClick={() => apply(undo(current.current))}>Rückgängig</button>
       <button className="quiet" disabled={!!preview || !state.future.length} onClick={() => apply(redo(current.current))}>Wiederholen</button></>}
-      <span className={`save-status ${saveState.status}`} role="status">{readOnly ? 'Nur Ansicht' : statusText[saveState.status]}</span>
+      <span className={`save-status ${saveState.status}`} role="status">{readOnly
+        ? (initial.lease ? `Nur Ansicht · Bearbeitung durch ${initial.lease.holderName}` : 'Nur Ansicht')
+        : saveState.status === 'conflict' && saveState.conflictKind === 'lease' ? 'Bearbeitung abgelaufen' : statusText[saveState.status]}</span>
     </div>
     {['failed', 'conflict'].includes(saveState.status) && <div className="error" role="alert">
-      <p>{saveState.status === 'conflict' ? 'Eine neuere Fassung ist gespeichert. Ihre Änderungen bleiben hier erhalten und werden nicht darübergeschrieben.' : 'Ihre Änderungen sind noch nicht gespeichert. Prüfen Sie die Verbindung; bei abgelaufener Anmeldung sichern Sie zunächst den lokalen Entwurf.'}</p>
+      <p>{saveState.status === 'conflict'
+        ? (saveState.conflictKind === 'lease'
+          ? 'Die Bearbeitungsberechtigung ist abgelaufen. Ihre Änderungen bleiben hier erhalten und werden nicht überschrieben.'
+          : 'Eine neuere Fassung ist gespeichert. Ihre Änderungen bleiben hier erhalten und werden nicht darübergeschrieben.')
+        : 'Ihre Änderungen sind noch nicht gespeichert. Prüfen Sie die Verbindung; bei abgelaufener Anmeldung sichern Sie zunächst den lokalen Entwurf.'}</p>
       {saveState.status === 'failed' && <button onClick={() => saver.retry()}>Speichern erneut versuchen</button>}{' '}
       <button onClick={downloadDraft}>Lokalen Entwurf herunterladen</button>{' '}
       <button className="quiet" onClick={() => { if (window.confirm('Lokale Änderungen verwerfen und die gespeicherte Fassung laden?')) { saver.dispose(); onDirty(false); onClose(); } }}>Gespeicherte Fassung laden</button>

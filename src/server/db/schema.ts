@@ -1,5 +1,6 @@
 import { pgTable, text, timestamp, boolean, uuid, pgEnum, primaryKey, index, uniqueIndex, integer, jsonb, foreignKey } from 'drizzle-orm/pg-core';
 import type { Layout } from '../../shared/layout.js';
+import type { LeaseKind } from '../../shared/leases.js';
 
 const dates = () => ({
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -82,3 +83,11 @@ export const scene = pgTable('scene', {
   layout: jsonb('layout').notNull().$type<Layout>(),
 }, t => [index('scene_workspace_idx').on(t.workspaceId),
   foreignKey({ columns: [t.workspaceId, t.adaptationId], foreignColumns: [adaptation.workspaceId, adaptation.id] })]);
+export const editingLease = pgTable('editing_lease', {
+  workspaceId: uuid('workspace_id').notNull().references(() => workspace.id),
+  resourceKind: text('resource_kind').notNull().$type<LeaseKind>(),
+  resourceId: uuid('resource_id').notNull(),
+  holderUserId: text('holder_user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+}, t => [primaryKey({ columns: [t.workspaceId, t.resourceKind, t.resourceId] }),
+  index('editing_lease_holder_idx').on(t.holderUserId), index('editing_lease_expiry_idx').on(t.expiresAt)]);

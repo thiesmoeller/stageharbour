@@ -1,7 +1,9 @@
 import type { Layout } from '../../shared/layout.js';
 
-export type SaveState = { status: 'saved' | 'pending' | 'saving' | 'failed' | 'conflict'; dirty: boolean; revision: number };
-export class SaveConflict extends Error {}
+export type SaveState = { status: 'saved' | 'pending' | 'saving' | 'failed' | 'conflict'; dirty: boolean; revision: number; conflictKind?: 'revision' | 'lease' };
+export class SaveConflict extends Error {
+  constructor(public kind: 'revision' | 'lease' = 'revision') { super(); }
+}
 
 /** Serializes saves and retains edits made while an earlier request is in flight. */
 export class Autosave {
@@ -18,15 +20,15 @@ export class Autosave {
   }
   getSnapshot = () => this.state;
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
-  private publish(status: SaveState['status'], dirty: boolean, revision = this.state.revision) {
-    this.state = { status, dirty, revision };
+  private publish(status: SaveState['status'], dirty: boolean, revision = this.state.revision, conflictKind?: SaveState['conflictKind']) {
+    this.state = { status, dirty, revision, ...(status === 'conflict' ? { conflictKind: conflictKind ?? this.state.conflictKind ?? 'revision' } : {}) };
     for (const listener of this.listeners) listener();
   }
   queue(layout: Layout) {
     this.latest = structuredClone(layout);
     clearTimeout(this.timer);
     if (this.state.status === 'conflict' || this.state.status === 'failed') {
-      this.publish(this.state.status, true);
+      this.publish(this.state.status, true, this.state.revision, this.state.conflictKind);
       return;
     }
     if (this.inFlight) { this.publish('saving', true); return; }
@@ -39,6 +41,10 @@ export class Autosave {
       this.publish('pending', true);
       void this.flush();
     }
+  }
+  markConflict(kind: 'revision' | 'lease' = 'revision') {
+    clearTimeout(this.timer);
+    this.publish('conflict', JSON.stringify(this.latest) !== this.saved, this.state.revision, kind);
   }
   private async flush() {
     if (this.inFlight || this.state.status === 'conflict') return;
@@ -53,7 +59,7 @@ export class Autosave {
       this.queue(this.latest);
     } catch (error) {
       this.inFlight = false;
-      this.publish(error instanceof SaveConflict ? 'conflict' : 'failed', true);
+      this.publish(error instanceof SaveConflict ? 'conflict' : 'failed', true, this.state.revision, error instanceof SaveConflict ? error.kind : undefined);
     }
   }
   dispose() { clearTimeout(this.timer); }

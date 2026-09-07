@@ -46,5 +46,13 @@ test('failed saves retain the latest draft and retry; conflicts never automatica
   conflicted.queue(empty); conflicted.retry();
   assert.equal(attempts, 1); assert.equal(conflicted.getSnapshot().status, 'conflict');
   assert.equal(conflicted.getSnapshot().dirty, true);
+  assert.equal(conflicted.getSnapshot().conflictKind, 'revision');
   conflicted.dispose();
+  const lost = new Autosave(empty, 0, async () => { throw new SaveConflict('lease'); }, 0);
+  lost.queue(placed); await waitFor(lost, 'conflict');
+  assert.equal(lost.getSnapshot().conflictKind, 'lease');
+  assert.equal(lost.getSnapshot().dirty, true);
+  lost.markConflict('lease'); lost.retry();
+  assert.equal(lost.getSnapshot().status, 'conflict');
+  lost.dispose();
 });
