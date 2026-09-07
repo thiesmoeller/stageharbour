@@ -1,0 +1,94 @@
+import { randomUUID } from 'node:crypto';
+import { and, desc, eq } from 'drizzle-orm';
+import type { FastifyInstance } from 'fastify';
+import type { ZodTypeProvider } from 'fastify-type-provider-zod';
+import { z } from 'zod';
+import { errorSchema, workspaceParamsSchema } from '../../shared/contracts.js';
+import { DRAWING_SCALE, exportListSchema, exportRevisionSchema, freezeExportSchema, freezeSnapshot, type ConstructionSnapshot, type ExportRevision } from '../../shared/export.js';
+import { sceneSchema } from '../../shared/layout.js';
+import type { Database } from '../db/connection.js';
+import { adaptation, constructionPlanRevision, production, scene, venue, venueVersion } from '../db/schema.js';
+import { AccessError, type createAccess } from '../identity/access.js';
+import type { FileStorage } from './storage.js';
+
+export function registerExportRoutes(
+  app: FastifyInstance, db: Database, access: ReturnType<typeof createAccess>, origin: string,
+  storage: FileStorage, renderPdf: (snapshot: ConstructionSnapshot) => Promise<Buffer>,
+) {
+  const api = app.withTypeProvider<ZodTypeProvider>();
+  const path = '/api/workspaces/:workspaceId/scenes/:sceneId/exports';
+  const params = workspaceParamsSchema.extend({ sceneId: z.uuid() });
+  const item = params.extend({ exportId: z.uuid() });
+  const errors = { 400: errorSchema, 401: errorSchema, 403: errorSchema, 404: errorSchema, 409: errorSchema };
+  function asRevision(row: { id: string; name: string; status: ExportRevision['status']; createdAt: Date }): ExportRevision {
+    return { id: row.id, name: row.name, scale: DRAWING_SCALE, status: row.status, createdAt: row.createdAt.toISOString() };
+  }
+  async function loadScene(workspaceId: string, sceneId: string) {
+    const [record] = await db.select({
+      id: scene.id, name: scene.name, productionName: production.name, venueName: venue.name,
+      revision: scene.revision, venueVersionId: venueVersion.id, venue: venueVersion.geometry, layout: scene.layout,
+    }).from(scene).innerJoin(adaptation, eq(scene.adaptationId, adaptation.id))
+      .innerJoin(production, eq(adaptation.productionId, production.id))
+      .innerJoin(venueVersion, eq(adaptation.venueVersionId, venueVersion.id))
+      .innerJoin(venue, eq(venueVersion.venueId, venue.id))
+      .where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, sceneId)));
+    if (!record) throw new AccessError(404, 'Szene nicht verfügbar.');
+    return sceneSchema.parse(record);
+  }
+  async function loadRevision(workspaceId: string, sceneId: string, exportId: string) {
+    const [row] = await db.select().from(constructionPlanRevision)
+      .where(and(eq(constructionPlanRevision.workspaceId, workspaceId), eq(constructionPlanRevision.sceneId, sceneId), eq(constructionPlanRevision.id, exportId)));
+    if (!row) throw new AccessError(404, 'Fassung nicht verfügbar.');
+    return row;
+  }
+  async function produce(row: typeof constructionPlanRevision.$inferSelect) {
+    try {
+      const storageKey = `${row.workspaceId}/${row.id}.pdf`;
+      await storage.put(storageKey, await renderPdf(row.snapshot));
+      await db.update(constructionPlanRevision).set({ status: 'ready', storageKey })
+        .where(and(eq(constructionPlanRevision.workspaceId, row.workspaceId), eq(constructionPlanRevision.id, row.id)));
+    } catch {
+      await db.update(constructionPlanRevision).set({ status: 'failed' })
+        .where(and(eq(constructionPlanRevision.workspaceId, row.workspaceId), eq(constructionPlanRevision.id, row.id)));
+    }
+  }
+  api.get(path, { schema: { params, response: { 200: exportListSchema, ...errors } } }, async request => {
+    await access(request, request.params.workspaceId);
+    await loadScene(request.params.workspaceId, request.params.sceneId);
+    const rows = await db.select().from(constructionPlanRevision)
+      .where(and(eq(constructionPlanRevision.workspaceId, request.params.workspaceId), eq(constructionPlanRevision.sceneId, request.params.sceneId)))
+      .orderBy(desc(constructionPlanRevision.createdAt));
+    return rows.map(asRevision);
+  });
+  api.post(path, { schema: { params, body: freezeExportSchema, response: { 201: exportRevisionSchema, ...errors } } }, async (request, reply) => {
+    if (request.headers.origin !== origin) throw new AccessError(403, 'Ungültiger Ursprung.');
+    await access(request, request.params.workspaceId, ['administrator', 'editor']);
+    const loaded = await loadScene(request.params.workspaceId, request.params.sceneId);
+    const id = randomUUID();
+    const issuedAt = new Date();
+    const snapshot = freezeSnapshot(loaded, { id, name: request.body.name, issuedAt });
+    await db.insert(constructionPlanRevision).values({
+      id, workspaceId: request.params.workspaceId, sceneId: request.params.sceneId, name: request.body.name,
+      scale: DRAWING_SCALE, status: 'pending', snapshot, createdAt: issuedAt,
+    });
+    await produce({ id, workspaceId: request.params.workspaceId, sceneId: request.params.sceneId, name: request.body.name,
+      scale: DRAWING_SCALE, status: 'pending', snapshot, storageKey: null, createdAt: issuedAt });
+    return reply.code(201).send(asRevision(await loadRevision(request.params.workspaceId, request.params.sceneId, id)));
+  });
+  api.post(`${path}/:exportId/retry`, { schema: { params: item, response: { 200: exportRevisionSchema, ...errors } } }, async (request, reply) => {
+    if (request.headers.origin !== origin) throw new AccessError(403, 'Ungültiger Ursprung.');
+    await access(request, request.params.workspaceId, ['administrator', 'editor']);
+    const row = await loadRevision(request.params.workspaceId, request.params.sceneId, request.params.exportId);
+    if (row.status === 'ready') return reply.code(409).send({ message: 'Diese Fassung ist bereits erzeugt.' });
+    await produce(row);
+    return asRevision(await loadRevision(request.params.workspaceId, request.params.sceneId, request.params.exportId));
+  });
+  api.get(`${path}/:exportId/file`, { schema: { params: item, hide: true } }, async (request, reply) => {
+    await access(request, request.params.workspaceId);
+    const row = await loadRevision(request.params.workspaceId, request.params.sceneId, request.params.exportId);
+    if (row.status !== 'ready' || !row.storageKey) return reply.code(409).send({ message: 'Diese Fassung ist noch nicht als PDF verfügbar.' });
+    return reply.type('application/pdf')
+      .header('Content-Disposition', `attachment; filename="konstruktionsplan-${row.id}.pdf"`)
+      .send(await storage.get(row.storageKey));
+  });
+}

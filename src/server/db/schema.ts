@@ -1,4 +1,5 @@
 import { pgTable, text, timestamp, boolean, uuid, pgEnum, primaryKey, index, uniqueIndex, integer, jsonb, foreignKey } from 'drizzle-orm/pg-core';
+import type { ConstructionSnapshot } from '../../shared/export.js';
 import type { Layout } from '../../shared/layout.js';
 
 const dates = () => ({
@@ -80,5 +81,16 @@ export const scene = pgTable('scene', {
   id: uuid('id').primaryKey(), workspaceId: uuid('workspace_id').notNull(), adaptationId: uuid('adaptation_id').notNull(),
   name: text('name').notNull(), revision: integer('revision').notNull().default(0),
   layout: jsonb('layout').notNull().$type<Layout>(),
-}, t => [index('scene_workspace_idx').on(t.workspaceId),
+}, t => [index('scene_workspace_idx').on(t.workspaceId), uniqueIndex('scene_workspace_id').on(t.workspaceId, t.id),
   foreignKey({ columns: [t.workspaceId, t.adaptationId], foreignColumns: [adaptation.workspaceId, adaptation.id] })]);
+export const constructionExportStatus = pgEnum('construction_export_status', ['pending', 'ready', 'failed']);
+export const constructionPlanRevision = pgTable('construction_plan_revision', {
+  id: uuid('id').primaryKey(), workspaceId: uuid('workspace_id').notNull(), sceneId: uuid('scene_id').notNull(),
+  name: text('name').notNull(), scale: integer('scale').notNull(),
+  status: constructionExportStatus('status').notNull(),
+  snapshot: jsonb('snapshot').notNull().$type<ConstructionSnapshot>(),
+  storageKey: text('storage_key'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [index('construction_plan_scene_idx').on(t.workspaceId, t.sceneId),
+  uniqueIndex('construction_plan_workspace_id').on(t.workspaceId, t.id),
+  foreignKey({ columns: [t.workspaceId, t.sceneId], foreignColumns: [scene.workspaceId, scene.id] })]);

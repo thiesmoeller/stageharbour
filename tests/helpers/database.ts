@@ -1,4 +1,7 @@
 import { randomUUID } from 'node:crypto';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import pg from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
@@ -10,6 +13,7 @@ export const testAdministrator = { email: 'admin@example.test', name: 'Test Admi
 export async function testDatabase(origin = 'http://localhost:5173') {
   // A separate database also isolates migrations' public-qualified enum names.
   const databaseName = `stage_test_${randomUUID().replaceAll('-', '')}`;
+  const storageDir = await mkdtemp(join(tmpdir(), 'stage-files-'));
   const connectionString = process.env.TEST_DATABASE_URL ?? 'postgresql://stage_planner:local-development-only@127.0.0.1:55432/stage_planner';
   const control = new pg.Pool({ connectionString, connectionTimeoutMillis: 5000 });
   await control.query(`CREATE DATABASE "${databaseName}"`);
@@ -21,9 +25,11 @@ export async function testDatabase(origin = 'http://localhost:5173') {
     DATABASE_URL: url.href, APP_ORIGIN: origin, NODE_ENV: 'test',
     BETTER_AUTH_SECRET: randomUUID() + randomUUID(),
     WORKSPACE_ID: randomUUID(), WORKSPACE_NAME: 'Beispiel-Theatergruppe',
+    STORAGE_DIR: storageDir,
   });
   const dispose = async () => {
     await pool.end();
+    await rm(storageDir, { recursive: true, force: true });
     try { await control.query(`DROP DATABASE "${databaseName}" WITH (FORCE)`); }
     finally { await control.end(); }
   };

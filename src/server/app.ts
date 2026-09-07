@@ -12,8 +12,15 @@ import { membership, user } from './db/schema.js';
 import { createAuth } from './identity/auth.js';
 import { AccessError, createAccess } from './identity/access.js';
 import { registerProductionRoutes } from './productions/routes.js';
+import { registerExportRoutes } from './exports/routes.js';
+import { renderOffThread } from './exports/render.js';
+import { localFilesystem, type FileStorage } from './exports/storage.js';
+import type { ConstructionSnapshot } from '../shared/export.js';
 
-export async function createApp(db: Database, config: Config, options: { staticRoot?: string; logger?: boolean } = {}) {
+export async function createApp(db: Database, config: Config, options: {
+  staticRoot?: string; logger?: boolean; storage?: FileStorage;
+  renderPdf?: (snapshot: ConstructionSnapshot) => Promise<Buffer>;
+} = {}) {
   const app = Fastify({ logger: options.logger ?? false, bodyLimit: 16 * 1024 });
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
@@ -25,6 +32,7 @@ export async function createApp(db: Database, config: Config, options: { staticR
   const auth = createAuth(db, config);
   const access = createAccess(db, auth);
   registerProductionRoutes(app, db, access, config.APP_ORIGIN);
+  registerExportRoutes(app, db, access, config.APP_ORIGIN, options.storage ?? localFilesystem(config.STORAGE_DIR), options.renderPdf ?? renderOffThread);
   app.addHook('onSend', async (request, reply) => {
     reply.header('X-Content-Type-Options', 'nosniff');
     reply.header('Referrer-Policy', 'same-origin');
