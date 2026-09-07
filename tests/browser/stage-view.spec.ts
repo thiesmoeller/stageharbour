@@ -127,6 +127,17 @@ test('edits in the plan update the linked 3D view, including front orientation a
   await expect(page.locator('[data-testid^="stage-brace-"]')).toHaveAttribute('data-height', '1500');
   await expect(page.locator('[data-testid^="stage-platform-"]')).toHaveAttribute('data-elevation', '400');
   await expect(page.locator('[data-testid^="stage-stair-"]')).toHaveAttribute('data-rise', '400');
+
+  await page.getByRole('button', { name: 'Wand hinzufügen' }).click();
+  await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(2);
+  await page.getByLabel('Auswahl').selectOption({ label: '1. Wand' });
+  await page.locator('[data-testid^="wall-"]').nth(1).click({ modifiers: ['Shift'] });
+  await page.getByRole('button', { name: 'Gruppieren' }).click();
+  await page.getByLabel('Drehpunkt X (mm)').fill('4250');
+  await page.locator('.group-panel').getByRole('button', { name: 'Übernehmen' }).click();
+  await expect(page.locator('[data-testid^="stage-wall-"]').nth(0)).toHaveAttribute('data-x', '3500');
+  await expect(page.locator('[data-testid^="stage-wall-"]').nth(1)).toHaveAttribute('data-x', '5000');
+  await waitUntilSaved(page);
   expect(errors).toEqual([]);
 });
 

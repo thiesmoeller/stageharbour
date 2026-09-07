@@ -5,6 +5,7 @@ import { type Opening, wallTypeSchema } from './wall-types.js';
 import { cableRoutingCorridorsSchema, connectionPointsSchema } from './infrastructure.js';
 import { venueOutlineSchema, venueTraceSchema } from './venue.js';
 import { panelConnectionSchema } from './assembly.js';
+import { groupSchema, groupsReferenceLayout } from './groups.js';
 
 const name = z.string().trim().min(1).max(120);
 const dimension = z.number().finite().min(1).max(100000);
@@ -42,6 +43,7 @@ export const layoutSchema = z.strictObject({
   platforms: z.array(platformSchema).max(250).optional(),
   stairs: z.array(stairSchema).max(250).optional(),
   connections: z.array(panelConnectionSchema).max(250).optional(),
+  groups: z.array(groupSchema).max(250).optional(),
   riggingNotes: z.string().max(2000).optional(),
 }).refine(layout => {
   const ids = new Set((layout.wallTypes ?? []).map(type => type.id));
@@ -57,7 +59,7 @@ export const layoutSchema = z.strictObject({
 }, 'Assembly numbers must be unique').refine(layout => {
   const pairs = (layout.connections ?? []).map(connection => connection.a < connection.b ? `${connection.a}:${connection.b}` : `${connection.b}:${connection.a}`);
   return new Set(pairs).size === pairs.length;
-}, 'Connection pairs must be unique');
+}, 'Connection pairs must be unique').refine(layout => groupsReferenceLayout(layout), 'Groups must reference unique layout members');
 export type Layout = z.infer<typeof layoutSchema>;
 export const venueGeometrySchema = z.strictObject({
   schemaVersion: z.literal(1), width: dimension, depth: dimension,

@@ -9,7 +9,7 @@ export function PlatformLayer({
 }: {
   venuePlatforms: Platform[]; layoutPlatforms: Platform[];
   venueStairs: StairUnit[]; layoutStairs: StairUnit[];
-  selectedId?: string; onSelect: (kind: 'platform' | 'stair', id: string) => void;
+  selectedId?: string;   onSelect: (kind: 'platform' | 'stair', id: string, additive?: boolean) => void;
 }) {
   return <g aria-label="Ebenen">
     {venuePlatforms.map(platform => <g key={platform.id} data-testid={`venue-platform-${platform.id}`}>
@@ -21,7 +21,7 @@ export function PlatformLayer({
     {layoutPlatforms.map(platform => {
       const cx = platform.outline.reduce((sum, point) => sum + point.x, 0) / platform.outline.length;
       const cy = platform.outline.reduce((sum, point) => sum + point.y, 0) / platform.outline.length;
-      return <g key={platform.id} data-testid={`platform-${platform.id}`} className="draggable-wall" onPointerDown={event => { event.stopPropagation(); onSelect('platform', platform.id); }}>
+      return <g key={platform.id} data-testid={`platform-${platform.id}`} className="draggable-wall" onPointerDown={event => { event.stopPropagation(); onSelect('platform', platform.id, event.shiftKey); }}>
         <path d={path(platform.outline)} fill={selectedId === platform.id ? '#b7c6a6' : '#c5d0b8'}
           stroke={selectedId === platform.id ? '#b67c35' : '#5a6e52'} strokeWidth="2" vectorEffect="non-scaling-stroke" />
         <text x={cx} y={-cy} textAnchor="middle" fontSize="160" pointerEvents="none">{platform.label} · {platform.elevation} mm</text>
@@ -30,7 +30,7 @@ export function PlatformLayer({
     {[...venueStairs.map(stair => ({ stair, movable: false })), ...layoutStairs.map(stair => ({ stair, movable: true }))].map(({ stair, movable }) => (
       <g key={stair.id} data-testid={`${movable ? 'stair' : 'venue-stair'}-${stair.id}`} className={movable ? 'draggable-wall' : undefined}
         transform={`translate(${stair.x} ${-stair.y}) rotate(${-stair.rotation})`}
-        onPointerDown={movable ? event => { event.stopPropagation(); onSelect('stair', stair.id); } : undefined}>
+        onPointerDown={movable ? event => { event.stopPropagation(); onSelect('stair', stair.id, event.shiftKey); } : undefined}>
         <rect x={-stair.width / 2} y={-stair.run / 2} width={stair.width} height={stair.run}
           fill={selectedId === stair.id ? '#d5decc' : '#e8efe3'} stroke={selectedId === stair.id ? '#b67c35' : '#718469'}
           strokeWidth="2" vectorEffect="non-scaling-stroke" />

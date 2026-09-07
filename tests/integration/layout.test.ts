@@ -173,6 +173,64 @@ test('saves and reloads assembly numbers, connections and rigging notes', async 
   assert.equal(reloaded.layout.walls[0]?.x, 1000);
   assert.equal(reloaded.layout.walls[1]?.x, 5000);
 });
+test('saves and reloads explicit groups with the layout', async () => {
+  const loaded = (await app.inject({ url: `${base}/${created.id}`, headers })).json<Scene>();
+  const left = newWall(randomUUID(), 0, 0);
+  const right = newWall(randomUUID(), 2000, 0);
+  const group = {
+    id: randomUUID(),
+    members: [{ kind: 'wall' as const, id: left.id }, { kind: 'wall' as const, id: right.id }],
+    rotation: 90,
+  };
+  const layout = {
+    schemaVersion: 1 as const,
+    walls: [{ ...left, x: 1000, y: -1000, rotation: 90 }, { ...right, x: 1000, y: 1000, rotation: 90 }],
+    braces: [],
+    groups: [group],
+  };
+  const saved = await app.inject({
+    method: 'PUT', url: `${base}/${created.id}/layout`, headers,
+    payload: { revision: loaded.revision, layout },
+  });
+  assert.equal(saved.statusCode, 200, saved.body);
+  const reloaded = (await app.inject({ url: `${base}/${created.id}`, headers })).json<Scene>();
+  assert.deepEqual(reloaded.layout.groups, [group]);
+  assert.equal(reloaded.layout.walls[0]?.x, 1000);
+  assert.equal(reloaded.layout.walls[0]?.y, -1000);
+  assert.equal(reloaded.layout.walls[1]?.x, 1000);
+  assert.equal(reloaded.layout.walls[1]?.y, 1000);
+  assert.equal(reloaded.layout.walls[0]?.rotation, 90);
+  assert.equal((await app.inject({
+    method: 'PUT', url: `${base}/${created.id}/layout`, headers,
+    payload: {
+      revision: reloaded.revision,
+      layout: { schemaVersion: 1, walls: [left, right], groups: [{ ...group, members: [{ kind: 'wall', id: left.id }, { kind: 'wall', id: randomUUID() }], rotation: 0 }] },
+    },
+  })).statusCode, 400);
+});
+test('freeze then later group edits do not change the stored construction snapshot', async () => {
+  const loaded = (await app.inject({ url: `${base}/${created.id}`, headers })).json<Scene>();
+  const frozen = await app.inject({ method: 'POST', url: `${base}/${created.id}/exports`, headers, payload: { name: 'Gruppenfassung' } });
+  assert.equal(frozen.statusCode, 201, frozen.body);
+  const original = Buffer.from((await app.inject({ url: `${base}/${created.id}/exports/${frozen.json().id}/file`, headers })).rawPayload);
+  const left = loaded.layout.walls[0]!;
+  const right = loaded.layout.walls[1]!;
+  const moved = {
+    ...loaded.layout,
+    walls: [{ ...left, x: 500, y: 400 }, { ...right, x: 2500, y: 400 }],
+    groups: [{ ...loaded.layout.groups![0]!, rotation: 0 }],
+  };
+  assert.equal((await app.inject({
+    method: 'PUT', url: `${base}/${created.id}/layout`, headers,
+    payload: { revision: loaded.revision, layout: moved },
+  })).statusCode, 200);
+  const again = await app.inject({ url: `${base}/${created.id}/exports/${frozen.json().id}/file`, headers });
+  assert.deepEqual(Buffer.from(again.rawPayload), original);
+  const reloaded = (await app.inject({ url: `${base}/${created.id}`, headers })).json<Scene>();
+  assert.equal(reloaded.layout.walls[0]?.x, 500);
+  assert.equal(reloaded.layout.walls[1]?.x, 2500);
+  assert.deepEqual(reloaded.layout.groups?.[0]?.members, loaded.layout.groups?.[0]?.members);
+});
 test('workspace substitution and viewer writes are denied', async () => {
   const foreignId = randomUUID();
   await fixture.db.insert(workspace).values({ id: foreignId, name: 'Other workspace' });
