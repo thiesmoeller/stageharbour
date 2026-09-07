@@ -126,6 +126,16 @@ export function copyLayoutIntoVenue(
   };
 }
 
+/**
+ * Named scene-template snapshot. Clones layout JSON including `wallTypes`, groups
+ * and relative arrangement at capture time so later source millimetre edits cannot
+ * change the stored template. Instantiating uses `copyLayoutIntoVenue` (clears
+ * `panelId`, destination surfaces and conflicts). The source is only read.
+ */
+export function captureTemplateLayout(layout: Layout): Layout {
+  return structuredClone(layout);
+}
+
 /** A remount unscrews hinges; pin changes stay in `riggingNotes` on the same setup. */
 export function remountRigging(layout: Layout, nextId: () => string): Layout {
   return { ...layout, riggingSetupId: nextId() };

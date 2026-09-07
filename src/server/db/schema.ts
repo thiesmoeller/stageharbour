@@ -156,3 +156,12 @@ export const inventoryPanel = pgTable('inventory_panel', {
   index('inventory_panel_type_idx').on(t.workspaceId, t.typeId),
   foreignKey({ columns: [t.workspaceId, t.typeId], foreignColumns: [inventoryWallType.workspaceId, inventoryWallType.id] }),
 ]);
+export const sceneTemplate = pgTable('scene_template', {
+  id: uuid('id').primaryKey(), workspaceId: uuid('workspace_id').notNull().references(() => workspace.id),
+  name: text('name').notNull(),
+  layout: jsonb('layout').notNull().$type<Layout>(),
+  sourceSurfaces: jsonb('source_surfaces').notNull().$type<{ id: string; label: string }[]>(),
+}, t => [
+  uniqueIndex('scene_template_workspace_id').on(t.workspaceId, t.id),
+  index('scene_template_workspace_idx').on(t.workspaceId),
+]);

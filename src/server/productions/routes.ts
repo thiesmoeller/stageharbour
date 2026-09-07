@@ -4,20 +4,22 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { errorSchema, workspaceParamsSchema } from '../../shared/contracts.js';
-import { createSceneSchema, copySceneSchema, duplicateSceneSchema, saveLayoutSchema, sceneSchema, sceneListSchema, venueGeometrySchema } from '../../shared/layout.js';
-import { copiedSceneName, copyLayoutIntoVenue, duplicateLayout } from '../../shared/scenes.js';
+import { captureTemplateSchema, createSceneSchema, copySceneSchema, duplicateSceneSchema, instantiateTemplateSchema, saveLayoutSchema, sceneSchema, sceneListSchema, sceneTemplateListSchema, sceneTemplateSchema, venueGeometrySchema } from '../../shared/layout.js';
+import { captureTemplateLayout, copiedSceneName, copyLayoutIntoVenue, duplicateLayout } from '../../shared/scenes.js';
 import { overheadClearance, overheadWarningSchema } from '../../shared/overhead.js';
 import { keepClearWarningSchema, keepClearWarnings } from '../../shared/keepClear.js';
 import { leaseHolderSchema } from '../../shared/leases.js';
 import type { Database } from '../db/connection.js';
-import { adaptation, production, scene, venue, venueVersion } from '../db/schema.js';
+import { adaptation, production, scene, sceneTemplate, venue, venueVersion } from '../db/schema.js';
 import { AccessError, type createAccess } from '../identity/access.js';
 import { LeaseError, type Leases } from './leases.js';
 
 export function registerProductionRoutes(app: FastifyInstance, db: Database, access: ReturnType<typeof createAccess>, origin: string, leases: Leases) {
   const api = app.withTypeProvider<ZodTypeProvider>();
   const path = '/api/workspaces/:workspaceId/scenes';
+  const templatesPath = '/api/workspaces/:workspaceId/scene-templates';
   const params = workspaceParamsSchema.extend({ sceneId: z.uuid() });
+  const templateParams = workspaceParamsSchema.extend({ templateId: z.uuid() });
   const errors = { 400: errorSchema, 401: errorSchema, 403: errorSchema, 404: errorSchema, 409: errorSchema, 423: errorSchema };
   function readScenes(workspaceId: string, sceneId?: string) {
     return db.select({
@@ -30,6 +32,14 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
       .innerJoin(venueVersion, eq(adaptation.venueVersionId, venueVersion.id))
       .innerJoin(venue, eq(venueVersion.venueId, venue.id))
       .where(and(eq(scene.workspaceId, workspaceId), sceneId ? eq(scene.id, sceneId) : undefined)).orderBy(production.name, scene.name);
+  }
+  function readTemplates(workspaceId: string, templateId?: string) {
+    return db.select({
+      id: sceneTemplate.id, name: sceneTemplate.name,
+      layout: sceneTemplate.layout, sourceSurfaces: sceneTemplate.sourceSurfaces,
+    }).from(sceneTemplate)
+      .where(and(eq(sceneTemplate.workspaceId, workspaceId), templateId ? eq(sceneTemplate.id, templateId) : undefined))
+      .orderBy(sceneTemplate.name);
   }
   async function withLease<T extends { id: string }>(workspaceId: string, record: T) {
     return { ...record, lease: await leases.read(workspaceId, 'scene', record.id) };
@@ -117,6 +127,69 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
       await tx.insert(scene).values({
         id: copyId, workspaceId, adaptationId,
         name: request.body.sceneName ?? copiedSceneName(existing.name),
+        layout: copyLayoutIntoVenue(
+          existing.layout, venueGeometrySchema.parse(destVersion.geometry), request.body.surfaceMap ?? {}, randomUUID,
+        ).layout,
+      });
+    });
+    const [record] = await readScenes(workspaceId, copyId);
+    return reply.code(201).send({ ...record!, lease: null });
+  });
+  // Capturing reads the source without acquiring its lease: the source is only
+  // snapshotted. Layout PUT still requires POST .../lease first; freeze does not.
+  // Stored layout JSON includes wallTypes so later millimetre edits cannot change it.
+  api.post(`${path}/:sceneId/templates`, { schema: { params, body: captureTemplateSchema, response: { 201: sceneTemplateSchema, ...errors } } }, async (request, reply) => {
+    const { workspaceId, sceneId } = request.params;
+    await requireEditor(request, workspaceId);
+    const [existing] = await readScenes(workspaceId, sceneId);
+    if (!existing) throw new AccessError(404, 'Szene nicht verfügbar.');
+    const id = randomUUID();
+    const layout = captureTemplateLayout(existing.layout);
+    const sourceSurfaces = (existing.venue.platforms ?? []).map(platform => ({ id: platform.id, label: platform.label }));
+    await db.insert(sceneTemplate).values({ id, workspaceId, name: request.body.name, layout, sourceSurfaces });
+    return reply.code(201).send({ id, name: request.body.name, layout, sourceSurfaces });
+  });
+  api.get(templatesPath, { schema: { params: workspaceParamsSchema, response: { 200: sceneTemplateListSchema, ...errors } } }, async request => {
+    await access(request, request.params.workspaceId);
+    return (await readTemplates(request.params.workspaceId)).map(({ id, name }) => ({ id, name }));
+  });
+  api.get(`${templatesPath}/:templateId`, { schema: { params: templateParams, response: { 200: sceneTemplateSchema, ...errors } } }, async request => {
+    await access(request, request.params.workspaceId);
+    const [record] = await readTemplates(request.params.workspaceId, request.params.templateId);
+    if (!record) throw new AccessError(404, 'Szenenvorlage nicht verfügbar.');
+    return record;
+  });
+  // Instantiating reads the template without a lease. The new scene starts
+  // unleased on the destination adaptation; panel assignments are cleared.
+  api.post(`${templatesPath}/:templateId/instantiate`, { schema: { params: templateParams, body: instantiateTemplateSchema, response: { 201: sceneSchema, ...errors } } }, async (request, reply) => {
+    const { workspaceId, templateId } = request.params;
+    await requireEditor(request, workspaceId);
+    const copyId = randomUUID();
+    await db.transaction(async tx => {
+      const [existing] = await tx.select({
+        id: sceneTemplate.id, name: sceneTemplate.name, layout: sceneTemplate.layout,
+      }).from(sceneTemplate).where(and(eq(sceneTemplate.workspaceId, workspaceId), eq(sceneTemplate.id, templateId)));
+      if (!existing) throw new AccessError(404, 'Szenenvorlage nicht verfügbar.');
+      const [destProduction] = await tx.select({ id: production.id }).from(production)
+        .where(and(eq(production.workspaceId, workspaceId), eq(production.id, request.body.productionId)));
+      if (!destProduction) throw new AccessError(404, 'Produktion nicht verfügbar.');
+      const [destVersion] = await tx.select({ id: venueVersion.id, geometry: venueVersion.geometry }).from(venueVersion)
+        .where(and(eq(venueVersion.workspaceId, workspaceId), eq(venueVersion.id, request.body.venueVersionId)));
+      if (!destVersion) throw new AccessError(404, 'Spielstätte nicht verfügbar.');
+      const [existingAdaptation] = await tx.select({ id: adaptation.id }).from(adaptation).where(and(
+        eq(adaptation.workspaceId, workspaceId),
+        eq(adaptation.productionId, destProduction.id),
+        eq(adaptation.venueVersionId, destVersion.id),
+      ));
+      const adaptationId = existingAdaptation?.id ?? randomUUID();
+      if (!existingAdaptation) {
+        await tx.insert(adaptation).values({
+          id: adaptationId, workspaceId, productionId: destProduction.id, venueVersionId: destVersion.id,
+        });
+      }
+      await tx.insert(scene).values({
+        id: copyId, workspaceId, adaptationId,
+        name: request.body.sceneName ?? existing.name,
         layout: copyLayoutIntoVenue(
           existing.layout, venueGeometrySchema.parse(destVersion.geometry), request.body.surfaceMap ?? {}, randomUUID,
         ).layout,

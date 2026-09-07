@@ -429,6 +429,31 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByLabel('Platte zuweisen')).toHaveValue('');
   await expect(page.getByTestId('overhead-warning').first()).toContainText('Deckenhöhe');
   await expect(page.getByLabel('Freihaltezonen')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Zur Übersicht' }).click();
+  await expect(page.getByRole('heading', { name: 'Bühnenbilder' })).toBeVisible();
+  const capturedTemplate = page.waitForResponse(response => /\/scenes\/[^/]+\/templates$/.test(new URL(response.url()).pathname) && response.request().method() === 'POST');
+  await page.getByRole('button', { name: /Beispielproduktion · Erste Szene Beispielsaal/ })
+    .locator('xpath=ancestor::div[contains(@class,"scene-card")]')
+    .getByRole('button', { name: 'Als Szenenvorlage speichern' }).click();
+  await page.getByLabel('Name der Szenenvorlage').fill('Grundriss A');
+  await page.getByRole('button', { name: 'Szenenvorlage speichern', exact: true }).click();
+  expect((await capturedTemplate).ok()).toBeTruthy();
+  await expect(page.getByRole('heading', { name: 'Szenenvorlagen' })).toBeVisible();
+  await expect(page.getByText('Grundriss A', { exact: true })).toBeVisible();
+  const insertedTemplate = page.waitForResponse(response => response.url().includes('/instantiate') && response.request().method() === 'POST');
+  await page.getByRole('button', { name: 'In Produktion einfügen' }).click();
+  await page.getByLabel('Zielproduktion').selectOption({ label: 'Gastspiel' });
+  await page.getByLabel('Zielspielstätte').selectOption({ label: 'Stadthalle' });
+  await page.getByRole('button', { name: 'Szenenvorlage einfügen' }).click();
+  expect((await insertedTemplate).ok()).toBeTruthy();
+  await expect(page.getByRole('button', { name: /Gastspiel · Grundriss A/ })).toBeVisible();
+  await page.getByRole('button', { name: /Gastspiel · Grundriss A/ }).click();
+  await expect(page.getByRole('heading', { name: 'Grundriss A' })).toBeVisible();
+  await expect(page.getByText('Gastspiel · Stadthalle')).toBeVisible();
+  await page.getByLabel('Auswahl').selectOption({ label: '1. Wand' });
+  await expect(page.getByText('Zugewiesen: Beispiel-P01')).toHaveCount(0);
+  await expect(page.getByLabel('Platte zuweisen')).toHaveValue('');
   expect(errors).toEqual([]);
 });
 
