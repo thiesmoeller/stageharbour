@@ -1,9 +1,9 @@
 import { useLayoutEffect, useMemo, useState } from 'react';
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
 import { BoxGeometry, ExtrudeGeometry, Path, Shape } from 'three';
 import type { Layout, VenueGeometry } from '../../shared/layout.js';
-import { stageModel, type WallSolid } from '../../shared/transforms.js';
+import { stageModel, type Vec3, type WallSolid } from '../../shared/transforms.js';
 import { StageBraceList, StageBraces } from './StageBraces.js';
 import { StageLevelList, StageLevels } from './StageLevels.js';
 import { StageOverhead, StageOverheadList } from './StageOverhead.js';
@@ -16,6 +16,18 @@ const edge = '#5a6e52';
 function facing(normal: { x: number; z: number }) {
   if (Math.abs(normal.x) >= Math.abs(normal.z)) return normal.x >= 0 ? 'zeigt nach rechts' : 'zeigt nach links';
   return normal.z <= 0 ? 'zeigt zum Publikum' : 'zeigt von Publikum weg';
+}
+
+/** Keep the camera looking from the audience toward upstage (+Z). Scene is X-mirrored so plan-left stays screen-left. */
+function LookFromAudience({ position, target }: { position: Vec3; target: Vec3 }) {
+  const { camera } = useThree();
+  useLayoutEffect(() => {
+    camera.position.set(position.x, position.y, position.z);
+    camera.up.set(0, 1, 0);
+    camera.lookAt(target.x, target.y, target.z);
+    camera.updateProjectionMatrix();
+  }, [camera, position.x, position.y, position.z, target.x, target.y, target.z]);
+  return null;
 }
 
 function wallGeometry(wall: WallSolid) {
@@ -68,19 +80,26 @@ export function StageView({ layout, venue }: { layout: Layout; venue: VenueGeome
       <Canvas key={audience ? 'audience' : 'orbit'} gl={{ antialias: true, alpha: false }} dpr={[1, 2]}>
         <color attach="background" args={['#eef2e8']} />
         <PerspectiveCamera makeDefault fov={40} near={10} far={250000} position={[camera.x, camera.y, camera.z]} />
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[venue.width / 2, 0, venue.depth / 2]}>
-          <planeGeometry args={[venue.width, venue.depth]} />
-          <meshBasicMaterial color="#dce4d4" />
-        </mesh>
-        <StageLevels model={model} />
-        <StageOverhead boxes={venue.overheadBoxes ?? []} />
-        {model.walls.map(wall => <WallMesh key={wall.id} wall={wall} />)}
-        <StageBraces braces={model.braces} />
-        <StagePlaceholders placeholders={model.placeholders} />
-        <OrbitControls makeDefault enableDamping={false} target={[target.x, target.y, target.z]} />
+        {audience && <LookFromAudience position={camera} target={target} />}
+        <group position={[venue.width / 2, 0, 0]} scale={[-1, 1, 1]}>
+          <group position={[-venue.width / 2, 0, 0]}>
+            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[venue.width / 2, 0, venue.depth / 2]}>
+              <planeGeometry args={[venue.width, venue.depth]} />
+              <meshBasicMaterial color="#dce4d4" />
+            </mesh>
+            <StageLevels model={model} />
+            <StageOverhead boxes={venue.overheadBoxes ?? []} />
+            {model.walls.map(wall => <WallMesh key={wall.id} wall={wall} />)}
+            <StageBraces braces={model.braces} />
+            <StagePlaceholders placeholders={model.placeholders} />
+          </group>
+        </group>
+        {!audience && <OrbitControls makeDefault enableDamping={false} target={[target.x, target.y, target.z]} />}
       </Canvas>
     </div>
-    <p className="muted">Vorderseite (Sperrholz, dunkel) · Rückseite (Holzrahmen, hell) · Stützen als Dreieckskörper · Ziehen zum Drehen</p>
+    <p className="muted">{audience
+      ? 'Publikumssicht · Blick von vorne auf die Bühne (wie der Pfeil im Grundriss) · links im Grundriss = links hier · Vorderseite dunkel'
+      : 'Vorderseite (Sperrholz, dunkel) · Rückseite (Holzrahmen, hell) · Stützen als Dreieckskörper · Ziehen zum Drehen · links/rechts wie im Grundriss'}</p>
     <ul aria-label="Wände in der Raumsicht">{model.walls.map(wall => <li key={wall.id} data-testid={`stage-wall-${wall.id}`}
       data-x={wall.center.x} data-y={wall.center.y} data-z={wall.center.z}
       data-height={wall.size.y} data-width={wall.size.x} data-thickness={wall.size.z}

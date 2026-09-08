@@ -53,8 +53,13 @@ function posedOf<T extends GroupableLayout>(layout: T, member: GroupMember) {
 export function groupPivot<T extends GroupableLayout>(layout: T, groupId: string) {
   const group = groupOf(layout, groupId);
   if (!group) return;
-  const poses = group.members.map(member => posedOf(layout, member));
-  if (poses.some(pose => !pose) || poses.length === 0) return;
+  return membersPivot(layout, group.members);
+}
+
+/** Centroid of an ad-hoc multi-selection (same millimetre rule as persisted groups). */
+export function membersPivot<T extends GroupableLayout>(layout: T, members: GroupMember[]) {
+  const poses = members.map(member => posedOf(layout, member));
+  if (!members.length || poses.some(pose => !pose)) return;
   return {
     x: poses.reduce((sum, pose) => sum + pose!.x, 0) / poses.length,
     y: poses.reduce((sum, pose) => sum + pose!.y, 0) / poses.length,
@@ -78,9 +83,20 @@ export function transformGroup<T extends GroupableLayout>(layout: T, groupId: st
   const group = groupOf(layout, groupId);
   const current = groupPivot(layout, groupId);
   if (!group || !current) return layout;
-  const dx = pose.x - current.x, dy = pose.y - current.y, delta = pose.rotation - group.rotation;
+  const next = transformMembers(layout, group.members, pose, group.rotation);
+  return {
+    ...next,
+    groups: (layout.groups ?? []).map(item => item.id === groupId ? { ...item, rotation: wrapRotation(pose.rotation) } : item),
+  };
+}
+
+/** Translate/rotate an ad-hoc selection around its centroid without writing a persisted group. */
+export function transformMembers<T extends GroupableLayout>(layout: T, members: GroupMember[], pose: GroupPose, baseRotation = 0): T {
+  const current = membersPivot(layout, members);
+  if (!current || !members.length) return layout;
+  const dx = pose.x - current.x, dy = pose.y - current.y, delta = pose.rotation - baseRotation;
   const origin = { x: pose.x, y: pose.y };
-  const next = new Map(group.members.flatMap(member => {
+  const next = new Map(members.flatMap(member => {
     const item = posedOf(layout, member);
     if (!item) return [];
     const moved = rotatePoint(item.x + dx, item.y + dy, origin, delta);
@@ -98,7 +114,6 @@ export function transformGroup<T extends GroupableLayout>(layout: T, groupId: st
     braces: layout.braces ? patch('brace', layout.braces) : layout.braces,
     stairs: layout.stairs ? patch('stair', layout.stairs) : layout.stairs,
     placeholders: layout.placeholders ? patch('placeholder', layout.placeholders) : layout.placeholders,
-    groups: (layout.groups ?? []).map(item => item.id === groupId ? { ...item, rotation: wrapRotation(pose.rotation) } : item),
   };
 }
 

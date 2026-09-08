@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { recordConnection } from '../src/shared/assembly.js';
-import { canFormGroup, formGroup, groupContaining, groupPivot, transformGroup } from '../src/shared/groups.js';
+import { canFormGroup, formGroup, groupContaining, groupPivot, membersPivot, transformGroup, transformMembers } from '../src/shared/groups.js';
 import { execute, history, undo } from '../src/shared/history.js';
 import { layoutSchema, newBrace, newWall, type Layout, type Wall } from '../src/shared/layout.js';
 import { AUDIENCE_FLOOR_ID, newStair } from '../src/shared/levels.js';
@@ -12,6 +12,19 @@ function twoWalls(leftX: number, rightX: number, y = 0): { left: Wall; right: Wa
   const right = newWall(randomUUID(), rightX, y);
   return { left, right, layout: { schemaVersion: 1, walls: [left, right], braces: [] } };
 }
+
+test('an ad-hoc multi-selection transforms around the same centroid rule as groups', () => {
+  const left = newWall(randomUUID(), 0, 0);
+  const right = newWall(randomUUID(), 2000, 0);
+  const layout: Layout = { schemaVersion: 1, walls: [left, right], braces: [] };
+  const members = [{ kind: 'wall' as const, id: left.id }, { kind: 'wall' as const, id: right.id }];
+  assert.deepEqual(membersPivot(layout, members), { x: 1000, y: 0 });
+  const moved = transformMembers(layout, members, { x: 1500, y: 400, rotation: 0 });
+  assert.equal(moved.walls.find(wall => wall.id === left.id)?.x, 500);
+  assert.equal(moved.walls.find(wall => wall.id === right.id)?.x, 2500);
+  assert.deepEqual(membersPivot(moved, members), { x: 1500, y: 400 });
+  assert.equal(moved.groups?.length ?? 0, 0);
+});
 
 test('an explicit wall group translates around the centroid and keeps millimetre offsets', () => {
   const { left, right, layout } = twoWalls(0, 2000);

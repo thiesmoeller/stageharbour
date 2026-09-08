@@ -7,7 +7,7 @@ export function ClipboardPanel({ selection, canPaste, busy, readOnly, onCopy, on
   const canCopy = selection.length > 0;
   return <div className="clipboard-panel">
     <h3>Zwischenablage</h3>
-    <p className="muted">Kopien in derselben Szene starten ohne Plattenzuweisung. Ausschneiden behält die Plattenetiketten.</p>
+    <p className="muted">Ziehen Sie auf dem Boden für Mehrfachauswahl · Shift hält die bisherige Auswahl{selection.length ? ` · ${selection.length} ausgewählt` : ''}. Kopien in derselben Szene starten ohne Plattenzuweisung. Ausschneiden behält die Plattenetiketten.</p>
     {!readOnly && <div className="form-actions">
       <button type="button" disabled={busy || !canCopy} onClick={onCopy}>Kopieren</button>
       <button type="button" disabled={busy || !canCopy} onClick={onCut}>Ausschneiden</button>

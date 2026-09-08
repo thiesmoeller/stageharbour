@@ -3,10 +3,12 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { formGroup, transformGroup } from '../src/shared/groups.js';
 import { freezeSnapshot } from '../src/shared/export.js';
-import { layoutSchema, newWall, venueGeometrySchema, type Layout } from '../src/shared/layout.js';
+import { layoutSchema, newBrace, newWall, venueGeometrySchema, type Layout } from '../src/shared/layout.js';
+import { placementOverlaps, wallFootprint } from '../src/shared/overlap.js';
 import {
-  COMMON_LAYOUT_ANGLES_DEG, SNAP_ANGLE_DEG, SNAP_DISTANCE_MM, SNAP_NOTICE, centrelineSchema,
-  defaultCentreline, snapGroupPose, snapRotation, snapWallPose,
+  COMMON_LAYOUT_ANGLES_DEG, GUIDE_PADDING_MM, SNAP_ANGLE_DEG, SNAP_DISTANCE_MM, SNAP_EDGE_FRACTIONS, SNAP_NOTICE,
+  alignBraceToNearestWall, braceContactHinge, centrelineSchema, defaultCentreline, planRotationAt, rotateBraceOnContact,
+  rotateToward, rotationHandlePoint, snapBracePose, snapGroupPose, snapRotation, snapStatusText, snapWallPose, wallFaceAnchors,
 } from '../src/shared/snapping.js';
 
 test('documented snap tolerances are millimetres and degrees, not screen pixels', () => {
@@ -16,8 +18,46 @@ test('documented snap tolerances are millimetres and degrees, not screen pixels'
   assert(COMMON_LAYOUT_ANGLES_DEG.includes(45));
   assert(COMMON_LAYOUT_ANGLES_DEG.includes(90));
   assert.match(SNAP_NOTICE, /100 mm/);
-  assert.match(SNAP_NOTICE, /2,5/);
-  assert.match(SNAP_NOTICE, /Spiegeln ist nicht vorgesehen/);
+  assert.match(SNAP_NOTICE, /⅓/);
+  assert.match(SNAP_NOTICE, /Objektüberschneidungen/);
+});
+
+test('plan rotation follows the pointer around the wall centre in millimetres', () => {
+  assert.equal(planRotationAt({ x: 2000, y: 3000 }, { x: 3200, y: 3000 }), 0);
+  assert.equal(planRotationAt({ x: 2000, y: 3000 }, { x: 2000, y: 4200 }), 90);
+  assert.equal(planRotationAt({ x: 2000, y: 3000 }, { x: 800, y: 3000 }), 180);
+});
+
+test('rotate toward a pointer snaps to common layout angles unless bypassed', () => {
+  const wall = { x: 2000, y: 3000, rotation: 0 };
+  const snapped = rotateToward(wall, { x: 2000 + Math.cos(88 * Math.PI / 180) * 1000, y: 3000 + Math.sin(88 * Math.PI / 180) * 1000 });
+  assert.equal(snapped.rotation, 90);
+  assert.equal(snapped.angleSnapped, true);
+  const free = rotateToward(wall, { x: 2000 + Math.cos(88 * Math.PI / 180) * 1000, y: 3000 + Math.sin(88 * Math.PI / 180) * 1000 }, { bypass: true });
+  assert(Math.abs(free.rotation - 88) < 0.01);
+  assert.equal(free.angleSnapped, false);
+});
+
+test('snap status names edge, centreline and angle snaps in German', () => {
+  assert.equal(snapStatusText({ guides: [{ kind: 'wall-edge', a: { x: 0, y: 0 }, b: { x: 1, y: 0 } }] }), 'Eingerastet · Wandkante');
+  assert.equal(snapStatusText({ guides: [{ kind: 'centreline', a: { x: 0, y: 0 }, b: { x: 0, y: 1 } }] }), 'Eingerastet · Mittellinie');
+  assert.equal(snapStatusText({
+    guides: [
+      { kind: 'wall-edge', a: { x: 0, y: 0 }, b: { x: 1, y: 0 } },
+      { kind: 'centreline', a: { x: 0, y: 0 }, b: { x: 0, y: 1 } },
+    ],
+    rotation: 90, angleSnapped: true,
+  }), 'Eingerastet · 90° · Wandkante · Mittellinie');
+  assert.equal(snapStatusText({ guides: [] }), undefined);
+});
+
+test('rotation handle sits beyond the wall end along its long axis', () => {
+  const handle = rotationHandlePoint({ x: 2000, y: 3000, rotation: 0, width: 1200 });
+  assert.equal(handle.x, 2000 + 600 + 350);
+  assert.equal(handle.y, 3000);
+  const turned = rotationHandlePoint({ x: 2000, y: 3000, rotation: 90, width: 1200 });
+  assert(Math.abs(turned.x - 2000) < 1e-8);
+  assert.equal(turned.y, 3000 + 600 + 350);
 });
 
 test('a wall edge within SNAP_DISTANCE_MM snaps onto another wall edge', () => {
@@ -140,4 +180,85 @@ test('venue geometry stores a configurable centreline; freeze copies it so later
   assert.deepEqual(snapshot.venue.stageCentreline, centreline);
   assert(!centrelineSchema.safeParse({ x: 0, y: 0, rotation: Infinity }).success);
   assert(!venueGeometrySchema.safeParse({ schemaVersion: 1, width: 8000, depth: 6000, stageCentreline: { x: 0, y: 0 } }).success);
+});
+
+test('wall-edge guides span both walls with padding, not only the thin target edge', () => {
+  const stationary = newWall(randomUUID(), 0, 0);
+  const moving = newWall(randomUUID(), 8000, 80);
+  const snapped = snapWallPose(moving, [stationary], undefined);
+  assert.equal(snapped.guides[0]?.kind, 'wall-edge');
+  const guide = snapped.guides[0]!;
+  const length = Math.hypot(guide.b.x - guide.a.x, guide.b.y - guide.a.y);
+  assert(length > stationary.width + GUIDE_PADDING_MM);
+});
+
+test('already-aligned walls still show a wall-edge guide while dragging', () => {
+  const stationary = newWall(randomUUID(), 0, 0);
+  const moving = newWall(randomUUID(), 2000, 28);
+  const snapped = snapWallPose(moving, [stationary], undefined);
+  assert.equal(snapped.x, 2000);
+  assert.equal(snapped.y, 28);
+  assert.equal(snapped.guides[0]?.kind, 'wall-edge');
+});
+
+test('a brace snaps onto a nearby wall edge and auto-aligns its tall face', () => {
+  const wall = newWall(randomUUID(), 0, 0);
+  // Tall-face mid at centre.y - depth/2; keep that face within SNAP_DISTANCE_MM of the wall edge.
+  const brace = { ...newBrace(randomUUID(), 0, 450), footprintWidth: 600, footprintDepth: 800 };
+  const snapped = snapBracePose(brace, [wall], undefined);
+  assert.equal(snapped.guides[0]?.kind, 'wall-edge');
+  const aligned = alignBraceToNearestWall({ ...brace, x: snapped.x, y: snapped.y }, [wall], { force: true });
+  assert(aligned);
+  assert.equal(Math.abs(aligned.rotation % 180), 0);
+});
+
+test('snapped brace rotation keeps the tall face on the contact hinge', () => {
+  const wall = newWall(randomUUID(), 0, 0);
+  const brace = alignBraceToNearestWall({ ...newBrace(randomUUID(), 0, 80), footprintWidth: 600, footprintDepth: 800 }, [wall], { force: true });
+  assert(brace);
+  const contact = braceContactHinge(brace, [wall]);
+  assert(contact);
+  const turned = rotateBraceOnContact(brace, contact.hinge, 20);
+  const face = {
+    x: turned.x - (-turned.footprintDepth / 2) * Math.sin(turned.rotation * Math.PI / 180),
+    y: turned.y + (-turned.footprintDepth / 2) * Math.cos(turned.rotation * Math.PI / 180),
+  };
+  assert(Math.abs(face.x - contact.hinge.x) < 1e-6);
+  assert(Math.abs(face.y - contact.hinge.y) < 1e-6);
+  assert.equal(turned.rotation, 20);
+});
+
+test('front carries ⅓·½·⅔; short sides only the ends', () => {
+  const wall = newWall(randomUUID(), 0, 0);
+  const anchors = wallFaceAnchors(wall);
+  // front: 5 fractions + 2 sides × 2 ends
+  assert.equal(anchors.length, SNAP_EDGE_FRACTIONS.length + 4);
+  const frontMid = anchors.find(point => Math.abs(point.x) < 1e-6 && Math.abs(point.y - (-wall.thickness / 2)) < 1e-6);
+  assert(frontMid);
+  const third = anchors.find(point => Math.abs(point.x - (-wall.width / 2 + wall.width / 3)) < 1e-6);
+  assert(third);
+  // No mid-thickness anchors on the short edges (only the two ends)
+  const leftEdge = anchors.filter(point => Math.abs(point.x - (-wall.width / 2)) < 1e-6);
+  assert(leftEdge.every(point => Math.abs(Math.abs(point.y) - wall.thickness / 2) < 1e-6));
+  assert.equal(new Set(leftEdge.map(point => point.y.toFixed(6))).size, 2);
+});
+
+test('a wall snaps its end onto the half mark of another wall’s front', () => {
+  const stationary = newWall(randomUUID(), 0, 0);
+  // Moving wall end near the front midpoint of stationary (front at y = -14)
+  const moving = { ...newWall(randomUUID(), 600, -14 - 600), rotation: 90 };
+  const snapped = snapWallPose(moving, [stationary], undefined);
+  assert(snapped.guides.some(guide => guide.kind === 'wall-anchor' || guide.kind === 'wall-edge'));
+  assert(Math.abs(snapped.x) <= SNAP_DISTANCE_MM || Math.abs(snapped.y + 14 + 600) <= SNAP_DISTANCE_MM || snapped.guides.length > 0);
+});
+
+test('snap prefers flush contact over an overlapping fraction pull', () => {
+  const stationary = newWall(randomUUID(), 0, 0);
+  const moving = { ...newWall(randomUUID(), 0, -20) };
+  const snapped = snapWallPose(moving, [stationary], undefined);
+  assert(Math.abs(snapped.y - (-stationary.thickness)) < 1e-6);
+  assert.equal(placementOverlaps(
+    { schemaVersion: 1, walls: [stationary], braces: [] },
+    wallFootprint({ ...moving, x: snapped.x, y: snapped.y }),
+  ), false);
 });

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { recordConnection } from '../src/shared/assembly.js';
-import { PASTE_OFFSET_MM, copySelection, cutSelection, pasteClipboard } from '../src/shared/clipboard.js';
+import { PASTE_OFFSET_MM, copySelection, cutSelection, pasteClipboard, removeSelection } from '../src/shared/clipboard.js';
 import { formGroup } from '../src/shared/groups.js';
 import { execute, history, undo } from '../src/shared/history.js';
 import { newWall, type Layout } from '../src/shared/layout.js';
@@ -100,4 +100,11 @@ test('undo of paste and cut restores geometry and panel assignments', () => {
   assert.equal(restored.walls.find(wall => wall.id === left.id)?.panelId, panelId);
   assert.equal(restored.walls.find(wall => wall.id === left.id)?.x, 1000);
   assert.equal(restored.walls.find(wall => wall.id === outsider.id)?.id, outsider.id);
+});
+
+test('removeSelection deletes every multi-selected wall', () => {
+  const { left, right, outsider, layout } = twoAssignedWalls();
+  const next = removeSelection(layout, [{ kind: 'wall', id: left.id }, { kind: 'wall', id: right.id }]);
+  assert.deepEqual(next.walls.map(wall => wall.id), [outsider.id]);
+  assert.equal(next.groups?.length ?? 0, 0);
 });

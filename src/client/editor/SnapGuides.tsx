@@ -13,9 +13,16 @@ export function CentrelineMark({ centreline }: { centreline?: StageCentreline })
 export function AlignmentGuides({ guides }: { guides: SnapGuide[] }) {
   if (!guides.length) return null;
   return <g data-testid="alignment-guides" pointerEvents="none">
-    {guides.map((guide, index) => <line key={index} data-kind={guide.kind}
-      x1={guide.a.x} y1={-guide.a.y} x2={guide.b.x} y2={-guide.b.y}
-      stroke="#b67c35" strokeWidth="3" strokeDasharray="40 40" vectorEffect="non-scaling-stroke" />)}
+    {guides.map((guide, index) => guide.kind === 'wall-anchor'
+      ? <g key={index} data-kind={guide.kind}>
+        <line x1={guide.a.x} y1={-guide.a.y} x2={guide.b.x} y2={-guide.b.y}
+          stroke="#b67c35" strokeWidth="3" vectorEffect="non-scaling-stroke" />
+        <circle cx={(guide.a.x + guide.b.x) / 2} cy={-(guide.a.y + guide.b.y) / 2} r="60"
+          fill="none" stroke="#b67c35" strokeWidth="3" vectorEffect="non-scaling-stroke" />
+      </g>
+      : <line key={index} data-kind={guide.kind}
+        x1={guide.a.x} y1={-guide.a.y} x2={guide.b.x} y2={-guide.b.y}
+        stroke="#b67c35" strokeWidth="3" strokeDasharray="40 40" vectorEffect="non-scaling-stroke" />)}
   </g>;
 }
 

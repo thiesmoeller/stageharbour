@@ -46,6 +46,23 @@ test('unrotated plywood faces the audience; audience camera looks into the venue
   assertVec(model.orbitTarget, { x: 4000, y: 0, z: 3000 });
 });
 
+test('from the audience looking upstage, smaller plan X stays on the left of the view', () => {
+  const left = newWall(randomUUID(), 2000, 2500);
+  const right = newWall(randomUUID(), 7000, 2500);
+  const model = stageModel({ schemaVersion: 1, walls: [left, right], braces: [] }, { width: 10000, depth: 5000 });
+  const [leftSolid, rightSolid] = model.walls;
+  assert(leftSolid!.center.x < rightSolid!.center.x);
+  // Model keeps +X = audience-right. StageView mirrors the scene on X so looking toward +Z
+  // still shows plan-left on screen-left (Three.js would otherwise put +X on screen-left).
+  assert(model.audience.position.z < 0);
+  assert(model.audience.target.z > model.audience.position.z);
+  assert.equal(leftSolid!.center.x, 2000);
+  assert.equal(rightSolid!.center.x, 7000);
+  const mirroredLeft = 10000 - leftSolid!.center.x;
+  const mirroredRight = 10000 - rightSolid!.center.x;
+  assert(mirroredLeft > mirroredRight);
+});
+
 test('stage model carries known opening millimetres from the wall type', () => {
   const type = { ...newWallType(randomUUID()), openings: [{ id: randomUUID(), left: 200, sill: 0, width: 800, height: 2000 }] };
   const wall = { ...newWall(randomUUID(), 2000, 3000), typeId: type.id, width: 1, height: 1, thickness: 1 };

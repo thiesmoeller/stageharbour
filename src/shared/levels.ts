@@ -44,6 +44,46 @@ export function newPlatform(id: string, x: number, y: number): Platform {
     outline: [{ x: x - hx, y: y - hy }, { x: x + hx, y: y - hy }, { x: x + hx, y: y + hy }, { x: x - hx, y: y + hy }],
   };
 }
+
+export function platformCentroid(outline: readonly PlanPoint[]) {
+  const x = outline.reduce((sum, point) => sum + point.x, 0) / outline.length;
+  const y = outline.reduce((sum, point) => sum + point.y, 0) / outline.length;
+  return { x, y };
+}
+
+export function translatePlatformOutline(outline: readonly PlanPoint[], dx: number, dy: number): PlanPoint[] {
+  const clamp = (value: number) => Math.max(-100000, Math.min(100000, value));
+  return outline.map(point => ({ x: clamp(point.x + dx), y: clamp(point.y + dy) }));
+}
+
+export function rotatePlatformOutline(outline: readonly PlanPoint[], degrees: number, centre = platformCentroid(outline)): PlanPoint[] {
+  const angle = degrees * Math.PI / 180;
+  const cosine = Math.cos(angle), sine = Math.sin(angle);
+  const clamp = (value: number) => Math.max(-100000, Math.min(100000, value));
+  return outline.map(point => {
+    const dx = point.x - centre.x, dy = point.y - centre.y;
+    return { x: clamp(centre.x + dx * cosine - dy * sine), y: clamp(centre.y + dx * sine + dy * cosine) };
+  });
+}
+
+export function platformBounds(outline: readonly PlanPoint[]) {
+  const xs = outline.map(point => point.x), ys = outline.map(point => point.y);
+  return {
+    x: (Math.min(...xs) + Math.max(...xs)) / 2,
+    y: (Math.min(...ys) + Math.max(...ys)) / 2,
+    width: Math.max(...xs) - Math.min(...xs),
+    depth: Math.max(...ys) - Math.min(...ys),
+  };
+}
+
+export function axisAlignedPlatformOutline(x: number, y: number, width: number, depth: number, rotation = 0): PlanPoint[] {
+  const base = [
+    { x: x - width / 2, y: y - depth / 2 }, { x: x + width / 2, y: y - depth / 2 },
+    { x: x + width / 2, y: y + depth / 2 }, { x: x - width / 2, y: y + depth / 2 },
+  ];
+  return rotation ? rotatePlatformOutline(base, rotation, { x, y }) : base;
+}
+
 export function newStair(id: string, lowerSurfaceId: string, upperSurfaceId: string, x: number, y: number): StairUnit {
   return {
     id, label: 'Treppe', lowerSurfaceId, upperSurfaceId, x, y, rotation: 0,

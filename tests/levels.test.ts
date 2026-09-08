@@ -4,8 +4,9 @@ import { randomUUID } from 'node:crypto';
 import {
   AUDIENCE_FLOOR_ID, EXAMPLE_PLATFORM_DEPTH, EXAMPLE_PLATFORM_ELEVATION, EXAMPLE_PLATFORM_WIDTH,
   EXAMPLE_STAIR_RISER, EXAMPLE_STAIR_RUN, EXAMPLE_STAIR_WIDTH,
-  layoutDiagnostics, newPlatform, newStair, placementDiagnostic, platformSchema, stairCorners,
-  stairRise, stairSchema, supportingSurfaces, surfaceElevation,
+  axisAlignedPlatformOutline, layoutDiagnostics, newPlatform, newStair, placementDiagnostic, platformCentroid,
+  platformSchema, rotatePlatformOutline, stairCorners, stairRise, stairSchema, supportingSurfaces, surfaceElevation,
+  translatePlatformOutline,
 } from '../src/shared/levels.js';
 import { newBrace, newWall, wallCorners } from '../src/shared/layout.js';
 import { braceCorners } from '../src/shared/braceTransforms.js';
@@ -113,4 +114,20 @@ test('movable layout platforms join the venue floor as supporting surfaces; stai
   assert.equal(layoutDiagnostics({
     walls: [], braces: [], platforms: [movable], stairs: [unknown],
   }, venue).some(item => item.kind === 'unknown-surface'), true);
+});
+
+test('platform outline translate and rotate keep the centroid under control', () => {
+  const platform = newPlatform(randomUUID(), 4000, 3000);
+  const centre = platformCentroid(platform.outline);
+  assert.equal(centre.x, 4000);
+  assert.equal(centre.y, 3000);
+  const moved = translatePlatformOutline(platform.outline, 500, -200);
+  assert.deepEqual(platformCentroid(moved), { x: 4500, y: 2800 });
+  const turned = rotatePlatformOutline(platform.outline, 90);
+  const after = platformCentroid(turned);
+  assert(Math.abs(after.x - 4000) < 1e-6);
+  assert(Math.abs(after.y - 3000) < 1e-6);
+  const rebuilt = axisAlignedPlatformOutline(4000, 3000, 2000, 1000, 90);
+  assert.equal(rebuilt.length, 4);
+  assert(Math.abs(platformCentroid(rebuilt).x - 4000) < 1e-6);
 });

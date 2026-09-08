@@ -1,31 +1,20 @@
 import { useState, type FormEvent } from 'react';
-import { platformSchema, stairSchema, type Platform, type StairUnit, type SupportingSurface } from '../../shared/levels.js';
-
-function bounds(outline: Platform['outline']) {
-  const xs = outline.map(point => point.x), ys = outline.map(point => point.y);
-  return {
-    x: (Math.min(...xs) + Math.max(...xs)) / 2, y: (Math.min(...ys) + Math.max(...ys)) / 2,
-    width: Math.max(...xs) - Math.min(...xs), depth: Math.max(...ys) - Math.min(...ys),
-  };
-}
-function outlineFrom(x: number, y: number, width: number, depth: number): Platform['outline'] {
-  return [
-    { x: x - width / 2, y: y - depth / 2 }, { x: x + width / 2, y: y - depth / 2 },
-    { x: x + width / 2, y: y + depth / 2 }, { x: x - width / 2, y: y + depth / 2 },
-  ];
-}
+import { axisAlignedPlatformOutline, platformBounds, platformSchema, stairSchema, type Platform, type StairUnit, type SupportingSurface } from '../../shared/levels.js';
 
 export function PlatformInspector({ platform, readOnly, onApply, onRemove }: {
   platform: Platform; readOnly: boolean; onApply: (platform: Platform) => void; onRemove: () => void;
 }) {
   const [error, setError] = useState('');
-  const box = bounds(platform.outline);
+  const box = platformBounds(platform.outline);
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    const x = Number(data.get('x')), y = Number(data.get('y')), width = Number(data.get('width')), depth = Number(data.get('depth'));
+    const x = Number(data.get('x')), y = Number(data.get('y'));
+    const width = Number(data.get('width')), depth = Number(data.get('depth'));
+    const rotation = Number(data.get('rotation'));
     const result = platformSchema.safeParse({
-      ...platform, label: data.get('label'), elevation: Number(data.get('elevation')), outline: outlineFrom(x, y, width, depth),
+      ...platform, label: data.get('label'), elevation: Number(data.get('elevation')),
+      outline: axisAlignedPlatformOutline(x, y, width, depth, rotation),
     });
     if (!result.success) { setError('Bitte prüfen Sie die Maße und die Bezeichnung.'); return; }
     setError(''); onApply(result.data);
@@ -36,9 +25,10 @@ export function PlatformInspector({ platform, readOnly, onApply, onRemove }: {
       ['elevation', 'Höhe über Fußboden (mm)', 1, 100000, platform.elevation],
       ['width', 'Breite (mm)', 1, 100000, box.width], ['depth', 'Tiefe (mm)', 1, 100000, box.depth],
       ['x', 'X (mm)', -100000, 100000, box.x], ['y', 'Y (mm)', -100000, 100000, box.y],
+      ['rotation', 'Drehung (°)', -360, 360, 0],
     ] as const).map(([key, label, min, max, value]) => <div key={key}><label htmlFor={`platform-${key}`}>{label}</label>
       <input id={`platform-${key}`} name={key} type="number" step="any" min={min} max={max} defaultValue={value} required /></div>)}</div>
-    <p className="muted">Beispielmaße, keine gemessene Spielstättenvorgabe. Umriss aus Mittelpunkt und Rechteck.</p>
+    <p className="muted">Beispielmaße, keine gemessene Spielstättenvorgabe. Umriss aus Mittelpunkt, Rechteck und Drehung.</p>
     {error && <p role="alert" className="error">{error}</p>}
     {!readOnly && <div className="form-actions"><button type="submit">Übernehmen</button><button className="quiet" type="button" onClick={onRemove}>Podest löschen</button></div>}
   </fieldset></form>;

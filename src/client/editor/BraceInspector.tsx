@@ -3,8 +3,9 @@ import { braceSchema, type Brace } from '../../shared/layout.js';
 import type { SupportingSurface } from '../../shared/levels.js';
 import { SurfaceField } from './PlatformLayer.js';
 
-export function BraceInspector({ brace, surfaces, readOnly, onApply, onRemove }: {
-  brace: Brace; surfaces: SupportingSurface[]; readOnly: boolean; onApply: (brace: Brace) => void; onRemove: () => void;
+export function BraceInspector({ brace, surfaces, readOnly, onApply, onRemove, onAlign }: {
+  brace: Brace; surfaces: SupportingSurface[]; readOnly: boolean;
+  onApply: (brace: Brace) => void; onRemove: () => void; onAlign?: () => void;
 }) {
   const [error, setError] = useState('');
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -28,8 +29,12 @@ export function BraceInspector({ brace, surfaces, readOnly, onApply, onRemove }:
     ] as const).map(([key, label, min, max]) => <div key={key}><label htmlFor={`brace-${key}`}>{label}</label>
       <input id={`brace-${key}`} name={key} type="number" step="any" min={min} max={max} defaultValue={brace[key]} required /></div>)}</div>
     <p className="muted">Beispielmaße, keine gemessene Inventarvorgabe. X/Y beziehen sich auf die Grundflächenmitte.</p>
-    <p className="muted">Stützen werden manuell platziert; es wird keine Stabilitätsempfehlung erzeugt.</p>
+    <p className="muted">Stützen werden manuell platziert; es wird keine Stabilitätsempfehlung erzeugt. Die hohe Seite zeigt zur Wand.</p>
     {error && <p role="alert" className="error">{error}</p>}
-    {!readOnly && <div className="form-actions"><button type="submit">Übernehmen</button><button className="quiet" type="button" onClick={onRemove}>Stütze löschen</button></div>}
+    {!readOnly && <div className="form-actions">
+      <button type="submit">Übernehmen</button>
+      {onAlign && <button className="quiet" type="button" onClick={onAlign}>An Wand ausrichten</button>}
+      <button className="quiet" type="button" onClick={onRemove}>Stütze löschen</button>
+    </div>}
   </fieldset></form>;
 }

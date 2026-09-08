@@ -10,7 +10,7 @@ export type BraceSolid = {
 
 // Millimetres, centre anchor, +x audience-right, +y away from the audience.
 // The tall (wall-side) face is the local -Y edge of the rectangular footprint.
-export function braceCorners(brace: Brace): { x: number; y: number }[] {
+export function braceCorners(brace: Pick<Brace, 'x' | 'y' | 'rotation' | 'footprintWidth' | 'footprintDepth'>): { x: number; y: number }[] {
   const angle = brace.rotation * Math.PI / 180;
   return [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([x = 0, y = 0]) => {
     const dx = x * brace.footprintWidth / 2;

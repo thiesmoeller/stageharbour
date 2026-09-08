@@ -70,6 +70,13 @@ test('construction plan PDF generation runs off the API thread', async () => {
   assert(pathLengthsMm(pdf).some(length => Math.abs(length - 24) < 0.05));
 });
 
+test('off-thread PDF failures reject without throwing from the IPC handler', async () => {
+  await assert.rejects(
+    () => renderOffThread({ schemaVersion: 1 } as never),
+    (error: unknown) => error instanceof Error && error.message.length > 0,
+  );
+});
+
 function doorScene(): Scene {
   const type = { ...newWallType(randomUUID()), name: 'Türwand', openings: [{ id: randomUUID(), left: 200, sill: 0, width: 800, height: 2000 }] };
   const wall = { ...newWall(randomUUID(), 2000, 3000), typeId: type.id, label: type.name };

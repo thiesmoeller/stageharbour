@@ -1,16 +1,24 @@
 import { type Platform, type StairUnit, type SupportingSurface } from '../../shared/levels.js';
+import { platformCentroid } from '../../shared/levels.js';
+import type { PointerEvent } from 'react';
 
 function path(outline: { x: number; y: number }[]) {
   return `${outline.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')} Z`;
 }
 
 export function PlatformLayer({
-  venuePlatforms, layoutPlatforms, venueStairs, layoutStairs, selectedId, onSelect,
+  venuePlatforms, layoutPlatforms, venueStairs, layoutStairs, selectedId, selectedPlatformIds, selectedMemberIds,
+  readOnly, onSelect, onPlatformPointerDown, onStairPointerDown,
 }: {
   venuePlatforms: Platform[]; layoutPlatforms: Platform[];
   venueStairs: StairUnit[]; layoutStairs: StairUnit[];
-  selectedId?: string;   onSelect: (kind: 'platform' | 'stair', id: string, additive?: boolean) => void;
+  selectedId?: string; selectedPlatformIds?: string[]; selectedMemberIds?: Set<string>;
+  readOnly?: boolean;
+  onSelect: (kind: 'platform' | 'stair', id: string, additive?: boolean) => void;
+  onPlatformPointerDown?: (event: PointerEvent<SVGGElement>, platform: Platform) => void;
+  onStairPointerDown?: (event: PointerEvent<SVGGElement>, stair: StairUnit) => void;
 }) {
+  const platforms = new Set(selectedPlatformIds ?? []);
   return <g aria-label="Ebenen">
     {venuePlatforms.map(platform => <g key={platform.id} data-testid={`venue-platform-${platform.id}`}>
       <path d={path(platform.outline)} fill="#c5d0b8" stroke="#5a6e52" strokeWidth="2" vectorEffect="non-scaling-stroke" pointerEvents="none" />
@@ -19,25 +27,33 @@ export function PlatformLayer({
         textAnchor="middle" fontSize="160" pointerEvents="none">{platform.label} · {platform.elevation} mm</text>
     </g>)}
     {layoutPlatforms.map(platform => {
-      const cx = platform.outline.reduce((sum, point) => sum + point.x, 0) / platform.outline.length;
-      const cy = platform.outline.reduce((sum, point) => sum + point.y, 0) / platform.outline.length;
-      return <g key={platform.id} data-testid={`platform-${platform.id}`} className="draggable-wall" onPointerDown={event => { event.stopPropagation(); onSelect('platform', platform.id, event.shiftKey); }}>
-        <path d={path(platform.outline)} fill={selectedId === platform.id ? '#b7c6a6' : '#c5d0b8'}
-          stroke={selectedId === platform.id ? '#b67c35' : '#5a6e52'} strokeWidth="2" vectorEffect="non-scaling-stroke" />
-        <text x={cx} y={-cy} textAnchor="middle" fontSize="160" pointerEvents="none">{platform.label} · {platform.elevation} mm</text>
+      const centre = platformCentroid(platform.outline);
+      const chosen = selectedId === platform.id || platforms.has(platform.id);
+      return <g key={platform.id} data-testid={`platform-${platform.id}`} className={readOnly ? undefined : 'draggable-wall'}
+        onPointerDown={event => {
+          if (onPlatformPointerDown) onPlatformPointerDown(event, platform);
+          else { event.stopPropagation(); onSelect('platform', platform.id, event.shiftKey); }
+        }}>
+        <path d={path(platform.outline)} fill={chosen ? '#b7c6a6' : '#c5d0b8'}
+          stroke={chosen ? '#b67c35' : '#5a6e52'} strokeWidth="2" vectorEffect="non-scaling-stroke" />
+        <text x={centre.x} y={-centre.y} textAnchor="middle" fontSize="160" pointerEvents="none">{platform.label} · {platform.elevation} mm</text>
       </g>;
     })}
-    {[...venueStairs.map(stair => ({ stair, movable: false })), ...layoutStairs.map(stair => ({ stair, movable: true }))].map(({ stair, movable }) => (
-      <g key={stair.id} data-testid={`${movable ? 'stair' : 'venue-stair'}-${stair.id}`} className={movable ? 'draggable-wall' : undefined}
+    {[...venueStairs.map(stair => ({ stair, movable: false })), ...layoutStairs.map(stair => ({ stair, movable: true }))].map(({ stair, movable }) => {
+      const chosen = selectedId === stair.id || !!selectedMemberIds?.has(`stair:${stair.id}`);
+      return <g key={stair.id} data-testid={`${movable ? 'stair' : 'venue-stair'}-${stair.id}`} className={movable ? 'draggable-wall' : undefined}
         transform={`translate(${stair.x} ${-stair.y}) rotate(${-stair.rotation})`}
-        onPointerDown={movable ? event => { event.stopPropagation(); onSelect('stair', stair.id, event.shiftKey); } : undefined}>
+        onPointerDown={movable ? event => {
+          if (onStairPointerDown) onStairPointerDown(event, stair);
+          else { event.stopPropagation(); onSelect('stair', stair.id, event.shiftKey); }
+        } : undefined}>
         <rect x={-stair.width / 2} y={-stair.run / 2} width={stair.width} height={stair.run}
-          fill={selectedId === stair.id ? '#d5decc' : '#e8efe3'} stroke={selectedId === stair.id ? '#b67c35' : '#718469'}
+          fill={chosen ? '#d5decc' : '#e8efe3'} stroke={chosen ? '#b67c35' : '#718469'}
           strokeWidth="2" vectorEffect="non-scaling-stroke" />
         <text y="40" textAnchor="middle" fontSize="140" pointerEvents="none">{stair.label}</text>
         <text y="200" textAnchor="middle" fontSize="120" pointerEvents="none">{stair.width} × {stair.run} mm</text>
-      </g>
-    ))}
+      </g>;
+    })}
   </g>;
 }
 

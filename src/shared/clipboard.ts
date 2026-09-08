@@ -54,7 +54,7 @@ export function cutSelection(layout: Layout, selected: readonly ClipboardMember[
   return { layout: removeSelection(layout, selected), clipboard: { keepIdentities: true, ...taken } };
 }
 
-function removeSelection(layout: Layout, selected: readonly ClipboardMember[]): Layout {
+export function removeSelection(layout: Layout, selected: readonly ClipboardMember[]): Layout {
   const ids = keysOf(selected);
   const wallIds = new Set(selected.flatMap(item => item.kind === 'wall' ? [item.id] : []));
   let next: Layout = {
