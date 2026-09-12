@@ -1,4 +1,4 @@
-import { lazy, Suspense, useLayoutEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useLayoutEffect, useRef, useState } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
 import { WallMesh } from './WallMesh.js';
@@ -12,6 +12,7 @@ import { StagePlaceholderList, StagePlaceholders } from './StagePlaceholders.js'
 import type { Asset } from '../../shared/assets.js';
 import type { StageCameraView } from './StageCamera.js';
 import type { StageEditing } from './StageEditing.js';
+import { useBlockBrowserZoom } from './viewportWheel.js';
 const PascalStageCanvas = lazy(() => import('./PascalStageCanvas.js'));
 const plywood = '#315d49';
 const timber = '#d9c6a1';
@@ -39,6 +40,8 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', ...edi
   const [view, setView] = useState<StageCameraView>('orbit');
   const audience = view === 'audience';
   const [enhanced, setEnhanced] = useState(true);
+  const simpleCanvas = useRef<HTMLDivElement>(null);
+  useBlockBrowserZoom(simpleCanvas, !enhanced);
   const camera = audience ? model.audience.position : { x: model.orbitTarget.x, y: 5500, z: -venue.depth * 0.35 };
   const target = audience ? model.audience.target : model.orbitTarget;
   return <div className="stage-view" data-testid="stage-view" data-view={view}>
@@ -46,7 +49,7 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', ...edi
       <button type="button" className="quiet" onClick={() => setView('audience')}>Publikumssicht</button>
       <button type="button" className="quiet" onClick={() => setView('orbit')}>Umlaufansicht</button>
       {enhanced && <><button type="button" className="quiet" onClick={() => setView('top')}>Von oben</button><button type="button" className="quiet" onClick={() => setView('front')}>Von vorne</button><button type="button" className="quiet" onClick={() => setView('side')}>Von der Seite</button></>}<button type="button" className="quiet" onClick={() => setEnhanced(value => !value)}>{enhanced ? 'Einfache Darstellung' : 'Erweiterte Darstellung'}</button></div>
-    {enhanced ? <Suspense fallback={<p role="status">Raumsicht wird geladen …</p>}><PascalStageCanvas model={model} layout={layout} venue={venue} audience={audience} view={view} assets={assets} workspaceId={workspaceId} {...editing} /></Suspense> : <div className="stage-canvas" role="img" aria-label="Raumsicht der Spielstätte">
+    {enhanced ? <Suspense fallback={<p role="status">Raumsicht wird geladen …</p>}><PascalStageCanvas model={model} layout={layout} venue={venue} audience={audience} view={view} assets={assets} workspaceId={workspaceId} {...editing} /></Suspense> : <div ref={simpleCanvas} className="stage-canvas" role="img" aria-label="Raumsicht der Spielstätte">
       <Canvas key={audience ? 'audience' : 'orbit'} gl={{ antialias: true, alpha: false }} dpr={[1, 2]}>
         <color attach="background" args={['#eef2e8']} />
         <PerspectiveCamera makeDefault fov={40} near={10} far={250000} position={[camera.x, camera.y, camera.z]} />

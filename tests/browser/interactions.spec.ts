@@ -82,6 +82,27 @@ test('venue vertex gestures have preview, cancel, one undo and publish semantics
   await expect(page.getByTestId('venue-floor')).toHaveAttribute('d', /^M300 -300/);
 });
 
+test('venue plan drag, rubberband clipboard and escape cancel keep one draft history', async ({ page }) => {
+  await create(page);
+  await page.getByRole('button', { name: 'Spielstätte', exact: true }).click();
+  const svg = '.venue-plan svg';
+  await page.getByRole('button', { name: 'Feste Wand hinzufügen' }).click();
+  const wallX = page.getByLabel('Feste Wand 1 x');
+  await expect(wallX).toHaveValue('4000');
+  await drag(page, await point(page, 4000, 3000, svg), await point(page, 4500, 3200, svg));
+  await expect(wallX).toHaveValue('4500');
+  await expect(page.getByLabel('Feste Wand 1 y')).toHaveValue('3200');
+  await page.getByRole('button', { name: 'Spielstätte rückgängig' }).click();
+  await expect(wallX).toHaveValue('4000');
+  await drag(page, await point(page, 3500, 2500, svg), await point(page, 4500, 3500, svg));
+  await expect(page.locator('.clipboard-panel')).toContainText('1 ausgewählt');
+  await page.getByRole('button', { name: 'Kopieren' }).click();
+  await page.getByRole('button', { name: 'Einfügen' }).click();
+  await expect(page.getByText('Feste Wand 2')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('venue-selection-marquee')).toHaveCount(0);
+});
+
 test('rendered Pascal translation handle moves the shared plan and undoes once', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));

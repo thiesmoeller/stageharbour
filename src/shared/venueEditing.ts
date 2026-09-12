@@ -1,6 +1,8 @@
-import { venueGeometrySchema, type VenueGeometry } from './layout.js';
-import { platformCentroid } from './levels.js';
+import { venueGeometrySchema, wallCorners, type VenueGeometry } from './layout.js';
+import { platformCentroid, stairCorners } from './levels.js';
 import { normalizeRotation, type PlanTransform } from './editing.js';
+import { resolveWall } from './wall-types.js';
+import type { PlanBounds } from './selection.js';
 
 export function venueObjects(venue: VenueGeometry) {
   return [
@@ -12,6 +14,70 @@ export function venueObjects(venue: VenueGeometry) {
     ...(venue.keepClearZones ?? []).map(item => ({ ...item, ...platformCentroid(item.polygon), kind: 'zone' as const })),
     ...(venue.cableRoutingCorridors ?? []).map(item => ({ ...item, ...platformCentroid(item.path), kind: 'corridor' as const })),
   ];
+}
+export type VenueObject = ReturnType<typeof venueObjects>[number];
+export function venueObjectFootprint(item: VenueObject, venue: VenueGeometry) {
+  switch (item.kind) {
+    case 'wall': return wallCorners(resolveWall(item, venue.wallTypes ?? []));
+    case 'platform': return item.outline;
+    case 'stair': return stairCorners(item);
+    case 'zone': return item.polygon;
+    case 'corridor': return item.path;
+    case 'pin': return [{ x: item.x - 65, y: item.y - 65 }, { x: item.x + 65, y: item.y + 65 }];
+    case 'overhead': return stairCorners({ ...item, rotation: 0, width: item.length, run: item.width });
+  }
+}
+export function venueObjectsInBounds(venue: VenueGeometry, bounds: PlanBounds) {
+  return venueObjects(venue).filter(item => {
+    const points = venueObjectFootprint(item, venue);
+    return Math.min(...points.map(p => p.x)) <= bounds.maxX && Math.max(...points.map(p => p.x)) >= bounds.minX
+      && Math.min(...points.map(p => p.y)) <= bounds.maxY && Math.max(...points.map(p => p.y)) >= bounds.minY;
+  }).map(item => item.id);
+}
+
+const objectFields = ['walls', 'platforms', 'stairs', 'overheadBoxes', 'connectionPoints', 'keepClearZones', 'cableRoutingCorridors'] as const;
+export type VenueClipboard = { source: VenueGeometry; ids: string[]; cut: boolean; offset: number };
+export function copyVenueSelection(venue: VenueGeometry, ids: readonly string[], cut = false): VenueClipboard | undefined {
+  const selected = venueObjects(venue).filter(item => ids.includes(item.id)).map(item => item.id);
+  return selected.length ? { source: structuredClone(venue), ids: selected, cut, offset: cut ? 0 : 300 } : undefined;
+}
+/** Cut removes first; paste restores identities. Dependent platform references block the cut. */
+export function cutVenueSelection(venue: VenueGeometry, ids: readonly string[]) {
+  const clipboard = copyVenueSelection(venue, ids, true);
+  if (!clipboard) return { venue, blocked: false as const };
+  const removed = removeVenueSelection(venue, ids);
+  return removed.blocked ? { venue, blocked: true as const } : { venue: removed.venue, clipboard, blocked: false as const };
+}
+/** Deletion is atomic: retaining a dependent object must not leave an unknown platform reference. */
+export function removeVenueSelection(venue: VenueGeometry, ids: readonly string[]): { venue: VenueGeometry; blocked: boolean } {
+  const platforms = new Set((venue.platforms ?? []).filter(p => ids.includes(p.id)).map(p => p.id));
+  const dependent = [...venue.walls ?? [], ...venue.keepClearZones ?? []].some(item => !ids.includes(item.id) && item.supportingSurfaceId && platforms.has(item.supportingSurfaceId))
+    || (venue.stairs ?? []).some(item => !ids.includes(item.id) && (platforms.has(item.lowerSurfaceId) || platforms.has(item.upperSurfaceId)));
+  if (dependent) return { venue, blocked: true };
+  const next = { ...venue };
+  for (const key of objectFields) Object.assign(next, { [key]: venue[key]?.filter(item => !ids.includes(item.id)) });
+  return { venue: next, blocked: false };
+}
+/** Clipboard stays within its venue draft; selected platform references are remapped together. */
+export function pasteVenueSelection(venue: VenueGeometry, clipboard: VenueClipboard, id: () => string) {
+  const ids = new Map(clipboard.ids.map(old => [old, clipboard.cut ? old : id()]));
+  const source = transformVenue(clipboard.source, clipboard.ids, { x: clipboard.offset, y: clipboard.offset, rotation: 0 });
+  // Never silently paste at the original location when an offset exceeded coordinate limits.
+  if (clipboard.offset && source === clipboard.source) return { venue, ids: [] as string[] };
+  const next = { ...venue };
+  for (const key of objectFields) {
+    const added = source[key]?.filter(item => ids.has(item.id)).map(item => {
+      const copy = { ...item, id: ids.get(item.id)! };
+      if ('supportingSurfaceId' in copy && copy.supportingSurfaceId) copy.supportingSurfaceId = ids.get(copy.supportingSurfaceId) ?? copy.supportingSurfaceId;
+      if ('lowerSurfaceId' in copy) { copy.lowerSurfaceId = ids.get(copy.lowerSurfaceId) ?? copy.lowerSurfaceId; copy.upperSurfaceId = ids.get(copy.upperSurfaceId) ?? copy.upperSurfaceId; }
+      if ('panelId' in copy && !clipboard.cut) { delete copy.panelId; delete copy.assemblyNumber; }
+      return copy;
+    }) ?? [];
+    Object.assign(next, { [key]: [...venue[key] ?? [], ...added] });
+  }
+  const all = venueObjects(next).map(item => item.id);
+  if (new Set(all).size !== all.length || !venueGeometrySchema.safeParse(next).success) return { venue, ids: [] as string[] };
+  return { venue: next, ids: [...ids.values()] };
 }
 export function venueSelectionPivot(venue: VenueGeometry, ids: readonly string[]) {
   const selected = venueObjects(venue).filter(item => ids.includes(item.id));

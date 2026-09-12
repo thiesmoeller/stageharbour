@@ -8,8 +8,9 @@ import { placementOverlaps, wallFootprint } from '../src/shared/overlap.js';
 import {
   COMMON_LAYOUT_ANGLES_DEG, GUIDE_PADDING_MM, SNAP_ANGLE_DEG, SNAP_DISTANCE_MM, SNAP_EDGE_FRACTIONS, SNAP_NOTICE,
   alignBraceToNearestWall, braceContactHinge, centrelineSchema, defaultCentreline, planRotationAt, rotateBraceOnContact,
-  rotateToward, rotationHandlePoint, snapBracePose, snapGroupPose, snapRotation, snapStatusText, snapWallPose, wallFaceAnchors,
+  rotateToward, rotationHandlePoint, snapBracePose, snapGroupPose, snapMembersPose, snapRotation, snapStatusText, snapWallPose, wallFaceAnchors,
 } from '../src/shared/snapping.js';
+import { permanentWalls, planningWalls } from '../src/shared/planningGeometry.js';
 
 test('documented snap tolerances are millimetres and degrees, not screen pixels', () => {
   assert.equal(SNAP_DISTANCE_MM, 100);
@@ -68,6 +69,25 @@ test('a wall edge within SNAP_DISTANCE_MM snaps onto another wall edge', () => {
   assert.equal(snapped.y, 28);
   assert.equal(snapped.rotation, 0);
   assert.equal(snapped.guides[0]?.kind, 'wall-edge');
+});
+
+test('scene walls snap onto permanent venue walls without treating them as movable members', () => {
+  const permanent = newWall(randomUUID(), 0, 0);
+  const moving = newWall(randomUUID(), 2000, 80);
+  const venue = venueGeometrySchema.parse({ schemaVersion: 1, width: 8000, depth: 6000, walls: [permanent] });
+  const layout: Layout = { schemaVersion: 1, walls: [moving], braces: [] };
+  assert.equal(planningWalls(layout, venue).length, 2);
+  assert.equal(permanentWalls(venue)[0]?.id, permanent.id);
+  const alone = snapWallPose(moving, [], undefined);
+  assert.equal(alone.y, 80);
+  const againstPermanent = snapWallPose(moving, permanentWalls(venue), undefined);
+  assert.equal(againstPermanent.y, 28);
+  assert.equal(againstPermanent.guides[0]?.kind, 'wall-edge');
+  const grouped = snapMembersPose(layout, [{ kind: 'wall', id: moving.id }], { x: moving.x, y: moving.y, rotation: 0 }, 0, undefined, {
+    fixedWalls: permanentWalls(venue),
+  });
+  assert.equal(grouped.pose.y, 28);
+  assert.equal(layout.walls[0]?.y, 80);
 });
 
 test('a wall centre within SNAP_DISTANCE_MM snaps onto the venue centreline', () => {

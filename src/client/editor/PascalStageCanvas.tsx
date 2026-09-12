@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { OrbitControls } from '@react-three/drei';
 import { Viewer, useViewer } from '@pascal-app/viewer';
 import type { StageModel } from '../../shared/transforms.js';
@@ -9,6 +9,7 @@ import { StageTransformControls } from './StageTransformControls.js';
 import type { StageEditing } from './StageEditing.js';
 import { VenueFloor } from './VenueFloor.js';
 import { PascalSceneBridge, StageInteraction } from './PascalStageNodes.js';
+import { useBlockBrowserZoom } from './viewportWheel.js';
 
 export default function PascalStageCanvas({ model, layout, venue, audience, view = audience ? 'audience' : 'orbit', assets, workspaceId, ...editing }: { model: StageModel; layout: Layout; venue: VenueGeometry; audience: boolean; view?: StageCameraView; assets: Asset[]; workspaceId: string } & StageEditing) {
   const [focusSelection, setFocusSelection] = useState(false);
@@ -28,6 +29,8 @@ export default function PascalStageCanvas({ model, layout, venue, audience, view
     useViewer.getState().setRenderPaused(false);
     useViewer.getState().setShadows(true);
   }, []);
+  const canvas = useRef<HTMLDivElement>(null);
+  useBlockBrowserZoom(canvas);
   const mirrorWidth = model.floor.width;
   const mirroredCameraX = mirrorWidth - camera.x;
   const mirroredTargetX = mirrorWidth - target.x;
@@ -42,7 +45,7 @@ export default function PascalStageCanvas({ model, layout, venue, audience, view
       </select></label>
       <label><input type="checkbox" checked={detailed} onChange={event => setDetailed(event.target.checked)} /> Hohe Renderqualität</label>
     </div>
-    <div className="stage-canvas" role="img" aria-label="Raumsicht der Spielstätte" data-renderer="pascal">
+    <div ref={canvas} className="stage-canvas" role="img" aria-label="Raumsicht der Spielstätte" data-renderer="pascal">
       <Viewer selectionManager="custom" useBvh={false} renderContext="viewer" disablePostFx={!detailed}>
         <StageCamera view={view} span={focusSelection && editing.pivot ? 3 : span} target={[mirroredTargetX / 1000, target.y / 1000, target.z / 1000]}
           position={view === 'top' ? [mirroredTargetX / 1000, span * 2, target.z / 1000] : view === 'side' ? [-span * 2, 2, target.z / 1000] : view === 'front' ? [mirroredTargetX / 1000, 2, -span] : focusSelection && editing.pivot ? [mirroredTargetX / 1000 + 2, 4, target.z / 1000 - 5] : [mirroredCameraX / 1000, camera.y / 1000, camera.z / 1000]} />

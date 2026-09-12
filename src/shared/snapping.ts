@@ -32,7 +32,7 @@ export type SnapGuide = {
   kind: 'wall-edge' | 'centreline' | 'wall-anchor';
   a: { x: number; y: number }; b: { x: number; y: number };
 };
-export type SnapOptions = { bypass?: boolean; snapAngles?: boolean };
+export type SnapOptions = { bypass?: boolean; snapAngles?: boolean; fixedWalls?: SnapWall[] };
 export type SnapWall = { id: string; x: number; y: number; rotation: number; width: number; thickness: number };
 type SnapLayout = {
   walls: SnapWall[];
@@ -234,7 +234,7 @@ export function snapMembersPose(
   const moved = transformMembers(layout, members, proposed, baseRotation);
   const memberIds = new Set(members.filter(member => member.kind === 'wall').map(member => member.id));
   const moving = moved.walls.filter(wall => memberIds.has(wall.id));
-  const others = layout.walls.filter(wall => !memberIds.has(wall.id));
+  const others = [...layout.walls.filter(wall => !memberIds.has(wall.id)), ...options?.fixedWalls ?? []];
   const { dx, dy, guides } = translationFor(moving, others, centreline, membersPivot(moved, members));
   return { pose: { x: clean(proposed.x + dx), y: clean(proposed.y + dy), rotation }, guides };
 }

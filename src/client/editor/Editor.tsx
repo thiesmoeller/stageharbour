@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type PointerEvent, type WheelEvent } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type PointerEvent } from 'react';
 import { z } from 'zod';
 import { selectionPivot, transformSelection, type PlanTransform } from '../../shared/editing.js';
 import type { StageEditing } from './StageEditing.js';
@@ -21,6 +21,8 @@ import { overheadBoxCorners, overheadClearance } from '../../shared/overhead.js'
 import { braceCorners } from '../../shared/braceTransforms.js';
 import { resolveWall, typesOf, type WallElementType } from '../../shared/wall-types.js';
 import { measuredOutline } from '../../shared/venue.js';
+import { planningWalls, permanentWalls } from '../../shared/planningGeometry.js';
+import { useViewportWheel } from './viewportWheel.js';
 import { LEASE_HEARTBEAT_MS } from '../../shared/leases.js';
 import { ApiError, request } from '../api.js';
 import { Autosave, SaveConflict } from './autosave.js';
@@ -116,6 +118,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     pivot: { x: number; y: number }; pointerStart: number; angleSnapped: boolean;
   } | undefined>(undefined);
   const marqueeDrag = useRef<{ x: number; y: number; endX: number; endY: number; additive: boolean } | undefined>(undefined);
+  const panDrag = useRef<{ clientX: number; clientY: number; panX: number; panY: number } | undefined>(undefined);
   const pickedRef = useRef(picked);
   pickedRef.current = picked;
   const svg = useRef<SVGSVGElement>(null);
@@ -398,7 +401,15 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     event.currentTarget.setPointerCapture(event.pointerId);
   }
   function busyGesture() {
-    return !!(gesture.current || rotateDrag.current || braceDrag.current || braceRotate.current || platformDrag.current || platformRotate.current || stairDrag.current || stairRotate.current || placeholderDrag.current || placeholderRotate.current || groupDrag.current || groupRotate.current || marqueeDrag.current);
+    return !!(gesture.current || rotateDrag.current || braceDrag.current || braceRotate.current || platformDrag.current || platformRotate.current || stairDrag.current || stairRotate.current || placeholderDrag.current || placeholderRotate.current || groupDrag.current || groupRotate.current || marqueeDrag.current || panDrag.current);
+  }
+  function startPan(event: PointerEvent<SVGSVGElement>) {
+    if (event.button !== 1) return;
+    event.preventDefault();
+    event.stopPropagation();
+    panDrag.current = { clientX: event.clientX, clientY: event.clientY, panX: viewPan.x, panY: viewPan.y };
+    event.currentTarget.style.cursor = 'grabbing';
+    event.currentTarget.setPointerCapture(event.pointerId);
   }
   function beginSelectionRotate(position: { x: number; y: number }, targets: { members: GroupMember[]; groupId?: string; baseRotation: number }, event: PointerEvent<SVGGElement>) {
     const pivot = membersPivot(current.current.present, targets.members);
@@ -423,7 +434,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     }
     pick({ kind: 'brace', id: brace.id }, false);
     const types = typesOf(current.current.present);
-    const walls = current.current.present.walls.map(wall => resolveWall(wall, types));
+    const walls = planningWalls(current.current.present, venue);
     const contact = braceContactHinge(brace, walls);
     const hinge = contact?.hinge;
     const position = point(event);
@@ -571,11 +582,24 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     event.currentTarget.setPointerCapture(event.pointerId);
   }
   function move(event: PointerEvent) {
+    const panning = panDrag.current;
+    if (panning) {
+      const rect = svg.current?.getBoundingClientRect();
+      if (rect && rect.width && rect.height) {
+        const mmPerPxX = viewW / rect.width;
+        const mmPerPxY = viewH / rect.height;
+        setViewPan({
+          x: panning.panX - (event.clientX - panning.clientX) * mmPerPxX,
+          y: panning.panY + (event.clientY - panning.clientY) * mmPerPxY,
+        });
+      }
+      return;
+    }
     const position = point(event);
     const clamp = (value: number) => Math.max(-100000, Math.min(100000, Math.round(value)));
     const bypass = event.altKey || !snapEnabled;
     const types = typesOf(current.current.present);
-    const walls = current.current.present.walls.map(wall => resolveWall(wall, types));
+    const walls = planningWalls(current.current.present, venue);
     const marquee = marqueeDrag.current;
     if (marquee) {
       marquee.endX = position.x;
@@ -678,7 +702,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
       if (!pivot) return;
       const snapped = snapMembersPose(grouped.start, grouped.members, {
         x: clamp(pivot.x + position.x - grouped.x), y: clamp(pivot.y + position.y - grouped.y), rotation: grouped.baseRotation,
-      }, grouped.baseRotation, venue.stageCentreline, { bypass });
+      }, grouped.baseRotation, venue.stageCentreline, { bypass, fixedWalls: permanentWalls(venue) });
       grouped.latest = grouped.groupId
         ? transformGroup(grouped.start, grouped.groupId, {
           x: clamp(snapped.pose.x), y: clamp(snapped.pose.y), rotation: snapped.pose.rotation,
@@ -765,6 +789,11 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     setSnapStatus(snapStatusText({ guides: snapped.guides }));
   }
   function finish(cancelled = false) {
+    if (panDrag.current) {
+      panDrag.current = undefined;
+      if (svg.current) svg.current.style.cursor = '';
+      return;
+    }
     const marquee = marqueeDrag.current;
     marqueeDrag.current = undefined;
     setMarqueeBox(undefined);
@@ -830,7 +859,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     setPreviewBrace(undefined);
     if (drag && !cancelled) {
       const types = typesOf(current.current.present);
-      const walls = current.current.present.walls.map(wall => resolveWall(wall, types));
+      const walls = planningWalls(current.current.present, venue);
       const aligned = alignBraceToNearestWall(drag.latest, walls) ?? drag.latest;
       if (!rejectIfOverlap(braceFootprint(aligned))) replaceBrace(aligned);
     }
@@ -909,12 +938,15 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     }
     return false;
   }
-  function onPlanWheel(event: WheelEvent<SVGSVGElement>) {
-    event.preventDefault();
-    if (event.shiftKey) {
+  function onPlanWheel(event: WheelEvent) {
+    // Plain wheel scrolls the page; only modifier chords drive the plan view.
+    if (event.shiftKey && !(event.ctrlKey || event.metaKey)) {
+      event.preventDefault();
       setViewPan(pan => ({ x: pan.x + event.deltaX * 2 / viewZoom, y: pan.y - event.deltaY * 2 / viewZoom }));
       return;
     }
+    if (!(event.ctrlKey || event.metaKey)) return;
+    event.preventDefault();
     const cursor = point(event);
     const factor = Math.exp(-event.deltaY * 0.0015);
     const next = Math.min(8, Math.max(0.4, viewZoom * factor));
@@ -924,6 +956,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     setViewZoom(next);
     setViewPan({ x: newCx - (minX + maxX) / 2, y: newCy - (minY + maxY) / 2 });
   }
+  useViewportWheel(svg, onPlanWheel, !venueOpen);
   function stageSelect(id: string, additive: boolean) {
     if (busyGesture() || stageGesture.current) return;
     const member = membersInBounds(current.current.present, { minX: -Infinity, maxX: Infinity, minY: -Infinity, maxY: Infinity }).find(item => item.id === id);
@@ -944,7 +977,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     let adjusted = delta;
     if (!bypass) {
       const members = gesture.members.filter((item): item is GroupMember => item.kind !== 'platform');
-      const snapped = snapMembersPose(gesture.layout, members, { x: pivot.x + delta.x, y: pivot.y + delta.y, rotation: delta.rotation }, 0, venue.stageCentreline, { snapAngles: true });
+      const snapped = snapMembersPose(gesture.layout, members, { x: pivot.x + delta.x, y: pivot.y + delta.y, rotation: delta.rotation }, 0, venue.stageCentreline, { snapAngles: true, fixedWalls: permanentWalls(venue) });
       adjusted = { x: snapped.pose.x - pivot.x, y: snapped.pose.y - pivot.y, rotation: snapped.pose.rotation };
       setGuides(snapped.guides);
     }
@@ -1028,9 +1061,18 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     </div>}
     {!venueOpen && <div className="editor-grid"><div className="editor-views" data-mode={viewMode} style={viewMode === 'split' ? { gridTemplateColumns: `minmax(0, ${viewShare}fr) minmax(0, ${100 - viewShare}fr)` } : { gridTemplateColumns: 'minmax(0, 1fr)' }}><div className="plan-canvas" hidden={viewMode === 'stage'}>
       <svg ref={svg} role="img" aria-label="Grundriss der Spielstätte" viewBox={viewBox}
-        onWheel={onPlanWheel}
-        onPointerMove={move} onPointerUp={() => finish()} onPointerCancel={() => finish(true)} onLostPointerCapture={() => finish(true)}>
-        <defs><pattern id="metre-grid" width="1000" height="1000" patternUnits="userSpaceOnUse"><path d="M 1000 0 L 0 0 0 1000" fill="none" stroke="#dfe5d9" strokeWidth="1" vectorEffect="non-scaling-stroke" /></pattern></defs>
+        onPointerDown={startPan}
+        onPointerMove={move} onPointerUp={() => finish()} onPointerCancel={() => finish(true)} onLostPointerCapture={() => finish(true)}
+        onAuxClick={event => event.preventDefault()}>
+        <defs>
+          <pattern id="half-metre-grid" width="500" height="500" patternUnits="userSpaceOnUse">
+            <path d="M 500 0 L 0 0 0 500" fill="none" stroke="#ebefe6" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+          </pattern>
+          <pattern id="metre-grid" width="1000" height="1000" patternUnits="userSpaceOnUse">
+            <rect width="1000" height="1000" fill="url(#half-metre-grid)" />
+            <path d="M 1000 0 L 0 0 0 1000" fill="none" stroke="#cfd6c6" strokeWidth="1.25" vectorEffect="non-scaling-stroke" />
+          </pattern>
+        </defs>
         <path data-testid="venue-floor" d={`${floor.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')} Z`}
           fill="url(#metre-grid)" stroke="#718469" strokeWidth="2" vectorEffect="non-scaling-stroke" onPointerDown={startMarquee} />
         {(venue.walls ?? []).map(wall => <polygon key={wall.id} data-testid={`venue-wall-${wall.id}`} points={wallCorners(resolveWall(wall, venue.wallTypes ?? [])).map(p => `${p.x},${-p.y}`).join(' ')} fill="#8b8478" stroke="#625b50" vectorEffect="non-scaling-stroke" pointerEvents="none"><title>{wall.label} · feste Spielstättenwand</title></polygon>)}
@@ -1130,7 +1172,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
             testId={`rotate-placeholder-${item.id}`} label="Platzhalter drehen" onPointerDown={event => startRotatePlaceholder(event, item)} />;
         })()}
       </svg>
-      <p className="muted">Raster: 1 m · Mausrad zoomen · Shift+Mausrad verschieben · Auf dem Boden ziehen: Mehrfachauswahl · Orange ↻ dreht · Stützen an Wänden · {SNAP_NOTICE}</p>
+      <p className="muted">Raster: 1 m / 50 cm · Strg+Mausrad zoomen · Mittelklick oder Shift+Mausrad verschieben · Auf dem Boden ziehen: Mehrfachauswahl · Orange ↻ dreht · Stützen an Wänden · {SNAP_NOTICE}</p>
       {diagnostics.map(item => <p key={`${item.kind}-${item.objectId}`} className="warning" role="status">{item.message}</p>)}
       {overheadWarnings.map(item => <p key={`${item.kind}-${item.objectId}-${item.obstructionId ?? ''}`}
         className="warning" role="status" data-testid="overhead-warning">{item.message}</p>)}
@@ -1179,7 +1221,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
         : selectedBraceItem ? <BraceInspector key={JSON.stringify(selectedBraceItem)} brace={selectedBraceItem} surfaces={surfaces} readOnly={readOnly} onApply={replaceBrace} onRemove={remove}
             onAlign={() => {
               const types = typesOf(current.current.present);
-              const walls = current.current.present.walls.map(wall => resolveWall(wall, types));
+              const walls = planningWalls(current.current.present, venue);
               const aligned = alignBraceToNearestWall(selectedBraceItem, walls, { force: true });
               if (aligned) replaceBrace(aligned);
             }} />

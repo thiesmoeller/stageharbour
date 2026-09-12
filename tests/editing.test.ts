@@ -8,7 +8,9 @@ import { normalizeRotation, selectionPivot, transformSelection } from '../src/sh
 import { copySelection, cutSelection, pasteClipboard, removeSelection } from '../src/shared/clipboard.js';
 import { execute, history, undo, redo } from '../src/shared/history.js';
 import { snapRotation } from '../src/shared/snapping.js';
-import { transformVenue } from '../src/shared/venueEditing.js';
+import {
+  copyVenueSelection, cutVenueSelection, pasteVenueSelection, removeVenueSelection, transformVenue, venueObjectsInBounds,
+} from '../src/shared/venueEditing.js';
 import { stageModel } from '../src/shared/transforms.js';
 
 test('mixed 2D/3D transforms rotate around one pivot, preserve model identity and undo in one step', () => {
@@ -50,6 +52,24 @@ test('permanent venue walls and platforms transform together without altering th
   assert.equal(moved.walls![0]!.rotation, 90);
   assert.equal(stageModel({ schemaVersion: 1, walls: [], braces: [] }, moved).walls[0]!.id, wall.id);
   assert.equal(transformVenue(venue, [wall.id], { x: Infinity, y: 0, rotation: 0 }), venue);
+});
+
+test('venue rubberband, clipboard and dependent deletion keep platform references valid', () => {
+  const wall = newWall(randomUUID(), 1000, 1000);
+  const platform = newPlatform(randomUUID(), 5000, 4000);
+  const supported = { ...newWall(randomUUID(), 5000, 4000), supportingSurfaceId: platform.id };
+  const venue = { schemaVersion: 1 as const, width: 8000, depth: 6000, walls: [wall, supported], platforms: [platform] };
+  assert.deepEqual(venueObjectsInBounds(venue, { minX: 500, maxX: 1500, minY: 500, maxY: 1500 }), [wall.id]);
+  assert.equal(removeVenueSelection(venue, [platform.id]).blocked, true);
+  assert.equal(removeVenueSelection(venue, [platform.id, supported.id]).blocked, false);
+  const copied = pasteVenueSelection(venue, copyVenueSelection(venue, [wall.id])!, randomUUID);
+  assert.equal(copied.venue.walls!.length, 3);
+  assert.notEqual(copied.ids[0], wall.id);
+  const cut = cutVenueSelection(venue, [wall.id]);
+  assert.equal(cut.blocked, false);
+  assert.equal(cut.venue.walls!.length, 1);
+  const restored = pasteVenueSelection(cut.venue, cut.clipboard!, randomUUID);
+  assert.equal(restored.venue.walls!.find(item => item.id === wall.id)?.x, wall.x);
 });
 
 test('marquee clipboard and deletion include models; copy keeps asset references, cut keeps placement identities', () => {
