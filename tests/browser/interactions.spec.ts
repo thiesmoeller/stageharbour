@@ -1,0 +1,121 @@
+import { test, expect, type Page } from '@playwright/test';
+import { testAdministrator } from '../helpers/database.js';
+
+test.use({ viewport: { width: 1800, height: 1100 } });
+
+async function create(page: Page) {
+  await page.goto('/');
+  await page.getByLabel('E-Mail-Adresse').fill(testAdministrator.email);
+  await page.getByLabel('Passwort', { exact: true }).fill(testAdministrator.password);
+  await page.getByRole('button', { name: 'Anmelden', exact: true }).click();
+  await page.getByRole('button', { name: 'Neues Bühnenbild' }).click();
+  await page.getByRole('textbox', { name: 'Produktion' }).fill(`Interaktionen ${test.info().testId}`);
+  await page.getByRole('textbox', { name: 'Spielstätte' }).fill('Probesaal');
+  await page.getByRole('spinbutton', { name: 'Spielstättenbreite (mm)' }).fill('8000');
+  await page.getByRole('spinbutton', { name: 'Spielstättentiefe (mm)' }).fill('6000');
+  await page.getByRole('button', { name: 'Bühnenbild anlegen' }).click();
+  await expect(page.locator('.save-status')).toHaveText('Gespeichert');
+}
+async function point(page: Page, x: number, y: number, selector = '.plan-canvas svg') {
+  await page.locator(selector).scrollIntoViewIfNeeded();
+  return page.locator(selector).evaluate((element, p) => {
+    const result = new DOMPoint(p.x, -p.y).matrixTransform((element as SVGSVGElement).getScreenCTM()!);
+    return { x: result.x, y: result.y };
+  }, { x, y });
+}
+async function drag(page: Page, a: { x: number; y: number }, b: { x: number; y: number }) {
+  await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(b.x, b.y, { steps: 8 }); await page.mouse.up();
+}
+
+test('wall edge snapping, pointer rotation, clipboard, mixed marquee delete and undo', async ({ page }) => {
+  await create(page);
+  await page.getByRole('button', { name: 'Wand hinzufügen', exact: true }).click();
+  await page.locator('#wall-x').fill('2000'); await page.locator('#wall-y').fill('2500');
+  await page.getByRole('button', { name: 'Übernehmen', exact: true }).click();
+  await page.getByRole('button', { name: 'Wand hinzufügen', exact: true }).click();
+  await drag(page, await point(page, 4000, 3000), await point(page, 3160, 2500));
+  await expect(page.locator('#wall-x')).toHaveValue('3200');
+  await page.keyboard.down('Alt');
+  await drag(page, await point(page, 3200, 2500), await point(page, 3240, 2500));
+  await page.keyboard.up('Alt');
+  await expect(page.locator('#wall-x')).toHaveValue('3240');
+  await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
+  await expect(page.locator('#wall-x')).toHaveValue('3200');
+  const selected = await page.locator('#wall-selection').inputValue();
+  const handle = page.getByTestId(`rotate-${selected.replace('wall:', '')}`).locator('circle').first();
+  const box = (await handle.boundingBox())!;
+  await drag(page, { x: box.x + box.width / 2, y: box.y + box.height / 2 }, await point(page, 3200, 3500));
+  await expect(page.locator('#wall-rotation')).toHaveValue('90');
+  await page.getByRole('button', { name: 'Kopieren', exact: true }).click();
+  await page.keyboard.press('Control+v');
+  await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(3);
+  await page.getByRole('button', { name: 'Stütze hinzufügen', exact: true }).click();
+  await page.getByRole('button', { name: 'Kiste hinzufügen', exact: true }).click();
+  await drag(page, await point(page, 700, 800), await point(page, 6500, 5500));
+  await expect(page.locator('.clipboard-panel')).toContainText('5 ausgewählt');
+  await page.keyboard.press('Delete');
+  await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(0);
+  await expect(page.locator('[data-testid^="brace-"]')).toHaveCount(0);
+  await expect(page.locator('[data-testid^="placeholder-"]')).toHaveCount(0);
+  await page.keyboard.press('Control+z');
+  await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(3);
+  await expect(page.locator('[data-testid^="brace-"]')).toHaveCount(1);
+  await expect(page.locator('[data-testid^="placeholder-"]')).toHaveCount(1);
+  await expect(page.locator('.save-status')).toHaveText('Gespeichert');
+});
+
+test('venue vertex gestures have preview, cancel, one undo and publish semantics', async ({ page }) => {
+  await create(page);
+  await page.getByRole('button', { name: 'Spielstätte', exact: true }).click();
+  const svg = '.venue-plan svg';
+  const start = await point(page, 0, 0, svg), end = await point(page, 300, 300, svg);
+  await drag(page, start, end);
+  await expect(page.locator('#vertex-x-0')).toHaveValue('300');
+  await page.getByRole('button', { name: 'Spielstätte rückgängig' }).click();
+  await expect(page.locator('#vertex-x-0')).toHaveValue('0');
+  await page.getByRole('button', { name: 'Spielstätte wiederholen' }).click();
+  await expect(page.locator('#vertex-x-0')).toHaveValue('300');
+  await expect(page.locator('[data-renderer="pascal"] canvas')).toBeVisible();
+  await page.getByRole('button', { name: 'Spielstätte speichern', exact: true }).click();
+  await expect(page.getByText('Spielstättenfassung gespeichert', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Spielstätte schließen' }).click();
+  await expect(page.getByTestId('venue-floor')).toHaveAttribute('d', /^M300 -300/);
+});
+
+test('rendered Pascal translation handle moves the shared plan and undoes once', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await create(page);
+  await page.getByRole('button', { name: 'Wand hinzufügen', exact: true }).click();
+  await page.getByRole('button', { name: 'Von oben', exact: true }).click();
+  const canvas = page.locator('[data-renderer="pascal"] canvas');
+  await canvas.scrollIntoViewIfNeeded();
+  let handle: { x: number; y: number } | undefined;
+  await expect(async () => {
+    const png = await canvas.screenshot();
+    handle = await page.evaluate(async base64 => {
+      const image = new Image(); image.src = `data:image/png;base64,${base64}`; await image.decode();
+      const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height;
+      const context = canvas.getContext('2d')!; context.drawImage(image, 0, 0);
+      const { data } = context.getImageData(0, 0, image.width, image.height);
+      const points: { x: number; y: number }[] = [];
+      for (let y = 0; y < image.height; y++) for (let x = 0; x < image.width; x++) {
+        const i = (y * image.width + x) * 4;
+        if (data[i]! > 150 && data[i]! > data[i + 1]! * 1.8 && data[i]! > data[i + 2]! * 1.8) points.push({ x, y });
+      }
+      return points.length ? points[Math.floor(points.length / 2)] : undefined;
+    }, png.toString('base64'));
+    expect(handle).toBeDefined();
+  }).toPass();
+  const bounds = (await canvas.boundingBox())!;
+  const start = { x: bounds.x + handle!.x, y: bounds.y + handle!.y };
+  await drag(page, start, { x: start.x - 60, y: start.y });
+  await expect(page.locator('#wall-x')).not.toHaveValue('4000');
+  const moved = await page.locator('#wall-x').inputValue();
+  await expect(page.locator('[data-testid^="stage-wall-"]')).toHaveAttribute('data-x', moved);
+  await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
+  await expect(page.locator('#wall-x')).toHaveValue('4000');
+  await page.getByRole('button', { name: 'Wiederholen', exact: true }).click();
+  await expect(page.locator('#wall-x')).toHaveValue(moved);
+  expect(errors).toEqual([]);
+});

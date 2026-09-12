@@ -125,7 +125,7 @@ test('edits in the plan update the linked 3D view, including front orientation a
   await page.getByRole('button', { name: 'Treppe hinzufügen' }).click();
   await expect(page.locator('[data-testid^="stage-stair-"]')).toHaveAttribute('data-rise', '400');
   await waitUntilSaved(page);
-  await page.getByLabel('Auswahl').selectOption({ label: '1. Wand' });
+  await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await page.getByLabel('Auflagefläche').selectOption({ label: 'Podest (400 mm)' });
   await page.getByRole('button', { name: 'Übernehmen' }).click();
   await expect(stageWall).toHaveAttribute('data-y', '1600');
@@ -166,7 +166,7 @@ test('edits in the plan update the linked 3D view, including front orientation a
 
   await page.getByRole('button', { name: 'Wand hinzufügen' }).click();
   await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(2);
-  await page.getByLabel('Auswahl').selectOption({ label: '1. Wand' });
+  await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await page.locator('[data-testid^="wall-"]').nth(1).click({ modifiers: ['Shift'] });
   await page.getByRole('button', { name: 'Gruppieren' }).click();
   await page.getByLabel('Drehpunkt X (mm)').fill('4250');

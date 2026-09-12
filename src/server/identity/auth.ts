@@ -7,7 +7,7 @@ import * as schema from '../db/schema.js';
 
 export const pocketIdProvider = 'pocket-id';
 
-export function createAuth(db: Database, config: Config) {
+export function createAuth(db: Database, config: Config, options: { rateLimit?: boolean } = {}) {
   return betterAuth({
     appName: 'Bühnenplaner',
     database: drizzleAdapter(db, { provider: 'pg', schema }),
@@ -21,7 +21,7 @@ export function createAuth(db: Database, config: Config) {
       useSecureCookies: config.APP_ORIGIN.startsWith('https://'),
       ipAddress: { ipAddressHeaders: ['x-stage-client-ip'] },
     },
-    rateLimit: { enabled: true, window: 60, max: 60, customRules: {
+    rateLimit: { enabled: options.rateLimit ?? true, window: 60, max: 60, customRules: {
       '/sign-in/email': { window: 60, max: 10 },
       '/sign-in/social': { window: 60, max: 10 },
     } },

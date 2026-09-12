@@ -43,6 +43,12 @@ A physical panel used to construct a stage arrangement. The group's existing wal
 **Wall element type**:
 A definition of a kind of wall element, including distinguishing features such as a window opening.
 
+**Inventory template**:
+A reusable definition of a wall element, weighted rear brace or scenic object. Placing a template creates an independent scene instance; the template is not itself a physical panel label or a count of available pieces.
+
+**Scenic object**:
+A prop or piece of scenery represented by a model with physical outside dimensions and a placement in a scene layout.
+
 **Panel connection**:
 A physical join between neighbouring wall elements that contributes to keeping the assembled walls upright.
 The group chooses nearly arbitrary connection angles by positioning and screwing on removable-pin scenery hinges during the initial rigging of a stage arrangement.

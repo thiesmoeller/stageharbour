@@ -43,6 +43,7 @@ export const placeholderSchema = z.strictObject({
   rotation: z.number().finite().min(-360).max(360),
   width: dimension, depth: dimension, height: dimension,
   supportingSurfaceId: z.uuid().optional(),
+  assetId: z.uuid().optional(),
 });
 export type Placeholder = z.infer<typeof placeholderSchema>;
 export const placeholdersSchema = z.array(placeholderSchema).max(250)

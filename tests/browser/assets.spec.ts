@@ -1,0 +1,78 @@
+import { test, expect } from '@playwright/test';
+import { testAdministrator } from '../helpers/database.js';
+import { cubeGlb } from '../helpers/model.js';
+
+test('inventory, GLB models and Pascal catalogue items participate in placement, undo and saved layouts', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.route('https://byrpxoiotywskoojsrzd.supabase.co/**', route => route.request().url().endsWith('.glb')
+    ? route.fulfill({ contentType: 'model/gltf-binary', body: cubeGlb() }) : route.fulfill({ status: 204 }));
+  await page.goto('/');
+  await page.getByLabel('E-Mail-Adresse').fill(testAdministrator.email);
+  await page.getByLabel('Passwort', { exact: true }).fill(testAdministrator.password);
+  await page.getByRole('button', { name: 'Anmelden', exact: true }).click();
+  await page.getByRole('button', { name: 'Neues Bühnenbild' }).click();
+  await page.getByRole('textbox', { name: 'Produktion' }).fill('Inventarprobe');
+  await page.getByRole('textbox', { name: 'Spielstätte' }).fill('Probebühne');
+  await page.getByRole('textbox', { name: 'Szene' }).fill('Objekte');
+  await page.getByRole('spinbutton', { name: 'Spielstättenbreite (mm)' }).fill('8000');
+  await page.getByRole('spinbutton', { name: 'Spielstättentiefe (mm)' }).fill('6000');
+  await page.getByRole('button', { name: 'Bühnenbild anlegen' }).click();
+  await page.getByRole('button', { name: 'Objektbibliothek', exact: true }).click();
+  const library = page.getByRole('region', { name: 'Objektbibliothek' });
+  await library.getByLabel('Name der Inventarvorlage').fill('Standardkulisse');
+  await library.getByRole('button', { name: 'Inventarvorlage speichern' }).click();
+  const wallCard = library.locator('article').filter({ hasText: 'Standardkulisse' });
+  await wallCard.getByRole('button', { name: 'Platzieren' }).click();
+  await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(1);
+  await expect(page.getByLabel('Dicke (mm)')).toHaveValue('28');
+  const material = page.getByLabel('Oberfläche · Pascal-Materialbibliothek');
+  await expect(material.locator('option')).not.toHaveCount(1);
+  const finish = await material.locator('option').nth(1).getAttribute('value');
+  await material.selectOption(finish!);
+  await page.getByRole('button', { name: 'Übernehmen', exact: true }).click();
+  await expect(page.locator('.save-status')).toHaveText('Gespeichert');
+
+  await library.getByRole('button', { name: 'GLB importieren', exact: true }).click();
+  await library.getByLabel('Modellname').fill('Testpodest');
+  await library.getByLabel('GLB-Datei').setInputFiles({ name: 'cube.glb', mimeType: 'model/gltf-binary', buffer: cubeGlb() });
+  await library.getByLabel('Modellhöhe (mm)').fill('900');
+  await library.getByRole('button', { name: 'Modell ins Inventar importieren' }).click();
+  const modelCard = library.locator('article').filter({ hasText: 'Testpodest' });
+  await modelCard.getByRole('button', { name: 'Platzieren' }).click();
+  await expect(page.locator('[data-testid^="placeholder-"]')).toHaveCount(1);
+  await page.getByLabel('X (mm)', { exact: true }).fill('2200');
+  await page.getByLabel('Drehung (°)').fill('90');
+  await page.getByRole('button', { name: 'Übernehmen', exact: true }).click();
+  await expect(page.locator('[data-testid^="stage-placeholder-"]')).toHaveAttribute('data-x', '2200');
+  await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
+  await expect(page.getByLabel('Drehung (°)')).toHaveValue('0');
+  await page.getByRole('button', { name: 'Wiederholen', exact: true }).click();
+  await expect(page.getByLabel('Drehung (°)')).toHaveValue('90');
+
+  await library.getByRole('button', { name: 'Pascal-Katalog', exact: true }).click();
+  await library.getByLabel('Pascal-Katalog durchsuchen').fill('Cactus');
+  await library.getByRole('button', { name: 'Ins Inventar übernehmen' }).first().click();
+  await library.locator('article').filter({ hasText: 'Cactus' }).getByRole('button', { name: 'Platzieren' }).click();
+  await expect(page.locator('[data-testid^="placeholder-"]')).toHaveCount(2);
+  await modelCard.getByRole('button', { name: 'Archivieren' }).click();
+  await expect(modelCard).toHaveCount(0);
+  await expect(page.locator('[data-testid^="placeholder-"]')).toHaveCount(2);
+  await expect(page.locator('.save-status')).toHaveText('Gespeichert');
+  await page.getByRole('button', { name: 'Objektbibliothek', exact: true }).click();
+  await page.getByLabel('Umgebung').selectOption('paper');
+  await page.getByTestId('stage-view').screenshot({ path: 'test-results/pascal-stage.png' });
+  await expect(page.locator('.model-error')).toHaveCount(0);
+
+  await page.reload();
+  await page.getByRole('button', { name: /Inventarprobe · Objekte/ }).click();
+  await expect(page.locator('[data-testid^="placeholder-"]')).toHaveCount(2);
+  await page.getByLabel('Auswahl', { exact: true }).selectOption(await page.locator('#wall-selection option').filter({ hasText: 'Testpodest' }).getAttribute('value') as string);
+  await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('2200');
+  await expect(page.getByLabel('Drehung (°)')).toHaveValue('90');
+  await page.getByRole('button', { name: 'Platzhalter löschen' }).click();
+  await expect(page.locator('[data-testid^="placeholder-"]')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
+  await expect(page.locator('[data-testid^="placeholder-"]')).toHaveCount(2);
+  expect(errors).toEqual([]);
+});

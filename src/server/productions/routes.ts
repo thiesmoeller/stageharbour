@@ -10,7 +10,7 @@ import { overheadClearance, overheadWarningSchema } from '../../shared/overhead.
 import { keepClearWarningSchema, keepClearWarnings } from '../../shared/keepClear.js';
 import { leaseHolderSchema } from '../../shared/leases.js';
 import type { Database } from '../db/connection.js';
-import { adaptation, production, scene, sceneTemplate, venue, venueVersion } from '../db/schema.js';
+import { adaptation, inventoryAsset, production, scene, sceneTemplate, venue, venueVersion } from '../db/schema.js';
 import { AccessError, type createAccess } from '../identity/access.js';
 import { LeaseError, type Leases } from './leases.js';
 
@@ -252,6 +252,11 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
         .where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, sceneId)));
       if (!existing) throw new AccessError(404, 'Szene nicht verfügbar.');
       await leases.requireHeld(tx, workspaceId, 'scene', sceneId, user.id);
+      const assetIds = [...new Set((request.body.layout.placeholders ?? []).flatMap(item => item.assetId ? [item.assetId] : []))];
+      if (assetIds.length) {
+        const assets = await tx.select().from(inventoryAsset).where(and(eq(inventoryAsset.workspaceId, workspaceId), inArray(inventoryAsset.id, assetIds)));
+        if (assets.length !== assetIds.length || assets.some(asset => asset.definition.kind !== 'model')) throw new AccessError(400, 'Ein Modell ist in dieser Theatergruppe nicht verfügbar.');
+      }
       const [updated] = await tx.update(scene).set({ layout: request.body.layout, revision: sql`${scene.revision} + 1` })
         .where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, sceneId), eq(scene.revision, request.body.revision)))
         .returning({ revision: scene.revision });

@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { BufferGeometry, DoubleSide, Float32BufferAttribute } from 'three';
 import type { BraceSolid } from '../../shared/braceTransforms.js';
 
-function BraceMesh({ brace }: { brace: BraceSolid }) {
+function BraceMesh({ brace, lit }: { brace: BraceSolid; lit?: boolean }) {
   const geometry = useMemo(() => {
     const geo = new BufferGeometry();
     const [p0, p1, p2, p3] = brace.footprint;
@@ -13,13 +13,16 @@ function BraceMesh({ brace }: { brace: BraceSolid }) {
       r0.x, r0.y, r0.z, r1.x, r1.y, r1.z,
     ], 3));
     geo.setIndex([0, 1, 2, 0, 2, 3, 0, 1, 5, 0, 5, 4, 0, 4, 3, 1, 2, 5, 3, 4, 5, 3, 5, 2]);
+    geo.computeVertexNormals();
     return geo;
   }, [brace]);
-  return <mesh geometry={geometry}><meshBasicMaterial color="#c4a574" side={DoubleSide} /></mesh>;
+  return <mesh geometry={geometry} castShadow={lit} receiveShadow={lit}>{lit
+    ? <meshStandardMaterial color="#c4a574" roughness={0.9} side={DoubleSide} />
+    : <meshBasicMaterial color="#c4a574" side={DoubleSide} />}</mesh>;
 }
 
-export function StageBraces({ braces }: { braces: BraceSolid[] }) {
-  return braces.map(brace => <BraceMesh key={brace.id} brace={brace} />);
+export function StageBraces({ braces, lit }: { braces: BraceSolid[]; lit?: boolean }) {
+  return braces.map(brace => <BraceMesh key={brace.id} brace={brace} lit={lit} />);
 }
 
 export function StageBraceList({ braces }: { braces: BraceSolid[] }) {

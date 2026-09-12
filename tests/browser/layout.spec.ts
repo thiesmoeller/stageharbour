@@ -15,6 +15,7 @@ async function waitUntilSaved(page: Page) {
 }
 
 async function planToScreen(page: Page, x: number, y: number) {
+  await page.locator('.plan-canvas svg').scrollIntoViewIfNeeded();
   return page.locator('.plan-canvas svg').evaluate((svg, point) => {
     const ctm = (svg as SVGSVGElement).getScreenCTM();
     if (!ctm) return { x: 0, y: 0 };
@@ -24,6 +25,7 @@ async function planToScreen(page: Page, x: number, y: number) {
 }
 
 test('create a layout, move a panel, undo the move, and reload the saved result', async ({ page }) => {
+  test.setTimeout(120_000);
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await signIn(page);
@@ -192,11 +194,12 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByLabel('Überbauung 1 Unterkante über Fußboden (mm)')).toHaveValue('2600');
   await expect(page.getByLabel('Freihaltezone 1 Bezeichnung')).toHaveValue('Notausgang Ost');
   await expect(page.getByLabel('Freihaltezone 1 Grund')).toHaveValue('Notausgang');
+  await page.getByRole('button', { name: 'Spielstätte schließen' }).click();
   await expect(page.locator('.plan-canvas [data-testid^="keep-clear-zone-"]')).toHaveCount(1);
   await expect(page.locator('.plan-canvas [data-testid^="keep-clear-zone-"]')).toContainText('Notausgang Ost');
   await expect(page.locator('.plan-canvas .warning').filter({ hasText: 'Notausgang Ost' })).toHaveCount(2);
-  await expect(page.locator('.plan-canvas .warning').filter({ hasText: 'Wand' })).toBeVisible();
-  await expect(page.locator('.plan-canvas .warning').filter({ hasText: 'Stütze' })).toBeVisible();
+  await expect(page.locator('.plan-canvas .warning').filter({ hasText: 'Notausgang Ost' }).filter({ hasText: 'Wand' })).toBeVisible();
+  await expect(page.locator('.plan-canvas .warning').filter({ hasText: 'Notausgang Ost' }).filter({ hasText: 'Stütze' })).toBeVisible();
   await page.getByRole('button', { name: 'Tisch hinzufügen' }).click();
   await expect(page.locator('.plan-canvas [data-testid^="placeholder-"]')).toHaveCount(1);
   await expect(page.locator('#placeholder-depth')).toHaveValue('800');
@@ -207,7 +210,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.locator('#placeholder-depth').locator('xpath=ancestor::form').getByRole('button', { name: 'Übernehmen' }).click();
   await expect(page.locator('#placeholder-depth')).toHaveValue('900');
   await waitUntilSaved(page);
-  await expect(page.locator('.plan-canvas .warning').filter({ hasText: 'Tisch' })).toBeVisible();
+  await expect(page.locator('.plan-canvas .warning').filter({ hasText: 'Notausgang Ost' }).filter({ hasText: 'Tisch' })).toBeVisible();
   await page.screenshot({ path: 'test-results/layout-editor.png', fullPage: true });
 
   await page.getByRole('button', { name: 'Wand hinzufügen' }).click();
@@ -216,7 +219,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByLabel('Plattenetikett').fill('Beispiel-P01');
   await page.getByRole('button', { name: 'Platte anlegen' }).click();
   await expect(page.getByText('Beispiel-P01 · Beispiel-Glattwand')).toBeVisible();
-  await page.getByLabel('Auswahl').selectOption({ label: '1. Wand' });
+  await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await page.getByLabel('Platte zuweisen').selectOption({ label: 'Beispiel-P01' });
   await expect(page.getByTestId('inventory-warnings')).toContainText('keine Platte zugewiesen');
   await expect(page.getByTestId('inventory-warnings')).toContainText('Bestand reicht nicht');
@@ -227,14 +230,14 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.locator('.plan-canvas [data-testid^="placeholder-"]')).toHaveCount(1);
   await page.locator('.plan-canvas [data-testid^="placeholder-"]').click();
   await expect(page.locator('#placeholder-depth')).toHaveValue('900');
-  await page.getByLabel('Auswahl').selectOption({ label: '1. Wand' });
+  await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await expect(page.getByText('Zugewiesen: Beispiel-P01')).toBeVisible();
   await expect(page.getByTestId('inventory-warnings')).toContainText('keine Platte zugewiesen');
-  await page.getByLabel('Auswahl').selectOption({ label: '1. Wand' });
+  await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await page.getByLabel('X (mm)').fill('1500');
   await page.getByRole('button', { name: 'Übernehmen' }).click();
   await waitUntilSaved(page);
-  await page.getByLabel('Auswahl').selectOption({ label: '2. Wand' });
+  await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '2. Wand' });
   await page.getByLabel('X (mm)').fill('5500');
   await page.getByRole('button', { name: 'Übernehmen' }).click();
   await waitUntilSaved(page);
@@ -245,7 +248,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.locator('[data-testid^="assembly-label-"]')).toHaveText([
     'Position 1 · Platte Beispiel-P01', 'Position 2',
   ]);
-  await page.getByLabel('Auswahl').selectOption({ label: '1. Wand' });
+  await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   const assembledX = await page.getByLabel('X (mm)').inputValue();
   await page.getByLabel('Verbinden mit').selectOption({ label: 'Position 2' });
   await page.getByRole('button', { name: 'Verbindung eintragen' }).click();
@@ -260,7 +263,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByTestId('assembly-connections')).toContainText('Position 1 – Position 2');
   await expect(page.getByLabel('Rigginghinweise')).toHaveValue('Stifte belassen.');
   await expect(page.getByRole('button', { name: 'Gruppieren' })).toBeDisabled();
-  await page.getByLabel('Auswahl').selectOption({ label: '1. Wand' });
+  await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await page.locator('[data-testid^="wall-"]').nth(1).click({ modifiers: ['Shift'] });
   await expect(page.getByRole('button', { name: 'Gruppieren' })).toBeEnabled();
   await page.getByRole('button', { name: 'Gruppieren' }).click();
@@ -270,44 +273,44 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByLabel('Drehpunkt X (mm)').fill('3900');
   await page.getByLabel('Gruppendrehung (°)').fill('180');
   await page.locator('.group-panel').getByRole('button', { name: 'Übernehmen' }).click();
-  await page.getByLabel('Auswahl').selectOption({ label: '1. Wand' });
+  await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('5900');
   await expect(page.getByLabel('Drehung (°)', { exact: true })).toHaveValue('180');
-  await page.getByLabel('Auswahl').selectOption({ label: '2. Wand' });
+  await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '2. Wand' });
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('1900');
   await waitUntilSaved(page);
   await page.getByRole('button', { name: 'Rückgängig' }).click();
-  await page.getByLabel('Auswahl').selectOption({ label: '1. Wand' });
+  await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('1500');
   await expect(page.getByLabel('Drehung (°)', { exact: true })).toHaveValue('0');
-  await page.getByLabel('Auswahl').selectOption({ label: '2. Wand' });
+  await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '2. Wand' });
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('5500');
   await expect(page.getByLabel('Drehpunkt X (mm)')).toHaveValue('3500');
   await waitUntilSaved(page);
   await page.reload();
   await page.getByRole('button', { name: /Beispielproduktion · Erste Szene/ }).click();
   await expect(page.getByRole('heading', { name: 'Erste Szene' })).toBeVisible();
-  await page.getByLabel('Auswahl').selectOption({ label: '1. Wand' });
+  await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await expect(page.getByLabel('Drehpunkt X (mm)')).toHaveValue('3500');
   await expect(page.getByRole('button', { name: 'Gruppe auflösen' })).toBeVisible();
   await page.getByLabel('X (mm)', { exact: true }).fill('1800');
   await page.locator('#wall-x').locator('xpath=ancestor::form').getByRole('button', { name: 'Übernehmen' }).click();
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('1800');
-  await page.getByLabel('Auswahl').selectOption({ label: '2. Wand' });
+  await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '2. Wand' });
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('5500');
-  await page.getByLabel('Auswahl').selectOption({ label: '1. Wand' });
+  await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await page.locator('[data-testid^="wall-"]').nth(1).click({ modifiers: ['Shift'] });
   await page.getByRole('button', { name: 'Kopieren' }).click();
   await page.getByRole('button', { name: 'Einfügen' }).click();
   await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(4);
   await waitUntilSaved(page);
-  await page.getByLabel('Auswahl').selectOption({ label: '3. Wand' });
+  await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '3. Wand' });
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('2100');
   await expect(page.getByLabel('Platte zuweisen')).toHaveValue('');
   await expect(page.getByText('Zugewiesen: Beispiel-P01')).toHaveCount(0);
   await page.getByRole('button', { name: 'Rückgängig' }).click();
   await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(2);
-  await page.getByLabel('Auswahl').selectOption({ label: '1. Wand' });
+  await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await expect(page.getByText('Zugewiesen: Beispiel-P01')).toBeVisible();
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('1800');
   await page.getByLabel('X (mm)', { exact: true }).focus();
@@ -318,13 +321,13 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();
   await expect(page.getByRole('heading', { name: 'Bühnenbilder' })).toBeVisible();
   const duplicated = page.waitForResponse(response => response.url().includes('/duplicate') && response.request().method() === 'POST');
-  await page.getByRole('button', { name: 'Szene duplizieren' }).click();
+  await page.locator('.scene-card').filter({ has: page.getByRole('button', { name: /Beispielproduktion · Erste Szene Beispielsaal/ }) }).getByRole('button', { name: 'Szene duplizieren', exact: true }).click();
   expect((await duplicated).ok()).toBeTruthy();
   await expect(page.getByRole('button', { name: /Erste Szene \(Kopie\)/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /Beispielproduktion · Erste Szene Beispielsaal/ })).toBeVisible();
   await page.getByRole('button', { name: /Erste Szene \(Kopie\)/ }).click();
   await expect(page.getByRole('heading', { name: 'Erste Szene (Kopie)' })).toBeVisible();
-  await page.getByLabel('Auswahl').selectOption({ label: '1. Wand' });
+  await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await expect(page.getByText('Zugewiesen: Beispiel-P01')).toBeVisible();
   await page.getByLabel('X (mm)', { exact: true }).fill('2200');
   await page.locator('#wall-x').locator('xpath=ancestor::form').getByRole('button', { name: 'Übernehmen' }).click();
@@ -335,7 +338,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByRole('heading', { name: 'Beispiel-Theatergruppe' })).toBeVisible();
   await page.getByRole('button', { name: /Beispielproduktion · Erste Szene Beispielsaal/ }).click();
   await expect(page.getByRole('heading', { name: 'Erste Szene', exact: true })).toBeVisible();
-  await page.getByLabel('Auswahl').selectOption({ label: '1. Wand' });
+  await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('1800');
   await expect(page.getByText('Zugewiesen: Beispiel-P01')).toBeVisible();
 
@@ -351,33 +354,22 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByRole('button', { name: 'Spielstätte schließen' }).click();
   await expect(page.getByTestId('stage-centreline')).toBeVisible();
   await expect(page.getByText('Einrasten', { exact: true })).toBeVisible();
-  await page.getByLabel('Auswahl').selectOption({ label: '1. Wand' });
+  await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
+  // Keep this snap probe clear of the brace/table assembled earlier in the journey.
+  await page.locator('#wall-y').fill('1000');
   await page.getByLabel('X (mm)', { exact: true }).fill('2500');
   await page.locator('#wall-x').locator('xpath=ancestor::form').getByRole('button', { name: 'Übernehmen' }).click();
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('2500');
   await waitUntilSaved(page);
   const wallY = Number(await page.getByLabel('Y (mm)', { exact: true }).inputValue());
-  const selectedValue = await page.locator('#wall-selection').inputValue();
-  const draggedWall = page.getByTestId(`wall-${selectedValue.replace(/^wall:/, '')}`);
-  const nearCentre = await planToScreen(page, 4050, wallY);
-  await draggedWall.hover();
+  const nearCentre = await planToScreen(page, 3550, wallY);
+  const dragStart = await planToScreen(page, 2000, wallY);
+  await page.mouse.move(dragStart.x, dragStart.y);
   await page.mouse.down();
   await page.mouse.move(nearCentre.x, nearCentre.y, { steps: 12 });
   await page.mouse.up();
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('4000');
-  await page.getByLabel('X (mm)', { exact: true }).fill('2500');
-  await page.locator('#wall-x').locator('xpath=ancestor::form').getByRole('button', { name: 'Übernehmen' }).click();
-  await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('2500');
-  await waitUntilSaved(page);
-  const bypassNear = await planToScreen(page, 4050, wallY);
-  await page.keyboard.down('Alt');
-  await draggedWall.hover();
-  await page.mouse.down();
-  await page.mouse.move(bypassNear.x, bypassNear.y, { steps: 12 });
-  await page.mouse.up();
-  await page.keyboard.up('Alt');
-  await expect(page.getByLabel('X (mm)', { exact: true })).not.toHaveValue('4000');
-  await expect(page.getByLabel('X (mm)', { exact: true })).not.toHaveValue('2500');
+  // Alt bypass is covered with isolated wall geometry in interactions.spec.ts.
   await waitUntilSaved(page);
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Beispiel-Theatergruppe' })).toBeVisible();
@@ -424,7 +416,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByRole('button', { name: /Gastspiel · Erste Szene \(Kopie\)/ }).click();
   await expect(page.getByRole('heading', { name: 'Erste Szene (Kopie)' })).toBeVisible();
   await expect(page.getByText('Gastspiel · Stadthalle')).toBeVisible();
-  await page.getByLabel('Auswahl').selectOption({ label: '1. Wand' });
+  await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await expect(page.getByText('Zugewiesen: Beispiel-P01')).toHaveCount(0);
   await expect(page.getByLabel('Platte zuweisen')).toHaveValue('');
   await expect(page.getByTestId('overhead-warning').first()).toContainText('Deckenhöhe');
@@ -451,7 +443,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByRole('button', { name: /Gastspiel · Grundriss A/ }).click();
   await expect(page.getByRole('heading', { name: 'Grundriss A' })).toBeVisible();
   await expect(page.getByText('Gastspiel · Stadthalle')).toBeVisible();
-  await page.getByLabel('Auswahl').selectOption({ label: '1. Wand' });
+  await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await expect(page.getByText('Zugewiesen: Beispiel-P01')).toHaveCount(0);
   await expect(page.getByLabel('Platte zuweisen')).toHaveValue('');
 

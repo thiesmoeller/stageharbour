@@ -14,6 +14,8 @@ import { strokeOverheadFeatures } from './overheadPdf.js';
 import { strokePlaceholders } from './placeholderPdf.js';
 import { measuredOutline } from '../../shared/venue.js';
 import { centrelineSpan } from '../../shared/snapping.js';
+import { wallCorners } from '../../shared/layout.js';
+import { resolveWall } from '../../shared/wall-types.js';
 
 const mm = (value: number) => value * 72 / 25.4;
 
@@ -67,6 +69,13 @@ function strokePlan(
   doc: PDFKit.PDFDocument, snapshot: ConstructionSnapshot, toPage: (x: number, y: number) => { x: number; y: number },
 ) {
   strokeLevelFeatures(doc, snapshot, toPage);
+  for (const wall of snapshot.venue.walls ?? []) {
+    const [first, ...rest] = wallCorners(resolveWall(wall, snapshot.venue.wallTypes ?? [])).map(p => toPage(p.x, p.y));
+    if (!first) continue;
+    doc.moveTo(first.x, first.y);
+    for (const point of rest) doc.lineTo(point.x, point.y);
+    doc.closePath().fillAndStroke('#8b8478', '#625b50');
+  }
   for (const wall of snapshot.resolvedWalls) {
     const [a, b, c, d] = wall.corners.map(point => toPage(point.x, point.y));
     if (!a || !b || !c || !d) continue;

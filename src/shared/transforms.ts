@@ -41,13 +41,13 @@ export function wallSolid(wall: Wall & { openings?: Opening[] }, elevation = 0):
   };
 }
 
-export function stageModel(layout: Layout, venue: Pick<VenueGeometry, 'width' | 'depth' | 'outline' | 'platforms' | 'stairs'>): StageModel {
+export function stageModel(layout: Layout, venue: Pick<VenueGeometry, 'width' | 'depth' | 'outline' | 'platforms' | 'stairs' | 'walls' | 'wallTypes'>): StageModel {
   const types = layout.wallTypes ?? [];
   const surfaces = supportingSurfaces(venue, layout);
   const stairs: StairUnit[] = [...venue.stairs ?? [], ...layout.stairs ?? []];
   return {
     floor: { width: venue.width, depth: venue.depth },
-    walls: layout.walls.map(wall => wallSolid(resolveWall(wall, types), surfaceElevation(surfaces, wall.supportingSurfaceId))),
+    walls: [...(venue.walls ?? []).map(wall => wallSolid(resolveWall(wall, venue.wallTypes ?? []), surfaceElevation(surfaces, wall.supportingSurfaceId))), ...layout.walls.map(wall => wallSolid(resolveWall(wall, types), surfaceElevation(surfaces, wall.supportingSurfaceId)))],
     braces: (layout.braces ?? []).map(brace => braceSolid(brace, surfaceElevation(surfaces, brace.supportingSurfaceId))),
     placeholders: (layout.placeholders ?? []).map(item => placeholderSolid(item, surfaceElevation(surfaces, item.supportingSurfaceId))),
     platforms: surfaces.filter(surface => surface.id !== AUDIENCE_FLOOR_ID),

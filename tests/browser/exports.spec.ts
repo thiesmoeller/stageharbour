@@ -49,8 +49,8 @@ test('export a named frozen construction plan and download it from history', asy
   expect(text).toContain('Position 1');
   expect(text).toContain('Verbindungskompatibilität prüft die Crew manuell');
   expect(text).toContain('Maßstab 1:50');
-  await page.getByLabel('Papierformat').selectOption('A3');
-  await page.getByLabel('Maßstab').selectOption('25');
+  await page.getByLabel('Papierformat', { exact: true }).selectOption('A3');
+  await page.getByLabel('Maßstab', { exact: true }).selectOption('25');
   await page.getByLabel('Bezeichnung der Fassung').fill('A3-Detail');
   await page.getByRole('button', { name: 'Als Konstruktionsplan exportieren' }).click();
   await expect(page.getByRole('listitem').filter({ hasText: 'A3-Detail' })).toContainText('Fertig');
@@ -71,8 +71,8 @@ test('export a named frozen construction plan and download it from history', asy
   await waitUntilSaved(page);
   await page.getByRole('checkbox', { name: /Gruppe 1/ }).check();
   await page.getByLabel('Bezeichnung der Fassung').fill('Ansichtsexport');
-  await page.getByLabel('Papierformat').selectOption('A4');
-  await page.getByLabel('Maßstab').selectOption('50');
+  await page.getByLabel('Papierformat', { exact: true }).selectOption('A4');
+  await page.getByLabel('Maßstab', { exact: true }).selectOption('50');
   await page.getByRole('button', { name: 'Als Konstruktionsplan exportieren' }).click();
   await expect(page.getByRole('listitem').filter({ hasText: 'Ansichtsexport' })).toContainText('Fertig');
   await expect(page.getByRole('listitem').filter({ hasText: 'Probeexport' })).toContainText('A4');

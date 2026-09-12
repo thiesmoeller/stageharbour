@@ -23,6 +23,7 @@ export const wallSchema = z.strictObject({
   panelId: z.uuid().optional(),
   supportingSurfaceId: z.uuid().optional(),
   assemblyNumber: z.number().int().positive().max(250).optional(),
+  finish: z.string().regex(/^library:[a-zA-Z0-9_-]+$/).max(180).optional(),
 });
 export type Wall = z.infer<typeof wallSchema>;
 // Example-only millimetre placeholders for a new weighted rear brace. Not measured inventory.
@@ -70,6 +71,8 @@ export type Layout = z.infer<typeof layoutSchema>;
 export const venueGeometrySchema = z.strictObject({
   schemaVersion: z.literal(1), width: dimension, depth: dimension,
   outline: venueOutlineSchema.optional(), trace: venueTraceSchema.optional(),
+  walls: z.array(wallSchema).max(250).optional(),
+  wallTypes: z.array(wallTypeSchema).max(250).optional(),
   connectionPoints: connectionPointsSchema.optional(),
   cableRoutingCorridors: cableRoutingCorridorsSchema.optional(),
   platforms: z.array(platformSchema).max(250).optional(),

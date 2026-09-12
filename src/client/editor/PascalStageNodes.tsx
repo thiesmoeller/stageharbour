@@ -1,0 +1,135 @@
+import { createContext, Suspense, useContext, useLayoutEffect, useMemo, useRef } from 'react';
+import { registerNode, nodeRegistry, useRegistry, useScene, type AnyNode, type AnyNodeId } from '@pascal-app/core';
+import { createMaterialFromPresetRef, ErrorBoundary, useGLTFKTX2, useViewer } from '@pascal-app/viewer';
+import { useFrame } from '@react-three/fiber';
+import { Html } from '@react-three/drei';
+import { Box3, Group, Vector3 } from 'three';
+import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
+import type { Asset, AssetDefinition } from '../../shared/assets.js';
+import type { Layout, VenueGeometry } from '../../shared/layout.js';
+import type { Placeholder as Prop } from '../../shared/placeholders.js';
+import type { StageModel } from '../../shared/transforms.js';
+import { WallMesh } from './WallMesh.js';
+import { StageConstraint } from './StageConstraints.js';
+import { StageLevels } from './StageLevels.js';
+import { StagePlaceholders } from './StagePlaceholders.js';
+import { StageBraces } from './StageBraces.js';
+import { pascalScene, stageNodeSchema, type StageNode } from './pascalScene.js';
+
+export const StageInteraction = createContext<{ assets: Asset[]; workspaceId: string; mirrorWidth: number; venueEditable?: boolean; model?: StageModel; selectedIds: string[]; onSelect?: (id: string, additive: boolean) => void }>({ assets: [], workspaceId: '', mirrorWidth: 0, selectedIds: [] });
+
+export function PascalSceneBridge({ layout, venue }: { layout: Layout; venue: VenueGeometry }) {
+  useLayoutEffect(() => {
+    const scene = pascalScene(layout, venue) as unknown as { nodes: Record<AnyNodeId, AnyNode>; rootNodeIds: AnyNodeId[] };
+    // 0.9.2 supports registered custom schemas at runtime but types setScene
+    // against the built-in union. Keep that SDK mismatch at this one boundary.
+    useScene.temporal.getState().pause();
+    useScene.getState().setReadOnly(true);
+    const previous = useScene.getState();
+    const nodes = Object.fromEntries(Object.entries(scene.nodes).map(([id, node]) => {
+      const old = previous.nodes[id as AnyNodeId];
+      return [id, old && JSON.stringify(old) === JSON.stringify(node) ? old : node];
+    })) as Record<AnyNodeId, AnyNode>;
+    useScene.setState({ nodes, rootNodeIds: scene.rootNodeIds });
+  }, [layout, venue]);
+  useLayoutEffect(() => () => {
+    useScene.getState().unloadScene();
+    useScene.getState().setReadOnly(false);
+    useScene.temporal.getState().resume();
+    useViewer.getState().resetSelection();
+    useViewer.setState({ outliner: { selectedObjects: [], hoveredObjects: [] } });
+  }, []);
+  return null;
+}
+
+function ModelPlaceholder({ prop, failed = false }: { prop: Prop; failed?: boolean }) {
+  return <group><mesh position={[0, prop.height / 2000, 0]}>
+    <boxGeometry args={[prop.width / 1000, prop.height / 1000, prop.depth / 1000]} />
+    <meshBasicMaterial wireframe color={failed ? '#b64d2e' : '#738b99'} />
+  </mesh>{failed && <Html center position={[0, prop.height / 1000, 0]}><span className="model-error">{prop.label}: Modell nicht verfügbar</span></Html>}</group>;
+}
+
+function ModelMesh({ prop, definition }: { prop: Prop; definition: Extract<AssetDefinition, { kind: 'model' }> }) {
+  const { workspaceId } = useContext(StageInteraction);
+  const source = definition.source;
+  const url = source.kind === 'catalog' ? source.url : `${window.location.origin}/api/workspaces/${workspaceId}/assets/files/${source.fileId}`;
+  const gltf = useGLTFKTX2(url);
+  const loadedScene = Array.isArray(gltf) ? gltf[0]!.scene : gltf.scene;
+  const object = useMemo(() => {
+    const result = clone(loadedScene);
+    result.traverse(child => { child.castShadow = true; child.receiveShadow = true; });
+    return result;
+  }, [loadedScene]);
+  const bounds = useMemo(() => new Box3().setFromObject(object), [object]);
+  if (source.kind === 'catalog') return <group scale={[prop.width / definition.width, prop.height / definition.height, prop.depth / definition.depth]}>
+    <primitive object={object} position={source.offset} rotation={source.rotation} scale={source.scale} dispose={null} />
+  </group>;
+  const size = bounds.getSize(new Vector3()), center = bounds.getCenter(new Vector3());
+  if (Math.min(size.x, size.y, size.z) <= 0 || !Number.isFinite(size.length())) throw new Error('Model has no usable bounds');
+  return <group scale={[prop.width / 1000 / size.x, prop.height / 1000 / size.y, prop.depth / 1000 / size.z]}>
+    <primitive object={object} position={[-center.x, -bounds.min.y, -center.z]} dispose={null} />
+  </group>;
+}
+
+function FinishedWall({ wall, finish }: { wall: import('../../shared/transforms.js').WallSolid; finish?: string }) {
+  const material = useMemo(() => createMaterialFromPresetRef(finish), [finish]);
+  useLayoutEffect(() => () => { material?.dispose(); }, [material]);
+  return <WallMesh wall={wall} lit frontMaterial={material ?? undefined} />;
+}
+
+function StageNodeRenderer({ node }: { node: StageNode }) {
+  const ref = useRef<Group>(null!);
+  const { assets, mirrorWidth, model, venueEditable, selectedIds, onSelect } = useContext(StageInteraction);
+  useRegistry(node.id, node.type, ref);
+  const selected = selectedIds.includes(node.element.value.id);
+  const element = node.element;
+  if (!model) return null;
+  const content = (() => {
+    if (element.kind === 'wall') {
+      const wall = model.walls.find(item => item.id === element.value.id);
+      return wall && <group scale={0.001}><FinishedWall wall={wall} finish={element.value.finish} /></group>;
+    }
+    if (element.kind === 'brace') return <group scale={0.001}><StageBraces braces={model.braces.filter(item => item.id === element.value.id)} lit /></group>;
+    if (element.kind === 'platform' || element.kind === 'stair') return <group scale={0.001}><StageLevels model={{ ...model, platforms: model.platforms.filter(item => item.id === element.value.id), stairs: model.stairs.filter(item => item.id === element.value.id) }} /></group>;
+    if (element.kind === 'overhead' || element.kind === 'zone' || element.kind === 'pin' || element.kind === 'corridor') return <group scale={0.001}><StageConstraint element={element} elevation={element.kind === 'zone' ? model.platforms.find(p => p.id === element.value.supportingSurfaceId)?.elevation : 0} /></group>;
+    const prop = element.value, solid = model.placeholders.find(item => item.id === prop.id);
+    if (!prop.assetId) return <group scale={0.001}><StagePlaceholders placeholders={model.placeholders.filter(item => item.id === prop.id)} /></group>;
+    const definition = assets.find(asset => asset.id === prop.assetId)?.definition;
+    return <group position={[prop.x / 1000, ((solid?.center.y ?? prop.height / 2) - prop.height / 2) / 1000, prop.y / 1000]} rotation={[0, -prop.rotation * Math.PI / 180, 0]}>
+      <ErrorBoundary fallback={<ModelPlaceholder prop={prop} failed />} resetKey={definition} scope="stage-model">
+        <Suspense fallback={<ModelPlaceholder prop={prop} />}>
+          {definition?.kind === 'model' ? <ModelMesh prop={prop} definition={definition} /> : <ModelPlaceholder prop={prop} failed />}
+        </Suspense>
+      </ErrorBoundary>
+    </group>;
+  })();
+  return <group ref={ref} position={[mirrorWidth / 1000, 0, 0]} scale={[-1, 1, 1]} onClick={event => { event.stopPropagation(); if (node.scope === 'scene' || venueEditable) onSelect?.(element.value.id, event.shiftKey || event.ctrlKey || event.metaKey); }}>
+    {content}
+    {selected && <SelectionBounds target={ref} />}
+  </group>;
+}
+
+function SelectionBounds({ target }: { target: React.RefObject<Group> }) {
+  const outline = useRef<Group>(null!);
+  const box = useMemo(() => new Box3(), []);
+  const center = useMemo(() => new Vector3(), []);
+  const size = useMemo(() => new Vector3(), []);
+  useFrame(() => {
+    const root = target.current, marker = outline.current, content = root?.children[0];
+    if (!root || !marker || !content) return;
+    root.updateWorldMatrix(true, true);
+    box.setFromObject(content);
+    root.worldToLocal(box.getCenter(center));
+    box.getSize(size);
+    marker.position.copy(center); marker.scale.set(size.x + .02, size.y + .02, size.z + .02);
+  });
+  return <group ref={outline}><mesh raycast={() => {}}><boxGeometry args={[1, 1, 1]} /><meshBasicMaterial color="#e9a83b" wireframe depthTest={false} /></mesh></group>;
+}
+
+if (!nodeRegistry.has('stage-object')) registerNode({
+  kind: 'stage-object', schemaVersion: 1, schema: stageNodeSchema, category: 'furnish',
+  defaults: () => ({ object: 'node', parentId: null, visible: true, name: 'Bühnenobjekt' }),
+  capabilities: { selectable: {}, movable: { axes: ['x', 'z'] }, rotatable: { axes: ['y'] }, snappable: { points: ['start', 'end', 'midpoint', 'corners'] }, duplicable: true, deletable: true, groupable: true }, dirtyTracking: false,
+  presentation: { label: 'Bühnenobjekt', icon: { kind: 'iconify', name: 'lucide:theater' } },
+  renderer: { kind: 'parametric', module: async () => ({ default: ({ node }: { node: Record<string, unknown> }) => <StageNodeRenderer node={stageNodeSchema.parse(node)} /> }) },
+});

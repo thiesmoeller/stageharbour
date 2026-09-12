@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type PointerEvent, type WheelEvent } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type PointerEvent, type WheelEvent } from 'react';
 import { z } from 'zod';
+import { selectionPivot, transformSelection, type PlanTransform } from '../../shared/editing.js';
+import type { StageEditing } from './StageEditing.js';
 import { assemblyCaption } from '../../shared/assembly.js';
 import { copySelection, cutSelection, pasteClipboard, removeSelection, type ClipboardMember, type LayoutClipboard } from '../../shared/clipboard.js';
 import { dropMember, groupContaining, membersPivot, transformGroup, transformMembers, type GroupMember } from '../../shared/groups.js';
 import { execute, history, redo, undo, type History } from '../../shared/history.js';
-import { newBrace, newWall, wallCorners, wallSchema, type Brace, type Layout, type Scene, type VenueGeometry, type Wall } from '../../shared/layout.js';
+import { layoutSchema, newBrace, newWall, wallCorners, wallSchema, type Brace, type Layout, type Scene, type VenueGeometry, type Wall } from '../../shared/layout.js';
 import {
   SNAP_NOTICE, alignBraceToNearestWall, braceContactHinge, planRotationAt, rotateBraceOnContact, rotateToward,
   snapBracePose, snapMembersPose, snapRotation, snapStatusText, snapWallPose, type SnapGuide,
@@ -27,6 +29,9 @@ import { BraceLayer } from './BraceLayer.js';
 import { PlatformInspector, StairInspector } from './PlatformInspector.js';
 import { PlatformLayer, SurfaceField } from './PlatformLayer.js';
 import { RotationHandle } from './RotationHandle.js';
+import { AssetLibrary } from './AssetLibrary.js';
+import { assetListSchema, type Asset } from '../../shared/assets.js';
+import { newPlaceholder } from '../../shared/placeholders.js';
 import { StageView } from './StageView.js';
 import { ExportPanel } from './ExportPanel.js';
 import { WallTypePanel } from './WallTypePanel.js';
@@ -43,15 +48,28 @@ import { PlaceholderInspector, PlaceholderLibrary, addPlaceholder } from './Plac
 import { PlaceholderLayer } from './PlaceholderLayer.js';
 import { AlignmentGuides, CentrelineMark, SnapToggle } from './SnapGuides.js';
 
+const MaterialPicker = lazy(() => import('./MaterialPicker.js'));
 const statusText = { saved: 'Gespeichert', pending: 'Änderungen ausstehend …', saving: 'Speichert …', failed: 'Speichern fehlgeschlagen', conflict: 'Neuere Fassung vorhanden' };
 export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
   initial: Scene; workspaceId: string; readOnly: boolean; onClose: () => void; onDirty: (value: boolean) => void;
 }) {
-  const [state, setState] = useState(() => history({
+  const [state, setState] = useState<History>(() => history<Layout>({
     ...initial.layout, braces: initial.layout.braces ?? [], connections: initial.layout.connections ?? [],
     groups: initial.layout.groups ?? [], placeholders: initial.layout.placeholders ?? [],
   }));
+  const root = useRef<HTMLElement>(null);
+  const [viewMode, setViewMode] = useState<'split' | 'plan' | 'stage'>('split');
+  const [viewShare, setViewShare] = useState(55);
   const current = useRef(state);
+  const stageGesture = useRef<{ layout: Layout; members: ClipboardMember[] } | undefined>(undefined);
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [assetError, setAssetError] = useState('');
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  useEffect(() => {
+    let active = true;
+    request(`/api/workspaces/${workspaceId}/assets`).then(data => { if (active) setAssets(assetListSchema.parse(data)); }).catch(() => { if (active) setAssetError('Die Objektbibliothek konnte nicht geladen werden.'); });
+    return () => { active = false; };
+  }, [workspaceId]);
   const [selected, setSelected] = useState<string>();
   const [selectedType, setSelectedType] = useState<string>();
   const [selectedBrace, setSelectedBrace] = useState<string>();
@@ -70,6 +88,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
   const [panelLabels, setPanelLabels] = useState<Record<string, string>>({});
   const [exportsOpen, setExportsOpen] = useState(false);
   const [venueOpen, setVenueOpen] = useState(false);
+  const [venueDirty, setVenueDirty] = useState(false);
   const [venue, setVenue] = useState<VenueGeometry>(initial.venue);
   const [updateAvailable, setUpdateAvailable] = useState(!!initial.venueUpdateAvailable);
   const [snapEnabled, setSnapEnabled] = useState(true);
@@ -113,7 +132,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     }
   }));
   const saveState = useSyncExternalStore(saver.subscribe, saver.getSnapshot);
-  const dirty = saveState.dirty || !!preview || !!previewBrace || !!previewPlatform || !!previewStair || !!previewPlaceholder || !!groupPreview;
+  const dirty = venueDirty || saveState.dirty || !!preview || !!previewBrace || !!previewPlatform || !!previewStair || !!previewPlaceholder || !!groupPreview;
   useEffect(() => { onDirty(dirty); }, [dirty, onDirty]);
   useEffect(() => {
     if (readOnly) return;
@@ -137,7 +156,11 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     setState(next);
     saver.queue(next.present);
   }
-  function commit(layout: Layout) { apply(execute(current.current, layout)); }
+  function commit(layout: Layout) {
+    const valid = layoutSchema.safeParse(layout);
+    if (!valid.success) { setSnapStatus('Änderung nicht übernommen: ungültige Maße oder Objektverweise.'); return; }
+    apply(execute(current.current, valid.data));
+  }
   function adoptVenue(result: { venue: VenueGeometry; layout: Layout; revision: number; venueUpdateAvailable: boolean }) {
     setVenue(result.venue);
     const next = history({
@@ -151,7 +174,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
   }
   function replace(wall: Wall) { commit({ ...current.current.present, walls: current.current.present.walls.map(item => item.id === wall.id ? wall : item) }); }
   function applyWall(wall: Wall) {
-    replace({ ...wall, rotation: snapEnabled ? snapRotation(wall.rotation) : wall.rotation });
+    replace(wall);
   }
   function applyType(type: WallElementType) {
     const present = current.current.present;
@@ -266,28 +289,13 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     event.currentTarget.setPointerCapture(event.pointerId);
   }
   function remove() {
-    const present = current.current.present;
-    const members = selection();
-    const placeholders = picked.filter(item => item.kind === 'placeholder');
-    if (!members.length && !placeholders.length) {
-      if (selectedPlaceholder) {
-        commit(dropMember({ ...present, placeholders: (present.placeholders ?? []).filter(item => item.id !== selectedPlaceholder) }, { kind: 'placeholder', id: selectedPlaceholder }));
-        setSelectedPlaceholder(undefined); setPicked([]); setPickedPlatforms([]);
-      }
-      return;
-    }
-    let next = members.length ? removeSelection(present, members) : present;
-    for (const item of placeholders) next = dropMember(next, item);
-    if (selectedPlaceholder && !placeholders.some(item => item.id === selectedPlaceholder)) {
-      next = dropMember({ ...next, placeholders: (next.placeholders ?? []).filter(item => item.id !== selectedPlaceholder) }, { kind: 'placeholder', id: selectedPlaceholder });
-    }
-    commit(next);
+    commit(removeSelection(current.current.present, selection()));
     clearSelection(); setPicked([]); setPickedPlatforms([]);
   }
   function selection(): ClipboardMember[] {
     const members: ClipboardMember[] = [];
     for (const item of picked) {
-      if (item.kind === 'wall' || item.kind === 'brace' || item.kind === 'stair') {
+      if (item.kind === 'wall' || item.kind === 'brace' || item.kind === 'stair' || item.kind === 'placeholder') {
         members.push({ kind: item.kind, id: item.id });
       }
     }
@@ -297,6 +305,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     if (selected && !members.some(item => item.kind === 'wall' && item.id === selected)) members.push({ kind: 'wall', id: selected });
     if (selectedBrace && !members.some(item => item.kind === 'brace' && item.id === selectedBrace)) members.push({ kind: 'brace', id: selectedBrace });
     if (selectedStair && !members.some(item => item.kind === 'stair' && item.id === selectedStair)) members.push({ kind: 'stair', id: selectedStair });
+    if (selectedPlaceholder && !members.some(item => item.kind === 'placeholder' && item.id === selectedPlaceholder)) members.push({ kind: 'placeholder', id: selectedPlaceholder });
     if (selectedPlatform && !members.some(item => item.kind === 'platform' && item.id === selectedPlatform)) {
       members.push({ kind: 'platform', id: selectedPlatform });
     }
@@ -318,7 +327,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     const result = pasteClipboard(current.current.present, clipboard, () => crypto.randomUUID());
     commit(result.layout);
     if (result.consumed) setClipboard(undefined);
-    setPicked(result.pasted.flatMap(item => item.kind === 'wall' || item.kind === 'brace' || item.kind === 'stair' ? [{ kind: item.kind, id: item.id }] : []));
+    setPicked(result.pasted.flatMap(item => item.kind === 'wall' || item.kind === 'brace' || item.kind === 'stair' || item.kind === 'placeholder' ? [{ kind: item.kind, id: item.id }] : []));
     setPickedPlatforms(result.pasted.flatMap(item => item.kind === 'platform' ? [item.id] : []));
     const wall = result.pasted.find(item => item.kind === 'wall');
     const brace = result.pasted.find(item => item.kind === 'brace');
@@ -328,10 +337,13 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     else if (brace) { setSelectedBrace(brace.id); clearSelection('brace'); }
     else if (stair) { setSelectedStair(stair.id); clearSelection('stair'); }
     else if (platform) { setSelectedPlatform(platform.id); clearSelection('platform'); }
+    else { const item = result.pasted.find(item => item.kind === 'placeholder'); if (item) { setSelectedPlaceholder(item.id); clearSelection('placeholder'); } }
+    if (!result.consumed && result.pasted.length) setClipboard(copySelection(result.layout, result.pasted));
   }
   useEffect(() => {
     const shortcut = (event: KeyboardEvent) => {
-      if (readOnly || gesture.current || rotateDrag.current || braceDrag.current || braceRotate.current || platformDrag.current || platformRotate.current || placeholderDrag.current || groupDrag.current || marqueeDrag.current || event.target instanceof HTMLElement && (event.target.closest('input, textarea, select, button') || event.target.isContentEditable)) return;
+      if (venueOpen) return;
+      if (readOnly || gesture.current || rotateDrag.current || braceDrag.current || braceRotate.current || platformDrag.current || platformRotate.current || placeholderDrag.current || groupDrag.current || marqueeDrag.current || event.target instanceof HTMLElement && (event.target.closest('input, textarea, select') || event.target.isContentEditable)) return;
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
         event.preventDefault(); apply(event.shiftKey ? redo(current.current) : undo(current.current));
       } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'y') {
@@ -912,15 +924,62 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     setViewZoom(next);
     setViewPan({ x: newCx - (minX + maxX) / 2, y: newCy - (minY + maxY) / 2 });
   }
+  function stageSelect(id: string, additive: boolean) {
+    if (busyGesture() || stageGesture.current) return;
+    const member = membersInBounds(current.current.present, { minX: -Infinity, maxX: Infinity, minY: -Infinity, maxY: Infinity }).find(item => item.id === id);
+    if (!member) return;
+    if (member.kind === 'platform') { applyHits([member], additive); return; }
+    const pickedMember: GroupMember = { kind: member.kind, id: member.id };
+    const group = groupContaining(current.current.present, pickedMember);
+    if (group && !additive) applyHits(group.members, false); else pick(pickedMember, additive);
+  }
+  const stageTransform: StageEditing['onTransform'] = (phase, delta, bypass) => {
+    if (readOnly) return;
+    if (phase === 'begin') { stageGesture.current = { layout: current.current.present, members: selection() }; return; }
+    if (phase === 'cancel') { stageGesture.current = undefined; setGroupPreview(undefined); setGuides([]); return; }
+    const gesture = stageGesture.current;
+    if (!gesture) return;
+    const pivot = selectionPivot(gesture.layout, gesture.members);
+    if (!pivot) return;
+    let adjusted = delta;
+    if (!bypass) {
+      const members = gesture.members.filter((item): item is GroupMember => item.kind !== 'platform');
+      const snapped = snapMembersPose(gesture.layout, members, { x: pivot.x + delta.x, y: pivot.y + delta.y, rotation: delta.rotation }, 0, venue.stageCentreline, { snapAngles: true });
+      adjusted = { x: snapped.pose.x - pivot.x, y: snapped.pose.y - pivot.y, rotation: snapped.pose.rotation };
+      setGuides(snapped.guides);
+    }
+    const next = transformSelection(gesture.layout, gesture.members, adjusted);
+    if (phase === 'preview') setGroupPreview(next);
+    else { stageGesture.current = undefined; setGroupPreview(undefined); setGuides([]); commit(next); }
+  };
+  function placeAsset(asset: Asset) {
+    if (readOnly || busyGesture()) return;
+    const definition = asset.definition, id = crypto.randomUUID(), x = venue.width / 2, y = venue.depth / 2;
+    if (definition.kind === 'wall') {
+      const { typeId: _type, panelId: _panel, assemblyNumber: _assembly, ...template } = definition.template;
+      commit({ ...current.current.present, walls: [...current.current.present.walls, { ...template, id, label: asset.name, x, y, rotation: 0, supportingSurfaceId: AUDIENCE_FLOOR_ID }] }); pick({ kind: 'wall', id }, false);
+    } else if (definition.kind === 'brace') {
+      commit({ ...current.current.present, braces: [...current.current.present.braces, { ...definition.template, id, label: asset.name, x, y, rotation: 0, supportingSurfaceId: AUDIENCE_FLOOR_ID }] }); pick({ kind: 'brace', id }, false);
+    } else {
+      const item = { ...newPlaceholder('box', id, x, y), label: asset.name, assetId: asset.id, width: definition.width, height: definition.height, depth: definition.depth };
+      commit({ ...current.current.present, placeholders: [...current.current.present.placeholders ?? [], item] }); pick({ kind: 'placeholder', id }, false);
+    }
+  }
   function downloadDraft() {
     const url = URL.createObjectURL(new Blob([JSON.stringify({ ...initial, revision: saveState.revision, layout: current.current.present }, null, 2)], { type: 'application/json' }));
     const anchor = document.createElement('a'); anchor.href = url; anchor.download = `buehnenentwurf-${initial.id}.json`; anchor.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
-  return <section className="editor" aria-label="Bühnenbild bearbeiten">
+  return <section ref={root} className="editor" aria-label="Bühnenbild bearbeiten">
     <div className="editor-heading"><div><p className="eyebrow">{initial.productionName} · {initial.venueName}</p><h2>{initial.name}</h2></div>
       <button className="quiet" disabled={dirty} onClick={onClose}>Zur Übersicht</button></div>
+    <div className="workspace-viewbar" role="toolbar" aria-label="Ansichten">
+      <div className="view-modes">{(['split', 'plan', 'stage'] as const).map(mode => <button key={mode} type="button" className="quiet" aria-pressed={viewMode === mode} onClick={() => setViewMode(mode)}>{mode === 'split' ? '2D + 3D' : mode === 'plan' ? 'Grundriss' : 'Raumansicht'}</button>)}</div>
+      <label className="split-control">Aufteilung<input aria-label="Ansichten aufteilen" type="range" min="30" max="70" value={viewShare} onChange={event => setViewShare(Number(event.target.value))} /></label>
+      <button type="button" className="quiet" onClick={() => { if (document.fullscreenElement) void document.exitFullscreen(); else void root.current?.requestFullscreen(); }}>Vollbild</button>
+    </div>
     <div className="editor-toolbar">
+      <button className="quiet" onClick={() => setLibraryOpen(open => !open)} aria-expanded={libraryOpen}>Objektbibliothek</button>
       {!readOnly && <><button disabled={!!preview || !!previewBrace || !!previewPlatform || !!previewStair || !!previewPlaceholder || !!groupPreview || state.present.walls.length >= 250} onClick={() => {
         const wall = newWall(crypto.randomUUID(), venue.width / 2, venue.depth / 2);
         commit({ ...state.present, walls: [...state.present.walls, wall] }); pick({ kind: 'wall', id: wall.id }, false);
@@ -940,7 +999,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
       }}>Treppe hinzufügen</button>
       <button className="quiet" disabled={!!preview || !!previewBrace || !!previewPlatform || !!previewStair || !!previewPlaceholder || !!groupPreview || !state.past.length} onClick={() => apply(undo(current.current))}>Rückgängig</button>
       <button className="quiet" disabled={!!preview || !!previewBrace || !!previewPlatform || !!previewStair || !!previewPlaceholder || !!groupPreview || !state.future.length} onClick={() => apply(redo(current.current))}>Wiederholen</button></>}
-      <button className="quiet" onClick={() => setVenueOpen(open => !open)}>{venueOpen ? 'Spielstätte schließen' : 'Spielstätte'}</button>
+      <button className="quiet" disabled={venueOpen ? venueDirty : dirty} onClick={() => setVenueOpen(open => !open)}>{venueOpen ? 'Spielstätte schließen' : 'Spielstätte'}</button>
       <button className="quiet" onClick={() => setExportsOpen(open => !open)}>{exportsOpen ? 'Export schließen' : 'Konstruktionsplan'}</button>
       {!readOnly && <SnapToggle enabled={snapEnabled} onChange={setSnapEnabled} />}
       <button type="button" className="quiet" onClick={() => setViewZoom(z => Math.min(8, z * 1.25))}>Vergrößern</button>
@@ -952,7 +1011,9 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
         ? (initial.lease ? `Nur Ansicht · Bearbeitung durch ${initial.lease.holderName}` : 'Nur Ansicht')
         : saveState.status === 'conflict' && saveState.conflictKind === 'lease' ? 'Bearbeitung abgelaufen' : statusText[saveState.status]}</span>
     </div>
-    {venueOpen && <VenuePanel workspaceId={workspaceId} sceneId={initial.id} venue={venue} venueUpdateAvailable={updateAvailable} readOnly={readOnly} onSaved={adoptVenue} />}
+    {assetError && <p className="error" role="alert">{assetError}</p>}
+    {libraryOpen && <AssetLibrary workspaceId={workspaceId} assets={assets} readOnly={readOnly || busyGesture()} selected={selectedWall ?? selectedBraceItem} onCreated={asset => setAssets(items => [...items, asset])} onArchive={id => setAssets(items => items.map(asset => asset.id === id ? { ...asset, archived: true } : asset))} onPlace={placeAsset} />}
+    {venueOpen && <VenuePanel workspaceId={workspaceId} sceneId={initial.id} venue={venue} venueUpdateAvailable={updateAvailable} readOnly={readOnly} onDirty={setVenueDirty} onSaved={adoptVenue} />}
     {exportsOpen && <ExportPanel workspaceId={workspaceId} sceneId={initial.id} productionId={initial.productionId}
       readOnly={readOnly} freezeDisabled={dirty || saveState.status !== 'saved'} groups={state.present.groups ?? []} walls={state.present.walls} />}
     {['failed', 'conflict'].includes(saveState.status) && <div className="error" role="alert">
@@ -965,13 +1026,14 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
       <button onClick={downloadDraft}>Lokalen Entwurf herunterladen</button>{' '}
       <button className="quiet" onClick={() => { if (window.confirm('Lokale Änderungen verwerfen und die gespeicherte Fassung laden?')) { saver.dispose(); onDirty(false); onClose(); } }}>Gespeicherte Fassung laden</button>
     </div>}
-    <div className="editor-grid"><div className="editor-views"><div className="plan-canvas">
+    {!venueOpen && <div className="editor-grid"><div className="editor-views" data-mode={viewMode} style={viewMode === 'split' ? { gridTemplateColumns: `minmax(0, ${viewShare}fr) minmax(0, ${100 - viewShare}fr)` } : { gridTemplateColumns: 'minmax(0, 1fr)' }}><div className="plan-canvas" hidden={viewMode === 'stage'}>
       <svg ref={svg} role="img" aria-label="Grundriss der Spielstätte" viewBox={viewBox}
         onWheel={onPlanWheel}
         onPointerMove={move} onPointerUp={() => finish()} onPointerCancel={() => finish(true)} onLostPointerCapture={() => finish(true)}>
         <defs><pattern id="metre-grid" width="1000" height="1000" patternUnits="userSpaceOnUse"><path d="M 1000 0 L 0 0 0 1000" fill="none" stroke="#dfe5d9" strokeWidth="1" vectorEffect="non-scaling-stroke" /></pattern></defs>
         <path data-testid="venue-floor" d={`${floor.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')} Z`}
           fill="url(#metre-grid)" stroke="#718469" strokeWidth="2" vectorEffect="non-scaling-stroke" onPointerDown={startMarquee} />
+        {(venue.walls ?? []).map(wall => <polygon key={wall.id} data-testid={`venue-wall-${wall.id}`} points={wallCorners(resolveWall(wall, venue.wallTypes ?? [])).map(p => `${p.x},${-p.y}`).join(' ')} fill="#8b8478" stroke="#625b50" vectorEffect="non-scaling-stroke" pointerEvents="none"><title>{wall.label} · feste Spielstättenwand</title></polygon>)}
         <text x={venue.width / 2} y={-venue.depth - 200} textAnchor="middle" fontSize="180">{venue.width} mm</text>
         <text x="-170" y={-venue.depth / 2} textAnchor="middle" fontSize="180" transform={`rotate(-90 -170 ${-venue.depth / 2})`}>{venue.depth} mm</text>
         <text x={venue.width / 2} y="420" textAnchor="middle" fontSize="190">↑ Publikum · Blick zur Bühne</text>
@@ -1075,7 +1137,9 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
       {overlapWarnings.map(item => <p key={`${item.zoneId}-${item.objectId}`} className="warning" role="status">{item.message}</p>)}
       {objectOverlaps.map(item => <p key={`${item.aId}-${item.bId}`} className="warning" role="status" data-testid="object-overlap">{item.message}</p>)}
     </div>
-    <StageView layout={shown} venue={venue} />
+    {viewMode !== 'plan' && <StageView layout={shown} venue={venue} assets={assets} workspaceId={workspaceId}
+      selectedIds={selection().map(item => item.id)} pivot={selectionPivot(state.present, selection())} snapEnabled={snapEnabled}
+      onSelect={stageSelect} onTransform={readOnly ? undefined : stageTransform} />}
     </div><aside className="wall-inspector">
       <WallTypePanel types={wallTypes} selectedId={selectedType} readOnly={readOnly}
         onSelect={setSelectedType} onCreate={applyType} onApply={applyType} onPlace={placeType} onRemove={removeType} />
@@ -1123,7 +1187,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
             : selectedStairItem ? <StairInspector key={JSON.stringify(selectedStairItem)} stair={selectedStairItem} surfaces={surfaces} readOnly={readOnly} onApply={replaceStair} onRemove={remove} />
               : selectedPlaceholderItem ? <PlaceholderInspector key={JSON.stringify(selectedPlaceholderItem)} item={selectedPlaceholderItem} surfaces={surfaces} readOnly={readOnly} onApply={replacePlaceholder} onRemove={remove} />
                 : <p className="muted">Wählen Sie ein Objekt im Grundriss oder fügen Sie eine Wand, ein Podest, eine Treppe oder einen Platzhalter hinzu.</p>}
-    </aside></div>
+    </aside></div>}
   </section>;
 }
 
@@ -1137,7 +1201,7 @@ function WallForm({ wall, typed, surfaces, readOnly, onApply, onRemove }: {
     const keys = typed ? ['x', 'y', 'rotation'] : ['x', 'y', 'rotation', 'width', 'height', 'thickness'];
     const surface = String(data.get('supportingSurfaceId') || '');
     const result = wallSchema.safeParse({
-      ...wall, label: data.get('label'), supportingSurfaceId: surface || undefined,
+      ...wall, finish: data.get('finish') || undefined, label: data.get('label'), supportingSurfaceId: surface || undefined,
       ...Object.fromEntries(keys.map(key => [key, Number(data.get(key))])),
     });
     if (!result.success) { setError('Bitte prüfen Sie die Maße und die Bezeichnung.'); return; }
@@ -1152,6 +1216,7 @@ function WallForm({ wall, typed, surfaces, readOnly, onApply, onRemove }: {
       ['width', 'Breite (mm)', 1, 100000], ['height', 'Höhe (mm)', 1, 100000], ['thickness', 'Dicke (mm)', 1, 100000],
       ['x', 'X (mm)', -100000, 100000], ['y', 'Y (mm)', -100000, 100000], ['rotation', 'Drehung (°)', -360, 360],
     ] as const).map(([key, label, min, max]) => <div key={key}><label htmlFor={`wall-${key}`}>{label}</label><input id={`wall-${key}`} name={key} type="number" step="any" min={min} max={max} defaultValue={wall[key]} required /></div>)}</div>
+    <Suspense fallback={<p>Materialbibliothek wird geladen …</p>}><MaterialPicker value={wall.finish} /></Suspense>
     <p className="muted">{typed ? 'Außenmaße und Öffnungen kommen vom Wandtyp.' : 'X/Y beziehen sich auf die Wandmitte. Ursprung: vordere linke Ecke der Spielstätte.'}</p>
     {error && <p role="alert" className="error">{error}</p>}
     {!readOnly && <div className="form-actions"><button type="submit">Übernehmen</button><button className="quiet" type="button" onClick={onRemove}>Wand löschen</button></div>}

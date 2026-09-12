@@ -1,0 +1,29 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import { validateGlb } from '../src/server/assets/glb.js';
+import { pascalScene } from '../src/client/editor/pascalScene.js';
+import { newWall } from '../src/shared/layout.js';
+import { placeholderCorners as propCorners } from '../src/shared/placeholders.js';
+import { cubeGlb } from './helpers/model.js';
+
+test('GLB uploads validate framing and require embedded resources', () => {
+  assert.doesNotThrow(() => validateGlb(cubeGlb()));
+  assert.throws(() => validateGlb(cubeGlb('https://example.com/model.bin')));
+  assert.throws(() => validateGlb(cubeGlb().subarray(0, 30)));
+  const invalid = cubeGlb(); invalid.writeUInt32LE(0xffffffff, 12);
+  assert.throws(() => validateGlb(invalid));
+});
+test('Pascal projection retains physical panel dimensions, IDs and freely rotated model footprints', () => {
+  const wall = { ...newWall(randomUUID(), 2500, 3000), rotation: 37, finish: 'library:color-white' };
+  const prop = { id: randomUUID(), assetId: randomUUID(), label: 'Tisch', x: 4000, y: 3000, kind: 'box' as const, rotation: 90, width: 2000, depth: 1000, height: 800 };
+  const layout = { schemaVersion: 1 as const, walls: [wall], braces: [], placeholders: [prop] };
+  const before = structuredClone(layout), projected = pascalScene(layout);
+  assert.equal(projected.rootNodeIds.length, 2);
+  assert.deepEqual(Object.values(projected.nodes)[0]?.element, { kind: 'wall', value: wall });
+  assert.equal(Object.values(projected.nodes)[0]?.type, 'stage-object');
+  assert.deepEqual(layout, before);
+  const corners = propCorners(prop);
+  assert.equal(Math.max(...corners.map(p => p.x)) - Math.min(...corners.map(p => p.x)), 1000);
+  assert.equal(Math.max(...corners.map(p => p.y)) - Math.min(...corners.map(p => p.y)), 2000);
+});

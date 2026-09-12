@@ -25,8 +25,10 @@ import { renderOffThread } from './exports/render.js';
 import { renderPackage } from './exports/packagePdf.js';
 import { localFilesystem, type FileStorage } from './exports/storage.js';
 import type { ConstructionSnapshot } from '../shared/export.js';
+import { registerAssetRoutes } from './assets/routes.js';
 
 export async function createApp(db: Database, config: Config, options: {
+  auth?: ReturnType<typeof createAuth>;
   staticRoot?: string; logger?: boolean; clock?: () => Date; mail?: MailTransport;
   storage?: FileStorage; renderPdf?: (snapshot: ConstructionSnapshot) => Promise<Buffer>;
 } = {}) {
@@ -38,7 +40,7 @@ export async function createApp(db: Database, config: Config, options: {
     transform: jsonSchemaTransform,
   });
   const api = app.withTypeProvider<ZodTypeProvider>();
-  const auth = createAuth(db, config);
+  const auth = options.auth ?? createAuth(db, config);
   await auth.$context;
   const access = createAccess(db, auth);
   const mail = options.mail ?? (config.NODE_ENV === 'test' ? createFakeMailTransport() : createMailTransport(config));
@@ -52,6 +54,7 @@ export async function createApp(db: Database, config: Config, options: {
   registerPackageRoutes(app, db, access, config.APP_ORIGIN, storage, snapshot => (
     options.renderPdf ? renderPackage(snapshot) : renderOffThread(snapshot)
   ));
+  registerAssetRoutes(app, db, access, config.APP_ORIGIN, storage);
   app.addHook('onSend', async (request, reply) => {
     reply.header('X-Content-Type-Options', 'nosniff');
     reply.header('Referrer-Policy', 'same-origin');

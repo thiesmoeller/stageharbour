@@ -4,6 +4,7 @@ import type { ConstructionPackage } from '../../shared/package.js';
 import type { Layout, VenueGeometry } from '../../shared/layout.js';
 import type { LeaseKind } from '../../shared/leases.js';
 import type { WallElementType } from '../../shared/wall-types.js';
+import type { AssetDefinition } from '../../shared/assets.js';
 
 const dates = () => ({
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -113,6 +114,15 @@ export const scene = pgTable('scene', {
   layout: jsonb('layout').notNull().$type<Layout>(),
 }, t => [index('scene_workspace_idx').on(t.workspaceId), uniqueIndex('scene_workspace_id').on(t.workspaceId, t.id),
   foreignKey({ columns: [t.workspaceId, t.adaptationId], foreignColumns: [adaptation.workspaceId, adaptation.id] })]);
+export const inventoryAsset = pgTable('inventory_asset', {
+  id: uuid('id').primaryKey(), workspaceId: uuid('workspace_id').notNull().references(() => workspace.id),
+  name: text('name').notNull(), definition: jsonb('definition').notNull().$type<AssetDefinition>(),
+  archived: boolean('archived').notNull().default(false),
+}, t => [index('inventory_asset_workspace_idx').on(t.workspaceId)]);
+export const assetFile = pgTable('asset_file', {
+  id: uuid('id').primaryKey(), workspaceId: uuid('workspace_id').notNull().references(() => workspace.id),
+  storageKey: text('storage_key').notNull(),
+}, t => [index('asset_file_workspace_idx').on(t.workspaceId)]);
 export const editingLease = pgTable('editing_lease', {
   workspaceId: uuid('workspace_id').notNull().references(() => workspace.id),
   resourceKind: text('resource_kind').notNull().$type<LeaseKind>(),
