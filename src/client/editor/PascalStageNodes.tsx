@@ -16,7 +16,7 @@ import { StagePlaceholders } from './StagePlaceholders.js';
 import { StageBraces } from './StageBraces.js';
 import { pascalScene, stageNodeSchema, type StageNode } from './pascalScene.js';
 
-export const StageInteraction = createContext<{ assets: Asset[]; workspaceId: string; mirrorWidth: number; venueEditable?: boolean; model?: StageModel; selectedIds: string[]; onSelect?: (id: string, additive: boolean) => void }>({ assets: [], workspaceId: '', mirrorWidth: 0, selectedIds: [] });
+export const StageInteraction = createContext<{ assets: Asset[]; workspaceId: string; mirrorWidth: number; venueEditable?: boolean; model?: StageModel; selectedIds: string[]; onSelect?: (id: string, additive: boolean) => void; onClearSelection?: () => void }>({ assets: [], workspaceId: '', mirrorWidth: 0, selectedIds: [] });
 
 export function PascalSceneBridge({ layout, venue }: { layout: Layout; venue: VenueGeometry }) {
   useLayoutEffect(() => {
@@ -61,12 +61,13 @@ function ModelMesh({ prop, definition }: { prop: Prop; definition: Extract<Asset
     return result;
   }, [loadedScene]);
   const bounds = useMemo(() => new Box3().setFromObject(object), [object]);
-  if (source.kind === 'catalog') return <group scale={[prop.width / definition.width, prop.height / definition.height, prop.depth / definition.depth]}>
+  // glTF / Pascal catalog forward is +Z; theatre audience looks toward −Z, so yaw 180°.
+  if (source.kind === 'catalog') return <group rotation={[0, Math.PI, 0]} scale={[prop.width / definition.width, prop.height / definition.height, prop.depth / definition.depth]}>
     <primitive object={object} position={source.offset} rotation={source.rotation} scale={source.scale} dispose={null} />
   </group>;
   const size = bounds.getSize(new Vector3()), center = bounds.getCenter(new Vector3());
   if (Math.min(size.x, size.y, size.z) <= 0 || !Number.isFinite(size.length())) throw new Error('Model has no usable bounds');
-  return <group scale={[prop.width / 1000 / size.x, prop.height / 1000 / size.y, prop.depth / 1000 / size.z]}>
+  return <group rotation={[0, Math.PI, 0]} scale={[prop.width / 1000 / size.x, prop.height / 1000 / size.y, prop.depth / 1000 / size.z]}>
     <primitive object={object} position={[-center.x, -bounds.min.y, -center.z]} dispose={null} />
   </group>;
 }
@@ -90,10 +91,10 @@ function StageNodeRenderer({ node }: { node: StageNode }) {
       return wall && <group scale={0.001}><FinishedWall wall={wall} finish={element.value.finish} /></group>;
     }
     if (element.kind === 'brace') return <group scale={0.001}><StageBraces braces={model.braces.filter(item => item.id === element.value.id)} lit /></group>;
-    if (element.kind === 'platform' || element.kind === 'stair') return <group scale={0.001}><StageLevels model={{ ...model, platforms: model.platforms.filter(item => item.id === element.value.id), stairs: model.stairs.filter(item => item.id === element.value.id) }} /></group>;
+    if (element.kind === 'platform' || element.kind === 'stair') return <group scale={0.001}><StageLevels lit model={{ ...model, platforms: model.platforms.filter(item => item.id === element.value.id), stairs: model.stairs.filter(item => item.id === element.value.id) }} /></group>;
     if (element.kind === 'overhead' || element.kind === 'zone' || element.kind === 'pin' || element.kind === 'corridor') return <group scale={0.001}><StageConstraint element={element} elevation={element.kind === 'zone' ? model.platforms.find(p => p.id === element.value.supportingSurfaceId)?.elevation : 0} /></group>;
     const prop = element.value, solid = model.placeholders.find(item => item.id === prop.id);
-    if (!prop.assetId) return <group scale={0.001}><StagePlaceholders placeholders={model.placeholders.filter(item => item.id === prop.id)} /></group>;
+    if (!prop.assetId) return <group scale={0.001}><StagePlaceholders lit placeholders={model.placeholders.filter(item => item.id === prop.id)} /></group>;
     const definition = assets.find(asset => asset.id === prop.assetId)?.definition;
     return <group position={[prop.x / 1000, ((solid?.center.y ?? prop.height / 2) - prop.height / 2) / 1000, prop.y / 1000]} rotation={[0, -prop.rotation * Math.PI / 180, 0]}>
       <ErrorBoundary fallback={<ModelPlaceholder prop={prop} failed />} resetKey={definition} scope="stage-model">

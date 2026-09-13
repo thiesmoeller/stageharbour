@@ -3,7 +3,8 @@ import { ExtrudeGeometry, Shape } from 'three';
 import type { StageModel } from '../../shared/transforms.js';
 import type { Platform } from '../../shared/levels.js';
 
-function PlatformMesh({ platform }: { platform: Platform }) {
+function PlatformMesh({ platform, lit }: { platform: Platform; lit: boolean }) {
+  const Surface = lit ? 'meshStandardMaterial' : 'meshBasicMaterial';
   const geometry = useMemo(() => {
     const shape = new Shape();
     const [first, ...rest] = platform.outline;
@@ -18,16 +19,17 @@ function PlatformMesh({ platform }: { platform: Platform }) {
   }, [platform]);
   useLayoutEffect(() => () => { geometry?.dispose(); }, [geometry]);
   if (!geometry) return null;
-  return <mesh geometry={geometry}><meshBasicMaterial color="#c5d0b8" /></mesh>;
+  return <mesh castShadow={lit} receiveShadow={lit} geometry={geometry}><Surface color="#c5d0b8" /></mesh>;
 }
 
-export function StageLevels({ model }: { model: StageModel }) {
+export function StageLevels({ model, lit = false }: { model: StageModel; lit?: boolean }) {
+  const Surface = lit ? 'meshStandardMaterial' : 'meshBasicMaterial';
   return <>
-    {model.platforms.map(platform => <PlatformMesh key={platform.id} platform={platform} />)}
+    {model.platforms.map(platform => <PlatformMesh key={platform.id} platform={platform} lit={lit} />)}
     {model.stairs.flatMap(stair => stair.steps.map((step, index) =>
-      <mesh key={`${stair.id}-${index}`} position={[step.x, step.y, step.z]} rotation={[0, step.rotationY, 0]}>
+      <mesh castShadow={lit} receiveShadow={lit} key={`${stair.id}-${index}`} position={[step.x, step.y, step.z]} rotation={[0, step.rotationY, 0]}>
         <boxGeometry args={[step.width, step.height, step.depth]} />
-        <meshBasicMaterial color="#d5decc" />
+        <Surface color="#d5decc" />
       </mesh>))}
   </>;
 }

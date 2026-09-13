@@ -13,13 +13,13 @@ import {
 } from '../../shared/snapping.js';
 import { membersInBounds, normalizeBounds, type PlanBounds } from '../../shared/selection.js';
 import {
-  AUDIENCE_FLOOR_ID, layoutDiagnostics, newPlatform, newStair, platformCentroid, rotatePlatformOutline,
+  AUDIENCE_FLOOR_ID, layoutDiagnostics, newPlatform, newStair, platformCentroid, reassignLayoutSupports, rotatePlatformOutline,
   supportingSurfaces, translatePlatformOutline, type Platform, type StairUnit,
 } from '../../shared/levels.js';
 import { placeholderCorners, type Placeholder } from '../../shared/placeholders.js';
 import { overheadBoxCorners, overheadClearance } from '../../shared/overhead.js';
 import { braceCorners } from '../../shared/braceTransforms.js';
-import { resolveWall, typesOf, type WallElementType } from '../../shared/wall-types.js';
+import { doorOpenAngleDegrees, isDoorOpening, resolveWall, typesOf, type Opening, type WallElementType } from '../../shared/wall-types.js';
 import { measuredOutline } from '../../shared/venue.js';
 import { planningWalls, permanentWalls } from '../../shared/planningGeometry.js';
 import { useViewportWheel } from './viewportWheel.js';
@@ -48,6 +48,8 @@ import { GroupInspector } from './GroupInspector.js';
 import { ClipboardPanel } from './ClipboardPanel.js';
 import { PlaceholderInspector, PlaceholderLibrary, addPlaceholder } from './PlaceholderInspector.js';
 import { PlaceholderLayer } from './PlaceholderLayer.js';
+import { ToolIcon } from './ToolIcon.js';
+import { WallToolButton } from './WallToolButton.js';
 import { AlignmentGuides, CentrelineMark, SnapToggle } from './SnapGuides.js';
 
 const MaterialPicker = lazy(() => import('./MaterialPicker.js'));
@@ -67,6 +69,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [assetError, setAssetError] = useState('');
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   useEffect(() => {
     let active = true;
     request(`/api/workspaces/${workspaceId}/assets`).then(data => { if (active) setAssets(assetListSchema.parse(data)); }).catch(() => { if (active) setAssetError('Die Objektbibliothek konnte nicht geladen werden.'); });
@@ -78,6 +81,9 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
   const [selectedPlatform, setSelectedPlatform] = useState<string>();
   const [selectedStair, setSelectedStair] = useState<string>();
   const [selectedPlaceholder, setSelectedPlaceholder] = useState<string>();
+  useEffect(() => {
+    root.current?.querySelector('.wall-inspector')?.scrollTo({ top: 0 });
+  }, [selected, selectedBrace, selectedPlatform, selectedStair, selectedPlaceholder]);
   const [picked, setPicked] = useState<GroupMember[]>([]);
   const [pickedPlatforms, setPickedPlatforms] = useState<string[]>([]);
   const [clipboard, setClipboard] = useState<LayoutClipboard>();
@@ -86,6 +92,8 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
   const [previewPlatform, setPreviewPlatform] = useState<Platform>();
   const [previewStair, setPreviewStair] = useState<StairUnit>();
   const [previewPlaceholder, setPreviewPlaceholder] = useState<Placeholder>();
+  const [placing, setPlacing] = useState<{ wall: Wall; pendingType?: WallElementType }>();
+  const placingRef = useRef<{ wall: Wall; pendingType?: WallElementType } | undefined>(undefined);
   const [groupPreview, setGroupPreview] = useState<Layout>();
   const [panelLabels, setPanelLabels] = useState<Record<string, string>>({});
   const [exportsOpen, setExportsOpen] = useState(false);
@@ -160,7 +168,8 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     saver.queue(next.present);
   }
   function commit(layout: Layout) {
-    const valid = layoutSchema.safeParse(layout);
+    const withSupports = reassignLayoutSupports(layout, venue);
+    const valid = layoutSchema.safeParse(withSupports);
     if (!valid.success) { setSnapStatus('Änderung nicht übernommen: ungültige Maße oder Objektverweise.'); return; }
     apply(execute(current.current, valid.data));
   }
@@ -189,12 +198,58 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     });
     setSelectedType(type.id);
   }
-  function placeType(type: WallElementType) {
+  function beginPlacingWall(type?: WallElementType) {
     const present = current.current.present;
-    if (present.walls.length >= 250) return;
-    const wall: Wall = { ...newWall(crypto.randomUUID(), venue.width / 2, venue.depth / 2), typeId: type.id, label: type.name, width: type.width, height: type.height, thickness: type.thickness };
-    commit({ ...present, walls: [...present.walls, wall] });
-    pick({ kind: 'wall', id: wall.id }, false);
+    if (readOnly || present.walls.length >= 250) return;
+    const types = typesOf(present);
+    let pendingType: WallElementType | undefined;
+    let wall: Wall;
+    if (type) {
+      const known = types.find(item => item.id === type.id)
+        ?? types.find(item => item.name === type.name && item.width === type.width && item.height === type.height && item.thickness === type.thickness
+          && item.openings.length === type.openings.length);
+      const resolved = known ?? type;
+      pendingType = known ? undefined : resolved;
+      wall = {
+        ...newWall(crypto.randomUUID(), venue.width / 2, venue.depth / 2),
+        typeId: resolved.id, label: resolved.name, width: resolved.width, height: resolved.height, thickness: resolved.thickness,
+      };
+      setSelectedType(resolved.id);
+    } else {
+      wall = newWall(crypto.randomUUID(), venue.width / 2, venue.depth / 2);
+    }
+    const draft = { wall, pendingType };
+    placingRef.current = draft;
+    setPlacing(draft);
+    setGuides([]);
+    setSnapStatus('Klicken zum Platzieren · Escape abbricht');
+  }
+  function cancelPlacing() {
+    if (!placingRef.current) return;
+    placingRef.current = undefined;
+    setPlacing(undefined);
+    setGuides([]);
+    setSnapStatus(undefined);
+  }
+  function commitPlacing() {
+    const draft = placingRef.current;
+    if (!draft) return;
+    const present = current.current.present;
+    if (present.walls.length >= 250) { cancelPlacing(); return; }
+    const types = typesOf(present);
+    commit({
+      ...present,
+      wallTypes: draft.pendingType ? [...types, draft.pendingType] : present.wallTypes,
+      walls: [...present.walls, draft.wall],
+    });
+    placingRef.current = undefined;
+    setPlacing(undefined);
+    setGuides([]);
+    setSnapStatus(undefined);
+    pick({ kind: 'wall', id: draft.wall.id }, false);
+  }
+  function placeType(type: WallElementType) {
+    beginPlacingWall(type);
   }
   function removeType(id: string) {
     const present = current.current.present;
@@ -346,7 +401,14 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
   useEffect(() => {
     const shortcut = (event: KeyboardEvent) => {
       if (venueOpen) return;
-      if (readOnly || gesture.current || rotateDrag.current || braceDrag.current || braceRotate.current || platformDrag.current || platformRotate.current || placeholderDrag.current || groupDrag.current || marqueeDrag.current || event.target instanceof HTMLElement && (event.target.closest('input, textarea, select') || event.target.isContentEditable)) return;
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        if (placingRef.current) cancelPlacing();
+        else if (busyGesture()) finish(true);
+        else { clearSelection(); setPicked([]); setPickedPlatforms([]); }
+        return;
+      }
+      if (readOnly || gesture.current || rotateDrag.current || braceDrag.current || braceRotate.current || platformDrag.current || platformRotate.current || placeholderDrag.current || groupDrag.current || marqueeDrag.current || placingRef.current || event.target instanceof HTMLElement && (event.target.closest('input, textarea, select') || event.target.isContentEditable)) return;
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
         event.preventDefault(); apply(event.shiftKey ? redo(current.current) : undo(current.current));
       } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'y') {
@@ -401,7 +463,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     event.currentTarget.setPointerCapture(event.pointerId);
   }
   function busyGesture() {
-    return !!(gesture.current || rotateDrag.current || braceDrag.current || braceRotate.current || platformDrag.current || platformRotate.current || stairDrag.current || stairRotate.current || placeholderDrag.current || placeholderRotate.current || groupDrag.current || groupRotate.current || marqueeDrag.current || panDrag.current);
+    return !!(placingRef.current || gesture.current || rotateDrag.current || braceDrag.current || braceRotate.current || platformDrag.current || platformRotate.current || stairDrag.current || stairRotate.current || placeholderDrag.current || placeholderRotate.current || groupDrag.current || groupRotate.current || marqueeDrag.current || panDrag.current);
   }
   function startPan(event: PointerEvent<SVGSVGElement>) {
     if (event.button !== 1) return;
@@ -581,6 +643,21 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     setMarqueeBox(normalizeBounds(position, position));
     event.currentTarget.setPointerCapture(event.pointerId);
   }
+  function updatePlacingAt(position: { x: number; y: number }, bypass: boolean) {
+    const draft = placingRef.current;
+    if (!draft) return;
+    const clamp = (value: number) => Math.max(-100000, Math.min(100000, Math.round(value)));
+    const types = draft.pendingType ? [...typesOf(current.current.present), draft.pendingType] : typesOf(current.current.present);
+    const walls = planningWalls(current.current.present, venue);
+    const next = { ...draft.wall, x: clamp(position.x), y: clamp(position.y) };
+    const snapped = snapWallPose(resolveWall(next, types), walls, venue.stageCentreline, { bypass });
+    const wall = { ...next, x: clamp(snapped.x), y: clamp(snapped.y) };
+    const updated = { ...draft, wall };
+    placingRef.current = updated;
+    setPlacing(updated);
+    setGuides(snapped.guides);
+    setSnapStatus(snapStatusText({ guides: snapped.guides }) ?? 'Klicken zum Platzieren · Escape abbricht');
+  }
   function move(event: PointerEvent) {
     const panning = panDrag.current;
     if (panning) {
@@ -596,8 +673,12 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
       return;
     }
     const position = point(event);
-    const clamp = (value: number) => Math.max(-100000, Math.min(100000, Math.round(value)));
     const bypass = event.altKey || !snapEnabled;
+    if (placingRef.current && !gesture.current && !rotateDrag.current && !marqueeDrag.current && !groupDrag.current && !groupRotate.current) {
+      updatePlacingAt(position, bypass);
+      return;
+    }
+    const clamp = (value: number) => Math.max(-100000, Math.min(100000, Math.round(value)));
     const types = typesOf(current.current.present);
     const walls = planningWalls(current.current.present, venue);
     const marquee = marqueeDrag.current;
@@ -990,7 +1071,12 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     const definition = asset.definition, id = crypto.randomUUID(), x = venue.width / 2, y = venue.depth / 2;
     if (definition.kind === 'wall') {
       const { typeId: _type, panelId: _panel, assemblyNumber: _assembly, ...template } = definition.template;
-      commit({ ...current.current.present, walls: [...current.current.present.walls, { ...template, id, label: asset.name, x, y, rotation: 0, supportingSurfaceId: AUDIENCE_FLOOR_ID }] }); pick({ kind: 'wall', id }, false);
+      const wall = { ...template, id, label: asset.name, x, y, rotation: 0, supportingSurfaceId: AUDIENCE_FLOOR_ID };
+      const draft = { wall };
+      placingRef.current = draft;
+      setPlacing(draft);
+      setGuides([]);
+      setSnapStatus('Klicken zum Platzieren · Escape abbricht');
     } else if (definition.kind === 'brace') {
       commit({ ...current.current.present, braces: [...current.current.present.braces, { ...definition.template, id, label: asset.name, x, y, rotation: 0, supportingSurfaceId: AUDIENCE_FLOOR_ID }] }); pick({ kind: 'brace', id }, false);
     } else {
@@ -1004,51 +1090,54 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   return <section ref={root} className="editor" aria-label="Bühnenbild bearbeiten">
-    <div className="editor-heading"><div><p className="eyebrow">{initial.productionName} · {initial.venueName}</p><h2>{initial.name}</h2></div>
-      <button className="quiet" disabled={dirty} onClick={onClose}>Zur Übersicht</button></div>
-    <div className="workspace-viewbar" role="toolbar" aria-label="Ansichten">
-      <div className="view-modes">{(['split', 'plan', 'stage'] as const).map(mode => <button key={mode} type="button" className="quiet" aria-pressed={viewMode === mode} onClick={() => setViewMode(mode)}>{mode === 'split' ? '2D + 3D' : mode === 'plan' ? 'Grundriss' : 'Raumansicht'}</button>)}</div>
-      <label className="split-control">Aufteilung<input aria-label="Ansichten aufteilen" type="range" min="30" max="70" value={viewShare} onChange={event => setViewShare(Number(event.target.value))} /></label>
-      <button type="button" className="quiet" onClick={() => { if (document.fullscreenElement) void document.exitFullscreen(); else void root.current?.requestFullscreen(); }}>Vollbild</button>
-    </div>
+    <div className="editor-heading"><button className="quiet back-button" disabled={dirty} onClick={onClose} title="Zur Übersicht" aria-label="Zur Übersicht"><ToolIcon name="back" /></button><div><p className="eyebrow">{initial.productionName} · {initial.venueName}</p><h2>{initial.name}</h2></div>
+      <span className={`save-status ${saveState.status}`} role="status">{readOnly
+        ? (initial.lease ? `Nur Ansicht · Bearbeitung durch ${initial.lease.holderName}` : 'Nur Ansicht')
+        : saveState.status === 'conflict' && saveState.conflictKind === 'lease' ? 'Bearbeitung abgelaufen' : statusText[saveState.status]}</span><div className="document-history">{!readOnly && <>
+      <button className="quiet" disabled={!!preview || !!previewBrace || !!previewPlatform || !!previewStair || !!previewPlaceholder || !!groupPreview || !!placing || !state.past.length} onClick={() => apply(undo(current.current))} hidden={venueOpen} title="Rückgängig (Strg+Z)" aria-label="Rückgängig"><ToolIcon name="undo" /></button>
+      <button className="quiet" disabled={!!preview || !!previewBrace || !!previewPlatform || !!previewStair || !!previewPlaceholder || !!groupPreview || !!placing || !state.future.length} onClick={() => apply(redo(current.current))} hidden={venueOpen} title="Wiederholen (Strg+Shift+Z)" aria-label="Wiederholen"><ToolIcon name="redo" /></button></>}</div><span className="document-kind">{venueOpen ? 'Spielstätte bearbeiten' : 'Bühnenbild'}</span></div>
+    <div className="workspace-commandbar">
     <div className="editor-toolbar">
-      <button className="quiet" onClick={() => setLibraryOpen(open => !open)} aria-expanded={libraryOpen}>Objektbibliothek</button>
-      {!readOnly && <><button disabled={!!preview || !!previewBrace || !!previewPlatform || !!previewStair || !!previewPlaceholder || !!groupPreview || state.present.walls.length >= 250} onClick={() => {
-        const wall = newWall(crypto.randomUUID(), venue.width / 2, venue.depth / 2);
-        commit({ ...state.present, walls: [...state.present.walls, wall] }); pick({ kind: 'wall', id: wall.id }, false);
-      }}>Wand hinzufügen</button>
-      <button disabled={!!preview || !!previewBrace || !!previewPlatform || !!previewStair || !!previewPlaceholder || !!groupPreview || state.present.braces.length >= 250} onClick={() => {
+      <button className="quiet" aria-expanded={venueOpen} disabled={venueOpen ? venueDirty : dirty} onClick={() => { setVenueOpen(open => !open); setExportsOpen(false); }}>{venueOpen ? 'Spielstätte schließen' : 'Spielstätte'}</button>
+      <button className="quiet" aria-expanded={exportsOpen} onClick={() => { setExportsOpen(open => !open); setLibraryOpen(false); }}>{exportsOpen ? 'Export schließen' : 'Konstruktionsplan'}</button>
+      {!readOnly && <SnapToggle enabled={snapEnabled} onChange={setSnapEnabled} />}
+
+      {snapStatus && <span className="snap-status" role="status">{snapStatus}</span>}
+
+    </div>
+    <div className="workspace-viewbar" hidden={venueOpen} role="toolbar" aria-label="Ansichten">
+      <div className="view-modes">{(['split', 'plan', 'stage'] as const).map(mode => <button key={mode} type="button" className="quiet" aria-pressed={viewMode === mode} onClick={() => setViewMode(mode)}>{mode === 'split' ? '2D + 3D' : mode === 'plan' ? 'Grundriss' : 'Raumansicht'}</button>)}</div>
+      <label className="split-control" hidden={viewMode !== 'split'}>Aufteilung<input aria-label="Ansichten aufteilen" type="range" min="30" max="70" value={viewShare} onChange={event => setViewShare(Number(event.target.value))} /></label>
+      <button type="button" className="quiet" onClick={() => { if (document.fullscreenElement) void document.exitFullscreen(); else void root.current?.requestFullscreen(); }} title="Vollbild" aria-label="Vollbild"><ToolIcon name="expand" /></button>
+    </div>
+    </div>
+    <div className="tool-rail" hidden={venueOpen} role="toolbar" aria-label="Objekte hinzufügen">
+      <button className="quiet" onClick={() => { setLibraryOpen(open => !open); setExportsOpen(false); }} aria-expanded={libraryOpen} title="Objektbibliothek" aria-label="Objektbibliothek"><ToolIcon name="library" /><span>Bibliothek</span></button>
+      {!readOnly && <><WallToolButton
+        disabled={!!preview || !!previewBrace || !!previewPlatform || !!previewStair || !!previewPlaceholder || !!groupPreview || state.present.walls.length >= 250}
+        sceneTypes={wallTypes}
+        onAddPlain={() => beginPlacingWall()}
+        onAddType={placeType} />
+      <button disabled={!!preview || !!previewBrace || !!previewPlatform || !!previewStair || !!previewPlaceholder || !!groupPreview || !!placing || state.present.braces.length >= 250} onClick={() => {
         const brace = newBrace(crypto.randomUUID(), venue.width / 2, venue.depth / 2);
         commit({ ...state.present, braces: [...state.present.braces, brace] }); pick({ kind: 'brace', id: brace.id }, false);
-      }}>Stütze hinzufügen</button>
-      <button disabled={!!preview || !!previewBrace || !!previewPlatform || !!previewStair || !!previewPlaceholder || !!groupPreview || (state.present.platforms ?? []).length >= 250} onClick={() => {
+      }} title="Stütze hinzufügen" aria-label="Stütze hinzufügen"><ToolIcon name="brace" /><span>Stütze</span></button>
+      <button disabled={!!preview || !!previewBrace || !!previewPlatform || !!previewStair || !!previewPlaceholder || !!groupPreview || !!placing || (state.present.platforms ?? []).length >= 250} onClick={() => {
         const platform = newPlatform(crypto.randomUUID(), venue.width / 2, venue.depth / 2);
         commit({ ...state.present, platforms: [...state.present.platforms ?? [], platform] }); setSelectedPlatform(platform.id); clearSelection('platform'); setPicked([]); setPickedPlatforms([platform.id]);
-      }}>Podest hinzufügen</button>
-      <button disabled={!!preview || !!previewBrace || !!previewPlatform || !!previewStair || !!previewPlaceholder || !!groupPreview || !raised || (state.present.stairs ?? []).length >= 250} onClick={() => {
+      }} title="Podest hinzufügen" aria-label="Podest hinzufügen"><ToolIcon name="platform" /><span>Podest</span></button>
+      <button disabled={!!preview || !!previewBrace || !!previewPlatform || !!previewStair || !!previewPlaceholder || !!groupPreview || !!placing || !raised || (state.present.stairs ?? []).length >= 250} onClick={() => {
         if (!raised) return;
         const stair = newStair(crypto.randomUUID(), AUDIENCE_FLOOR_ID, raised.id, venue.width / 2, venue.depth / 2);
         commit({ ...state.present, stairs: [...state.present.stairs ?? [], stair] }); pick({ kind: 'stair', id: stair.id }, false);
-      }}>Treppe hinzufügen</button>
-      <button className="quiet" disabled={!!preview || !!previewBrace || !!previewPlatform || !!previewStair || !!previewPlaceholder || !!groupPreview || !state.past.length} onClick={() => apply(undo(current.current))}>Rückgängig</button>
-      <button className="quiet" disabled={!!preview || !!previewBrace || !!previewPlatform || !!previewStair || !!previewPlaceholder || !!groupPreview || !state.future.length} onClick={() => apply(redo(current.current))}>Wiederholen</button></>}
-      <button className="quiet" disabled={venueOpen ? venueDirty : dirty} onClick={() => setVenueOpen(open => !open)}>{venueOpen ? 'Spielstätte schließen' : 'Spielstätte'}</button>
-      <button className="quiet" onClick={() => setExportsOpen(open => !open)}>{exportsOpen ? 'Export schließen' : 'Konstruktionsplan'}</button>
-      {!readOnly && <SnapToggle enabled={snapEnabled} onChange={setSnapEnabled} />}
-      <button type="button" className="quiet" onClick={() => setViewZoom(z => Math.min(8, z * 1.25))}>Vergrößern</button>
-      <button type="button" className="quiet" onClick={() => setViewZoom(z => Math.max(0.4, z / 1.25))}>Verkleinern</button>
-      <button type="button" className="quiet" onClick={() => { setViewZoom(1); setViewPan({ x: 0, y: 0 }); }}>Passend</button>
-      <span className="muted">{Math.round(viewZoom * 100)} %</span>
-      {snapStatus && <span className="snap-status" role="status">{snapStatus}</span>}
-      <span className={`save-status ${saveState.status}`} role="status">{readOnly
-        ? (initial.lease ? `Nur Ansicht · Bearbeitung durch ${initial.lease.holderName}` : 'Nur Ansicht')
-        : saveState.status === 'conflict' && saveState.conflictKind === 'lease' ? 'Bearbeitung abgelaufen' : statusText[saveState.status]}</span>
+      }} title="Treppe hinzufügen" aria-label="Treppe hinzufügen"><ToolIcon name="stairs" /><span>Treppe</span></button>
+      </>}
     </div>
     {assetError && <p className="error" role="alert">{assetError}</p>}
-    {libraryOpen && <AssetLibrary workspaceId={workspaceId} assets={assets} readOnly={readOnly || busyGesture()} selected={selectedWall ?? selectedBraceItem} onCreated={asset => setAssets(items => [...items, asset])} onArchive={id => setAssets(items => items.map(asset => asset.id === id ? { ...asset, archived: true } : asset))} onPlace={placeAsset} />}
+    {libraryOpen && !venueOpen && <AssetLibrary workspaceId={workspaceId} assets={assets} readOnly={readOnly || busyGesture()} selected={selectedWall ?? selectedBraceItem} onCreated={asset => setAssets(items => [...items, asset])} onArchive={id => setAssets(items => items.map(asset => asset.id === id ? { ...asset, archived: true } : asset))} onPlace={placeAsset} />}
     {venueOpen && <VenuePanel workspaceId={workspaceId} sceneId={initial.id} venue={venue} venueUpdateAvailable={updateAvailable} readOnly={readOnly} onDirty={setVenueDirty} onSaved={adoptVenue} />}
-    {exportsOpen && <ExportPanel workspaceId={workspaceId} sceneId={initial.id} productionId={initial.productionId}
-      readOnly={readOnly} freezeDisabled={dirty || saveState.status !== 'saved'} groups={state.present.groups ?? []} walls={state.present.walls} />}
+    {exportsOpen && <div className="export-drawer"><ExportPanel workspaceId={workspaceId} sceneId={initial.id} productionId={initial.productionId}
+      readOnly={readOnly} freezeDisabled={dirty || saveState.status !== 'saved'} groups={state.present.groups ?? []} walls={state.present.walls} /></div>}
     {['failed', 'conflict'].includes(saveState.status) && <div className="error" role="alert">
       <p>{saveState.status === 'conflict'
         ? (saveState.conflictKind === 'lease'
@@ -1060,7 +1149,20 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
       <button className="quiet" onClick={() => { if (window.confirm('Lokale Änderungen verwerfen und die gespeicherte Fassung laden?')) { saver.dispose(); onDirty(false); onClose(); } }}>Gespeicherte Fassung laden</button>
     </div>}
     {!venueOpen && <div className="editor-grid"><div className="editor-views" data-mode={viewMode} style={viewMode === 'split' ? { gridTemplateColumns: `minmax(0, ${viewShare}fr) minmax(0, ${100 - viewShare}fr)` } : { gridTemplateColumns: 'minmax(0, 1fr)' }}><div className="plan-canvas" hidden={viewMode === 'stage'}>
+      <div className="plan-viewbar"><h3>Grundriss <span>2D</span></h3><div className="plan-zoom">
+      <button type="button" className="quiet" onClick={() => setViewZoom(z => Math.min(8, z * 1.25))} title="Grundriss vergrößern" aria-label="Vergrößern"><ToolIcon name="plus" /></button>
+      <button type="button" className="quiet" onClick={() => setViewZoom(z => Math.max(0.4, z / 1.25))} title="Grundriss verkleinern" aria-label="Verkleinern"><ToolIcon name="minus" /></button>
+      <button type="button" className="quiet" onClick={() => { setViewZoom(1); setViewPan({ x: 0, y: 0 }); }}>Passend</button>
+      <span className="muted">{Math.round(viewZoom * 100)} %</span></div></div>
       <svg ref={svg} role="img" aria-label="Grundriss der Spielstätte" viewBox={viewBox}
+        className={placing ? 'placing-cursor' : undefined}
+        onPointerDownCapture={event => {
+          if (!placingRef.current || event.button !== 0 || readOnly) return;
+          updatePlacingAt(point(event), event.altKey || !snapEnabled);
+          commitPlacing();
+          event.preventDefault();
+          event.stopPropagation();
+        }}
         onPointerDown={startPan}
         onPointerMove={move} onPointerUp={() => finish()} onPointerCancel={() => finish(true)} onLostPointerCapture={() => finish(true)}
         onAuxClick={event => event.preventDefault()}>
@@ -1106,8 +1208,26 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
           return <g key={wall.id} data-testid={`wall-${wall.id}`} aria-label={wall.label} className={readOnly ? '' : 'draggable-wall'} transform={`translate(${wall.x} ${-wall.y}) rotate(${-wall.rotation})`} onPointerDown={event => start(event, wall)}>
             <line x1={-resolved.width / 2} x2={resolved.width / 2} stroke="transparent" strokeWidth="18" vectorEffect="non-scaling-stroke" />
             <rect x={-resolved.width / 2} y={-resolved.thickness / 2} width={resolved.width} height={resolved.thickness} fill={selected === wall.id ? '#b67c35' : chosen ? '#8a6a3a' : '#315d49'} stroke={chosen ? '#986122' : '#315d49'} strokeWidth="2" vectorEffect="non-scaling-stroke" />
-            {resolved.openings.map(opening => <rect key={opening.id} data-testid={`plan-opening-${opening.id}`} data-width={opening.width} data-height={opening.height} data-left={opening.left} data-sill={opening.sill}
-              x={-resolved.width / 2 + opening.left} y={-resolved.thickness / 2} width={opening.width} height={resolved.thickness} fill="#f8faf5" stroke={chosen ? '#986122' : '#315d49'} strokeWidth="1" vectorEffect="non-scaling-stroke" />)}
+            {resolved.openings.map(opening => {
+              const x0 = -resolved.width / 2 + opening.left;
+              const open = isDoorOpening(opening) ? doorOpenAngleDegrees(wall.doorOpenPercent ?? 0) * Math.PI / 180 : 0;
+              const hingeX = isDoorOpening(opening)
+                ? (opening.hinge === 'left' ? x0 : x0 + opening.width)
+                : x0;
+              const dir = isDoorOpening(opening) && opening.hinge === 'right' ? -1 : 1;
+              const leafEndX = hingeX + dir * opening.width * Math.cos(open);
+              const leafEndY = opening.width * Math.sin(open);
+              return <g key={opening.id}>
+                <rect data-testid={`plan-opening-${opening.id}`} data-width={opening.width} data-height={opening.height} data-left={opening.left} data-sill={opening.sill}
+                  data-hinge={opening.hinge ?? ''}
+                  x={x0} y={-resolved.thickness / 2} width={opening.width} height={resolved.thickness} fill="#f8faf5" stroke={chosen ? '#986122' : '#315d49'} strokeWidth="1" vectorEffect="non-scaling-stroke" />
+                {isDoorOpening(opening) && <>
+                  <line data-testid={`plan-door-leaf-${opening.id}`} x1={hingeX} y1={0} x2={leafEndX} y2={leafEndY}
+                    stroke="#c8c4b8" strokeWidth="28" strokeLinecap="square" vectorEffect="non-scaling-stroke" />
+                  <circle cx={hingeX} cy={0} r={18} fill="#986122" />
+                </>}
+              </g>;
+            })}
             <text y={-resolved.thickness / 2 - 160} textAnchor="middle" fontSize="150" pointerEvents="none" data-testid={`assembly-label-${wall.id}`}>
               {wall.assemblyNumber ? assemblyCaption(wall.assemblyNumber, wall.panelId ? panelLabels[wall.panelId] : undefined) : wall.label}
             </text>
@@ -1115,6 +1235,19 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
             <text y={-resolved.thickness / 2 - 40} textAnchor="middle" fontSize="110" pointerEvents="none">R</text>
           </g>;
         })}
+        {placing && (() => {
+          const types = placing.pendingType ? [...wallTypes, placing.pendingType] : wallTypes;
+          const resolved = resolveWall(placing.wall, types);
+          return <g data-testid="placing-wall" className="placing-wall" pointerEvents="none"
+            transform={`translate(${placing.wall.x} ${-placing.wall.y}) rotate(${-placing.wall.rotation})`}>
+            <rect x={-resolved.width / 2} y={-resolved.thickness / 2} width={resolved.width} height={resolved.thickness}
+              fill="#315d49" stroke="#986122" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+            {resolved.openings.map(opening => <rect key={opening.id}
+              x={-resolved.width / 2 + opening.left} y={-resolved.thickness / 2} width={opening.width} height={resolved.thickness}
+              fill="#f8faf5" stroke="#986122" strokeWidth="1" vectorEffect="non-scaling-stroke" />)}
+            <text y={-resolved.thickness / 2 - 160} textAnchor="middle" fontSize="150">{placing.wall.label}</text>
+          </g>;
+        })()}
         <BraceLayer braces={shown.braces} selectedId={selectedBrace} groupedIds={groupedIds} preview={groupPreview ? undefined : previewBrace} readOnly={readOnly} onPointerDown={startBrace} />
         <PlaceholderLayer placeholders={shown.placeholders ?? []} selectedId={selectedPlaceholder} preview={groupPreview ? undefined : previewPlaceholder}
           readOnly={readOnly} groupedIds={groupedIds} onPointerDown={startPlaceholder} />
@@ -1172,34 +1305,26 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
             testId={`rotate-placeholder-${item.id}`} label="Platzhalter drehen" onPointerDown={event => startRotatePlaceholder(event, item)} />;
         })()}
       </svg>
-      <p className="muted">Raster: 1 m / 50 cm · Strg+Mausrad zoomen · Mittelklick oder Shift+Mausrad verschieben · Auf dem Boden ziehen: Mehrfachauswahl · Orange ↻ dreht · Stützen an Wänden · {SNAP_NOTICE}</p>
+
       {diagnostics.map(item => <p key={`${item.kind}-${item.objectId}`} className="warning" role="status">{item.message}</p>)}
       {overheadWarnings.map(item => <p key={`${item.kind}-${item.objectId}-${item.obstructionId ?? ''}`}
         className="warning" role="status" data-testid="overhead-warning">{item.message}</p>)}
       {overlapWarnings.map(item => <p key={`${item.zoneId}-${item.objectId}`} className="warning" role="status">{item.message}</p>)}
       {objectOverlaps.map(item => <p key={`${item.aId}-${item.bId}`} className="warning" role="status" data-testid="object-overlap">{item.message}</p>)}
     </div>
-    {viewMode !== 'plan' && <StageView layout={shown} venue={venue} assets={assets} workspaceId={workspaceId}
+    {viewMode !== 'plan' && <StageView layout={placing ? {
+      ...shown,
+      wallTypes: placing.pendingType ? [...typesOf(shown), placing.pendingType] : shown.wallTypes,
+      walls: [...shown.walls, placing.wall],
+    } : shown} venue={venue} assets={assets} workspaceId={workspaceId}
       selectedIds={selection().map(item => item.id)} pivot={selectionPivot(state.present, selection())} snapEnabled={snapEnabled}
-      onSelect={stageSelect} onTransform={readOnly ? undefined : stageTransform} />}
+      onLightingChange={readOnly ? undefined : lighting => { if (!busyGesture()) commit({ ...current.current.present, lighting }); }}
+      onSelect={stageSelect} onClearSelection={() => { if (!busyGesture() && !stageGesture.current) { clearSelection(); setPicked([]); setPickedPlatforms([]); } }}
+      onTransform={readOnly ? undefined : stageTransform} />}
     </div><aside className="wall-inspector">
-      <WallTypePanel types={wallTypes} selectedId={selectedType} readOnly={readOnly}
-        onSelect={setSelectedType} onCreate={applyType} onApply={applyType} onPlace={placeType} onRemove={removeType} />
-      <InventoryPanel workspaceId={workspaceId} layout={state.present} selectedWall={selectedWall} readOnly={readOnly}
-        onAssign={panelId => selectedWall && replace({ ...selectedWall, panelId })}
-        onUnassign={() => selectedWall && replace((({ panelId: _removed, ...rest }) => rest)(selectedWall))}
-        onPanels={items => setPanelLabels(Object.fromEntries(items.map(item => [item.id, item.label])))} />
-      <AssemblyPanel layout={state.present} selectedWall={selectedWall} readOnly={readOnly} onChange={commit} />
-      <GroupInspector layout={state.present} picked={picked} readOnly={readOnly} onChange={commit} />
-      <ClipboardPanel selection={selection()} canPaste={!!clipboard} busy={!!preview || !!previewBrace || !!previewPlatform || !!previewStair || !!previewPlaceholder || !!groupPreview}
-        readOnly={readOnly} onCopy={copy} onCut={cut} onPaste={paste} />
-      <PlaceholderLibrary readOnly={readOnly} disabled={!!preview || !!previewBrace || !!previewPlatform || !!previewStair || !!previewPlaceholder || !!groupPreview || (state.present.placeholders ?? []).length >= 250}
-        onAdd={kind => {
-          const item = addPlaceholder(kind, venue.width / 2, venue.depth / 2);
-          commit({ ...state.present, placeholders: [...state.present.placeholders ?? [], item] });
-          pick({ kind: 'placeholder', id: item.id }, false);
-        }} />
-      <h3>{selectedPlaceholderItem ? 'Platzhalter' : selectedPlatformItem ? 'Podest' : selectedStairItem ? 'Treppe' : selectedBraceItem ? 'Gewichtete Stütze' : 'Wandelement'}</h3>
+      <div className="inspector-title"><ToolIcon name="settings" /><h3>Eigenschaften</h3><span>mm</span></div>
+      <div className="selection-properties">
+      <h3>{selectedPlaceholderItem ? 'Platzhalter' : selectedPlatformItem ? 'Podest' : selectedStairItem ? 'Treppe' : selectedBraceItem ? 'Gewichtete Stütze' : selectedWall ? 'Wandelement' : 'Keine Auswahl'}</h3>
       <label htmlFor="wall-selection">Auswahl</label>
       <select id="wall-selection" value={selectedWall ? `wall:${selectedWall.id}` : selectedBraceItem ? `brace:${selectedBraceItem.id}` : selectedPlatformItem ? `platform:${selectedPlatformItem.id}` : selectedStairItem ? `stair:${selectedStairItem.id}` : selectedPlaceholderItem ? `placeholder:${selectedPlaceholderItem.id}` : ''} onChange={event => {
         const value = event.target.value;
@@ -1217,7 +1342,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
         {(state.present.stairs ?? []).map((stair, index) => <option key={stair.id} value={`stair:${stair.id}`}>T{index + 1}. {stair.label}</option>)}
         {(state.present.placeholders ?? []).map((item, index) => <option key={item.id} value={`placeholder:${item.id}`}>M{index + 1}. {item.label}</option>)}
       </select>
-      {selectedWall ? <WallForm key={JSON.stringify(selectedWall)} wall={selectedWall} typed={!!selectedWall.typeId} surfaces={surfaces} readOnly={readOnly} onApply={applyWall} onRemove={remove} />
+      {selectedWall ? <WallForm key={JSON.stringify(selectedWall)} wall={selectedWall} openings={resolveWall(selectedWall, wallTypes).openings} typed={!!selectedWall.typeId} surfaces={surfaces} readOnly={readOnly} onApply={applyWall} onRemove={remove} />
         : selectedBraceItem ? <BraceInspector key={JSON.stringify(selectedBraceItem)} brace={selectedBraceItem} surfaces={surfaces} readOnly={readOnly} onApply={replaceBrace} onRemove={remove}
             onAlign={() => {
               const types = typesOf(current.current.present);
@@ -1229,22 +1354,55 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
             : selectedStairItem ? <StairInspector key={JSON.stringify(selectedStairItem)} stair={selectedStairItem} surfaces={surfaces} readOnly={readOnly} onApply={replaceStair} onRemove={remove} />
               : selectedPlaceholderItem ? <PlaceholderInspector key={JSON.stringify(selectedPlaceholderItem)} item={selectedPlaceholderItem} surfaces={surfaces} readOnly={readOnly} onApply={replacePlaceholder} onRemove={remove} />
                 : <p className="muted">Wählen Sie ein Objekt im Grundriss oder fügen Sie eine Wand, ein Podest, eine Treppe oder einen Platzhalter hinzu.</p>}
+      </div>
+      <details className="inspector-section"><summary>Wandtypen</summary><div className="inspector-section-body">
+      <WallTypePanel types={wallTypes} selectedId={selectedType} readOnly={readOnly}
+        onSelect={setSelectedType} onCreate={applyType} onApply={applyType} onPlace={placeType} onRemove={removeType} />
+      </div></details>
+      <details className="inspector-section"><summary>Platteninventar</summary><div className="inspector-section-body">
+      <InventoryPanel workspaceId={workspaceId} layout={state.present} selectedWall={selectedWall} readOnly={readOnly}
+        onAssign={panelId => selectedWall && replace({ ...selectedWall, panelId })}
+        onUnassign={() => selectedWall && replace((({ panelId: _removed, ...rest }) => rest)(selectedWall))}
+        onPanels={items => setPanelLabels(Object.fromEntries(items.map(item => [item.id, item.label])))} />
+      </div></details>
+      <details className="inspector-section"><summary>Aufbau & Verbindungen</summary><div className="inspector-section-body">
+      <AssemblyPanel layout={state.present} selectedWall={selectedWall} readOnly={readOnly} onChange={commit} />
+      </div></details>
+      <details className="inspector-section"><summary>Gruppieren</summary><div className="inspector-section-body">
+      <GroupInspector layout={state.present} picked={picked} readOnly={readOnly} onChange={commit} />
+      </div></details>
+      <details className="inspector-section" open><summary>Zwischenablage</summary><div className="inspector-section-body">
+      <ClipboardPanel selection={selection()} canPaste={!!clipboard} busy={!!preview || !!previewBrace || !!previewPlatform || !!previewStair || !!previewPlaceholder || !!groupPreview || !!placing}
+        readOnly={readOnly} onCopy={copy} onCut={cut} onPaste={paste} />
+      </div></details>
+      <details className="inspector-section"><summary>Platzhalter</summary><div className="inspector-section-body">
+      <PlaceholderLibrary readOnly={readOnly} disabled={!!preview || !!previewBrace || !!previewPlatform || !!previewStair || !!previewPlaceholder || !!groupPreview || !!placing || (state.present.placeholders ?? []).length >= 250}
+        onAdd={kind => {
+          const item = addPlaceholder(kind, venue.width / 2, venue.depth / 2);
+          commit({ ...state.present, placeholders: [...state.present.placeholders ?? [], item] });
+          pick({ kind: 'placeholder', id: item.id }, false);
+        }} />
+      </div></details>
     </aside></div>}
+    <div className="workspace-statusbar"><span><span className="status-dot" />{venueOpen ? 'Spielstättenentwurf' : 'Bühnenbild'} · {state.present.walls.length} Wände</span><span className="status-hint">Klicken zum Auswählen · Ziehen zum Verschieben · Strg+Z rückgängig</span><button className="quiet" aria-expanded={helpOpen} onClick={() => setHelpOpen(open => !open)}><ToolIcon name="help" /> Bedienung</button><span>Maße in mm</span></div>
+    {helpOpen && <div className="workspace-help"><h3>Arbeiten im Grundriss</h3>      <p className="muted viewport-hint">Raster: 1 m / 50 cm · Strg+Mausrad zoomen · Mittelklick oder Shift+Mausrad verschieben · Auf dem Boden ziehen: Mehrfachauswahl · Orange ↻ dreht · Stützen an Wänden · {SNAP_NOTICE}</p><p>Strg/Cmd+C kopiert die Auswahl, Strg/Cmd+V fügt sie ein. Entf löscht ausgewählte Objekte. Escape bricht Platzieren und Bewegungen ab oder hebt die Auswahl auf (auch in der Raumsicht · Klick in freien Raum).</p></div>}
   </section>;
 }
 
-function WallForm({ wall, typed, surfaces, readOnly, onApply, onRemove }: {
-  wall: Wall; typed: boolean; surfaces: ReturnType<typeof supportingSurfaces>; readOnly: boolean; onApply: (wall: Wall) => void; onRemove: () => void;
+function WallForm({ wall, openings, typed, surfaces, readOnly, onApply, onRemove }: {
+  wall: Wall; openings: Opening[]; typed: boolean; surfaces: ReturnType<typeof supportingSurfaces>; readOnly: boolean; onApply: (wall: Wall) => void; onRemove: () => void;
 }) {
   const [error, setError] = useState('');
+  const doors = openings.filter(isDoorOpening);
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const keys = typed ? ['x', 'y', 'rotation'] : ['x', 'y', 'rotation', 'width', 'height', 'thickness'];
-    const surface = String(data.get('supportingSurfaceId') || '');
+    const doorRaw = data.get('doorOpenPercent');
     const result = wallSchema.safeParse({
-      ...wall, finish: data.get('finish') || undefined, label: data.get('label'), supportingSurfaceId: surface || undefined,
+      ...wall, finish: data.get('finish') || undefined, label: data.get('label'),
       ...Object.fromEntries(keys.map(key => [key, Number(data.get(key))])),
+      doorOpenPercent: doors.length && doorRaw !== null && doorRaw !== '' ? Number(doorRaw) : undefined,
     });
     if (!result.success) { setError('Bitte prüfen Sie die Maße und die Bezeichnung.'); return; }
     setError(''); onApply(result.data);
@@ -1258,6 +1416,11 @@ function WallForm({ wall, typed, surfaces, readOnly, onApply, onRemove }: {
       ['width', 'Breite (mm)', 1, 100000], ['height', 'Höhe (mm)', 1, 100000], ['thickness', 'Dicke (mm)', 1, 100000],
       ['x', 'X (mm)', -100000, 100000], ['y', 'Y (mm)', -100000, 100000], ['rotation', 'Drehung (°)', -360, 360],
     ] as const).map(([key, label, min, max]) => <div key={key}><label htmlFor={`wall-${key}`}>{label}</label><input id={`wall-${key}`} name={key} type="number" step="any" min={min} max={max} defaultValue={wall[key]} required /></div>)}</div>
+    {doors.length > 0 && <>
+      <label htmlFor="wall-door-open">Türöffnung (%)</label>
+      <input id="wall-door-open" name="doorOpenPercent" type="number" min={0} max={100} step={1} defaultValue={wall.doorOpenPercent ?? 0} />
+      <p className="muted">Scharnier {doors.map(door => door.hinge === 'left' ? 'links' : 'rechts').join(', ')} · Blatt 800×2000 mm weiß · Zarge 25×50 mm außen. 0 % geschlossen, 100 % = 90° offen.</p>
+    </>}
     <Suspense fallback={<p>Materialbibliothek wird geladen …</p>}><MaterialPicker value={wall.finish} /></Suspense>
     <p className="muted">{typed ? 'Außenmaße und Öffnungen kommen vom Wandtyp.' : 'X/Y beziehen sich auf die Wandmitte. Ursprung: vordere linke Ecke der Spielstätte.'}</p>
     {error && <p role="alert" className="error">{error}</p>}

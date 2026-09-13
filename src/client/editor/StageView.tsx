@@ -1,3 +1,6 @@
+import { defaultLighting, type StageLightingSettings } from '../../shared/lighting.js';
+import { LightingPanel } from './LightingPanel.js';
+import { StageLighting } from './StageLighting.js';
 import { lazy, Suspense, useLayoutEffect, useRef, useState } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
@@ -35,8 +38,9 @@ function LookFromAudience({ position, target }: { position: Vec3; target: Vec3 }
   return null;
 }
 
-export function StageView({ layout, venue, assets = [], workspaceId = '', ...editing }: { layout: Layout; venue: VenueGeometry; assets?: Asset[]; workspaceId?: string } & StageEditing) {
+export function StageView({ layout, venue, assets = [], workspaceId = '', onLightingChange, ...editing }: { layout: Layout; venue: VenueGeometry; assets?: Asset[]; workspaceId?: string; onLightingChange?: (value: StageLightingSettings) => void } & StageEditing) {
   const model = stageModel(layout, venue);
+  const lighting = layout.lighting ?? venue.lighting ?? defaultLighting;
   const [view, setView] = useState<StageCameraView>('orbit');
   const audience = view === 'audience';
   const [enhanced, setEnhanced] = useState(true);
@@ -49,22 +53,24 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', ...edi
       <button type="button" className="quiet" onClick={() => setView('audience')}>Publikumssicht</button>
       <button type="button" className="quiet" onClick={() => setView('orbit')}>Umlaufansicht</button>
       {enhanced && <><button type="button" className="quiet" onClick={() => setView('top')}>Von oben</button><button type="button" className="quiet" onClick={() => setView('front')}>Von vorne</button><button type="button" className="quiet" onClick={() => setView('side')}>Von der Seite</button></>}<button type="button" className="quiet" onClick={() => setEnhanced(value => !value)}>{enhanced ? 'Einfache Darstellung' : 'Erweiterte Darstellung'}</button></div>
-    {enhanced ? <Suspense fallback={<p role="status">Raumsicht wird geladen …</p>}><PascalStageCanvas model={model} layout={layout} venue={venue} audience={audience} view={view} assets={assets} workspaceId={workspaceId} {...editing} /></Suspense> : <div ref={simpleCanvas} className="stage-canvas" role="img" aria-label="Raumsicht der Spielstätte">
-      <Canvas key={audience ? 'audience' : 'orbit'} gl={{ antialias: true, alpha: false }} dpr={[1, 2]}>
-        <color attach="background" args={['#eef2e8']} />
+    <LightingPanel value={lighting} onChange={onLightingChange} scope={!onLightingChange ? 'Gespeicherte Lichtstimmung · nur Ansicht.' : editing.venueEditable ? 'Teil des Spielstättenentwurfs · mit der Spielstätte speichern.' : 'Änderungen werden mit dieser Szene gespeichert.'} />
+    {enhanced ? <Suspense fallback={<p role="status">Raumsicht wird geladen …</p>}><PascalStageCanvas model={model} layout={layout} venue={venue} audience={audience} view={view} assets={assets} workspaceId={workspaceId} lighting={lighting} {...editing} /></Suspense> : <div ref={simpleCanvas} className="stage-canvas" role="img" aria-label="Raumsicht der Spielstätte">
+      <Canvas shadows key={audience ? 'audience' : 'orbit'} gl={{ antialias: true, alpha: false }} dpr={[1, 2]}>
+        <StageLighting settings={lighting} width={venue.width} depth={venue.depth} units={1000} />
+        {!lighting.enabled && <color attach="background" args={['#eef2e8']} />}
         <PerspectiveCamera makeDefault fov={40} near={10} far={250000} position={[camera.x, camera.y, camera.z]} />
         {audience && <LookFromAudience position={camera} target={target} />}
         <group position={[venue.width / 2, 0, 0]} scale={[-1, 1, 1]}>
           <group position={[-venue.width / 2, 0, 0]}>
-            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[venue.width / 2, 0, venue.depth / 2]}>
+            <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[venue.width / 2, 0, venue.depth / 2]}>
               <planeGeometry args={[venue.width, venue.depth]} />
-              <meshBasicMaterial color="#dce4d4" />
+              {lighting.enabled ? <meshStandardMaterial color="#dce4d4" /> : <meshBasicMaterial color="#dce4d4" />}
             </mesh>
-            <StageLevels model={model} />
+            <StageLevels model={model} lit={lighting.enabled} />
             <StageOverhead boxes={venue.overheadBoxes ?? []} />
-            {model.walls.map(wall => <WallMesh key={wall.id} wall={wall} />)}
-            <StageBraces braces={model.braces} />
-            <StagePlaceholders placeholders={model.placeholders} />
+            {model.walls.map(wall => <WallMesh key={wall.id} wall={wall} lit={lighting.enabled} />)}
+            <StageBraces braces={model.braces} lit={lighting.enabled} />
+            <StagePlaceholders placeholders={model.placeholders} lit={lighting.enabled} />
           </group>
         </group>
         {!audience && <OrbitControls makeDefault enableDamping={false} target={[target.x, target.y, target.z]} />}

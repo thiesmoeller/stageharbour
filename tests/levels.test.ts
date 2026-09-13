@@ -5,8 +5,8 @@ import {
   AUDIENCE_FLOOR_ID, EXAMPLE_PLATFORM_DEPTH, EXAMPLE_PLATFORM_ELEVATION, EXAMPLE_PLATFORM_WIDTH,
   EXAMPLE_STAIR_RISER, EXAMPLE_STAIR_RUN, EXAMPLE_STAIR_WIDTH,
   axisAlignedPlatformOutline, layoutDiagnostics, newPlatform, newStair, placementDiagnostic, platformCentroid,
-  platformSchema, rotatePlatformOutline, stairCorners, stairRise, stairSchema, supportingSurfaces, surfaceElevation,
-  translatePlatformOutline,
+  platformSchema, reassignLayoutSupports, resolveSupportingSurfaceId, rotatePlatformOutline, stairCorners, stairRise,
+  stairSchema, supportingSurfaces, surfaceElevation, translatePlatformOutline,
 } from '../src/shared/levels.js';
 import { newBrace, newWall, wallCorners } from '../src/shared/layout.js';
 import { braceCorners } from '../src/shared/braceTransforms.js';
@@ -78,29 +78,34 @@ test('a wall or brace without an explicit supporting surface is diagnosed and st
   }, surfaces)?.kind, 'missing-surface');
 });
 
-test('an ambiguous edge does not silently pick a height; explicit selection keeps its elevation', () => {
-  const platform = { id: randomUUID(), label: 'Bühne', elevation: 400, outline: platformOutline };
-  const surfaces = supportingSurfaces({ ...venue, platforms: [platform] });
-  const onEdge = { ...newWall(randomUUID(), 4000, 3500), supportingSurfaceId: AUDIENCE_FLOOR_ID };
-  const diagnostic = placementDiagnostic({
-    id: onEdge.id, supportingSurfaceId: onEdge.supportingSurfaceId, corners: wallCorners(onEdge),
-  }, surfaces);
-  assert.equal(diagnostic?.kind, 'ambiguous-edge');
-  assert.match(diagnostic?.message ?? '', /Kante/);
-  assert.equal(surfaceElevation(surfaces, onEdge.supportingSurfaceId), 0);
-  const raised = { ...onEdge, supportingSurfaceId: platform.id };
-  assert.equal(placementDiagnostic({
-    id: raised.id, supportingSurfaceId: raised.supportingSurfaceId, corners: wallCorners(raised),
-  }, surfaces)?.kind, 'ambiguous-edge');
-  assert.equal(surfaceElevation(surfaces, raised.supportingSurfaceId), 400);
-  const onFloor = { ...newWall(randomUUID(), 4000, 2000), supportingSurfaceId: AUDIENCE_FLOOR_ID };
-  assert.equal(placementDiagnostic({
-    id: onFloor.id, supportingSurfaceId: onFloor.supportingSurfaceId, corners: wallCorners(onFloor),
-  }, surfaces), undefined);
-  const onPlatform = { ...newWall(randomUUID(), 4000, 5000), supportingSurfaceId: platform.id };
-  assert.equal(placementDiagnostic({
-    id: onPlatform.id, supportingSurfaceId: onPlatform.supportingSurfaceId, corners: wallCorners(onPlatform),
-  }, surfaces), undefined);
+test('majority footprint coverage picks podium or floor; stacked podiums use the topmost surface', () => {
+  const lower = { id: randomUUID(), label: 'Unterpodest', elevation: 200, outline: platformOutline };
+  const upper = {
+    id: randomUUID(), label: 'Oberpodest', elevation: 600,
+    outline: [{ x: 2000, y: 4000 }, { x: 6000, y: 4000 }, { x: 6000, y: 6000 }, { x: 2000, y: 6000 }],
+  };
+  const surfaces = supportingSurfaces({ ...venue, platforms: [lower, upper] });
+  const onFloor = wallCorners(newWall(randomUUID(), 4000, 2000));
+  assert.equal(resolveSupportingSurfaceId(onFloor, surfaces), AUDIENCE_FLOOR_ID);
+  const onLowerOnly = wallCorners(newWall(randomUUID(), 1000, 5000));
+  assert.equal(resolveSupportingSurfaceId(onLowerOnly, surfaces), lower.id);
+  const onUpper = wallCorners(newWall(randomUUID(), 4000, 5000));
+  assert.equal(resolveSupportingSurfaceId(onUpper, surfaces), upper.id);
+  // Mostly on the podium (y=4000 centre, 1200×28 wall along x) → podium wins over floor.
+  const mostlyOnPodium = wallCorners({ ...newWall(randomUUID(), 4000, 3600), width: 2000, thickness: 400 });
+  assert.equal(resolveSupportingSurfaceId(mostlyOnPodium, surfaces), lower.id);
+});
+
+test('moving a podium under existing walls reassigns their supporting surface', () => {
+  const wall = newWall(randomUUID(), 4000, 3000);
+  assert.equal(wall.supportingSurfaceId, AUDIENCE_FLOOR_ID);
+  const platform = newPlatform(randomUUID(), 4000, 3000);
+  platform.elevation = 400;
+  const layout = reassignLayoutSupports({
+    walls: [wall], braces: [], platforms: [platform],
+  }, venue);
+  assert.equal(layout.walls[0]?.supportingSurfaceId, platform.id);
+  assert.equal(surfaceElevation(supportingSurfaces(venue, layout), layout.walls[0]?.supportingSurfaceId), 400);
 });
 
 test('movable layout platforms join the venue floor as supporting surfaces; stairs use their elevations', () => {

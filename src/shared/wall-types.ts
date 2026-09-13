@@ -3,10 +3,20 @@ import { z } from 'zod';
 const name = z.string().trim().min(1).max(120);
 const dimension = z.number().finite().min(1).max(100000);
 const alongPanel = z.number().finite().min(0).max(100000);
+export const doorHingeSchema = z.enum(['left', 'right']);
+export type DoorHinge = z.infer<typeof doorHingeSchema>;
+/** Scenic door leaf: 80 × 200 cm, white. */
+export const DOOR_LEAF = { width: 800, height: 2000, thickness: 40 } as const;
+/** Outer door frame from 25 × 50 mm softwood (face × depth outward). */
+export const DOOR_FRAME = { face: 25, depth: 50 } as const;
+export const DOOR_LEAF_COLOR = '#f7f7f4';
+export const DOOR_FRAME_COLOR = '#e8e2d6';
+
 export const openingSchema = z.strictObject({
   id: z.uuid(),
   left: alongPanel, sill: alongPanel,
   width: dimension, height: dimension,
+  hinge: doorHingeSchema.optional(),
 });
 export type Opening = z.infer<typeof openingSchema>;
 export const wallTypeSchema = z.strictObject({
@@ -25,6 +35,17 @@ export function newWallType(id: string): WallElementType {
 }
 export function newOpening(id: string): Opening {
   return { id, left: 200, sill: 0, width: 800, height: 2000 };
+}
+export function newDoorOpening(id: string, hinge: DoorHinge): Opening {
+  return { id, left: 200, sill: 0, width: DOOR_LEAF.width, height: DOOR_LEAF.height, hinge };
+}
+
+/** 0 % closed → 100 % open at 90° toward the audience. */
+export function doorOpenAngleDegrees(openPercent: number): number {
+  return Math.max(0, Math.min(100, openPercent)) / 100 * 90;
+}
+export function isDoorOpening(opening: Opening): opening is Opening & { hinge: DoorHinge } {
+  return opening.hinge === 'left' || opening.hinge === 'right';
 }
 
 export type ResolvedWall = {

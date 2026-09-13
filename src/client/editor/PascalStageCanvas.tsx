@@ -1,6 +1,10 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { defaultLighting, type StageLightingSettings } from '../../shared/lighting.js';
+import { StageLighting } from './StageLighting.js';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { OrbitControls } from '@react-three/drei';
+import { useThree } from '@react-three/fiber';
 import { Viewer, useViewer } from '@pascal-app/viewer';
+import { Vector2 } from 'three';
 import type { StageModel } from '../../shared/transforms.js';
 import type { Layout, VenueGeometry } from '../../shared/layout.js';
 import type { Asset } from '../../shared/assets.js';
@@ -11,7 +15,39 @@ import { VenueFloor } from './VenueFloor.js';
 import { PascalSceneBridge, StageInteraction } from './PascalStageNodes.js';
 import { useBlockBrowserZoom } from './viewportWheel.js';
 
-export default function PascalStageCanvas({ model, layout, venue, audience, view = audience ? 'audience' : 'orbit', assets, workspaceId, ...editing }: { model: StageModel; layout: Layout; venue: VenueGeometry; audience: boolean; view?: StageCameraView; assets: Asset[]; workspaceId: string } & StageEditing) {
+/** Viewer owns the R3F Canvas, so pointer-miss must be detected via raycast. */
+function ClearSelectionOnMiss({ onClear }: { onClear?: () => void }) {
+  const gl = useThree(state => state.gl);
+  const camera = useThree(state => state.camera);
+  const scene = useThree(state => state.scene);
+  const raycaster = useThree(state => state.raycaster);
+  useEffect(() => {
+    if (!onClear) return;
+    const ndc = new Vector2();
+    let origin: { x: number; y: number } | undefined;
+    const onDown = (event: PointerEvent) => { origin = { x: event.clientX, y: event.clientY }; };
+    const onUp = (event: PointerEvent) => {
+      if (!origin) return;
+      const dx = event.clientX - origin.x, dy = event.clientY - origin.y;
+      origin = undefined;
+      if (dx * dx + dy * dy > 36) return;
+      const rect = gl.domElement.getBoundingClientRect();
+      ndc.set((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1);
+      raycaster.setFromCamera(ndc, camera);
+      const hits = raycaster.intersectObjects(scene.children, true);
+      if (!hits.some(hit => hit.object.name !== 'venue-floor' && hit.object.visible)) onClear();
+    };
+    gl.domElement.addEventListener('pointerdown', onDown);
+    gl.domElement.addEventListener('pointerup', onUp);
+    return () => {
+      gl.domElement.removeEventListener('pointerdown', onDown);
+      gl.domElement.removeEventListener('pointerup', onUp);
+    };
+  }, [camera, gl, onClear, raycaster, scene]);
+  return null;
+}
+
+export default function PascalStageCanvas({ model, layout, venue, audience, view = audience ? 'audience' : 'orbit', assets, workspaceId, lighting = defaultLighting, ...editing }: { model: StageModel; layout: Layout; venue: VenueGeometry; audience: boolean; view?: StageCameraView; assets: Asset[]; workspaceId: string; lighting?: StageLightingSettings } & StageEditing) {
   const [focusSelection, setFocusSelection] = useState(false);
   const [mode, setMode] = useState<'translate' | 'rotate'>('translate');
   const [detailed, setDetailed] = useState(false);
@@ -34,7 +70,7 @@ export default function PascalStageCanvas({ model, layout, venue, audience, view
   const mirrorWidth = model.floor.width;
   const mirroredCameraX = mirrorWidth - camera.x;
   const mirroredTargetX = mirrorWidth - target.x;
-  return <StageInteraction.Provider value={{ assets, workspaceId, mirrorWidth, model, venueEditable: editing.venueEditable, selectedIds: editing.selectedIds ?? [], onSelect: editing.onSelect }}>
+  return <StageInteraction.Provider value={{ assets, workspaceId, mirrorWidth, model, venueEditable: editing.venueEditable, selectedIds: editing.selectedIds ?? [], onSelect: editing.onSelect, onClearSelection: editing.onClearSelection }}>
     <PascalSceneBridge layout={layout} venue={venue} />
     <div className="render-toolbar">
       <button type="button" className="quiet" disabled={!editing.pivot} onClick={() => setFocusSelection(true)}>Auswahl einpassen</button><button type="button" className="quiet" onClick={() => setFocusSelection(false)}>Bühne einpassen</button>
@@ -45,13 +81,15 @@ export default function PascalStageCanvas({ model, layout, venue, audience, view
       </select></label>
       <label><input type="checkbox" checked={detailed} onChange={event => setDetailed(event.target.checked)} /> Hohe Renderqualität</label>
     </div>
-    <div ref={canvas} className="stage-canvas" role="img" aria-label="Raumsicht der Spielstätte" data-renderer="pascal">
-      <Viewer selectionManager="custom" useBvh={false} renderContext="viewer" disablePostFx={!detailed}>
+    <div ref={canvas} className="stage-canvas" role="img" aria-label="Raumsicht der Spielstätte" data-renderer="pascal" data-lighting={lighting.enabled ? 'theatre' : 'studio'}>
+      <Viewer defaultRender={{ shading: 'rendered' }} selectionManager="custom" useBvh={false} renderContext="viewer" disablePostFx={!detailed || lighting.enabled}>
+        <ClearSelectionOnMiss onClear={editing.onClearSelection} />
+        <StageLighting settings={lighting} width={venue.width} depth={venue.depth} environmentKey={theme} />
         <StageCamera view={view} span={focusSelection && editing.pivot ? 3 : span} target={[mirroredTargetX / 1000, target.y / 1000, target.z / 1000]}
           position={view === 'top' ? [mirroredTargetX / 1000, span * 2, target.z / 1000] : view === 'side' ? [-span * 2, 2, target.z / 1000] : view === 'front' ? [mirroredTargetX / 1000, 2, -span] : focusSelection && editing.pivot ? [mirroredTargetX / 1000 + 2, 4, target.z / 1000 - 5] : [mirroredCameraX / 1000, camera.y / 1000, camera.z / 1000]} />
         <group position={[mirrorWidth / 1000, 0, 0]} scale={[-1, 1, 1]}>
           <group scale={0.001}>
-          <VenueFloor venue={venue} lit />
+          <VenueFloor venue={venue} lit onClearSelection={editing.onClearSelection} />
           </group>
         </group>
         <StageTransformControls {...editing} width={mirrorWidth} mode={mode} />

@@ -84,10 +84,17 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
     const { workspaceId } = request.params;
     await requireEditor(request, workspaceId);
     const input = request.body;
-    const ids = { venue: randomUUID(), version: randomUUID(), production: randomUUID(), adaptation: randomUUID(), scene: randomUUID() };
+    const ids: Record<'venue' | 'version' | 'production' | 'adaptation' | 'scene', string> = { venue: randomUUID(), version: randomUUID(), production: randomUUID(), adaptation: randomUUID(), scene: randomUUID() };
     await db.transaction(async tx => {
-      await tx.insert(venue).values({ id: ids.venue, workspaceId, name: input.venueName });
-      await tx.insert(venueVersion).values({ id: ids.version, workspaceId, venueId: ids.venue, geometry: { schemaVersion: 1, width: input.width, depth: input.depth } });
+      if ('venueVersionId' in input) {
+        const [selected] = await tx.select({ id: venueVersion.id }).from(venueVersion)
+          .where(and(eq(venueVersion.workspaceId, workspaceId), eq(venueVersion.id, input.venueVersionId)));
+        if (!selected) throw new AccessError(404, 'Spielstätte nicht verfügbar.');
+        ids.version = selected.id;
+      } else {
+        await tx.insert(venue).values({ id: ids.venue, workspaceId, name: input.venueName });
+        await tx.insert(venueVersion).values({ id: ids.version, workspaceId, venueId: ids.venue, geometry: { schemaVersion: 1, width: input.width, depth: input.depth } });
+      }
       await tx.insert(production).values({ id: ids.production, workspaceId, name: input.productionName });
       await tx.insert(adaptation).values({ id: ids.adaptation, workspaceId, productionId: ids.production, venueVersionId: ids.version });
       await tx.insert(scene).values({ id: ids.scene, workspaceId, adaptationId: ids.adaptation, name: input.sceneName, layout: { schemaVersion: 1, walls: [], braces: [] } });

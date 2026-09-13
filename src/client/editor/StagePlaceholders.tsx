@@ -4,10 +4,11 @@ const color: Record<PlaceholderSolid['kind'], string> = {
   table: '#7d8f6c', chair: '#8fa07a', person: '#c4a574', speaker: '#6a7d92', box: '#a09070',
 };
 
-export function StagePlaceholders({ placeholders }: { placeholders: PlaceholderSolid[] }) {
-  return placeholders.map(item => <mesh key={item.id} position={[item.center.x, item.center.y, item.center.z]} rotation={[0, item.rotationY, 0]}>
+export function StagePlaceholders({ placeholders, lit = false }: { placeholders: PlaceholderSolid[]; lit?: boolean }) {
+  const Surface = lit ? 'meshStandardMaterial' : 'meshBasicMaterial';
+  return placeholders.map(item => <mesh castShadow={lit} receiveShadow={lit} key={item.id} position={[item.center.x, item.center.y, item.center.z]} rotation={[0, item.rotationY, 0]}>
     <boxGeometry args={[item.size.x, item.size.y, item.size.z]} />
-    <meshBasicMaterial color={color[item.kind]} />
+    <Surface color={color[item.kind]} />
   </mesh>);
 }
 

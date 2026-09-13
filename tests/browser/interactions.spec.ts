@@ -1,3 +1,4 @@
+import { openInspector, placeWallAt } from '../helpers/inspector.js';
 import { test, expect, type Page } from '@playwright/test';
 import { testAdministrator } from '../helpers/database.js';
 
@@ -16,7 +17,7 @@ async function create(page: Page) {
   await page.getByRole('button', { name: 'Bühnenbild anlegen' }).click();
   await expect(page.locator('.save-status')).toHaveText('Gespeichert');
 }
-async function point(page: Page, x: number, y: number, selector = '.plan-canvas svg') {
+async function point(page: Page, x: number, y: number, selector = '.plan-canvas > svg') {
   await page.locator(selector).scrollIntoViewIfNeeded();
   return page.locator(selector).evaluate((element, p) => {
     const result = new DOMPoint(p.x, -p.y).matrixTransform((element as SVGSVGElement).getScreenCTM()!);
@@ -29,10 +30,10 @@ async function drag(page: Page, a: { x: number; y: number }, b: { x: number; y: 
 
 test('wall edge snapping, pointer rotation, clipboard, mixed marquee delete and undo', async ({ page }) => {
   await create(page);
-  await page.getByRole('button', { name: 'Wand hinzufügen', exact: true }).click();
+  await placeWallAt(page, 2000, 2500);
   await page.locator('#wall-x').fill('2000'); await page.locator('#wall-y').fill('2500');
   await page.getByRole('button', { name: 'Übernehmen', exact: true }).click();
-  await page.getByRole('button', { name: 'Wand hinzufügen', exact: true }).click();
+  await placeWallAt(page);
   await drag(page, await point(page, 4000, 3000), await point(page, 3160, 2500));
   await expect(page.locator('#wall-x')).toHaveValue('3200');
   await page.keyboard.down('Alt');
@@ -50,6 +51,7 @@ test('wall edge snapping, pointer rotation, clipboard, mixed marquee delete and 
   await page.keyboard.press('Control+v');
   await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(3);
   await page.getByRole('button', { name: 'Stütze hinzufügen', exact: true }).click();
+  await openInspector(page, 'Platzhalter');
   await page.getByRole('button', { name: 'Kiste hinzufügen', exact: true }).click();
   await drag(page, await point(page, 700, 800), await point(page, 6500, 5500));
   await expect(page.locator('.clipboard-panel')).toContainText('5 ausgewählt');
@@ -107,7 +109,7 @@ test('rendered Pascal translation handle moves the shared plan and undoes once',
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await create(page);
-  await page.getByRole('button', { name: 'Wand hinzufügen', exact: true }).click();
+  await placeWallAt(page);
   await page.getByRole('button', { name: 'Von oben', exact: true }).click();
   const canvas = page.locator('[data-renderer="pascal"] canvas');
   await canvas.scrollIntoViewIfNeeded();

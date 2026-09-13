@@ -3,8 +3,10 @@ import { createRoot } from 'react-dom/client';
 import { z } from 'zod';
 import { invitationSchema, loginOptionsSchema, meSchema, membersSchema, invitationPreviewSchema, passwordResetPreviewSchema, type Me, type Member, type Role } from '../shared/contracts.js';
 import { ApiError, request } from './api.js';
+import { Venues } from './editor/Venues.js';
 import { Plans } from './editor/Plans.js';
 import './style.css';
+import './workspace.css';
 
 const roleNames: Record<Role, string> = { administrator: 'Administration', editor: 'Bearbeitung', viewer: 'Ansicht' };
 const linkedSchema = z.array(z.object({ id: z.string(), providerId: z.string() }));
@@ -236,11 +238,16 @@ function CompleteReset({ token }: { token: string }) {
 }
 
 function Workspace({ me, onDirty }: { me: Me; onDirty: (value: boolean) => void }) {
+  const [section, setSection] = useState<'plans' | 'venues'>('plans');
   return <main className="workspace">
     <div className="workspace-heading"><div><p className="eyebrow">EUER ARBEITSBEREICH</p><h1>{me.workspace.name}</h1><p>Angemeldet als {me.user.name}</p></div><span className="role-badge">{roleNames[me.workspace.role]}</span></div>
-    <LinkedAccounts />
-    <Plans me={me} onDirty={onDirty} />
-    {me.workspace.role === 'administrator' && <Members me={me} />}
+    <nav className="workspace-navigation" aria-label="Arbeitsbereiche">
+      <button className="quiet" aria-current={section === 'plans' ? 'page' : undefined} onClick={() => setSection('plans')}>Produktionen & Szenen<span>Bühnenbilder entwerfen und planen</span></button>
+      <button className="quiet" aria-current={section === 'venues' ? 'page' : undefined} onClick={() => setSection('venues')}>Spielstätten & Bühnen<span>Räume, Grundrisse und feste Einrichtungen</span></button>
+    </nav>
+    {section === 'plans' ? <Plans me={me} onDirty={onDirty} /> : <Venues me={me} onDirty={onDirty} />}
+    <div className="workspace-management"><LinkedAccounts />
+    {me.workspace.role === 'administrator' && <Members me={me} />}</div>
   </main>;
 }
 

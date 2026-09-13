@@ -1,3 +1,4 @@
+import { defaultLighting, type StageLightingSettings } from '../../shared/lighting.js';
 import { useEffect, useRef, useState, type FormEvent, type PointerEvent } from 'react';
 import { newWall, applyVenueResultSchema, saveVenueResultSchema, venueGeometrySchema, type Layout, type VenueGeometry } from '../../shared/layout.js';
 import {
@@ -27,6 +28,7 @@ import { ApiError, request, upload } from '../api.js';
 
 type ClickMode = 'select' | 'vertex' | 'a' | 'b' | 'pin' | 'corridor' | 'zone';
 type VenueDraft = {
+  lighting: StageLightingSettings;
   walls: NonNullable<VenueGeometry['walls']>; vertices: PlanPoint[]; platforms: Platform[]; stairs: StairUnit[];
   ceilingHeight: number | ''; overheadBoxes: OverheadBox[]; fileId: string | undefined; page: number; calibration: Calibration;
   pins: ConnectionPoint[]; corridors: CableRoutingCorridor[]; zones: KeepClearZone[]; centreline: StageCentreline;
@@ -46,12 +48,22 @@ function optionalNotes(value?: string) {
   return notes ? notes : undefined;
 }
 
-export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable, readOnly, onSaved, onDirty }: {
-  workspaceId: string; sceneId: string; venue: VenueGeometry; venueUpdateAvailable: boolean; readOnly: boolean;
-  onDirty?: (dirty: boolean) => void;
+type VenuePersistence = {
+  sceneId: string;
   onSaved: (result: { venue: VenueGeometry; layout: Layout; revision: number; venueUpdateAvailable: boolean }) => void;
-}) {
+  onPublish?: never;
+} | {
+  sceneId?: never;
+  onSaved?: never;
+  onPublish: (venue: VenueGeometry) => Promise<void>;
+};
+
+export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable = false, readOnly, onSaved, onDirty, onPublish }: {
+  workspaceId: string; venue: VenueGeometry; venueUpdateAvailable?: boolean; readOnly: boolean;
+  onDirty?: (dirty: boolean) => void;
+} & VenuePersistence) {
   const draft = useDocumentDraft({
+    lighting: venue.lighting ?? defaultLighting,
     walls: venue.walls ?? [], vertices: measuredOutline(venue), platforms: venue.platforms ?? [], stairs: venue.stairs ?? [],
     ceilingHeight: (venue.ceilingHeight ?? '') as number | '', overheadBoxes: venue.overheadBoxes ?? [],
     fileId: venue.trace?.fileId, page: venue.trace?.page ?? 1,
@@ -59,6 +71,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable, 
     pins: venue.connectionPoints ?? [], corridors: venue.cableRoutingCorridors ?? [], zones: venue.keepClearZones ?? [],
     centreline: venue.stageCentreline ?? defaultCentreline(venue),
   });
+  const [lighting, setLighting] = draft.field('lighting');
   const [walls, setWalls] = draft.field('walls');
   const [vertices, setVertices] = draft.field('vertices');
   const [platforms, setPlatforms] = draft.field('platforms');
@@ -185,25 +198,29 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable, 
       schemaVersion: 1, width: venue.width, depth: venue.depth, outline: vertices, trace,
       connectionPoints: pins.map(pin => ({ ...pin, notes: optionalNotes(pin.notes) })),
       cableRoutingCorridors: corridors.map(corridor => ({ ...corridor, notes: optionalNotes(corridor.notes) })),
-      walls, wallTypes: venue.wallTypes, platforms, stairs,
+      walls, wallTypes: venue.wallTypes, platforms, stairs, lighting,
       ...(ceilingHeight === '' ? {} : { ceilingHeight }),
       overheadBoxes, keepClearZones: zones, stageCentreline: centreline,
     });
     if (!result.success) { setError('Bitte prüfen Sie den Umriss, die Kalibrierung, die Anschlüsse und die Überbauungen.'); return; }
     setBusy(true); setError('');
     try {
-      const body = saveVenueResultSchema.parse(await request(`/api/workspaces/${workspaceId}/scenes/${sceneId}/venue`, { venue: result.data }, 'PUT'));
+      if (onPublish) await onPublish(result.data);
+      else {
+        const body = saveVenueResultSchema.parse(await request(`/api/workspaces/${workspaceId}/scenes/${sceneId}/venue`, { venue: result.data }, 'PUT'));
+        onSaved?.({ ...body, venueUpdateAvailable: false });
+      }
       draft.markSaved();
-      onSaved({ ...body, venueUpdateAvailable: false });
     } catch (caught) {
-      setError(caught instanceof ApiError && caught.status === 400 ? 'Ungültiger Umriss oder ungültige Vorlage.' : 'Die Spielstätte konnte nicht gespeichert werden.');
+      setError(caught instanceof ApiError && caught.status === 409 ? 'Eine neuere Spielstättenfassung ist vorhanden. Ihr Entwurf bleibt erhalten. Sichern Sie ihn vor dem Neuladen.' : caught instanceof ApiError && caught.status === 400 ? 'Ungültiger Umriss oder ungültige Vorlage.' : 'Die Spielstätte konnte nicht gespeichert werden.');
     } finally { setBusy(false); }
   }
   async function applyUpdate() {
+    if (!sceneId) return;
     setBusy(true); setError('');
     try {
       const body = applyVenueResultSchema.parse(await request(`/api/workspaces/${workspaceId}/scenes/${sceneId}/venue-apply`, {}));
-      onSaved({ venue: body.venue, layout: body.layout, revision: body.revision, venueUpdateAvailable: !!body.venueUpdateAvailable });
+      onSaved?.({ venue: body.venue, layout: body.layout, revision: body.revision, venueUpdateAvailable: !!body.venueUpdateAvailable });
     } catch { setError('Die Spielstättenfassung konnte nicht übernommen werden.'); }
     finally { setBusy(false); }
   }
@@ -213,7 +230,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable, 
   const planTop = -Math.max(height, ...vertices.map(p => p.y)) - 400;
   const planWidth = Math.max(width, ...vertices.map(p => p.x)) - planLeft + 400;
   const planHeight = Math.max(height, ...vertices.map(p => p.y)) + 1200;
-  const candidate = venueGeometrySchema.safeParse({ ...venue, outline: vertices, walls, platforms, stairs, overheadBoxes,
+  const candidate = venueGeometrySchema.safeParse({ ...venue, lighting, outline: vertices, walls, platforms, stairs, overheadBoxes,
     ceilingHeight: ceilingHeight === '' ? undefined : ceilingHeight, keepClearZones: zones, connectionPoints: pins, cableRoutingCorridors: corridors, stageCentreline: centreline });
   const previewVenue = candidate.success ? candidate.data : venue;
   const liveLayout: Layout = { schemaVersion: 1, walls: [], braces: [] };
@@ -304,6 +321,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable, 
         vertexDrag.current = undefined; objectDrag.current = undefined; marqueeDrag.current = undefined; panDrag.current = undefined;
         if (svg.current) svg.current.style.cursor = '';
         setMarqueeBox(undefined); draft.finish(true);
+        setSelectedIds([]);
       }
       if (readOnly || event.target instanceof HTMLElement && event.target.closest('input, textarea, select')) return;
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') { event.preventDefault(); event.shiftKey ? draft.redo() : draft.undo(); }
@@ -333,6 +351,11 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable, 
   });
   return <section className="export-panel" aria-label="Spielstätte">
     <h3>Spielstätte</h3>
+    {!readOnly && <button type="button" className="quiet" onClick={() => {
+      const url = URL.createObjectURL(new Blob([JSON.stringify({ venue, draft: draft.value }, null, 2)], { type: 'application/json' }));
+      const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'spielstaettenentwurf.json'; anchor.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }}>Spielstättenentwurf herunterladen</button>}
     {!readOnly && <button type="button" className="quiet" disabled={!draft.dirty || busy} onClick={() => { draft.discard(); setError(''); }}>Spielstättenentwurf verwerfen</button>}
     <p className="muted">Umriss in Millimetern. Optional eine Bild- oder PDF-Vorlage nach Kalibrierung nachzeichnen. Strg+Mausrad zoomen · Mittelklick verschieben · Auf dem Plan ziehen für Mehrfachauswahl.</p>
     {venueUpdateAvailable && <div className="form-actions">
@@ -387,7 +410,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable, 
           x={marqueeBox.minX} y={-marqueeBox.maxY} width={marqueeBox.maxX - marqueeBox.minX} height={marqueeBox.maxY - marqueeBox.minY} />}
       </svg>
     </div>
-    <StageView layout={liveLayout} venue={previewVenue} venueEditable workspaceId={workspaceId} selectedIds={selectedIds} pivot={pivot} onSelect={(id, additive) => setSelectedIds(ids => additive ? ids.includes(id) ? ids.filter(value => value !== id) : [...ids, id] : [id])} onTransform={readOnly ? undefined : transform} snapEnabled />
+    <StageView onLightingChange={readOnly ? undefined : setLighting} layout={liveLayout} venue={previewVenue} venueEditable workspaceId={workspaceId} selectedIds={selectedIds} pivot={pivot} onSelect={(id, additive) => setSelectedIds(ids => additive ? ids.includes(id) ? ids.filter(value => value !== id) : [...ids, id] : [id])} onClearSelection={() => setSelectedIds([])} onTransform={readOnly ? undefined : transform} snapEnabled />
     </div>
     <div className="venue-outliner"><label htmlFor="venue-selection">Spielstättenobjekt auswählen</label><select id="venue-selection" value={selected ?? ''} onChange={event => setSelectedIds(event.target.value ? [event.target.value] : [])}><option value="">Objekt auswählen</option>{venueObjects(previewVenue).map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select></div>
     <form onSubmit={event => void save(event)}><fieldset disabled={readOnly || busy}>

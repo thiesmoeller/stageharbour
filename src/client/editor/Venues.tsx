@@ -1,0 +1,69 @@
+import { useEffect, useState, type FormEvent } from 'react';
+import type { Me } from '../../shared/contracts.js';
+import { createVenueSchema, venueListSchema, venueRecordSchema, type VenueRecord } from '../../shared/venueLibrary.js';
+import { request } from '../api.js';
+import { ToolIcon } from './ToolIcon.js';
+import { VenuePanel } from './VenuePanel.js';
+
+export function Venues({ me, onDirty }: { me: Me; onDirty: (dirty: boolean) => void }) {
+  const [venues, setVenues] = useState<ReturnType<typeof venueListSchema.parse>>([]);
+  const [opened, setOpened] = useState<VenueRecord>();
+  const [creating, setCreating] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [busy, setBusy] = useState(true);
+  const [error, setError] = useState('');
+  const [attempt, setAttempt] = useState(0);
+  const readOnly = me.workspace.role === 'viewer';
+  const base = `/api/workspaces/${me.workspace.id}/venues`;
+  useEffect(() => {
+    let active = true;
+    setBusy(true); setError('');
+    request(base).then(data => { if (active) setVenues(venueListSchema.parse(data)); })
+      .catch(() => { if (active) setError('Spielstätten konnten nicht geladen werden.'); })
+      .finally(() => { if (active) setBusy(false); });
+    return () => { active = false; };
+  }, [base, attempt]);
+  useEffect(() => { onDirty(dirty); return () => onDirty(false); }, [dirty, onDirty]);
+  async function open(id: string) {
+    setBusy(true); setError('');
+    try { setOpened(venueRecordSchema.parse(await request(`${base}/${id}`))); }
+    catch { setError('Die Spielstätte konnte nicht geöffnet werden.'); }
+    finally { setBusy(false); }
+  }
+  async function create(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const parsed = createVenueSchema.safeParse({ name: data.get('name'), width: Number(data.get('width')), depth: Number(data.get('depth')) });
+    if (!parsed.success) { setError('Bitte geben Sie einen Namen und gültige Maße ein.'); return; }
+    setBusy(true); setError('');
+    try { setOpened(venueRecordSchema.parse(await request(base, parsed.data))); setCreating(false); }
+    catch { setError('Die Spielstätte konnte nicht angelegt werden.'); }
+    finally { setBusy(false); }
+  }
+  if (opened) return <section className="editor venue-workspace" aria-label="Spielstätte unabhängig bearbeiten">
+    <div className="editor-heading"><button className="quiet back-button" disabled={dirty} onClick={() => { setOpened(undefined); setAttempt(value => value + 1); }} aria-label="Zur Spielstättenübersicht" title={dirty ? 'Entwurf zuerst speichern oder verwerfen' : 'Zur Spielstättenübersicht'}><ToolIcon name="back" /></button>
+      <div><p className="eyebrow">SPIELSTÄTTEN & BÜHNEN</p><h2>{opened.name}</h2></div><span className="document-kind">{readOnly ? 'Nur Ansicht' : 'Spielstätte bearbeiten'}</span></div>
+    <p className="venue-independence">Grundriss, feste Wände und Bühnenflächen dieser Spielstätte. Bestehende Produktionen übernehmen neue Fassungen erst auf Wunsch.</p>
+    <VenuePanel key={opened.id} workspaceId={me.workspace.id} venue={opened.venue} readOnly={readOnly} onDirty={setDirty}
+      onPublish={async geometry => {
+        const result = venueRecordSchema.parse(await request(`${base}/${opened.id}`, { venueVersionId: opened.venueVersionId, venue: geometry }, 'PUT'));
+        setOpened(result);
+      }} />
+  </section>;
+  return <section className="plans venue-library" aria-label="Spielstätten und Bühnen">
+    <div className="section-heading"><div><h2>Spielstätten & Bühnen</h2><p className="muted">Räume einmal anlegen. Für viele Produktionen verwenden.</p></div>
+      {!readOnly && <button disabled={busy || creating} onClick={() => setCreating(true)}>Neue Spielstätte</button>}</div>
+    {error && <p className="error" role="alert">{error} <button className="quiet" onClick={() => setAttempt(value => value + 1)}>Erneut versuchen</button></p>}
+    {creating && <form className="create-plan" onSubmit={event => void create(event)}><fieldset disabled={busy}>
+      <h3>Eine Spielstätte anlegen</h3><label htmlFor="new-venue-name">Name der Spielstätte</label><input id="new-venue-name" name="name" required maxLength={120} />
+      <div className="numeric-fields"><label>Breite (mm)<input name="width" type="number" required min="1" max="100000" defaultValue="8000" /></label><label>Tiefe (mm)<input name="depth" type="number" required min="1" max="100000" defaultValue="6000" /></label></div>
+      <p className="muted">Starten Sie mit einem Rechteck. Umriss, Podeste, Treppen und feste Einrichtungen bearbeiten Sie anschließend.</p>
+      <div className="form-actions"><button>Spielstätte anlegen</button><button type="button" className="quiet" onClick={() => setCreating(false)}>Abbrechen</button></div>
+    </fieldset></form>}
+    {busy && <p role="status">Spielstätten werden geladen …</p>}
+    {!busy && !error && !venues.length && <p className="muted">Noch keine Spielstätten vorhanden. Eine Spielstätte ist unabhängig von einer Produktion oder Szene.</p>}
+    <div className="venue-cards">{venues.map(item => <button className="venue-card quiet" key={item.id} disabled={busy} onClick={() => void open(item.id)}>
+      <span className="venue-card-art" aria-hidden="true"><ToolIcon name="platform" /></span><strong>{item.name}</strong><span>{(item.width / 1000).toLocaleString('de-DE')} × {(item.depth / 1000).toLocaleString('de-DE')} m</span><span className="venue-card-action">{readOnly ? 'Spielstätte ansehen' : 'Spielstätte gestalten'} →</span>
+    </button>)}</div>
+  </section>;
+}

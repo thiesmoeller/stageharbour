@@ -6,5 +6,6 @@ export type StageEditing = {
   pivot?: { x: number; y: number };
   snapEnabled?: boolean;
   onSelect?: (id: string, additive: boolean) => void;
+  onClearSelection?: () => void;
   onTransform?: (phase: 'begin' | 'preview' | 'commit' | 'cancel', delta: PlanTransform, bypass: boolean) => void;
 };

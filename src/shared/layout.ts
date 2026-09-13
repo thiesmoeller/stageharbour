@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { stageLightingSchema } from './lighting.js';
 import { leaseHolderSchema } from './leases.js';
 import { AUDIENCE_FLOOR_ID, placementDiagnosticSchema, platformSchema, stairSchema, uniqueLevelIds } from './levels.js';
 import { type Opening, wallTypeSchema } from './wall-types.js';
@@ -24,12 +25,15 @@ export const wallSchema = z.strictObject({
   supportingSurfaceId: z.uuid().optional(),
   assemblyNumber: z.number().int().positive().max(250).optional(),
   finish: z.string().regex(/^library:[a-zA-Z0-9_-]+$/).max(180).optional(),
+  /** Door leaf open amount for hinged openings on this wall (0 closed … 100 fully open). */
+  doorOpenPercent: z.number().finite().min(0).max(100).optional(),
 });
 export type Wall = z.infer<typeof wallSchema>;
-// Example-only millimetre placeholders for a new weighted rear brace. Not measured inventory.
-export const EXAMPLE_BRACE_FOOTPRINT_WIDTH = 600;
-export const EXAMPLE_BRACE_FOOTPRINT_DEPTH = 800;
-export const EXAMPLE_BRACE_HEIGHT = 1800;
+// Stützdreieck from 40×40 mm stock: wall stile 1200 mm, floor rail 500 mm.
+export const BRACE_TIMBER_MM = 40;
+export const EXAMPLE_BRACE_FOOTPRINT_WIDTH = BRACE_TIMBER_MM;
+export const EXAMPLE_BRACE_FOOTPRINT_DEPTH = 500;
+export const EXAMPLE_BRACE_HEIGHT = 1200;
 export const braceSchema = z.strictObject({
   id: z.uuid(), label: name,
   x: coordinate, y: coordinate,
@@ -39,6 +43,7 @@ export const braceSchema = z.strictObject({
 });
 export type Brace = z.infer<typeof braceSchema>;
 export const layoutSchema = z.strictObject({
+  lighting: stageLightingSchema.optional(),
   schemaVersion: z.literal(1),
   wallTypes: z.array(wallTypeSchema).max(250).refine(
     types => new Set(types.map(type => type.id)).size === types.length, 'Wall type IDs must be unique',
@@ -69,6 +74,7 @@ export const layoutSchema = z.strictObject({
 }, 'Connection pairs must be unique').refine(layout => groupsReferenceLayout(layout), 'Groups must reference unique layout members');
 export type Layout = z.infer<typeof layoutSchema>;
 export const venueGeometrySchema = z.strictObject({
+  lighting: stageLightingSchema.optional(),
   schemaVersion: z.literal(1), width: dimension, depth: dimension,
   outline: venueOutlineSchema.optional(), trace: venueTraceSchema.optional(),
   walls: z.array(wallSchema).max(250).optional(),
@@ -88,10 +94,10 @@ export const saveVenueResultSchema = z.strictObject({
   venue: venueGeometrySchema, venueVersionId: z.uuid(),
   layout: layoutSchema, revision: z.number().int().nonnegative(),
 });
-export const createSceneSchema = z.strictObject({
-  productionName: name, venueName: name, sceneName: name,
-  width: dimension, depth: dimension,
-});
+export const createSceneSchema = z.union([
+  z.strictObject({ productionName: name, venueName: name, sceneName: name, width: dimension, depth: dimension }),
+  z.strictObject({ productionName: name, sceneName: name, venueVersionId: z.uuid() }),
+]);
 export const duplicateSceneSchema = z.strictObject({ sceneName: name.optional() });
 export const copySceneSchema = z.strictObject({
   productionId: z.uuid(),

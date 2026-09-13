@@ -29,11 +29,9 @@ export function PlaceholderInspector({ item, surfaces, readOnly, onApply, onRemo
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    const surface = String(data.get('supportingSurfaceId') || '');
     const kind = placeholderKindSchema.safeParse(data.get('kind'));
     const result = placeholderSchema.safeParse({
       ...item, kind: kind.success ? kind.data : item.kind, label: data.get('label'),
-      supportingSurfaceId: surface || undefined,
       ...Object.fromEntries(['x', 'y', 'rotation', 'width', 'depth', 'height'].map(key => [key, Number(data.get(key))])),
     });
     if (!result.success) { setError('Bitte prüfen Sie die Maße und die Bezeichnung.'); return; }

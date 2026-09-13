@@ -1,24 +1,17 @@
-import { useMemo } from 'react';
-import { BufferGeometry, DoubleSide, Float32BufferAttribute } from 'three';
 import type { BraceSolid } from '../../shared/braceTransforms.js';
 
 function BraceMesh({ brace, lit }: { brace: BraceSolid; lit?: boolean }) {
-  const geometry = useMemo(() => {
-    const geo = new BufferGeometry();
-    const [p0, p1, p2, p3] = brace.footprint;
-    const [r0, r1] = brace.ridge;
-    if (!p0 || !p1 || !p2 || !p3 || !r0 || !r1) return geo;
-    geo.setAttribute('position', new Float32BufferAttribute([
-      p0.x, p0.y, p0.z, p1.x, p1.y, p1.z, p2.x, p2.y, p2.z, p3.x, p3.y, p3.z,
-      r0.x, r0.y, r0.z, r1.x, r1.y, r1.z,
-    ], 3));
-    geo.setIndex([0, 1, 2, 0, 2, 3, 0, 1, 5, 0, 5, 4, 0, 4, 3, 1, 2, 5, 3, 4, 5, 3, 5, 2]);
-    geo.computeVertexNormals();
-    return geo;
-  }, [brace]);
-  return <mesh geometry={geometry} castShadow={lit} receiveShadow={lit}>{lit
-    ? <meshStandardMaterial color="#c4a574" roughness={0.9} side={DoubleSide} />
-    : <meshBasicMaterial color="#c4a574" side={DoubleSide} />}</mesh>;
+  const elevation = brace.footprint[0]?.y ?? 0;
+  return <group position={[brace.center.x, elevation, brace.center.z]} rotation={[0, brace.rotationY, 0]}>
+    {brace.members.map(member => <mesh key={member.kind} castShadow={lit} receiveShadow={lit}
+      position={[member.center.x, member.center.y, member.center.z]}
+      rotation={[member.rotation.x, member.rotation.y, member.rotation.z]}>
+      <boxGeometry args={[member.size.x, member.size.y, member.size.z]} />
+      {lit
+        ? <meshStandardMaterial color="#c4a574" roughness={0.85} />
+        : <meshBasicMaterial color="#c4a574" />}
+    </mesh>)}
+  </group>;
 }
 
 export function StageBraces({ braces, lit }: { braces: BraceSolid[]; lit?: boolean }) {
@@ -30,5 +23,5 @@ export function StageBraceList({ braces }: { braces: BraceSolid[] }) {
   return <ul aria-label="Stützen in der Raumsicht">{braces.map(brace => <li key={brace.id} data-testid={`stage-brace-${brace.id}`}
     data-x={brace.center.x} data-y={brace.center.y} data-z={brace.center.z}
     data-height={brace.size.y} data-footprint-width={brace.size.x} data-footprint-depth={brace.size.z}>
-    {brace.label}: {brace.size.x} × {brace.size.z} mm, {brace.size.y} mm hoch</li>)}</ul>;
+    {brace.label}: Stützdreieck {brace.size.x} × {brace.size.z} mm, {brace.size.y} mm hoch</li>)}</ul>;
 }

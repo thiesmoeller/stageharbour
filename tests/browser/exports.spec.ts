@@ -1,3 +1,4 @@
+import { openInspector, placeWallAt } from '../helpers/inspector.js';
 import { readFileSync } from 'node:fs';
 import { test, expect, type Page } from '@playwright/test';
 import { testAdministrator } from '../helpers/database.js';
@@ -25,8 +26,9 @@ test('export a named frozen construction plan and download it from history', asy
   await page.getByRole('button', { name: 'Bühnenbild anlegen' }).click();
   await expect(page.getByRole('heading', { name: 'Erste Szene' })).toBeVisible();
   await waitUntilSaved(page);
-  await page.getByRole('button', { name: 'Wand hinzufügen' }).click();
+  await placeWallAt(page);
   await waitUntilSaved(page);
+  await openInspector(page, 'Aufbau & Verbindungen');
   await page.getByRole('button', { name: 'Montagenummern vergeben' }).click();
   await waitUntilSaved(page);
   await expect(page.locator('[data-testid^="assembly-label-"]')).toHaveText(['Position 1']);
@@ -63,12 +65,15 @@ test('export a named frozen construction plan and download it from history', asy
   const a3Bytes = readFileSync(await a3Download.path() as string);
   expect(a3Bytes.subarray(0, 5).toString()).toBe('%PDF-');
   expect(a3Bytes.toString('latin1')).toMatch(/\/MediaBox \[0 0 841\.89 1190\.55\]/);
-  await page.getByRole('button', { name: 'Wand hinzufügen' }).click();
+  await page.getByRole('button', { name: 'Export schließen' }).click();
+  await placeWallAt(page, 2000, 4500);
   await waitUntilSaved(page);
   await page.getByLabel('Auswahl').selectOption({ label: '1. Wand' });
   await page.locator('[data-testid^="wall-"]').nth(1).click({ modifiers: ['Shift'] });
+  await openInspector(page, 'Gruppieren');
   await page.getByRole('button', { name: 'Gruppieren' }).click();
   await waitUntilSaved(page);
+  await page.getByRole('button', { name: 'Konstruktionsplan', exact: true }).click();
   await page.getByRole('checkbox', { name: /Gruppe 1/ }).check();
   await page.getByLabel('Bezeichnung der Fassung').fill('Ansichtsexport');
   await page.getByLabel('Papierformat', { exact: true }).selectOption('A4');

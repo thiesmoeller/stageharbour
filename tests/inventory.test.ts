@@ -2,8 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import {
-  EXAMPLE_DOOR_OPENING, EXAMPLE_PLAIN, EXAMPLE_WINDOW_OPENING, REPORTED_ARCH_THICKNESS, REPORTED_PANEL_COUNTS,
-  inventoryWarnings, typesCompatible, usablePanels, type InventoryPanel,
+  EXAMPLE_ARCH_OPENING, EXAMPLE_DOOR_OPENING, EXAMPLE_HALF, EXAMPLE_PLAIN, EXAMPLE_WINDOW_OPENING,
+  GROUP_WALL_TYPE_KINDS, GROUP_WALL_TYPE_NAMES, REPORTED_ARCH_THICKNESS, REPORTED_PANEL_COUNTS,
+  groupWallType, inventoryWarnings, typesCompatible, usablePanels, type InventoryPanel,
 } from '../src/shared/inventory.js';
 import { layoutSchema, newWall, type Layout } from '../src/shared/layout.js';
 import { newWallType } from '../src/shared/wall-types.js';
@@ -20,6 +21,31 @@ test('reported stock is 29 panels and does not invent arch-opening geometry', ()
   assert.equal(EXAMPLE_PLAIN.openings.length, 0);
   assert.deepEqual(EXAMPLE_DOOR_OPENING, { left: 200, sill: 0, width: 800, height: 2000 });
   assert.deepEqual(EXAMPLE_WINDOW_OPENING, { left: 390, sill: 1100, width: 420, height: 900 });
+  assert.deepEqual(EXAMPLE_ARCH_OPENING, { left: 200, sill: 0, width: 800, height: 2000 });
+  assert.deepEqual(EXAMPLE_HALF, { width: 600, height: 2400, thickness: 250, openings: [] });
+});
+
+test('group wall-type templates cover Sensenmann stock including half walls beside the door', () => {
+  assert.deepEqual([...GROUP_WALL_TYPE_KINDS], ['plain', 'doorLeft', 'doorRight', 'window', 'arch', 'half']);
+  const plain = groupWallType('plain', randomUUID());
+  assert.equal(plain.name, GROUP_WALL_TYPE_NAMES.plain);
+  assert.deepEqual({ width: plain.width, height: plain.height, thickness: plain.thickness, openings: plain.openings }, EXAMPLE_PLAIN);
+  const doorLeft = groupWallType('doorLeft', randomUUID(), randomUUID());
+  assert.equal(doorLeft.name, GROUP_WALL_TYPE_NAMES.doorLeft);
+  assert.equal(doorLeft.openings.length, 1);
+  assert.equal(doorLeft.openings[0]?.hinge, 'left');
+  assert.deepEqual({ left: doorLeft.openings[0]?.left, sill: doorLeft.openings[0]?.sill, width: doorLeft.openings[0]?.width, height: doorLeft.openings[0]?.height }, EXAMPLE_DOOR_OPENING);
+  const doorRight = groupWallType('doorRight', randomUUID(), randomUUID());
+  assert.equal(doorRight.name, GROUP_WALL_TYPE_NAMES.doorRight);
+  assert.equal(doorRight.openings[0]?.hinge, 'right');
+  const window = groupWallType('window', randomUUID(), randomUUID());
+  assert.equal(window.name, GROUP_WALL_TYPE_NAMES.window);
+  const arch = groupWallType('arch', randomUUID(), randomUUID());
+  assert.equal(arch.name, GROUP_WALL_TYPE_NAMES.arch);
+  assert.equal(arch.thickness, REPORTED_ARCH_THICKNESS);
+  const half = groupWallType('half', randomUUID());
+  assert.equal(half.name, GROUP_WALL_TYPE_NAMES.half);
+  assert.deepEqual({ width: half.width, height: half.height, thickness: half.thickness, openings: half.openings }, EXAMPLE_HALF);
 });
 
 test('unavailable panels do not count as usable stock', () => {

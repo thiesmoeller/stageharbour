@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
-import { newOpening, newWallType, wallTypeSchema, type WallElementType } from '../../shared/wall-types.js';
+import { GROUP_WALL_TYPE_KINDS, GROUP_WALL_TYPE_NAMES, groupWallType, groupWallTypeSizeLabel, type GroupWallTypeKind } from '../../shared/inventory.js';
+import { newDoorOpening, newOpening, newWallType, wallTypeSchema, type DoorHinge, type WallElementType } from '../../shared/wall-types.js';
 
 export function WallTypePanel({ types, selectedId, readOnly, onSelect, onCreate, onApply, onPlace, onRemove }: {
   types: WallElementType[]; selectedId?: string; readOnly: boolean;
@@ -9,7 +10,14 @@ export function WallTypePanel({ types, selectedId, readOnly, onSelect, onCreate,
   onPlace: (type: WallElementType) => void;
   onRemove: (id: string) => void;
 }) {
+  const [template, setTemplate] = useState<GroupWallTypeKind | ''>('plain');
   const selected = types.find(type => type.id === selectedId);
+  function createType() {
+    const type = template
+      ? groupWallType(template, crypto.randomUUID(), crypto.randomUUID())
+      : newWallType(crypto.randomUUID());
+    onCreate(type);
+  }
   return <div className="wall-types">
     <h3>Wandtypen</h3>
     <label htmlFor="wall-type-selection">Wandtyp</label>
@@ -17,9 +25,17 @@ export function WallTypePanel({ types, selectedId, readOnly, onSelect, onCreate,
       <option value="">Wandtyp auswählen</option>
       {types.map((type, index) => <option key={type.id} value={type.id}>{index + 1}. {type.name}</option>)}
     </select>
-    {!readOnly && <div className="form-actions">
-      <button type="button" onClick={() => { const type = newWallType(crypto.randomUUID()); onCreate(type); }} disabled={types.length >= 250}>Wandtyp anlegen</button>
-    </div>}
+    {!readOnly && <>
+      <label htmlFor="wall-type-template">Vorlage aus Bestandsarten</label>
+      <select id="wall-type-template" value={template} onChange={event => setTemplate(event.target.value as GroupWallTypeKind | '')}>
+        <option value="">Leerer Wandtyp</option>
+        {GROUP_WALL_TYPE_KINDS.map(kind => <option key={kind} value={kind}>{GROUP_WALL_TYPE_NAMES[kind]} ({groupWallTypeSizeLabel(kind)})</option>)}
+      </select>
+      <div className="form-actions">
+        <button type="button" onClick={createType} disabled={types.length >= 250}>Wandtyp anlegen</button>
+      </div>
+      <p className="muted">Vorlagen aus dem Sensenmann-Aufbau und dem gemeldeten Bestand. Türwände mit Scharnier links/rechts, weißem Blatt 800×2000 und Zarge 25×50 mm. Halbe Wände (600×2400×250 mm) stehen links und rechts der Tür. Das Bogenprofil bleibt vorerst rechteckig.</p>
+    </>}
     {selected ? <TypeForm key={JSON.stringify(selected)} type={selected} readOnly={readOnly} onApply={onApply} onPlace={onPlace} onRemove={() => onRemove(selected.id)} />
       : <p className="muted">Legen Sie einen wiederverwendbaren Wandtyp mit rechteckigen Öffnungen an.</p>}
   </div>;
@@ -37,10 +53,14 @@ function TypeForm({ type, readOnly, onApply, onPlace, onRemove }: {
     const result = wallTypeSchema.safeParse({
       ...type, name: data.get('name'),
       ...Object.fromEntries(['width', 'height', 'thickness'].map(key => [key, Number(data.get(key))])),
-      openings: openings.map(opening => ({
-        ...opening,
-        ...Object.fromEntries(['left', 'sill', 'width', 'height'].map(key => [key, Number(data.get(`${key}-${opening.id}`))])),
-      })),
+      openings: openings.map(opening => {
+        const hingeRaw = String(data.get(`hinge-${opening.id}`) ?? '');
+        const hinge = hingeRaw === 'left' || hingeRaw === 'right' ? hingeRaw : undefined;
+        return {
+          ...opening, hinge,
+          ...Object.fromEntries(['left', 'sill', 'width', 'height'].map(key => [key, Number(data.get(`${key}-${opening.id}`))])),
+        };
+      }),
     });
     if (!result.success) { setError('Bitte prüfen Sie die Außenmaße und ob alle Öffnungen innerhalb der Platte liegen.'); return; }
     setError(''); onApply(result.data);
@@ -61,10 +81,19 @@ function TypeForm({ type, readOnly, onApply, onPlace, onRemove }: {
         ['width', 'Öffnungsbreite (mm)'], ['height', 'Öffnungshöhe (mm)'],
       ] as const).map(([key, label]) => <div key={key}><label htmlFor={`${key}-${opening.id}`}>{label}</label>
         <input id={`${key}-${opening.id}`} name={`${key}-${opening.id}`} type="number" step="any" min={key === 'width' || key === 'height' ? 1 : 0} max={100000} defaultValue={opening[key]} required /></div>)}
+      <label htmlFor={`hinge-${opening.id}`}>Türscharnier</label>
+      <select id={`hinge-${opening.id}`} name={`hinge-${opening.id}`} defaultValue={opening.hinge ?? ''}>
+        <option value="">Keine Tür (nur Öffnung)</option>
+        <option value="left">Scharnier links</option>
+        <option value="right">Scharnier rechts</option>
+      </select>
       {!readOnly && <button className="quiet" type="button" onClick={() => setOpenings(openings.filter(item => item.id !== opening.id))}>Öffnung entfernen</button>}
     </div>)}
-    {!readOnly && <button className="quiet" type="button" onClick={() => setOpenings([...openings, newOpening(crypto.randomUUID())])}>Öffnung hinzufügen</button>}
-    <p className="muted">Maße von der linken und unteren Kante der Plattenvorderseite. Türanschlag und Schwenkbereich gehören nicht dazu.</p>
+    {!readOnly && <div className="form-actions">
+      <button className="quiet" type="button" onClick={() => setOpenings([...openings, newOpening(crypto.randomUUID())])}>Öffnung hinzufügen</button>
+      <button className="quiet" type="button" onClick={() => setOpenings([...openings, newDoorOpening(crypto.randomUUID(), 'left' satisfies DoorHinge)])}>Türöffnung hinzufügen</button>
+    </div>}
+    <p className="muted">Maße von der linken und unteren Kante der Plattenvorderseite. Mit Scharnier: weißes Türblatt 800×2000 mm und Zarge 25×50 mm außen. Öffnungsgrad am platzierten Türelement.</p>
     {error && <p role="alert" className="error">{error}</p>}
     {!readOnly && <div className="form-actions">
       <button type="submit">Wandtyp speichern</button>

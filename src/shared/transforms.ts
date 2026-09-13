@@ -10,6 +10,7 @@ export type WallSolid = {
   size: Vec3; center: Vec3; rotationY: number;
   corners: Vec3[]; frontNormal: Vec3;
   openings: Opening[];
+  doorOpenPercent: number;
 };
 export type StairSolid = { id: string; label: string; rise: number; steps: ReturnType<typeof stairSteps> };
 export type StageModel = {
@@ -25,7 +26,7 @@ export type StageModel = {
 
 // Millimetre 3D: +X audience-right, +Y up, +Z away from the audience.
 // rotationY is Three.js Y-up yaw and equals -planRotation (radians).
-export function wallSolid(wall: Wall & { openings?: Opening[] }, elevation = 0): WallSolid {
+export function wallSolid(wall: Wall & { openings?: Opening[]; doorOpenPercent?: number }, elevation = 0): WallSolid {
   const rotationY = -wall.rotation * Math.PI / 180;
   const center = { x: wall.x, y: elevation + wall.height / 2, z: wall.y };
   const size = { x: wall.width, y: wall.height, z: wall.thickness };
@@ -37,6 +38,7 @@ export function wallSolid(wall: Wall & { openings?: Opening[] }, elevation = 0):
   const plan = wall.rotation * Math.PI / 180;
   return {
     id: wall.id, label: wall.label, size, center, rotationY, corners, openings: wall.openings ?? [],
+    doorOpenPercent: wall.doorOpenPercent ?? 0,
     frontNormal: { x: Math.sin(plan), y: 0, z: -Math.cos(plan) },
   };
 }
@@ -47,7 +49,10 @@ export function stageModel(layout: Layout, venue: Pick<VenueGeometry, 'width' | 
   const stairs: StairUnit[] = [...venue.stairs ?? [], ...layout.stairs ?? []];
   return {
     floor: { width: venue.width, depth: venue.depth },
-    walls: [...(venue.walls ?? []).map(wall => wallSolid(resolveWall(wall, venue.wallTypes ?? []), surfaceElevation(surfaces, wall.supportingSurfaceId))), ...layout.walls.map(wall => wallSolid(resolveWall(wall, types), surfaceElevation(surfaces, wall.supportingSurfaceId)))],
+    walls: [...(venue.walls ?? []).map(wall => wallSolid(resolveWall(wall, venue.wallTypes ?? []), surfaceElevation(surfaces, wall.supportingSurfaceId))), ...layout.walls.map(wall => {
+      const resolved = resolveWall(wall, types);
+      return wallSolid({ ...resolved, doorOpenPercent: wall.doorOpenPercent }, surfaceElevation(surfaces, wall.supportingSurfaceId));
+    })],
     braces: (layout.braces ?? []).map(brace => braceSolid(brace, surfaceElevation(surfaces, brace.supportingSurfaceId))),
     placeholders: (layout.placeholders ?? []).map(item => placeholderSolid(item, surfaceElevation(surfaces, item.supportingSurfaceId))),
     platforms: surfaces.filter(surface => surface.id !== AUDIENCE_FLOOR_ID),

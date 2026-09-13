@@ -157,6 +157,95 @@ function topmost(point: PlanPoint, surfaces: SupportingSurface[]) {
   return surfaces.filter(surface => contains(surface.outline, point)).sort((a, b) => b.elevation - a.elevation)[0];
 }
 
+/** Sample points across a convex footprint so thin walls still get coverage votes. */
+function footprintSamples(footprint: readonly PlanPoint[], stepMm = 150): PlanPoint[] {
+  if (footprint.length < 3) return [...footprint];
+  const samples: PlanPoint[] = [...footprint];
+  for (let index = 0; index < footprint.length; index++) {
+    const a = footprint[index]!, b = footprint[(index + 1) % footprint.length]!;
+    samples.push({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+  }
+  const centroid = {
+    x: footprint.reduce((sum, point) => sum + point.x, 0) / footprint.length,
+    y: footprint.reduce((sum, point) => sum + point.y, 0) / footprint.length,
+  };
+  samples.push(centroid);
+  const xs = footprint.map(point => point.x), ys = footprint.map(point => point.y);
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+  for (let x = minX; x <= maxX; x += stepMm) {
+    for (let y = minY; y <= maxY; y += stepMm) {
+      const point = { x, y };
+      if (contains(footprint as PlanPoint[], point)) samples.push(point);
+    }
+  }
+  return samples;
+}
+
+/**
+ * Pick the supporting surface under a plan footprint.
+ * Votes by sample coverage; stacked podiums use the topmost surface at each sample.
+ * The majority wins; ties prefer the higher elevation (then floor).
+ */
+export function resolveSupportingSurfaceId(footprint: readonly PlanPoint[], surfaces: SupportingSurface[]): string {
+  const floor = surfaces.find(surface => surface.id === AUDIENCE_FLOOR_ID);
+  if (footprint.length < 3) return floor?.id ?? AUDIENCE_FLOOR_ID;
+  const votes = new Map<string, number>();
+  for (const point of footprintSamples(footprint)) {
+    const surface = topmost(point, surfaces) ?? floor;
+    if (!surface) continue;
+    votes.set(surface.id, (votes.get(surface.id) ?? 0) + 1);
+  }
+  let bestId = floor?.id ?? AUDIENCE_FLOOR_ID;
+  let bestCount = -1;
+  let bestElevation = -1;
+  for (const [id, count] of votes) {
+    const elevation = surfaceElevation(surfaces, id);
+    if (count > bestCount || (count === bestCount && elevation > bestElevation)) {
+      bestId = id;
+      bestCount = count;
+      bestElevation = elevation;
+    }
+  }
+  return bestId;
+}
+
+type SupportLayout = {
+  walls: { id: string; supportingSurfaceId?: string; x: number; y: number; rotation: number; width: number; thickness: number }[];
+  braces: { id: string; supportingSurfaceId?: string; x: number; y: number; rotation: number; footprintWidth: number; footprintDepth: number }[];
+  platforms?: Platform[];
+  stairs?: StairUnit[];
+  placeholders?: { id: string; supportingSurfaceId?: string; x: number; y: number; rotation: number; width: number; depth: number }[];
+};
+
+/** Recompute Auflagefläche for walls, braces and placeholders from plan coverage. */
+export function reassignLayoutSupports<T extends SupportLayout>(layout: T, venue: VenueLevels): T {
+  const surfaces = supportingSurfaces(venue, layout);
+  return {
+    ...layout,
+    walls: layout.walls.map(wall => ({
+      ...wall,
+      supportingSurfaceId: resolveSupportingSurfaceId(
+        stairCorners({ x: wall.x, y: wall.y, rotation: wall.rotation, width: wall.width, run: wall.thickness }),
+        surfaces,
+      ),
+    })),
+    braces: layout.braces.map(brace => ({
+      ...brace,
+      supportingSurfaceId: resolveSupportingSurfaceId(
+        stairCorners({ x: brace.x, y: brace.y, rotation: brace.rotation, width: brace.footprintWidth, run: brace.footprintDepth }),
+        surfaces,
+      ),
+    })),
+    placeholders: (layout.placeholders ?? []).map(item => ({
+      ...item,
+      supportingSurfaceId: resolveSupportingSurfaceId(
+        stairCorners({ x: item.x, y: item.y, rotation: item.rotation, width: item.width, run: item.depth }),
+        surfaces,
+      ),
+    })),
+  };
+}
+
 const messages: Record<PlacementKind, string> = {
   'missing-surface': 'Bitte eine Auflagefläche wählen. Ohne Auswahl wird die Höhe nicht stillschweigend gesetzt.',
   'unknown-surface': 'Die gewählte Auflagefläche ist nicht vorhanden.',
@@ -171,11 +260,7 @@ export function placementDiagnostic(
   if (!surfaces.some(surface => surface.id === object.supportingSurfaceId)) {
     return { objectId: object.id, kind: 'unknown-surface', message: messages['unknown-surface'] };
   }
-  const elevations = new Set(object.corners.map(corner => topmost(corner, surfaces)?.elevation).filter((value): value is number => value !== undefined));
-  const onEdge = object.corners.some(corner => surfaces.some(surface =>
-    onBoundary(surface.outline, corner) && surface.elevation !== surfaceElevation(surfaces, object.supportingSurfaceId),
-  ));
-  if (elevations.size > 1 || onEdge) return { objectId: object.id, kind: 'ambiguous-edge', message: messages['ambiguous-edge'] };
+  // Coverage is resolved automatically by majority vote; straddling a podium edge is allowed.
 }
 
 export function layoutDiagnostics(

@@ -1,11 +1,12 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import {
-  EXAMPLE_DOOR_OPENING, EXAMPLE_PLAIN, EXAMPLE_WINDOW_OPENING, REPORTED_PANEL_COUNTS, inventoryPanelSchema, inventorySchema, inventoryWarnings,
-  placementType, typesCompatible, type InventoryPanel,
+  GROUP_DOOR_STOCK_NAME, GROUP_WALL_TYPE_KINDS, GROUP_WALL_TYPE_NAMES, REPORTED_PANEL_COUNTS, groupWallType, groupWallTypeSizeLabel,
+  inventoryPanelSchema, inventorySchema, inventoryWarnings,
+  placementType, typesCompatible, type GroupWallTypeKind, type InventoryPanel,
 } from '../../shared/inventory.js';
 import { LEASE_HEARTBEAT_MS } from '../../shared/leases.js';
 import type { Layout, Wall } from '../../shared/layout.js';
-import { newWallType, typesOf } from '../../shared/wall-types.js';
+import { typesOf } from '../../shared/wall-types.js';
 import { ApiError, request } from '../api.js';
 
 export function InventoryPanel({ workspaceId, layout, selectedWall, readOnly, onAssign, onUnassign, onPanels }: {
@@ -50,11 +51,11 @@ export function InventoryPanel({ workspaceId, layout, selectedWall, readOnly, on
     const data = new FormData(form);
     const kind = String(data.get('kind'));
     const existing = panels.find(panel => panel.typeId === kind)?.type;
-    const type = existing ?? (kind === 'door'
-      ? { ...newWallType(crypto.randomUUID()), name: 'Beispiel-Türwand', width: 1200, height: 2400, thickness: 28, openings: [{ id: crypto.randomUUID(), ...EXAMPLE_DOOR_OPENING }] }
-      : kind === 'window'
-        ? { ...newWallType(crypto.randomUUID()), name: 'Beispiel-Fensterwand', width: 1200, height: 2400, thickness: 28, openings: [{ id: crypto.randomUUID(), ...EXAMPLE_WINDOW_OPENING }] }
-        : { ...newWallType(crypto.randomUUID()), ...EXAMPLE_PLAIN, name: 'Beispiel-Glattwand' });
+    const type = existing ?? groupWallType(
+      (GROUP_WALL_TYPE_KINDS as readonly string[]).includes(kind) ? kind as GroupWallTypeKind : 'plain',
+      crypto.randomUUID(),
+      crypto.randomUUID(),
+    );
     setBusy(true); setError('');
     try {
       await request(`${base}/panels`, { label: data.get('label'), type, available: data.get('available') === 'on', note: String(data.get('note') ?? '').trim() || null });
@@ -80,7 +81,7 @@ export function InventoryPanel({ workspaceId, layout, selectedWall, readOnly, on
   const assigned = panels.find(panel => panel.id === selectedWall?.panelId);
   return <div className="inventory-panel">
     <h3>Bestand</h3>
-    <p className="muted">Gemeldeter Bestand: {REPORTED_PANEL_COUNTS.plain} glatt, {REPORTED_PANEL_COUNTS.door} Tür, {REPORTED_PANEL_COUNTS.window} Fenster, {REPORTED_PANEL_COUNTS.arch} Bogen ({REPORTED_PANEL_COUNTS.plain + REPORTED_PANEL_COUNTS.door + REPORTED_PANEL_COUNTS.window + REPORTED_PANEL_COUNTS.arch} Platten). Etiketten hier sind Beispiele, keine echten Kennzeichnungen. Das Bogenprofil wird nicht vorgegeben.</p>
+    <p className="muted">Gemeldeter Bestand: {REPORTED_PANEL_COUNTS.plain} {GROUP_WALL_TYPE_NAMES.plain}, {REPORTED_PANEL_COUNTS.door} {GROUP_DOOR_STOCK_NAME}, {REPORTED_PANEL_COUNTS.window} {GROUP_WALL_TYPE_NAMES.window}, {REPORTED_PANEL_COUNTS.arch} {GROUP_WALL_TYPE_NAMES.arch} ({REPORTED_PANEL_COUNTS.plain + REPORTED_PANEL_COUNTS.door + REPORTED_PANEL_COUNTS.window + REPORTED_PANEL_COUNTS.arch} Platten), zuzüglich Halbe Wände 600×2400×250 mm. Etiketten hier sind Beispiele. Das Bogenprofil bleibt vorerst rechteckig.</p>
     {warnings.length > 0 && <ul data-testid="inventory-warnings" role="status">{warnings.map((warning, index) => <li key={`${warning.kind}-${warning.wallId ?? index}`} data-kind={warning.kind}>{warning.message}</li>)}</ul>}
     {error && <p role="alert" className="error">{error}</p>}
     {!readOnly && !holding && <div className="form-actions"><button type="button" onClick={() => void acquire()} disabled={busy}>Bestand bearbeiten</button></div>}
@@ -93,9 +94,7 @@ export function InventoryPanel({ workspaceId, layout, selectedWall, readOnly, on
       <input id="panel-label" name="label" maxLength={120} required placeholder="Beispiel-P01" />
       <label htmlFor="panel-kind">Wandtyp</label>
       <select id="panel-kind" name="kind" defaultValue="plain">
-        <option value="plain">Beispiel-Glattwand (1200×2400×28 mm)</option>
-        <option value="door">Beispiel-Türwand (rechteckige Öffnung)</option>
-        <option value="window">Beispiel-Fensterwand (rechteckige Öffnung)</option>
+        {GROUP_WALL_TYPE_KINDS.map(kind => <option key={kind} value={kind}>{GROUP_WALL_TYPE_NAMES[kind]} ({groupWallTypeSizeLabel(kind)})</option>)}
         {[...new Map(panels.map(panel => [panel.typeId, panel.type])).values()].map(type => <option key={type.id} value={type.id}>{type.name}</option>)}
       </select>
       <label htmlFor="panel-available"><input id="panel-available" name="available" type="checkbox" defaultChecked /> Verfügbar</label>

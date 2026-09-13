@@ -8,16 +8,19 @@ export function BraceLayer({ braces, selectedId, groupedIds, preview, readOnly, 
   return braces.map(saved => {
     const brace = preview?.id === saved.id ? preview : saved;
     const chosen = selectedId === brace.id || !!groupedIds?.has(`brace:${brace.id}`);
+    const halfW = brace.footprintWidth / 2;
+    const halfD = brace.footprintDepth / 2;
     return <g key={brace.id} data-testid={`brace-${brace.id}`} aria-label={brace.label} className={readOnly ? '' : 'draggable-wall'}
       transform={`translate(${brace.x} ${-brace.y}) rotate(${-brace.rotation})`} onPointerDown={event => onPointerDown(event, brace)}>
-      <rect x={-brace.footprintWidth / 2} y={-brace.footprintDepth / 2} width={brace.footprintWidth} height={brace.footprintDepth}
+      <rect x={-halfW} y={-halfD} width={brace.footprintWidth} height={brace.footprintDepth}
         fill={chosen ? '#e4d3b0' : '#eddcc0'} stroke={chosen ? '#8a6a3a' : '#a48454'}
         strokeWidth="2" vectorEffect="non-scaling-stroke" />
-      <polygon points={`${-brace.footprintWidth / 2},${-brace.footprintDepth / 2} ${brace.footprintWidth / 2},${-brace.footprintDepth / 2} 0,${brace.footprintDepth / 2}`}
-        fill="#c4a57466" stroke="#8a6a3a" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-      <text y="-140" textAnchor="middle" fontSize="150" pointerEvents="none">{brace.label}</text>
-      <text y="200" textAnchor="middle" fontSize="130" pointerEvents="none">{brace.footprintWidth} × {brace.footprintDepth} mm</text>
-      <text y="350" textAnchor="middle" fontSize="130" pointerEvents="none">{brace.height} mm</text>
+      {/* Wall face at local −Y; floor tip at +Y. */}
+      <line x1={-halfW} y1={-halfD} x2={halfW} y2={-halfD} stroke="#8a6a3a" strokeWidth="4" vectorEffect="non-scaling-stroke" />
+      <line x1={0} y1={-halfD} x2={0} y2={halfD} stroke="#a48454" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+      <text y={-halfD - 80} textAnchor="middle" fontSize="150" pointerEvents="none">{brace.label}</text>
+      <text y={halfD + 160} textAnchor="middle" fontSize="130" pointerEvents="none">{brace.footprintWidth} × {brace.footprintDepth} mm</text>
+      <text y={halfD + 310} textAnchor="middle" fontSize="130" pointerEvents="none">{brace.height} mm</text>
     </g>;
   });
 }

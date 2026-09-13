@@ -1,6 +1,10 @@
 import { useMemo, useLayoutEffect } from 'react';
 import { BoxGeometry, ExtrudeGeometry, Path, Shape, type Material } from 'three';
 import type { WallSolid } from '../../shared/transforms.js';
+import {
+  DOOR_FRAME, DOOR_FRAME_COLOR, DOOR_LEAF, DOOR_LEAF_COLOR, doorOpenAngleDegrees, isDoorOpening,
+} from '../../shared/wall-types.js';
+
 const plywood = '#315d49', timber = '#d9c6a1', edge = '#5a6e52';
 function wallGeometry(wall: WallSolid) {
   if (!wall.openings.length) return new BoxGeometry(wall.size.x, wall.size.y, wall.size.z);
@@ -25,12 +29,54 @@ function wallGeometry(wall: WallSolid) {
   return geometry;
 }
 
+function DoorFittings({ wall, lit }: { wall: WallSolid; lit: boolean }) {
+  const Surface = lit ? 'meshStandardMaterial' : 'meshBasicMaterial';
+  const hw = wall.size.x / 2, hh = wall.size.y / 2;
+  const front = -wall.size.z / 2;
+  const angle = doorOpenAngleDegrees(wall.doorOpenPercent) * Math.PI / 180;
+  return <>
+    {wall.openings.filter(isDoorOpening).map(opening => {
+      const x0 = -hw + opening.left, y0 = -hh + opening.sill;
+      const x1 = x0 + opening.width, y1 = y0 + opening.height;
+      const face = DOOR_FRAME.face, depth = DOOR_FRAME.depth;
+      const frameZ = front - depth / 2;
+      const hingeX = opening.hinge === 'left' ? x0 : x1;
+      const leafSign = opening.hinge === 'left' ? 1 : -1;
+      const yaw = opening.hinge === 'left' ? angle : -angle;
+      return <group key={opening.id}>
+        <mesh castShadow={lit} receiveShadow={lit} position={[(x0 + x1) / 2, y0 - face / 2, frameZ]}>
+          <boxGeometry args={[opening.width + face * 2, face, depth]} />
+          <Surface color={DOOR_FRAME_COLOR} />
+        </mesh>
+        <mesh castShadow={lit} receiveShadow={lit} position={[(x0 + x1) / 2, y1 + face / 2, frameZ]}>
+          <boxGeometry args={[opening.width + face * 2, face, depth]} />
+          <Surface color={DOOR_FRAME_COLOR} />
+        </mesh>
+        <mesh castShadow={lit} receiveShadow={lit} position={[x0 - face / 2, (y0 + y1) / 2, frameZ]}>
+          <boxGeometry args={[face, opening.height, depth]} />
+          <Surface color={DOOR_FRAME_COLOR} />
+        </mesh>
+        <mesh castShadow={lit} receiveShadow={lit} position={[x1 + face / 2, (y0 + y1) / 2, frameZ]}>
+          <boxGeometry args={[face, opening.height, depth]} />
+          <Surface color={DOOR_FRAME_COLOR} />
+        </mesh>
+        <group position={[hingeX, (y0 + y1) / 2, front - DOOR_LEAF.thickness / 2]} rotation={[0, yaw, 0]}>
+          <mesh castShadow={lit} receiveShadow={lit} position={[leafSign * DOOR_LEAF.width / 2, 0, 0]}>
+            <boxGeometry args={[DOOR_LEAF.width, DOOR_LEAF.height, DOOR_LEAF.thickness]} />
+            <Surface color={DOOR_LEAF_COLOR} />
+          </mesh>
+        </group>
+      </group>;
+    })}
+  </>;
+}
+
 export function WallMesh({ wall, lit = false, frontMaterial }: { wall: WallSolid; lit?: boolean; frontMaterial?: Material }) {
   const Surface = lit ? 'meshStandardMaterial' : 'meshBasicMaterial';
   const geometry = useMemo(() => wall.openings.length ? wallGeometry(wall) : null, [wall.size.x, wall.size.y, wall.size.z, JSON.stringify(wall.openings)]);
   useLayoutEffect(() => () => { geometry?.dispose(); }, [geometry]);
-  if (!geometry) {
-    return <mesh position={[wall.center.x, wall.center.y, wall.center.z]} rotation={[0, wall.rotationY, 0]}>
+  const body = !geometry
+    ? <mesh castShadow={lit} receiveShadow={lit} position={[wall.center.x, wall.center.y, wall.center.z]} rotation={[0, wall.rotationY, 0]}>
       <boxGeometry args={[wall.size.x, wall.size.y, wall.size.z]} />
       <Surface attach="material-0" color={edge} />
       <Surface attach="material-1" color={edge} />
@@ -38,11 +84,16 @@ export function WallMesh({ wall, lit = false, frontMaterial }: { wall: WallSolid
       <Surface attach="material-3" color={edge} />
       <Surface attach="material-4" color={timber} />
       {frontMaterial ? <primitive object={frontMaterial} attach="material-5" dispose={null} /> : <Surface attach="material-5" color={plywood} />}
+    </mesh>
+    : <mesh castShadow={lit} receiveShadow={lit} geometry={geometry} position={[wall.center.x, wall.center.y, wall.center.z]} rotation={[0, wall.rotationY, 0]}>
+      <Surface attach="material-0" color={edge} />
+      {frontMaterial ? <primitive object={frontMaterial} attach="material-1" dispose={null} /> : <Surface attach="material-1" color={plywood} />}
+      <Surface attach="material-2" color={timber} />
     </mesh>;
-  }
-  return <mesh geometry={geometry} position={[wall.center.x, wall.center.y, wall.center.z]} rotation={[0, wall.rotationY, 0]}>
-    <Surface attach="material-0" color={edge} />
-    {frontMaterial ? <primitive object={frontMaterial} attach="material-1" dispose={null} /> : <Surface attach="material-1" color={plywood} />}
-    <Surface attach="material-2" color={timber} />
-  </mesh>;
+  return <group>
+    {body}
+    <group position={[wall.center.x, wall.center.y, wall.center.z]} rotation={[0, wall.rotationY, 0]}>
+      <DoorFittings wall={wall} lit={lit} />
+    </group>
+  </group>;
 }

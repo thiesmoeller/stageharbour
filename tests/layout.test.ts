@@ -83,16 +83,16 @@ test('resolved geometry exposes known opening millimetres for 3D and PDF', () =>
 test('example brace defaults and a known millimetre footprint map to plan corners', () => {
   const brace = newBrace(randomUUID(), 2000, 3000);
   assert.equal(brace.label, 'Stütze');
-  assert.equal(brace.footprintWidth, 600);
-  assert.equal(brace.footprintDepth, 800);
-  assert.equal(brace.height, 1800);
-  assert.deepEqual(braceCorners(brace)[0], { x: 1700, y: 2600 });
-  assert.deepEqual(braceCorners(brace)[1], { x: 2300, y: 2600 });
-  assert.deepEqual(braceCorners(brace)[2], { x: 2300, y: 3400 });
-  assert.deepEqual(braceCorners(brace)[3], { x: 1700, y: 3400 });
+  assert.equal(brace.footprintWidth, 40);
+  assert.equal(brace.footprintDepth, 500);
+  assert.equal(brace.height, 1200);
+  assert.deepEqual(braceCorners(brace)[0], { x: 1980, y: 2750 });
+  assert.deepEqual(braceCorners(brace)[1], { x: 2020, y: 2750 });
+  assert.deepEqual(braceCorners(brace)[2], { x: 2020, y: 3250 });
+  assert.deepEqual(braceCorners(brace)[3], { x: 1980, y: 3250 });
   const rotated = braceCorners({ ...brace, rotation: 90 })[0]!;
-  assert(Math.abs(rotated.x - 2400) < 1e-8);
-  assert(Math.abs(rotated.y - 2700) < 1e-8);
+  assert(Math.abs(rotated.x - 2250) < 1e-8);
+  assert(Math.abs(rotated.y - 2980) < 1e-8);
 });
 test('layouts without braces still parse; invalid brace geometry and duplicate IDs are rejected', () => {
   const parsed = layoutSchema.parse({ schemaVersion: 1, walls: [] });

@@ -58,11 +58,12 @@ export function PlatformLayer({
 }
 
 export function SurfaceField({ id, value, surfaces }: { id: string; value?: string; surfaces: SupportingSurface[] }) {
+  const surface = surfaces.find(item => item.id === value) ?? surfaces.find(item => item.elevation === 0);
   return <>
     <label htmlFor={id}>Auflagefläche</label>
-    <select id={id} name="supportingSurfaceId" defaultValue={value ?? ''}>
-      <option value="">Bitte wählen</option>
-      {surfaces.map(surface => <option key={surface.id} value={surface.id}>{surface.label} ({surface.elevation} mm)</option>)}
-    </select>
+    <input id={id} type="text" readOnly
+      value={surface ? `${surface.label} (${surface.elevation} mm)` : 'Zuschauerboden (0 mm)'}
+      title="Automatisch nach Abdeckung: Boden oder oberstes Podest unter dem Objekt" />
+    <p className="muted">Automatisch nach dem größeren Teil der Abdeckung. Mehrstufige Podeste: jeweils die oberste Fläche.</p>
   </>;
 }

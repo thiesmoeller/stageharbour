@@ -1,3 +1,4 @@
+import { openInspector, placeWallAt } from '../helpers/inspector.js';
 import { test, expect, type Page } from '@playwright/test';
 import { testAdministrator } from '../helpers/database.js';
 
@@ -32,7 +33,7 @@ test('edits in the plan update the linked 3D view, including front orientation a
   await expect(page.getByText('Rückseite (Holzrahmen, hell)')).toBeVisible();
   await expect(page.getByRole('button', { name: /Licht|Leuchte|Scheinwerfer/ })).toHaveCount(0);
 
-  await page.getByRole('button', { name: 'Wand hinzufügen' }).click();
+  await placeWallAt(page);
   const planWall = page.locator('[data-testid^="wall-"]');
   const stageWall = page.locator('[data-testid^="stage-wall-"]');
   await expect(planWall).toHaveCount(1);
@@ -72,10 +73,10 @@ test('edits in the plan update the linked 3D view, including front orientation a
   await expect(stageBrace).toHaveCount(1);
   await expect(stageBrace).toHaveAttribute('data-x', '4000');
   await expect(stageBrace).toHaveAttribute('data-z', '3000');
-  await expect(stageBrace).toHaveAttribute('data-y', '900');
-  await expect(stageBrace).toHaveAttribute('data-height', '1800');
-  await expect(stageBrace).toHaveAttribute('data-footprint-width', '600');
-  await expect(stageBrace).toHaveAttribute('data-footprint-depth', '800');
+  await expect(stageBrace).toHaveAttribute('data-y', '600');
+  await expect(stageBrace).toHaveAttribute('data-height', '1200');
+  await expect(stageBrace).toHaveAttribute('data-footprint-width', '40');
+  await expect(stageBrace).toHaveAttribute('data-footprint-depth', '500');
   await waitUntilSaved(page);
   await page.getByLabel('X (mm)').fill('2200');
   await page.getByLabel('Stützenhöhe (mm)').fill('1500');
@@ -86,11 +87,12 @@ test('edits in the plan update the linked 3D view, including front orientation a
   await waitUntilSaved(page);
   await page.getByRole('button', { name: 'Rückgängig' }).click();
   await expect(stageBrace).toHaveAttribute('data-x', '4000');
-  await expect(stageBrace).toHaveAttribute('data-height', '1800');
+  await expect(stageBrace).toHaveAttribute('data-height', '1200');
   await page.getByRole('button', { name: 'Wiederholen' }).click();
   await expect(stageBrace).toHaveAttribute('data-x', '2200');
   await waitUntilSaved(page);
 
+  await openInspector(page, 'Platzhalter');
   await page.getByRole('button', { name: 'Tisch hinzufügen' }).click();
   const stageTable = page.locator('[data-testid^="stage-placeholder-"]');
   await expect(page.locator('.plan-canvas [data-testid^="placeholder-"]')).toHaveCount(1);
@@ -126,8 +128,8 @@ test('edits in the plan update the linked 3D view, including front orientation a
   await expect(page.locator('[data-testid^="stage-stair-"]')).toHaveAttribute('data-rise', '400');
   await waitUntilSaved(page);
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
-  await page.getByLabel('Auflagefläche').selectOption({ label: 'Podest (400 mm)' });
-  await page.getByRole('button', { name: 'Übernehmen' }).click();
+  // Podest sits under the wall → Auflagefläche is assigned automatically.
+  await expect(page.getByLabel('Auflagefläche')).toHaveValue(/Podest \(400 mm\)/);
   await expect(stageWall).toHaveAttribute('data-y', '1600');
   await expect(page.getByTestId('overhead-warning')).toContainText('ragt von der Auflagefläche in die Überbauung');
   await expect(page.getByTestId('overhead-warning')).toContainText('kein statischer Nachweis');
@@ -164,10 +166,11 @@ test('edits in the plan update the linked 3D view, including front orientation a
   await expect(page.locator('[data-testid^="stage-placeholder-"]')).toHaveAttribute('data-width', '1200');
   await expect(page.locator('[data-testid^="stage-placeholder-"]')).toHaveAttribute('data-depth', '800');
 
-  await page.getByRole('button', { name: 'Wand hinzufügen' }).click();
+  await placeWallAt(page);
   await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(2);
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await page.locator('[data-testid^="wall-"]').nth(1).click({ modifiers: ['Shift'] });
+  await openInspector(page, 'Gruppieren');
   await page.getByRole('button', { name: 'Gruppieren' }).click();
   await page.getByLabel('Drehpunkt X (mm)').fill('4250');
   await page.locator('.group-panel').getByRole('button', { name: 'Übernehmen' }).click();

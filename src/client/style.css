@@ -23,7 +23,7 @@ div.scene-open { cursor: default; }
 .editor-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 320px); gap: 22px; }
 .editor-views { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 12px; min-width: 0; }
 .plan-canvas, .stage-view { min-width: 0; background: #f8faf5; border: 1px solid #e0e5d8; border-radius: 8px; padding: 12px; }
-.plan-canvas svg { width: 100%; height: min(62vh, 720px); touch-action: none; user-select: none; overscroll-behavior: contain; }
+.plan-canvas > svg { width: 100%; height: min(62vh, 720px); touch-action: none; user-select: none; overscroll-behavior: contain; }
 .stage-canvas { overscroll-behavior: contain; touch-action: none; }
 .stage-view h3 { margin: 0; font-size: 1rem; }
 .stage-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
@@ -33,6 +33,9 @@ div.scene-open { cursor: default; }
 .plan-canvas text { fill: #395640; }
 .draggable-wall { cursor: grab; }
 .draggable-wall:active { cursor: grabbing; }
+.placing-wall { opacity: .55; }
+.placing-wall rect { stroke-dasharray: 12 8; }
+svg.placing-cursor { cursor: crosshair; }
 .selection-marquee { fill: rgba(182, 124, 53, 0.14); stroke: #b67c35; stroke-width: 2; stroke-dasharray: 80 50; vector-effect: non-scaling-stroke; }
 .wall-inspector h3 { margin-top: 0; }
 .wall-inspector h4 { margin: 16px 0 8px; font-size: .85rem; }
@@ -104,7 +107,7 @@ select { font: inherit; width: 100%; padding: 8px; border: 1px solid #cbd3c8; bo
   .plans, .editor { padding: 18px; }
   .plans .section-heading { display: flex; align-items: center; }
   .scene-card { flex-direction: column; gap: 5px; }
-  .plan-canvas svg { height: 330px; }
+  .plan-canvas > svg { height: 330px; }
   .stage-canvas { height: 220px; }
   .editor-toolbar button { padding: 9px 12px; font-size: .8rem; }
   .save-status { margin-left: 0; width: 100%; }
@@ -139,7 +142,7 @@ select { font: inherit; width: 100%; padding: 8px; border: 1px solid #cbd3c8; bo
 .editor-grid { grid-template-columns: minmax(0, 1fr) 310px; align-items: start; gap: 16px; }
 .editor-views { align-items: start; }
 .plan-canvas[hidden] { display: none; }
-.stage-canvas, .plan-canvas svg, .venue-plan svg { height: clamp(350px, 62vh, 850px); }
+.stage-canvas, .plan-canvas > svg, .venue-plan svg { height: clamp(350px, 62vh, 850px); }
 .stage-measurements { margin-top: 12px; font-size: .8rem; }
 .stage-measurements summary { cursor: pointer; }
 .venue-editor-views { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
@@ -157,7 +160,7 @@ select { font: inherit; width: 100%; padding: 8px; border: 1px solid #cbd3c8; bo
   .editor-grid { grid-template-columns: minmax(0, 1fr); }
   .wall-inspector { max-height: none; }
   .split-control { display: none; }
-  .stage-canvas, .plan-canvas svg, .venue-plan svg { height: 55vh; min-height: 300px; }
+  .stage-canvas, .plan-canvas > svg, .venue-plan svg { height: 55vh; min-height: 300px; }
 }
 .stage-toolbar button, .render-toolbar button { padding: .35rem .5rem; font-size: .8rem; }
 .stage-toolbar, .render-toolbar { gap: .35rem; }

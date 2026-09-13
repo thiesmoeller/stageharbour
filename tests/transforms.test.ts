@@ -73,21 +73,28 @@ test('stage model carries known opening millimetres from the wall type', () => {
   assert.equal(solid.openings[0]?.left, 200);
   assert.equal(solid.openings[0]?.sill, 0);
 });
-test('a known millimetre brace footprint maps to a triangular 3D solid independently of Three.js', () => {
+test('a known millimetre brace footprint maps to a 40×40 timber triangle independently of Three.js', () => {
   const brace = newBrace(randomUUID(), 2000, 3000);
   const solid = braceSolid(brace);
-  assert.deepEqual(solid.size, { x: 600, y: 1800, z: 800 });
-  assertVec(solid.center, { x: 2000, y: 900, z: 3000 });
+  assert.deepEqual(solid.size, { x: 40, y: 1200, z: 500 });
+  assertVec(solid.center, { x: 2000, y: 600, z: 3000 });
   assert(Math.abs(solid.rotationY) < 1e-8);
-  assertVec(solid.footprint[0]!, { x: 1700, y: 0, z: 2600 });
-  assertVec(solid.footprint[1]!, { x: 2300, y: 0, z: 2600 });
-  assertVec(solid.footprint[2]!, { x: 2300, y: 0, z: 3400 });
-  assertVec(solid.footprint[3]!, { x: 1700, y: 0, z: 3400 });
-  assertVec(solid.ridge[0]!, { x: 1700, y: 1800, z: 2600 });
-  assertVec(solid.ridge[1]!, { x: 2300, y: 1800, z: 2600 });
+  assertVec(solid.footprint[0]!, { x: 1980, y: 0, z: 2750 });
+  assertVec(solid.footprint[1]!, { x: 2020, y: 0, z: 2750 });
+  assertVec(solid.footprint[2]!, { x: 2020, y: 0, z: 3250 });
+  assertVec(solid.footprint[3]!, { x: 1980, y: 0, z: 3250 });
+  assertVec(solid.ridge[0]!, { x: 1980, y: 1200, z: 2750 });
+  assertVec(solid.ridge[1]!, { x: 2020, y: 1200, z: 2750 });
+  assert.equal(solid.members.length, 3);
+  assert.equal(solid.members[0]?.kind, 'wall');
+  assert.equal(solid.members[1]?.kind, 'floor');
+  assert.equal(solid.members[2]?.kind, 'diagonal');
+  assert.deepEqual(solid.members[0]?.size, { x: 40, y: 1200, z: 40 });
+  assert.deepEqual(solid.members[1]?.size, { x: 40, y: 40, z: 500 });
+  assert(Math.abs((solid.members[2]?.size.y ?? 0) - Math.hypot(460, 1160)) < 1e-8);
   const rotated = braceSolid({ ...brace, rotation: 90 });
   assert(Math.abs(rotated.rotationY - (-Math.PI / 2)) < 1e-8);
-  assertVec(rotated.footprint[0]!, { x: 2400, y: 0, z: 2700 });
+  assertVec(rotated.footprint[0]!, { x: 2250, y: 0, z: 2980 });
   const model = stageModel({ schemaVersion: 1, walls: [], braces: [brace] }, { width: 8000, depth: 6000 });
   assert.equal(model.braces.length, 1);
   assert.equal(model.braces[0]!.id, brace.id);

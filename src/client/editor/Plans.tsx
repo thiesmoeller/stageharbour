@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { captureTemplateSchema, copySceneSchema, createSceneSchema, instantiateTemplateSchema, sceneListSchema, sceneSchema, sceneTemplateListSchema, sceneTemplateSchema, type Scene, type SceneTemplate, type VenueGeometry } from '../../shared/layout.js';
+import { venueListSchema, venueRecordSchema } from '../../shared/venueLibrary.js';
 import { leaseHolderSchema } from '../../shared/leases.js';
 import { AUDIENCE_FLOOR_ID } from '../../shared/levels.js';
 import { copiedSceneName } from '../../shared/scenes.js';
@@ -18,6 +19,8 @@ export function Plans({ me, onDirty }: { me: Me; onDirty: (value: boolean) => vo
   const [templates, setTemplates] = useState<ReturnType<typeof sceneTemplateListSchema.parse>>([]);
   const [opened, setOpened] = useState<{ scene: Scene; holdsLease: boolean }>();
   const [creating, setCreating] = useState(false);
+  const [availableVenues, setAvailableVenues] = useState<ReturnType<typeof venueListSchema.parse>>([]);
+  const [selectedVenueVersion, setSelectedVenueVersion] = useState('');
   const [copying, setCopying] = useState<{ source: Scene; destVenue?: VenueGeometry }>();
   const [capturing, setCapturing] = useState<{ id: string; name: string }>();
   const [instantiating, setInstantiating] = useState<{ template: SceneTemplate; destVenue?: VenueGeometry }>();
@@ -31,9 +34,10 @@ export function Plans({ me, onDirty }: { me: Me; onDirty: (value: boolean) => vo
   useEffect(() => {
     let cancelled = false;
     setBusy(true); setError('');
-    Promise.all([request(base), request(templatesBase)]).then(([sceneData, templateData]) => {
+    Promise.all([request(base), request(templatesBase), request(`/api/workspaces/${me.workspace.id}/venues`)]).then(([sceneData, templateData, venueData]) => {
       if (cancelled) return;
       setScenes(sceneListSchema.parse(sceneData));
+      setAvailableVenues(venueListSchema.parse(venueData));
       setTemplates(sceneTemplateListSchema.parse(templateData));
     }).catch(() => { if (!cancelled) setError('Bühnenbilder konnten nicht geladen werden.'); })
       .finally(() => { if (!cancelled) setBusy(false); });
@@ -58,10 +62,10 @@ export function Plans({ me, onDirty }: { me: Me; onDirty: (value: boolean) => vo
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    const input = createSceneSchema.safeParse({ productionName: data.get('productionName'), venueName: data.get('venueName'), sceneName: data.get('sceneName'), width: Number(data.get('width')), depth: Number(data.get('depth')) });
+    const input = createSceneSchema.safeParse(selectedVenueVersion ? { productionName: data.get('productionName'), sceneName: data.get('sceneName'), venueVersionId: selectedVenueVersion } : { productionName: data.get('productionName'), venueName: data.get('venueName'), sceneName: data.get('sceneName'), width: Number(data.get('width')), depth: Number(data.get('depth')) });
     if (!input.success) { setError('Bitte geben Sie gültige Namen und Maße ein.'); return; }
     setBusy(true); setError('');
-    try { await enter(sceneSchema.parse(await request(base, input.data))); setCreating(false); }
+    try { await enter(sceneSchema.parse(await request(base, input.data))); setCreating(false); setSelectedVenueVersion(''); }
     catch { setError('Das Bühnenbild konnte nicht angelegt werden. Prüfen Sie vor einem erneuten Versuch die Übersicht.'); }
     finally { setBusy(false); }
   }
@@ -70,7 +74,7 @@ export function Plans({ me, onDirty }: { me: Me; onDirty: (value: boolean) => vo
     try { await request(`${base}/${id}/duplicate`, {}); setAttempt(value => value + 1); }
     catch { setError('Die Szene konnte nicht dupliziert werden.'); setBusy(false); }
   }
-  function dismissForms() { setCreating(false); setCopying(undefined); setCapturing(undefined); setInstantiating(undefined); }
+  function dismissForms() { setCreating(false); setSelectedVenueVersion(''); setCopying(undefined); setCapturing(undefined); setInstantiating(undefined); }
   async function startCopy(id: string) {
     setBusy(true); setError(''); dismissForms();
     try {
@@ -81,8 +85,10 @@ export function Plans({ me, onDirty }: { me: Me; onDirty: (value: boolean) => vo
   }
   async function loadDestVenue(venueVersionId: string) {
     const match = scenes.find(scene => scene.venueVersionId === venueVersionId);
-    if (!match) return undefined;
-    return sceneSchema.parse(await request(`${base}/${match.id}`)).venue;
+    if (match) return sceneSchema.parse(await request(`${base}/${match.id}`)).venue;
+    const available = availableVenues.find(item => item.venueVersionId === venueVersionId);
+    if (!available) return undefined;
+    return venueRecordSchema.parse(await request(`/api/workspaces/${me.workspace.id}/venues/${available.id}/versions/${venueVersionId}`)).venue;
   }
   async function chooseDestVenue(venueVersionId: string) {
     if (!copying) return;
@@ -124,7 +130,7 @@ export function Plans({ me, onDirty }: { me: Me; onDirty: (value: boolean) => vo
     setBusy(true); setError(''); dismissForms();
     try {
       const template = sceneTemplateSchema.parse(await request(`${templatesBase}/${id}`));
-      const destVenue = scenes[0] ? await loadDestVenue(scenes[0].venueVersionId) : undefined;
+      const destVenue = availableVenues[0] ? await loadDestVenue(availableVenues[0].venueVersionId) : undefined;
       setInstantiating({ template, destVenue });
     } catch { setError('Die Szenenvorlage konnte nicht geladen werden.'); }
     finally { setBusy(false); }
@@ -172,24 +178,25 @@ export function Plans({ me, onDirty }: { me: Me; onDirty: (value: boolean) => vo
   }
   const productions = uniqueBy(scenes, scene => scene.productionId);
   const destVenue = copying?.destVenue ?? instantiating?.destVenue;
-  const venues = uniqueBy(
-    [...scenes].sort((a, b) => Number(!!a.venueUpdateAvailable) - Number(!!b.venueUpdateAvailable)),
-    scene => scene.venueId,
-  );
+  const venues = availableVenues.map(item => ({ venueId: item.id, venueVersionId: item.venueVersionId, venueName: item.name }));
+  if (copying && !venues.some(item => item.venueVersionId === copying.source.venueVersionId)) {
+    venues.unshift({ venueId: copying.source.venueId, venueVersionId: copying.source.venueVersionId, venueName: `${copying.source.venueName} (Fassung der Quellszene)` });
+  }
   const destSurfaces = [
     { id: AUDIENCE_FLOOR_ID, label: 'Zuschauerboden' },
     ...(destVenue?.platforms ?? []).map(platform => ({ id: platform.id, label: platform.label })),
   ];
   if (opened) return <Editor key={opened.scene.id} initial={opened.scene} workspaceId={me.workspace.id} readOnly={readOnly || !opened.holdsLease} onDirty={onDirty} onClose={leave} />;
-  return <section className="plans"><div className="section-heading"><h2>Bühnenbilder</h2>{!readOnly && !editingForm && <button onClick={() => setCreating(true)} disabled={busy}>Neues Bühnenbild</button>}</div>
+  return <section className="plans"><div className="section-heading"><h2>Bühnenbilder</h2>{!readOnly && !editingForm && <button onClick={() => { setSelectedVenueVersion(''); setCreating(true); }} disabled={busy}>Neues Bühnenbild</button>}</div>
     {error && <div className="error" role="alert">{error} <button className="quiet" onClick={() => setAttempt(value => value + 1)} disabled={busy}>Übersicht neu laden</button></div>}
     {creating && <form className="create-plan" onSubmit={event => void create(event)}><fieldset disabled={busy}>
-      <h3>Produktion und Spielstätte anlegen</h3><p className="muted">Für dieses Bühnenbild werden eine neue Produktion und eine rechteckige Spielstätte angelegt.</p>
+      <h3>Produktion anlegen</h3><p className="muted">Wählen Sie eine vorhandene Spielstätte oder legen Sie einen neuen Raum an.</p>
       <label htmlFor="production-name">Produktion</label><input id="production-name" name="productionName" required maxLength={120} />
-      <label htmlFor="venue-name">Spielstätte</label><input id="venue-name" name="venueName" required maxLength={120} />
+      <label htmlFor="existing-venue">Vorhandene Spielstätte</label><select id="existing-venue" value={selectedVenueVersion} onChange={event => setSelectedVenueVersion(event.target.value)}><option value="">Neue Spielstätte anlegen</option>{availableVenues.map(item => <option key={item.id} value={item.venueVersionId}>{item.name}</option>)}</select>
+      {!selectedVenueVersion && <><label htmlFor="venue-name">Spielstätte</label><input id="venue-name" name="venueName" required maxLength={120} /></>}
       <label htmlFor="scene-name">Szene</label><input id="scene-name" name="sceneName" defaultValue="Szene 1" required maxLength={120} />
-      <div className="numeric-fields"><div><label htmlFor="venue-width">Spielstättenbreite (mm)</label><input id="venue-width" name="width" type="number" min="1" max="100000" step="any" required /></div><div><label htmlFor="venue-depth">Spielstättentiefe (mm)</label><input id="venue-depth" name="depth" type="number" min="1" max="100000" step="any" required /></div></div>
-      <div className="form-actions"><button type="submit">Bühnenbild anlegen</button><button className="quiet" type="button" onClick={() => setCreating(false)}>Abbrechen</button></div>
+      {!selectedVenueVersion && <div className="numeric-fields"><div><label htmlFor="venue-width">Spielstättenbreite (mm)</label><input id="venue-width" name="width" type="number" min="1" max="100000" step="any" required /></div><div><label htmlFor="venue-depth">Spielstättentiefe (mm)</label><input id="venue-depth" name="depth" type="number" min="1" max="100000" step="any" required /></div></div>}
+      <div className="form-actions"><button type="submit">Bühnenbild anlegen</button><button className="quiet" type="button" onClick={() => { setCreating(false); setSelectedVenueVersion(''); }}>Abbrechen</button></div>
     </fieldset></form>}
     {copying && <form className="create-plan" onSubmit={event => void copy(event)}><fieldset disabled={busy}>
       <h3>Spielstättenanpassung anlegen</h3>

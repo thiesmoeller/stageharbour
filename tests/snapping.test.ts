@@ -224,7 +224,7 @@ test('already-aligned walls still show a wall-edge guide while dragging', () => 
 test('a brace snaps onto a nearby wall edge and auto-aligns its tall face', () => {
   const wall = newWall(randomUUID(), 0, 0);
   // Tall-face mid at centre.y - depth/2; keep that face within SNAP_DISTANCE_MM of the wall edge.
-  const brace = { ...newBrace(randomUUID(), 0, 450), footprintWidth: 600, footprintDepth: 800 };
+  const brace = { ...newBrace(randomUUID(), 0, 300), footprintWidth: 40, footprintDepth: 500 };
   const snapped = snapBracePose(brace, [wall], undefined);
   assert.equal(snapped.guides[0]?.kind, 'wall-edge');
   const aligned = alignBraceToNearestWall({ ...brace, x: snapped.x, y: snapped.y }, [wall], { force: true });
@@ -234,7 +234,7 @@ test('a brace snaps onto a nearby wall edge and auto-aligns its tall face', () =
 
 test('snapped brace rotation keeps the tall face on the contact hinge', () => {
   const wall = newWall(randomUUID(), 0, 0);
-  const brace = alignBraceToNearestWall({ ...newBrace(randomUUID(), 0, 80), footprintWidth: 600, footprintDepth: 800 }, [wall], { force: true });
+  const brace = alignBraceToNearestWall({ ...newBrace(randomUUID(), 0, 80), footprintWidth: 40, footprintDepth: 500 }, [wall], { force: true });
   assert(brace);
   const contact = braceContactHinge(brace, [wall]);
   assert(contact);

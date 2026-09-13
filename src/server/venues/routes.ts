@@ -8,6 +8,7 @@ import {
   applyVenueResultSchema, saveVenueResultSchema, saveVenueSchema, venueGeometrySchema, type Layout, type VenueGeometry,
 } from '../../shared/layout.js';
 import { applyVenueVersion } from '../../shared/scenes.js';
+import { createVenueSchema, publishVenueSchema, venueListSchema, venueRecordSchema } from '../../shared/venueLibrary.js';
 import { boundsFromOutline } from '../../shared/venue.js';
 import type { Database } from '../db/connection.js';
 import { adaptation, production, scene, venue, venueReference, venueVersion } from '../db/schema.js';
@@ -133,12 +134,7 @@ export function registerVenueRoutes(
       .header('Content-Disposition', `inline; filename="${row.originalName.replaceAll('"', '')}"`)
       .send(await storage.get(row.storageKey));
   });
-  api.put('/api/workspaces/:workspaceId/scenes/:sceneId/venue', {
-    schema: { params: sceneParams, body: saveVenueSchema, response: { 200: saveVenueResultSchema, ...errors } },
-  }, async request => {
-    const { workspaceId, sceneId } = request.params;
-    const { user } = await requireEditor(request, workspaceId);
-    const input = request.body.venue;
+  async function validateReference(workspaceId: string, input: VenueGeometry) {
     if (input.trace) {
       const [file] = await db.select().from(venueReference)
         .where(and(eq(venueReference.workspaceId, workspaceId), eq(venueReference.id, input.trace.fileId)));
@@ -148,14 +144,80 @@ export function registerVenueRoutes(
         throw new VenueError(400, 'Diese PDF-Seite ist nicht vorhanden.');
       }
     }
+  }
+  const venuesPath = '/api/workspaces/:workspaceId/venues';
+  const venueParams = workspaceParamsSchema.extend({ venueId: z.uuid() });
+  async function loadVenue(store: Pick<Database, 'select'>, workspaceId: string, venueId: string, versionId?: string) {
+    const [row] = await store.select({ id: venue.id, name: venue.name, venueVersionId: venueVersion.id, venue: venueVersion.geometry })
+      .from(venue).innerJoin(venueVersion, eq(venueVersion.venueId, venue.id))
+      .where(and(eq(venue.workspaceId, workspaceId), eq(venue.id, venueId), versionId ? eq(venueVersion.id, versionId) : undefined))
+      .orderBy(desc(venueVersion.createdAt), desc(venueVersion.id)).limit(1);
+    if (!row) throw new AccessError(404, 'Spielstätte nicht verfügbar.');
+    return { ...row, width: row.venue.width, depth: row.venue.depth };
+  }
+  api.get(venuesPath, { schema: { params: workspaceParamsSchema, response: { 200: venueListSchema, ...errors } } }, async request => {
+    const { workspaceId } = request.params;
+    await access(request, workspaceId);
+    const rows = await db.selectDistinctOn([venue.id], { id: venue.id, name: venue.name, venueVersionId: venueVersion.id, geometry: venueVersion.geometry })
+      .from(venue).innerJoin(venueVersion, eq(venueVersion.venueId, venue.id))
+      .where(eq(venue.workspaceId, workspaceId))
+      .orderBy(venue.id, desc(venueVersion.createdAt), desc(venueVersion.id));
+    return rows.map(row => ({ id: row.id, name: row.name, venueVersionId: row.venueVersionId, width: row.geometry.width, depth: row.geometry.depth }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'de'));
+  });
+  api.get(`${venuesPath}/:venueId`, { schema: { params: venueParams, response: { 200: venueRecordSchema, ...errors } } }, async request => {
+    await access(request, request.params.workspaceId);
+    return loadVenue(db, request.params.workspaceId, request.params.venueId);
+  });
+  api.get(`${venuesPath}/:venueId/versions/:venueVersionId`, {
+    schema: { params: venueParams.extend({ venueVersionId: z.uuid() }), response: { 200: venueRecordSchema, ...errors } },
+  }, async request => {
+    const { workspaceId, venueId, venueVersionId } = request.params;
+    await access(request, workspaceId);
+    return loadVenue(db, workspaceId, venueId, venueVersionId);
+  });
+  api.post(venuesPath, { schema: { params: workspaceParamsSchema, body: createVenueSchema, response: { 201: venueRecordSchema, ...errors } } }, async (request, reply) => {
+    const { workspaceId } = request.params;
+    await requireEditor(request, workspaceId);
+    const { name, width, depth } = request.body;
+    const id = randomUUID(), versionId = randomUUID();
+    await db.transaction(async tx => {
+      await tx.insert(venue).values({ id, workspaceId, name });
+      await tx.insert(venueVersion).values({ id: versionId, workspaceId, venueId: id, geometry: { schemaVersion: 1, width, depth } });
+    });
+    return reply.code(201).send(await loadVenue(db, workspaceId, id));
+  });
+  api.put(`${venuesPath}/:venueId`, { schema: { params: venueParams, body: publishVenueSchema, response: { 200: venueRecordSchema, ...errors } } }, async request => {
+    const { workspaceId, venueId } = request.params;
+    await requireEditor(request, workspaceId);
+    await validateReference(workspaceId, request.body.venue);
+    return db.transaction(async tx => {
+      await tx.select({ id: venue.id }).from(venue).where(and(eq(venue.workspaceId, workspaceId), eq(venue.id, venueId))).for('update');
+      const current = await loadVenue(tx, workspaceId, venueId);
+      if (current.venueVersionId !== request.body.venueVersionId) throw new AccessError(409, 'Eine neuere Spielstättenfassung ist vorhanden. Bitte sichern Sie Ihren Entwurf und laden Sie die Spielstätte neu.');
+      const input = request.body.venue;
+      const geometry = input.outline ? { ...input, ...boundsFromOutline(input.outline) } : input;
+      await tx.insert(venueVersion).values({ id: randomUUID(), workspaceId, venueId, geometry, createdAt: sql`clock_timestamp()` });
+      // Independent publication deliberately leaves all production adaptations pinned.
+      return loadVenue(tx, workspaceId, venueId);
+    });
+  });
+  api.put('/api/workspaces/:workspaceId/scenes/:sceneId/venue', {
+    schema: { params: sceneParams, body: saveVenueSchema, response: { 200: saveVenueResultSchema, ...errors } },
+  }, async request => {
+    const { workspaceId, sceneId } = request.params;
+    const { user } = await requireEditor(request, workspaceId);
+    const input = request.body.venue;
+    await validateReference(workspaceId, input);
     const geometry = input.outline ? { ...input, ...boundsFromOutline(input.outline) } : input;
     return db.transaction(async tx => {
       const pinned = await loadPinned(tx, workspaceId, sceneId);
       await leases.requireHeld(tx, workspaceId, 'scene', sceneId, user.id);
+      await tx.select({ id: venue.id }).from(venue).where(eq(venue.id, pinned.venueId)).for('update');
       const nextId = randomUUID();
       // Auto-apply the issuing adaptation so VenuePanel reload after save shows
       // the new version. Sibling adaptations remain on the previous pin.
-      await tx.insert(venueVersion).values({ id: nextId, workspaceId, venueId: pinned.venueId, geometry });
+      await tx.insert(venueVersion).values({ id: nextId, workspaceId, venueId: pinned.venueId, geometry, createdAt: sql`clock_timestamp()` });
       const applied = await retargetAdaptation(tx, workspaceId, pinned.adaptationId, nextId, geometry);
       const state = applied.get(sceneId)!;
       return { venue: geometry, venueVersionId: nextId, layout: state.layout, revision: state.revision };
