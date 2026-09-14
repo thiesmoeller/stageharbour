@@ -72,7 +72,9 @@ test('design a venue independently, reuse it in a production, and save scene lig
   await page.getByRole('button', { name: /Studiobühne.*gestalten/ }).click();
   await page.locator('.lighting-panel summary').click();
   await expect(page.getByLabel('Frontlichtfarbe')).toHaveValue('#ffd19a');
+  await page.getByLabel('Spielstättenobjekt auswählen').selectOption({ label: 'Feste Wand 1' });
   await expect(page.getByLabel('Feste Wand 1 width')).toHaveValue('6000');
+  await page.locator('.inspector-section').filter({ has: page.locator('summary', { hasText: 'Überbauung' }) }).locator('summary').click();
   await page.getByLabel('Deckenhöhe über Fußboden (mm)').fill('5500');
   await page.getByRole('button', { name: 'Spielstätte speichern', exact: true }).click();
   await expect(page.getByText('Spielstättenfassung gespeichert', { exact: true })).toBeVisible();

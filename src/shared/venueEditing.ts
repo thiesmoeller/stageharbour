@@ -1,5 +1,6 @@
 import { venueGeometrySchema, wallCorners, type VenueGeometry } from './layout.js';
 import { platformCentroid, stairCorners } from './levels.js';
+import { placeholderCorners } from './placeholders.js';
 import { normalizeRotation, type PlanTransform } from './editing.js';
 import { resolveWall } from './wall-types.js';
 import type { PlanBounds } from './selection.js';
@@ -9,6 +10,7 @@ export function venueObjects(venue: VenueGeometry) {
     ...(venue.walls ?? []).map(item => ({ ...item, kind: 'wall' as const })),
     ...(venue.platforms ?? []).map(item => ({ ...item, ...platformCentroid(item.outline), kind: 'platform' as const })),
     ...(venue.stairs ?? []).map(item => ({ ...item, kind: 'stair' as const })),
+    ...(venue.placeholders ?? []).map(item => ({ ...item, kind: 'placeholder' as const })),
     ...(venue.overheadBoxes ?? []).map(item => ({ ...item, kind: 'overhead' as const })),
     ...(venue.connectionPoints ?? []).map(item => ({ ...item, kind: 'pin' as const })),
     ...(venue.keepClearZones ?? []).map(item => ({ ...item, ...platformCentroid(item.polygon), kind: 'zone' as const })),
@@ -21,6 +23,7 @@ export function venueObjectFootprint(item: VenueObject, venue: VenueGeometry) {
     case 'wall': return wallCorners(resolveWall(item, venue.wallTypes ?? []));
     case 'platform': return item.outline;
     case 'stair': return stairCorners(item);
+    case 'placeholder': return placeholderCorners(item);
     case 'zone': return item.polygon;
     case 'corridor': return item.path;
     case 'pin': return [{ x: item.x - 65, y: item.y - 65 }, { x: item.x + 65, y: item.y + 65 }];
@@ -35,7 +38,7 @@ export function venueObjectsInBounds(venue: VenueGeometry, bounds: PlanBounds) {
   }).map(item => item.id);
 }
 
-const objectFields = ['walls', 'platforms', 'stairs', 'overheadBoxes', 'connectionPoints', 'keepClearZones', 'cableRoutingCorridors'] as const;
+const objectFields = ['walls', 'platforms', 'stairs', 'placeholders', 'overheadBoxes', 'connectionPoints', 'keepClearZones', 'cableRoutingCorridors'] as const;
 export type VenueClipboard = { source: VenueGeometry; ids: string[]; cut: boolean; offset: number };
 export function copyVenueSelection(venue: VenueGeometry, ids: readonly string[], cut = false): VenueClipboard | undefined {
   const selected = venueObjects(venue).filter(item => ids.includes(item.id)).map(item => item.id);
@@ -51,7 +54,7 @@ export function cutVenueSelection(venue: VenueGeometry, ids: readonly string[]) 
 /** Deletion is atomic: retaining a dependent object must not leave an unknown platform reference. */
 export function removeVenueSelection(venue: VenueGeometry, ids: readonly string[]): { venue: VenueGeometry; blocked: boolean } {
   const platforms = new Set((venue.platforms ?? []).filter(p => ids.includes(p.id)).map(p => p.id));
-  const dependent = [...venue.walls ?? [], ...venue.keepClearZones ?? []].some(item => !ids.includes(item.id) && item.supportingSurfaceId && platforms.has(item.supportingSurfaceId))
+  const dependent = [...venue.walls ?? [], ...venue.keepClearZones ?? [], ...venue.placeholders ?? []].some(item => !ids.includes(item.id) && item.supportingSurfaceId && platforms.has(item.supportingSurfaceId))
     || (venue.stairs ?? []).some(item => !ids.includes(item.id) && (platforms.has(item.lowerSurfaceId) || platforms.has(item.upperSurfaceId)));
   if (dependent) return { venue, blocked: true };
   const next = { ...venue };
@@ -89,7 +92,8 @@ export function transformVenue(venue: VenueGeometry, ids: readonly string[], del
   const cos = Math.cos(delta.rotation * Math.PI / 180), sin = Math.sin(delta.rotation * Math.PI / 180);
   const point = (p: { x: number; y: number }) => ({ x: pivot.x + (p.x - pivot.x) * cos - (p.y - pivot.y) * sin + delta.x, y: pivot.y + (p.x - pivot.x) * sin + (p.y - pivot.y) * cos + delta.y });
   const posed = <T extends { id: string; x: number; y: number }>(items: T[] | undefined) => items?.map(item => ids.includes(item.id) ? { ...item, ...point(item), ...('rotation' in item && typeof item.rotation === 'number' ? { rotation: normalizeRotation(item.rotation + delta.rotation) } : {}) } : item);
-  const candidate = { ...venue, walls: posed(venue.walls), stairs: posed(venue.stairs), overheadBoxes: posed(venue.overheadBoxes), connectionPoints: posed(venue.connectionPoints),
+  const candidate = { ...venue, walls: posed(venue.walls), stairs: posed(venue.stairs), placeholders: posed(venue.placeholders),
+    overheadBoxes: posed(venue.overheadBoxes), connectionPoints: posed(venue.connectionPoints),
     platforms: venue.platforms?.map(item => ids.includes(item.id) ? { ...item, outline: item.outline.map(point) } : item),
     keepClearZones: venue.keepClearZones?.map(item => ids.includes(item.id) ? { ...item, polygon: item.polygon.map(point) } : item),
     cableRoutingCorridors: venue.cableRoutingCorridors?.map(item => ids.includes(item.id) ? { ...item, path: item.path.map(point) } : item),

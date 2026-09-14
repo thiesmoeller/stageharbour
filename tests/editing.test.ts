@@ -45,13 +45,33 @@ test('invalid transforms preserve the previous document and repeated rotations n
 test('permanent venue walls and platforms transform together without altering the saved source', () => {
   const wall = newWall(randomUUID(), 1000, 1000);
   const platform = newPlatform(randomUUID(), 3000, 1000);
-  const venue = { schemaVersion: 1 as const, width: 8000, depth: 6000, walls: [wall], platforms: [platform] };
+  const chair = newPlaceholder('chair', randomUUID(), 2000, 500);
+  const venue = { schemaVersion: 1 as const, width: 8000, depth: 6000, walls: [wall], platforms: [platform], placeholders: [chair] };
   const moved = transformVenue(venue, [wall.id, platform.id], { x: 100, y: 200, rotation: 90 });
   assert.deepEqual([moved.walls![0]!.x, moved.walls![0]!.y], [2100, 200]);
   assert.equal(wall.x, 1000);
   assert.equal(moved.walls![0]!.rotation, 90);
+  const spun = transformVenue(venue, [chair.id], { x: 50, y: 0, rotation: 45 });
+  assert.equal(spun.placeholders![0]!.rotation, 45);
+  assert.equal(spun.placeholders![0]!.x, 2050);
+  assert.equal(stageModel({ schemaVersion: 1, walls: [], braces: [] }, spun).placeholders.some(item => item.id === chair.id), true);
   assert.equal(stageModel({ schemaVersion: 1, walls: [], braces: [] }, moved).walls[0]!.id, wall.id);
   assert.equal(transformVenue(venue, [wall.id], { x: Infinity, y: 0, rotation: 0 }), venue);
+});
+
+test('venue podium rotation turns the outline around its centroid', () => {
+  const platform = newPlatform(randomUUID(), 4000, 3000);
+  const before = platform.outline.map(point => ({ ...point }));
+  const venue = { schemaVersion: 1 as const, width: 8000, depth: 6000, platforms: [platform] };
+  const turned = transformVenue(venue, [platform.id], { x: 0, y: 0, rotation: 90 });
+  assert.notDeepEqual(turned.platforms![0]!.outline, before);
+  assert.deepEqual(
+    {
+      x: Math.round(turned.platforms![0]!.outline.reduce((sum, p) => sum + p.x, 0) / 4),
+      y: Math.round(turned.platforms![0]!.outline.reduce((sum, p) => sum + p.y, 0) / 4),
+    },
+    { x: 4000, y: 3000 },
+  );
 });
 
 test('venue rubberband, clipboard and dependent deletion keep platform references valid', () => {

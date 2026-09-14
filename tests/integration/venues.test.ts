@@ -13,6 +13,7 @@ import { type Scene } from '../../src/shared/layout.js';
 import { AUDIENCE_FLOOR_ID, newPlatform, newStair } from '../../src/shared/levels.js';
 import { newOverheadBox } from '../../src/shared/overhead.js';
 import { newKeepClearZone } from '../../src/shared/keepClear.js';
+import { newPlaceholder } from '../../src/shared/placeholders.js';
 import { testAdministrator, testDatabase } from '../helpers/database.js';
 import { pngBytes, twoPagePdf } from '../helpers/references.js';
 
@@ -215,6 +216,20 @@ test('saves keep-clear zones on the pinned venue version', async () => {
   assert.deepEqual(again.venue.keepClearZones?.[0]?.polygon, zone.polygon);
   assert.notEqual(again.venueVersionId, loaded.venueVersionId);
   assert.deepEqual(again.venue.outline, outline);
+});
+
+test('saves audience chairs as venue placeholders on the pinned venue version', async () => {
+  const loaded = (await app.inject({ url: `${scenes}/${scene.id}`, headers })).json<Scene>();
+  const chair = newPlaceholder('chair', randomUUID(), 1200, 800);
+  const saved = await app.inject({
+    method: 'PUT', url: `${scenes}/${scene.id}/venue`, headers,
+    payload: { venue: { ...loaded.venue, placeholders: [chair] } },
+  });
+  assert.equal(saved.statusCode, 200, saved.body);
+  const again = (await app.inject({ url: `${scenes}/${scene.id}`, headers })).json<Scene>();
+  assert.equal(again.venue.placeholders?.[0]?.kind, 'chair');
+  assert.equal(again.venue.placeholders?.[0]?.x, 1200);
+  assert.notEqual(again.venueVersionId, loaded.venueVersionId);
 });
 
 test('saves a stage centreline, freeze keeps it, later centreline edits do not change the stored PDF', async () => {

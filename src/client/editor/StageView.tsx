@@ -1,4 +1,5 @@
 import { defaultLighting, type StageLightingSettings } from '../../shared/lighting.js';
+import { ToolIcon } from './ToolIcon.js';
 import { LightingPanel } from './LightingPanel.js';
 import { StageLighting } from './StageLighting.js';
 import { lazy, Suspense, useLayoutEffect, useRef, useState } from 'react';
@@ -50,9 +51,15 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
   const target = audience ? model.audience.target : model.orbitTarget;
   return <div className="stage-view" data-testid="stage-view" data-view={view}>
     <div className="stage-toolbar"><h3>Raumsicht</h3>
-      <button type="button" className="quiet" onClick={() => setView('audience')}>Publikumssicht</button>
-      <button type="button" className="quiet" onClick={() => setView('orbit')}>Umlaufansicht</button>
-      {enhanced && <><button type="button" className="quiet" onClick={() => setView('top')}>Von oben</button><button type="button" className="quiet" onClick={() => setView('front')}>Von vorne</button><button type="button" className="quiet" onClick={() => setView('side')}>Von der Seite</button></>}<button type="button" className="quiet" onClick={() => setEnhanced(value => !value)}>{enhanced ? 'Einfache Darstellung' : 'Erweiterte Darstellung'}</button></div>
+      <div className="camera-presets" role="group" aria-label="Kamerablick">
+        {([{ id: 'orbit', label: 'Umlaufansicht' }, { id: 'audience', label: 'Publikumssicht' },
+          ...(enhanced ? [{ id: 'top', label: 'Von oben' }, { id: 'front', label: 'Von vorne' }, { id: 'side', label: 'Von der Seite' }] as const : []),
+        ] as const).map(preset => <button key={preset.id} type="button" className="quiet" aria-label={preset.label} title={preset.label}
+          aria-pressed={view === preset.id} onClick={() => setView(preset.id)}><ToolIcon name={preset.id} /></button>)}
+      </div>
+      <span className="camera-projection">{view === 'top' || view === 'front' || view === 'side' ? 'Parallelprojektion' : 'Perspektive'}</span>
+      <button type="button" className="quiet renderer-toggle" onClick={() => { setEnhanced(value => !value); setView('orbit'); }} title={enhanced ? 'Einfache Darstellung' : 'Erweiterte Darstellung'} aria-label={enhanced ? 'Einfache Darstellung' : 'Erweiterte Darstellung'}><ToolIcon name="settings" /></button>
+    </div>
     <LightingPanel value={lighting} onChange={onLightingChange} scope={!onLightingChange ? 'Gespeicherte Lichtstimmung · nur Ansicht.' : editing.venueEditable ? 'Teil des Spielstättenentwurfs · mit der Spielstätte speichern.' : 'Änderungen werden mit dieser Szene gespeichert.'} />
     {enhanced ? <Suspense fallback={<p role="status">Raumsicht wird geladen …</p>}><PascalStageCanvas model={model} layout={layout} venue={venue} audience={audience} view={view} assets={assets} workspaceId={workspaceId} lighting={lighting} {...editing} /></Suspense> : <div ref={simpleCanvas} className="stage-canvas" role="img" aria-label="Raumsicht der Spielstätte">
       <Canvas shadows key={audience ? 'audience' : 'orbit'} gl={{ antialias: true, alpha: false }} dpr={[1, 2]}>

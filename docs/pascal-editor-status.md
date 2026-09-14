@@ -39,8 +39,20 @@ Verification: production build and type checking pass; all 23 unit-test files an
 
 Visual follow-up remains: crew feedback, broader browser/GPU acceptance, and refinement of the 3D camera/render controls. This update changes presentation and access to existing tools, not the scene document format.
 
-## Independent venues and stage lighting (13 September 2026)
+## Venue editor shell (13 September 2026)
+
+The independent Spielstätte editor now uses the same canvas-first chrome as the scene workspace: left tool rail, 2D/3D view modes, and a right-hand properties tray. Outline, calibration, infrastructure, levels, overhead, keep-clear and centreline live in collapsed inspector sections instead of a long stacked form.
 
 Spielstätten can be designed outside a production: outline, fixed walls and a default warm/cool lighting mood live on the venue version. Creating a production can pin an existing venue version instead of inventing a new rectangle. Copying a scene into another venue and inserting a scene template both offer the venue library as destination choices, so an existing production can adopt a newly designed room.
 
 Scene lighting is stored on the layout and edited from the Raumsicht panel; venue lighting stays on the venue draft until published. Reloading keeps the two independently. Browser coverage walks the full path (standalone venue → production reuse → scene preset → blackout screenshot → copy into a second library venue). The wall-height inspector label uses an exact match so it no longer collides with the lighting “Aufhängepunkt” field.
+
+## Camera and workspace polish (14 September 2026)
+
+Scene and venue workspaces now offer a collapsible properties tray, retaining mounted forms and unfinished entries. The 3D camera presets use compact labelled icons with active states; render environment and quality settings live in a disclosure. Switching to the simple renderer returns to the supported orbit view, and repeated fit commands reset the camera after navigation.
+
+3D selection clearing now goes through the pointer-distance check instead of also handling the floor click, so releasing a transform handle preserves the selected object's properties. Browser journeys were updated for click-to-place library walls, collapsed render/venue settings, and automatic platform support with separate platform/stair undo steps.
+
+Overhead and keep-clear overlays ignore pointer events when no editing handler is supplied, allowing scene objects beneath them to be selected while preserving venue editing.
+
+Verification: production build and TypeScript checks pass. Nine targeted Chromium journeys passed across the final run and focused rerun: assets, responsive workspace, five gesture journeys, linked plan/3D editing, and venue lighting. The focused rerun after the overlay fix passed all six interaction and linked-view checks. Desktop and mobile screenshots were visually inspected during verification.

@@ -62,6 +62,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     groups: initial.layout.groups ?? [], placeholders: initial.layout.placeholders ?? [],
   }));
   const root = useRef<HTMLElement>(null);
+  const [inspectorOpen, setInspectorOpen] = useState(true);
   const [viewMode, setViewMode] = useState<'split' | 'plan' | 'stage'>('split');
   const [viewShare, setViewShare] = useState(55);
   const current = useRef(state);
@@ -439,7 +440,10 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     placeholders: (state.present.placeholders ?? []).map(item => previewPlaceholder?.id === item.id ? previewPlaceholder : item),
   };
   const overheadWarnings = overheadClearance(liveLayout, venue);
-  const overlapWarnings = keepClearWarnings(venue, liveLayout);
+  const overlapWarnings = keepClearWarnings(venue, {
+    ...liveLayout,
+    placeholders: [...(liveLayout.placeholders ?? []), ...(venue.placeholders ?? [])],
+  });
   const raised = surfaces.find(surface => surface.id !== AUDIENCE_FLOOR_ID);
   function point(event: { clientX: number; clientY: number }) {
     const matrix = svg.current?.getScreenCTM();
@@ -1108,6 +1112,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     <div className="workspace-viewbar" hidden={venueOpen} role="toolbar" aria-label="Ansichten">
       <div className="view-modes">{(['split', 'plan', 'stage'] as const).map(mode => <button key={mode} type="button" className="quiet" aria-pressed={viewMode === mode} onClick={() => setViewMode(mode)}>{mode === 'split' ? '2D + 3D' : mode === 'plan' ? 'Grundriss' : 'Raumansicht'}</button>)}</div>
       <label className="split-control" hidden={viewMode !== 'split'}>Aufteilung<input aria-label="Ansichten aufteilen" type="range" min="30" max="70" value={viewShare} onChange={event => setViewShare(Number(event.target.value))} /></label>
+      <button type="button" className="quiet" aria-expanded={inspectorOpen} onClick={() => setInspectorOpen(open => !open)} title={inspectorOpen ? 'Eigenschaften ausblenden' : 'Eigenschaften einblenden'} aria-label="Eigenschaften"><ToolIcon name="tray" /></button>
       <button type="button" className="quiet" onClick={() => { if (document.fullscreenElement) void document.exitFullscreen(); else void root.current?.requestFullscreen(); }} title="Vollbild" aria-label="Vollbild"><ToolIcon name="expand" /></button>
     </div>
     </div>
@@ -1148,7 +1153,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
       <button onClick={downloadDraft}>Lokalen Entwurf herunterladen</button>{' '}
       <button className="quiet" onClick={() => { if (window.confirm('Lokale Änderungen verwerfen und die gespeicherte Fassung laden?')) { saver.dispose(); onDirty(false); onClose(); } }}>Gespeicherte Fassung laden</button>
     </div>}
-    {!venueOpen && <div className="editor-grid"><div className="editor-views" data-mode={viewMode} style={viewMode === 'split' ? { gridTemplateColumns: `minmax(0, ${viewShare}fr) minmax(0, ${100 - viewShare}fr)` } : { gridTemplateColumns: 'minmax(0, 1fr)' }}><div className="plan-canvas" hidden={viewMode === 'stage'}>
+    {!venueOpen && <div className="editor-grid" data-inspector-open={inspectorOpen}><div className="editor-views" data-mode={viewMode} style={viewMode === 'split' ? { gridTemplateColumns: `minmax(0, ${viewShare}fr) minmax(0, ${100 - viewShare}fr)` } : { gridTemplateColumns: 'minmax(0, 1fr)' }}><div className="plan-canvas" hidden={viewMode === 'stage'}>
       <div className="plan-viewbar"><h3>Grundriss <span>2D</span></h3><div className="plan-zoom">
       <button type="button" className="quiet" onClick={() => setViewZoom(z => Math.min(8, z * 1.25))} title="Grundriss vergrößern" aria-label="Vergrößern"><ToolIcon name="plus" /></button>
       <button type="button" className="quiet" onClick={() => setViewZoom(z => Math.max(0.4, z / 1.25))} title="Grundriss verkleinern" aria-label="Verkleinern"><ToolIcon name="minus" /></button>

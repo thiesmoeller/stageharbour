@@ -24,6 +24,12 @@ test('editor keeps the canvas in view, preserves tray drafts, and adapts to smal
   await openInspector(page, 'Wandtypen');
   await page.getByRole('button', { name: 'Wandtyp anlegen' }).click();
   await page.getByLabel('Wandtyp-Bezeichnung').fill('Türwand im Entwurf');
+  const viewsWidth = (await page.locator('.editor-views').boundingBox())!.width;
+  await page.getByRole('button', { name: 'Eigenschaften', exact: true }).click();
+  await expect(page.locator('.wall-inspector')).toBeHidden();
+  expect((await page.locator('.editor-views').boundingBox())!.width).toBeGreaterThan(viewsWidth + 200);
+  await page.getByRole('button', { name: 'Eigenschaften', exact: true }).click();
+  await expect(page.getByLabel('Wandtyp-Bezeichnung')).toHaveValue('Türwand im Entwurf');
   await wallTypes.locator('summary').click();
   await openInspector(page, 'Wandtypen');
   await expect(page.getByLabel('Wandtyp-Bezeichnung')).toHaveValue('Türwand im Entwurf');
@@ -44,6 +50,18 @@ test('editor keeps the canvas in view, preserves tray drafts, and adapts to smal
 
   await page.getByRole('button', { name: 'Raumansicht', exact: true }).click();
   await expect(page.locator('.plan-canvas')).toBeHidden();
+  for (const [label, view] of [['Von oben', 'top'], ['Von vorne', 'front'], ['Von der Seite', 'side'], ['Publikumssicht', 'audience'], ['Umlaufansicht', 'orbit']] as const) {
+    await page.getByRole('button', { name: label, exact: true }).click();
+    await expect(page.getByTestId('stage-view')).toHaveAttribute('data-view', view);
+    await expect(page.getByRole('button', { name: label, exact: true })).toHaveAttribute('aria-pressed', 'true');
+  }
+  await page.getByRole('button', { name: 'Von oben', exact: true }).click();
+  await page.getByRole('button', { name: 'Einfache Darstellung', exact: true }).click();
+  await expect(page.getByTestId('stage-view')).toHaveAttribute('data-view', 'orbit');
+  await page.getByRole('button', { name: 'Erweiterte Darstellung', exact: true }).click();
+  await expect(page.locator('[data-renderer="pascal"] canvas')).toBeVisible();
+  await page.getByRole('button', { name: 'Bühne einpassen', exact: true }).click();
+  await page.getByRole('button', { name: 'Bühne einpassen', exact: true }).click();
   await expect(page.getByLabel('Ansichten aufteilen')).toBeHidden();
   await page.getByRole('button', { name: 'Grundriss', exact: true }).click();
   await expect(page.getByTestId('stage-view')).toHaveCount(0);

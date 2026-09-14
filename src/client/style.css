@@ -146,8 +146,11 @@ select { font: inherit; width: 100%; padding: 8px; border: 1px solid #cbd3c8; bo
 .stage-measurements { margin-top: 12px; font-size: .8rem; }
 .stage-measurements summary { cursor: pointer; }
 .venue-editor-views { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.venue-editor .venue-editor-views { gap: 1px; padding: 10px 10px 10px 0; align-items: stretch; overflow-y: auto; }
 .venue-plan { min-width: 0; overflow: hidden; background: #f8faf5; border: 1px solid #dbe2d6; border-radius: 8px; }
+.venue-editor .plan-canvas.venue-plan { background: #f8fafb; border-color: #d6dfe3; border-radius: 5px; }
 .venue-plan svg { width: 100%; touch-action: none; }
+.venue-editor .plan-canvas.venue-plan > svg { height: auto; }
 .venue-outliner { max-width: 480px; }
 .wall-inspector { max-height: 85vh; overflow: auto; padding: 12px; border: 1px solid #dbe2d6; border-radius: 8px; }
 @media(max-width: 1100px) {

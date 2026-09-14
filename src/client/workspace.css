@@ -125,6 +125,31 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
 .workspace-help p:last-child { margin-bottom: 0; }
 .editor > .asset-library, .editor > .export-drawer { position: absolute; z-index: 10; top: 112px; left: 76px; right: 12px; bottom: 42px; margin: 0; padding: 24px; overflow-y: auto; background: white; border-color: var(--ui-line); box-shadow: 0 8px 30px #2030401a; }
 .editor > .export-panel[aria-label="Spielstätte"] { flex: 1; min-height: 0; overflow-y: auto; margin: 0 0 0 -76px; padding: 20px; border: 0; border-radius: 0; background: #f8fafb; }
+.venue-editor {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  margin-left: -76px;
+  width: calc(100% + 76px);
+  padding-left: 76px;
+  box-sizing: border-box;
+}
+.venue-editor .workspace-commandbar,
+.venue-editor .workspace-statusbar { margin-left: -76px; padding-left: 76px; }
+.venue-editor .tool-rail {
+  top: 52px;
+  left: 9px;
+  bottom: 36px;
+  max-height: calc(100% - 88px);
+}
+.venue-editor .editor-grid { flex: 1; min-height: 0; }
+.venue-editor .venue-editor-views { min-height: 0; }
+.venue-editor .plan-canvas.venue-plan { min-height: 0; }
+.venue-editor .plan-canvas.venue-plan > svg { flex: 1 0 300px; height: auto; min-height: 300px; }
+.editor:has(> .venue-editor) > .workspace-statusbar { display: none; }
 .editor > .error { flex-shrink: 0; margin: 8px 12px 8px 0; }
 .editor [hidden] { display: none !important; }
 @media (min-width: 1101px) { .editor-views { grid-template-rows: minmax(0, 1fr); } }
@@ -161,6 +186,9 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
   .workspace-statusbar button { margin-left: auto; }
   .editor > .asset-library, .editor > .export-drawer { position: static; margin: 8px; max-height: 70vh; padding: 16px; }
   .editor > .export-panel[aria-label="Spielstätte"] { margin: 0; padding: 12px; }
+  .venue-editor { margin-left: 0; width: 100%; padding-left: 0; }
+  .venue-editor .workspace-commandbar, .venue-editor .workspace-statusbar, .venue-independence { margin-left: 0; padding-left: 8px; }
+  .venue-editor .tool-rail { position: static; left: auto; top: auto; bottom: auto; max-height: none; }
   .scene-open { flex-direction: column; gap: 6px; }
   .scene-card > button:not(.scene-open) { align-self: flex-start; }
   .workspace-management .members { padding: 16px; }
@@ -181,10 +209,8 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
 .venue-card-art svg { width: 70px; height: 70px; color: #44796a; }
 .venue-card > span:not(.venue-card-art) { font-size: 12px; font-weight: 400; }
 .venue-card .venue-card-action { color: #286a62; margin-top: 12px; }
-.venue-workspace { padding-left: 0; }
-.venue-workspace .editor-heading, .venue-workspace > .export-panel[aria-label="Spielstätte"] { margin-left: 0; }
 .venue-workspace .document-kind { margin-left: auto; }
-.venue-independence { padding: 10px 20px; margin: 0; font-size: 12px; color: var(--ui-muted); border-bottom: 1px solid var(--ui-line); background: #fff; }
+.venue-independence { padding: 8px 20px; margin: 0 0 0 -76px; font-size: 12px; color: var(--ui-muted); border-bottom: 1px solid var(--ui-line); background: #fff; flex-shrink: 0; }
 .lighting-panel { flex-shrink: 0; border-bottom: 1px solid var(--ui-line); background: #fff; font-size: 11px; }
 .lighting-panel summary { padding: 7px 10px; cursor: pointer; font-weight: 600; }
 .lighting-panel fieldset { padding: 0 12px 10px; }
@@ -199,3 +225,20 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
 @media (max-width: 760px) { .workspace-navigation { flex-direction: column; } .venue-independence { padding: 10px 12px; } }
 .lighting-panel { position: relative; z-index: 4; }
 .lighting-controls { position: absolute; top: 100%; right: 8px; width: min(320px, calc(100% - 16px)); max-height: 420px; overflow-y: auto; padding-top: 8px; background: #fff; border: 1px solid var(--ui-line); border-radius: 0 0 6px 6px; box-shadow: 0 8px 24px #20304026; }
+
+/* Compact camera tools leave the stage visible while adjusting the workspace. */
+.editor-grid[data-inspector-open=false] { grid-template-columns: minmax(0, 1fr); }
+.editor-grid[data-inspector-open=false] > .wall-inspector { display: none; }
+.camera-presets { display: flex; gap: 2px; padding: 2px; background: #f0f3f5; border: 1px solid var(--ui-line); border-radius: 6px; }
+.editor .camera-presets button { min-width: 29px; min-height: 29px; padding: 4px; }
+.editor .camera-presets button[aria-pressed=true] { background: #fff; border-color: #b9d5ce; box-shadow: 0 1px 3px #22334414; }
+.camera-projection { color: var(--ui-muted); font-size: 9px; }
+.editor .renderer-toggle { margin-left: auto; }
+.render-toolbar .tool-icon { width: 15px; height: 15px; }
+.render-settings { position: relative; margin-left: auto; font-size: 10px; z-index: 5; }
+.render-settings > summary { cursor: pointer; padding: 6px; border-radius: 4px; }
+.render-settings[open] > summary, .render-settings > summary:hover { background: #e8edef; }
+.render-settings-body { position: absolute; right: 0; top: 100%; display: grid; gap: 14px; width: 215px; padding: 16px; background: #fff; border: 1px solid var(--ui-line); border-radius: 6px; box-shadow: 0 8px 24px #20304026; }
+.editor .render-settings-body label { font-size: 12px; justify-content: space-between; }
+.editor .render-settings-body select { font-size: 12px; padding: 4px; }
+@media (max-width: 1100px) { .camera-projection { display: none; } }

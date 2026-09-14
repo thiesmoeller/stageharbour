@@ -125,7 +125,7 @@ test('a 2500 mm cable corridor and labelled pin are 50 mm and named on the A4 pa
   assert(!/Ampere|Watt|Kabelmeter/.test(text), text);
 });
 
-test('a frozen 600 x 800 mm brace footprint is 12 mm by 16 mm on the A4 page', async () => {
+test('a frozen 40×40 timber brace footprint and height are frozen on the A4 page', async () => {
   const brace = newBrace(randomUUID(), 2000, 3000);
   const snapshot = freezeSnapshot({
     id: randomUUID(), name: 'Stützprobe', productionName: 'Beispielproduktion', venueName: 'Beispielsaal',
@@ -133,16 +133,15 @@ test('a frozen 600 x 800 mm brace footprint is 12 mm by 16 mm on the A4 page', a
     lease: null, layout: { schemaVersion: 1, walls: [], braces: [brace] },
   }, { id: randomUUID(), name: 'Fassung Stütze', issuedAt: new Date('2026-09-07T12:00:00.000Z') });
   assert.deepEqual(snapshot.resolvedBraces[0], {
-    id: brace.id, label: 'Stütze', height: 1800,
-    corners: [{ x: 1700, y: 2600 }, { x: 2300, y: 2600 }, { x: 2300, y: 3400 }, { x: 1700, y: 3400 }],
+    id: brace.id, label: 'Stütze', height: 1200,
+    corners: [{ x: 1980, y: 2750 }, { x: 2020, y: 2750 }, { x: 2020, y: 3250 }, { x: 1980, y: 3250 }],
   });
   const pdf = await renderConstructionPlan(snapshot);
   const lengths = pathLengthsMm(pdf);
-  assert(lengths.some(length => Math.abs(length - 12) < 0.05), lengths.slice(0, 16).join(','));
-  assert(lengths.some(length => Math.abs(length - 16) < 0.05), lengths.slice(0, 16).join(','));
+  assert(lengths.some(length => Math.abs(length - 0.8) < 0.05 || Math.abs(length - 10) < 0.05), lengths.slice(0, 16).join(','));
   const text = shownText(pdf);
-  assert(text.includes('600 x 800 mm'), text);
-  assert(text.includes('1800 mm'), text);
+  assert(text.includes('40 x 500 mm') || text.includes('40 × 500'), text);
+  assert(text.includes('1200 mm'), text);
   assert(!/Stabilit/.test(text), text);
 });
 

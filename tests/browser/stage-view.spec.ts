@@ -111,6 +111,7 @@ test('edits in the plan update the linked 3D view, including front orientation a
   await waitUntilSaved(page);
 
   await page.getByRole('button', { name: 'Spielstätte' }).click();
+  await openInspector(page, 'Überbauung');
   await page.getByRole('button', { name: 'Überbauung hinzufügen' }).click();
   await expect(page.getByLabel('Überbauung 1 Unterkante über Fußboden (mm)')).toHaveValue('2600');
   const savedVenue = page.waitForResponse(response => /\/scenes\/[^/]+\/venue$/.test(new URL(response.url()).pathname) && response.request().method() === 'PUT');
@@ -135,9 +136,14 @@ test('edits in the plan update the linked 3D view, including front orientation a
   await expect(page.getByTestId('overhead-warning')).toContainText('kein statischer Nachweis');
   await waitUntilSaved(page);
   await page.getByRole('button', { name: 'Rückgängig' }).click();
+  await expect(page.locator('[data-testid^="stage-stair-"]')).toHaveCount(0);
+  await expect(stageWall).toHaveAttribute('data-y', '1600');
+  await page.getByRole('button', { name: 'Rückgängig' }).click();
   await expect(stageWall).toHaveAttribute('data-y', '1200');
   await page.getByRole('button', { name: 'Wiederholen' }).click();
   await expect(stageWall).toHaveAttribute('data-y', '1600');
+  await page.getByRole('button', { name: 'Wiederholen' }).click();
+  await expect(page.locator('[data-testid^="stage-stair-"]')).toHaveCount(1);
   await waitUntilSaved(page);
 
   await page.getByTestId('stage-view').getByRole('button', { name: 'Publikumssicht' }).click();

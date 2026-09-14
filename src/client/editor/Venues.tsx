@@ -43,7 +43,7 @@ export function Venues({ me, onDirty }: { me: Me; onDirty: (dirty: boolean) => v
   if (opened) return <section className="editor venue-workspace" aria-label="Spielstätte unabhängig bearbeiten">
     <div className="editor-heading"><button className="quiet back-button" disabled={dirty} onClick={() => { setOpened(undefined); setAttempt(value => value + 1); }} aria-label="Zur Spielstättenübersicht" title={dirty ? 'Entwurf zuerst speichern oder verwerfen' : 'Zur Spielstättenübersicht'}><ToolIcon name="back" /></button>
       <div><p className="eyebrow">SPIELSTÄTTEN & BÜHNEN</p><h2>{opened.name}</h2></div><span className="document-kind">{readOnly ? 'Nur Ansicht' : 'Spielstätte bearbeiten'}</span></div>
-    <p className="venue-independence">Grundriss, feste Wände und Bühnenflächen dieser Spielstätte. Bestehende Produktionen übernehmen neue Fassungen erst auf Wunsch.</p>
+    <p className="venue-independence">Raum einmal anlegen · Produktionen übernehmen Fassungen auf Wunsch.</p>
     <VenuePanel key={opened.id} workspaceId={me.workspace.id} venue={opened.venue} readOnly={readOnly} onDirty={setDirty}
       onPublish={async geometry => {
         const result = venueRecordSchema.parse(await request(`${base}/${opened.id}`, { venueVersionId: opened.venueVersionId, venue: geometry }, 'PUT'));

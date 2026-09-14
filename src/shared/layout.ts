@@ -8,9 +8,9 @@ import { ceilingHeightSchema, overheadBoxesSchema, overheadWarningSchema } from 
 import { keepClearWarningSchema, keepClearZonesSchema } from './keepClear.js';
 import { stageCentrelineSchema } from './snapping.js';
 import { venueOutlineSchema, venueTraceSchema } from './venue.js';
+import { placeholdersSchema } from './placeholders.js';
 import { panelConnectionSchema } from './assembly.js';
 import { groupSchema, groupsReferenceLayout } from './groups.js';
-import { placeholdersSchema } from './placeholders.js';
 
 const name = z.string().trim().min(1).max(120);
 const dimension = z.number().finite().min(1).max(100000);
@@ -83,6 +83,7 @@ export const venueGeometrySchema = z.strictObject({
   cableRoutingCorridors: cableRoutingCorridorsSchema.optional(),
   platforms: z.array(platformSchema).max(250).optional(),
   stairs: z.array(stairSchema).max(250).optional(),
+  placeholders: placeholdersSchema.optional(),
   ceilingHeight: ceilingHeightSchema.optional(),
   overheadBoxes: overheadBoxesSchema.optional(),
   keepClearZones: keepClearZonesSchema.optional(),

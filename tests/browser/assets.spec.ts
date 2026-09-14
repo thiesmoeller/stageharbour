@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { testAdministrator } from '../helpers/database.js';
+import { commitWallPlacement } from '../helpers/inspector.js';
 import { cubeGlb } from '../helpers/model.js';
 
 test('inventory, GLB models and Pascal catalogue items participate in placement, undo and saved layouts', async ({ page }) => {
@@ -24,6 +25,8 @@ test('inventory, GLB models and Pascal catalogue items participate in placement,
   await library.getByRole('button', { name: 'Inventarvorlage speichern' }).click();
   const wallCard = library.locator('article').filter({ hasText: 'Standardkulisse' });
   await wallCard.getByRole('button', { name: 'Platzieren' }).click();
+  await page.getByRole('button', { name: 'Objektbibliothek', exact: true }).click();
+  await commitWallPlacement(page);
   await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(1);
   await expect(page.getByLabel('Dicke (mm)')).toHaveValue('28');
   const material = page.getByLabel('Oberfläche · Pascal-Materialbibliothek');
@@ -33,6 +36,7 @@ test('inventory, GLB models and Pascal catalogue items participate in placement,
   await page.getByRole('button', { name: 'Übernehmen', exact: true }).click();
   await expect(page.locator('.save-status')).toHaveText('Gespeichert');
 
+  await page.getByRole('button', { name: 'Objektbibliothek', exact: true }).click();
   await library.getByRole('button', { name: 'GLB importieren', exact: true }).click();
   await library.getByLabel('Modellname').fill('Testpodest');
   await library.getByLabel('GLB-Datei').setInputFiles({ name: 'cube.glb', mimeType: 'model/gltf-binary', buffer: cubeGlb() });
@@ -60,7 +64,9 @@ test('inventory, GLB models and Pascal catalogue items participate in placement,
   await expect(page.locator('[data-testid^="placeholder-"]')).toHaveCount(2);
   await expect(page.locator('.save-status')).toHaveText('Gespeichert');
   await page.getByRole('button', { name: 'Objektbibliothek', exact: true }).click();
+  await page.locator('.render-settings > summary').click();
   await page.getByLabel('Umgebung').selectOption('paper');
+  await page.locator('.render-settings > summary').click();
   await page.getByTestId('stage-view').screenshot({ path: 'test-results/pascal-stage.png' });
   await expect(page.locator('.model-error')).toHaveCount(0);
 

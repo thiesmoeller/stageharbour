@@ -69,7 +69,7 @@ test('wall edge snapping, pointer rotation, clipboard, mixed marquee delete and 
 test('venue vertex gestures have preview, cancel, one undo and publish semantics', async ({ page }) => {
   await create(page);
   await page.getByRole('button', { name: 'Spielstätte', exact: true }).click();
-  const svg = '.venue-plan svg';
+  const svg = 'svg[aria-label="Umriss der Spielstätte"]';
   const start = await point(page, 0, 0, svg), end = await point(page, 300, 300, svg);
   await drag(page, start, end);
   await expect(page.locator('#vertex-x-0')).toHaveValue('300');
@@ -87,7 +87,7 @@ test('venue vertex gestures have preview, cancel, one undo and publish semantics
 test('venue plan drag, rubberband clipboard and escape cancel keep one draft history', async ({ page }) => {
   await create(page);
   await page.getByRole('button', { name: 'Spielstätte', exact: true }).click();
-  const svg = '.venue-plan svg';
+  const svg = 'svg[aria-label="Umriss der Spielstätte"]';
   await page.getByRole('button', { name: 'Feste Wand hinzufügen' }).click();
   const wallX = page.getByLabel('Feste Wand 1 x');
   await expect(wallX).toHaveValue('4000');
@@ -100,9 +100,32 @@ test('venue plan drag, rubberband clipboard and escape cancel keep one draft his
   await expect(page.locator('.clipboard-panel')).toContainText('1 ausgewählt');
   await page.getByRole('button', { name: 'Kopieren' }).click();
   await page.getByRole('button', { name: 'Einfügen' }).click();
-  await expect(page.getByText('Feste Wand 2')).toBeVisible();
+  await expect(page.locator('[data-testid^="venue-wall-"]')).toHaveCount(2);
+  await expect(page.getByRole('heading', { name: 'Feste Wand 2' })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('venue-selection-marquee')).toHaveCount(0);
+});
+
+test('venue pins, exits, podiums and chairs can be selected, moved and rotated', async ({ page }) => {
+  await create(page);
+  await page.getByRole('button', { name: 'Spielstätte', exact: true }).click();
+  const svg = 'svg[aria-label="Umriss der Spielstätte"]';
+  const tools = page.locator('.venue-editor .tool-rail');
+  await tools.getByRole('button', { name: 'Stromanschluss hinzufügen' }).click();
+  await expect(page.locator('[data-testid^="connection-point-"]')).toHaveCount(1);
+  await drag(page, await point(page, 4000, 3000, svg), await point(page, 4200, 3100, svg));
+  await expect(page.getByLabel('Strom X')).toHaveValue('4200');
+  await tools.getByRole('button', { name: 'Notausgang / Freihaltezone hinzufügen' }).click();
+  await expect(page.locator('[data-testid^="keep-clear-zone-"]')).toHaveCount(1);
+  await tools.getByRole('button', { name: 'Permanentes Podest hinzufügen' }).click();
+  await expect(page.locator('[data-testid^="venue-platform-"]')).toHaveCount(1);
+  await expect(page.getByTestId(/^rotate-venue-platform-/)).toBeVisible();
+  await tools.getByRole('button', { name: 'Publikumsstuhl hinzufügen' }).click();
+  await expect(page.locator('[data-testid^="placeholder-"]')).toHaveCount(1);
+  await expect(page.getByTestId(/^rotate-venue-placeholder-/)).toBeVisible();
+  await tools.getByRole('button', { name: 'Lüftungskanal / Höhenbeschränkung hinzufügen' }).click();
+  await expect(page.locator('[data-testid^="overhead-box-"]')).toHaveCount(1);
+  await expect(page.locator('#venue-ceiling-selected')).toHaveValue('4000');
 });
 
 test('rendered Pascal translation handle moves the shared plan and undoes once', async ({ page }) => {

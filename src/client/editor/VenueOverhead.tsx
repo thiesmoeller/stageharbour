@@ -1,14 +1,20 @@
 import { EXAMPLE_CEILING_HEIGHT, newOverheadBox, overheadBoxCorners, type OverheadBox } from '../../shared/overhead.js';
 import type { VenueGeometry } from '../../shared/layout.js';
+import type { PointerEvent } from 'react';
 
-export function OverheadMarks({ boxes }: { boxes: OverheadBox[] }) {
-  return <g pointerEvents="none" aria-label="Überbauungen">
+export function OverheadMarks({ boxes, selectedIds = [], onPointerDown }: {
+  boxes: OverheadBox[]; selectedIds?: readonly string[];
+  onPointerDown?: (event: PointerEvent<SVGGElement>, id: string) => void;
+}) {
+  return <g aria-label="Überbauungen" pointerEvents={onPointerDown ? undefined : 'none'}>
     {boxes.map(box => {
       const corners = overheadBoxCorners(box);
-      return <g key={box.id} data-testid={`overhead-box-${box.id}`}>
+      const chosen = selectedIds.includes(box.id);
+      return <g key={box.id} data-testid={`overhead-box-${box.id}`} className={onPointerDown ? 'draggable-wall' : undefined}
+        onPointerDown={onPointerDown ? event => onPointerDown(event, box.id) : undefined}>
         <path d={`${corners.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')} Z`}
-          fill="#d9c6a133" stroke="#8a6a3a" strokeWidth="2" strokeDasharray="80 50" vectorEffect="non-scaling-stroke" />
-        <text x={box.x} y={-box.y} textAnchor="middle" fontSize="140">{box.label} · {box.bottomHeight} mm</text>
+          fill={chosen ? '#d9c6a166' : '#d9c6a133'} stroke="#8a6a3a" strokeWidth="2" strokeDasharray="80 50" vectorEffect="non-scaling-stroke" />
+        <text x={box.x} y={-box.y} textAnchor="middle" fontSize="140" pointerEvents="none">{box.label} · {box.bottomHeight} mm</text>
       </g>;
     })}
   </g>;
@@ -21,7 +27,7 @@ export function VenueOverhead({ venue, ceilingHeight, boxes, readOnly, onCeiling
 }) {
   return <div className="venue-overhead">
     <h4>Decke und Überbauungen</h4>
-    <p className="muted">Beispielmaße, keine gemessene Spielstättenvorgabe. Mehrere Kästen beschreiben ein komplexes Bauteil. Geometrische Hinweise, kein statischer Nachweis.</p>
+    <p className="muted">Beispielmaße, keine gemessene Spielstättenvorgabe. Mehrere Kästen beschreiben ein komplexes Bauteil (z. B. Lüftungskanal über der Bühne). Geometrische Hinweise, kein statischer Nachweis.</p>
     <div><label htmlFor="venue-ceiling">Deckenhöhe über Fußboden (mm)</label>
       <input id="venue-ceiling" type="number" min={1} step="any" value={ceilingHeight}
         placeholder={`${EXAMPLE_CEILING_HEIGHT}`}

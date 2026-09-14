@@ -1,17 +1,23 @@
 import { AUDIENCE_FLOOR_ID, supportingSurfaces } from '../../shared/levels.js';
 import { newKeepClearZone, type KeepClearZone } from '../../shared/keepClear.js';
 import type { VenueGeometry } from '../../shared/layout.js';
+import type { PointerEvent } from 'react';
 
-export function KeepClearMarks({ zones }: { zones: KeepClearZone[] }) {
-  return <g pointerEvents="none" aria-label="Freihaltezonen">
+export function KeepClearMarks({ zones, selectedIds = [], onPointerDown }: {
+  zones: KeepClearZone[]; selectedIds?: readonly string[];
+  onPointerDown?: (event: PointerEvent<SVGGElement>, id: string) => void;
+}) {
+  return <g aria-label="Freihaltezonen" pointerEvents={onPointerDown ? undefined : 'none'}>
     {zones.map(zone => {
       const cx = zone.polygon.reduce((sum, point) => sum + point.x, 0) / zone.polygon.length;
       const cy = zone.polygon.reduce((sum, point) => sum + point.y, 0) / zone.polygon.length;
-      return <g key={zone.id} data-testid={`keep-clear-zone-${zone.id}`}>
+      const chosen = selectedIds.includes(zone.id);
+      return <g key={zone.id} data-testid={`keep-clear-zone-${zone.id}`} className={onPointerDown ? 'draggable-wall' : undefined}
+        onPointerDown={onPointerDown ? event => onPointerDown(event, zone.id) : undefined}>
         <path d={`${zone.polygon.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')} Z`}
-          fill="#b67c3522" stroke="#b67c35" strokeWidth="2" strokeDasharray="80 50" vectorEffect="non-scaling-stroke" />
-        {zone.polygon.map((point, index) => <circle key={index} cx={point.x} cy={-point.y} r="35" fill="#b67c35" />)}
-        <text x={cx} y={-cy} textAnchor="middle" fontSize="140">{zone.label}</text>
+          fill={chosen ? '#b67c3555' : '#b67c3522'} stroke="#b67c35" strokeWidth="2" strokeDasharray="80 50" vectorEffect="non-scaling-stroke" />
+        {zone.polygon.map((point, index) => <circle key={index} cx={point.x} cy={-point.y} r="35" fill="#b67c35" pointerEvents="none" />)}
+        <text x={cx} y={-cy} textAnchor="middle" fontSize="140" pointerEvents="none">{zone.label}</text>
       </g>;
     })}
   </g>;
@@ -30,7 +36,7 @@ export function KeepClearZones({ venue, zones, click, readOnly, onClick, onZones
     {!readOnly && <div className="form-actions">
       <button type="button" className="quiet" disabled={zones.length >= 250} onClick={() => {
         onClick('zone');
-        onZones(current => [...current, newKeepClearZone(crypto.randomUUID(), AUDIENCE_FLOOR_ID, centre.x, centre.y)]);
+        onZones(current => [...current, { ...newKeepClearZone(crypto.randomUUID(), AUDIENCE_FLOOR_ID, centre.x, centre.y), label: 'Notausgang', reason: 'Notausgang' }]);
       }}>Freihaltezone hinzufügen</button>
       <button type="button" className={click === 'zone' ? '' : 'quiet'} onClick={() => onClick('zone')}>Punkt der Freihaltezone in der Zeichnung setzen</button>
       {zones.length > 0 && <button type="button" className="quiet" onClick={() => onZones(current => current.slice(0, -1))}>Letzte Freihaltezone entfernen</button>}
