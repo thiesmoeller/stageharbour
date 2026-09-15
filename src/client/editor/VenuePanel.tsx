@@ -8,7 +8,7 @@ import { venueReferenceSchema, type VenueReference } from '../../shared/contract
 import { VenueLevels } from './VenueLevels.js';
 import { OverheadMarks, VenueOverhead } from './VenueOverhead.js';
 import { KeepClearMarks, KeepClearZones } from './KeepClearZones.js';
-import { calibrationSchema, measuredOutline, millimetresPerUnit, type Calibration, type PlanPoint } from '../../shared/venue.js';
+import { calibrationSchema, insertOutlineVertex, measuredOutline, millimetresPerUnit, type Calibration, type PlanPoint } from '../../shared/venue.js';
 import { type Platform, type StairUnit, AUDIENCE_FLOOR_ID, newPlatform, newStair, platformBounds, platformCentroid, reassignVenueSupports, stairCorners } from '../../shared/levels.js';
 import { type OverheadBox, newOverheadBox, EXAMPLE_CEILING_HEIGHT } from '../../shared/overhead.js';
 import { newKeepClearZone, type KeepClearZone } from '../../shared/keepClear.js';
@@ -168,7 +168,11 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
     if (readOnly || event.button !== 0) return;
     if (click === 'select') return; // Marquee starts on the outline fill only.
     const point = planPoint(event);
-    if (click === 'vertex') setVertices(current => [...current, point]);
+    if (click === 'vertex') {
+      const next = insertOutlineVertex(vertices, point);
+      if (next) setVertices(next);
+      return;
+    }
     else if (click === 'pin') setPins(current => current.length >= 250 ? current : [...current, newConnectionPoint(crypto.randomUUID(), pinKind, point.x, point.y)]);
     else if (click === 'corridor') setCorridors(current => {
       if (!current.length) return [newCableRoutingCorridor(crypto.randomUUID(), [point, { x: point.x + 1000, y: point.y }])];
@@ -467,7 +471,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
     </div>
     {!readOnly && <div className="tool-rail" role="toolbar" aria-label="Spielstättenwerkzeuge">
       <button type="button" className="quiet" aria-pressed={click === 'select'} onClick={() => setClick('select')} title="Auswählen" aria-label="Auswählen"><ToolIcon name="settings" /><span>Auswahl</span></button>
-      <button type="button" className="quiet" aria-pressed={click === 'vertex'} onClick={() => { setClick('vertex'); setVertices(current => [...current, { x: venue.width / 2, y: venue.depth / 2 }]); }} title="Eckpunkt hinzufügen" aria-label="Eckpunkt hinzufügen"><ToolIcon name="plus" /><span>Eckpunkt</span></button>
+      <button type="button" className="quiet" aria-pressed={click === 'vertex'} onClick={() => setClick('vertex')} title="Eckpunkt auf eine Umrisskante setzen" aria-label="Eckpunkt hinzufügen"><ToolIcon name="plus" /><span>Eckpunkt</span></button>
       <button type="button" disabled={walls.length >= 250} onClick={addFixedWall} title="Feste Wand hinzufügen" aria-label="Feste Wand hinzufügen"><ToolIcon name="wall" /><span>Wand</span></button>
       <button type="button" disabled={platforms.length >= 250} onClick={() => {
         const platform = newPlatform(crypto.randomUUID(), venue.width / 2, venue.depth * 0.75);
@@ -654,7 +658,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
                 <input id={`vertex-y-${index}`} type="number" step="any" value={point.y} onChange={event => setVertices(current => current.map((item, i) => i === index ? { ...item, y: Number(event.target.value) } : item))} /></div>
             </div>)}
             <div className="form-actions">
-              <button type="button" className="quiet" onClick={() => { setClick('vertex'); setVertices(current => [...current, { x: venue.width / 2, y: venue.depth / 2 }]); }}>Eckpunkt hinzufügen</button>
+              <button type="button" className="quiet" aria-pressed={click === 'vertex'} onClick={() => setClick('vertex')}>Eckpunkt auf Kante setzen</button>
               <button type="button" className="quiet" disabled={vertices.length <= 3} onClick={() => setVertices(current => current.slice(0, -1))}>Letzten Eckpunkt entfernen</button>
             </div>
           </fieldset>

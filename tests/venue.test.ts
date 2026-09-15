@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { venueGeometrySchema } from '../src/shared/layout.js';
 import {
-  calibrationSchema, measuredOutline, millimetresPerUnit, venueOutlineSchema,
+  calibrationSchema, insertOutlineVertex, measuredOutline, millimetresPerUnit, OUTLINE_VERTEX_INSERT_MM, venueOutlineSchema,
 } from '../src/shared/venue.js';
 
 test('two-point calibration with a known distance yields a reproducible millimetre scale', () => {
@@ -54,4 +54,18 @@ test('rejects degenerate outlines and synthesizes a rectangle when none is store
   assert.deepEqual(measuredOutline({ width: 8000, depth: 6000 }), [
     { x: 0, y: 0 }, { x: 8000, y: 0 }, { x: 8000, y: 6000 }, { x: 0, y: 6000 },
   ]);
+});
+
+test('a click near an outline edge inserts a vertex on that edge, not at the end', () => {
+  const outline = [{ x: 0, y: 0 }, { x: 8000, y: 0 }, { x: 8000, y: 6000 }, { x: 0, y: 6000 }];
+  const inserted = insertOutlineVertex(outline, { x: 4000, y: 80 });
+  assert.deepEqual(inserted, [
+    { x: 0, y: 0 }, { x: 4000, y: 0 }, { x: 8000, y: 0 }, { x: 8000, y: 6000 }, { x: 0, y: 6000 },
+  ]);
+  const left = insertOutlineVertex(outline, { x: -50, y: 3000 });
+  assert.deepEqual(left, [
+    { x: 0, y: 0 }, { x: 8000, y: 0 }, { x: 8000, y: 6000 }, { x: 0, y: 6000 }, { x: 0, y: 3000 },
+  ]);
+  assert.equal(insertOutlineVertex(outline, { x: 4000, y: OUTLINE_VERTEX_INSERT_MM + 50 }), undefined);
+  assert.equal(insertOutlineVertex(outline, { x: 0, y: 0 }), undefined);
 });
