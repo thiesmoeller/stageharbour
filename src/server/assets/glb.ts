@@ -1,6 +1,7 @@
 import { z } from 'zod';
+import { MAX_MODEL_BYTES, MAX_MODEL_MB } from '../../shared/assets.js';
 
-export const MAX_MODEL_BYTES = 20 * 1024 * 1024;
+export { MAX_MODEL_BYTES };
 const manifestSchema = z.object({
   asset: z.object({ version: z.literal('2.0') }),
   buffers: z.array(z.object({ uri: z.string().optional() })).optional(),
@@ -10,7 +11,8 @@ const manifestSchema = z.object({
 // Team uploads must travel as one file; external resource references would
 // otherwise break when another member opens a layout on a different device.
 export function validateGlb(bytes: Buffer): void {
-  if (bytes.length < 20 || bytes.length > MAX_MODEL_BYTES || bytes.readUInt32LE(0) !== 0x46546c67
+  if (bytes.length > MAX_MODEL_BYTES) throw new Error(`GLB exceeds ${MAX_MODEL_MB} MB`);
+  if (bytes.length < 20 || bytes.readUInt32LE(0) !== 0x46546c67
     || bytes.readUInt32LE(4) !== 2 || bytes.readUInt32LE(8) !== bytes.length) throw new Error('Invalid GLB header');
   let offset = 12;
   let manifest: z.infer<typeof manifestSchema> | undefined;

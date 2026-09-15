@@ -1,10 +1,16 @@
 import { lazy, Suspense, useState, type FormEvent } from 'react';
 import { z } from 'zod';
-import { assetSchema, type Asset, type AssetDefinition } from '../../shared/assets.js';
+import {
+  assetSchema, MAX_MODEL_BYTES, MAX_MODEL_MB, modelAxisSchema, modelDimensionsFromReference,
+  type Asset, type AssetDefinition, type ModelAxis,
+} from '../../shared/assets.js';
 import { newBrace, newWall, type Brace, type Wall } from '../../shared/layout.js';
 import { request } from '../api.js';
+import { measureGlbFile } from './measureGlb.js';
 
 const PascalCatalog = lazy(() => import('./PascalCatalog.js'));
+const axisLabels: Record<ModelAxis, string> = { width: 'Breite', height: 'Höhe', depth: 'Tiefe' };
+
 export function AssetLibrary({ workspaceId, assets, readOnly, selected, onCreated, onArchive, onPlace }: {
   workspaceId: string; assets: Asset[]; readOnly: boolean; selected?: Wall | Brace;
   onCreated: (asset: Asset) => void; onArchive: (id: string) => void; onPlace: (asset: Asset) => void;
@@ -13,7 +19,14 @@ export function AssetLibrary({ workspaceId, assets, readOnly, selected, onCreate
   const [search, setSearch] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [bounds, setBounds] = useState<{ x: number; y: number; z: number } | null>(null);
+  const [axis, setAxis] = useState<ModelAxis>('height');
+  const [lengthMm, setLengthMm] = useState('1000');
+  const [measuring, setMeasuring] = useState(false);
   const base = `/api/workspaces/${workspaceId}/assets`;
+  const reference = Number(lengthMm);
+  const dimensions = bounds && Number.isFinite(reference) && reference >= 1
+    ? modelDimensionsFromReference(bounds, axis, reference) : null;
   async function create(name: string, definition: AssetDefinition) {
     const asset = assetSchema.parse(await request(base, { name, definition }));
     onCreated(asset);
@@ -24,26 +37,42 @@ export function AssetLibrary({ workspaceId, assets, readOnly, selected, onCreate
     const data = new FormData(event.currentTarget);
     const kind = data.get('kind');
     const item = kind === 'selection' && selected ? selected : kind === 'brace' ? newBrace(crypto.randomUUID(), 0, 0) : newWall(crypto.randomUUID(), 0, 0);
-    const { id: _id, label: _label, x: _x, y: _y, rotation: _rotation, ...dimensions } = item;
+    const { id: _id, label: _label, x: _x, y: _y, rotation: _rotation, ...rest } = item;
     setBusy(true); setError('');
     try {
-      await create(String(data.get('name')), 'thickness' in dimensions ? { kind: 'wall', template: dimensions } : { kind: 'brace', template: dimensions });
+      await create(String(data.get('name')), 'thickness' in rest ? { kind: 'wall', template: rest } : { kind: 'brace', template: rest });
     } catch { setError('Die Inventarvorlage konnte nicht gespeichert werden.'); }
     finally { setBusy(false); }
+  }
+  async function onFileChange(file: File | undefined) {
+    setBounds(null); setError('');
+    if (!file) return;
+    setMeasuring(true);
+    try {
+      if (file.size > MAX_MODEL_BYTES) throw new Error(`Die Datei darf höchstens ${MAX_MODEL_MB} MB groß sein.`);
+      setBounds(await measureGlbFile(file));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Die GLB-Datei konnte nicht gelesen werden.');
+    } finally { setMeasuring(false); }
   }
   async function upload(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget), file = data.get('file');
-    if (!(file instanceof File)) return;
+    if (!(file instanceof File) || !dimensions) return;
     setBusy(true); setError('');
     try {
-      if (file.size > 20 * 1024 * 1024) throw new Error('Die Datei darf höchstens 20 MB groß sein.');
+      if (file.size > MAX_MODEL_BYTES) throw new Error(`Die Datei darf höchstens ${MAX_MODEL_MB} MB groß sein.`);
       const response = await fetch(`${base}/files`, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'model/gltf-binary' }, body: file });
-      if (!response.ok) throw new Error('Upload fehlgeschlagen. Verwenden Sie eine GLB-Datei mit eingebetteten Texturen und Geometrie.');
+      if (!response.ok) {
+        const payload = await response.json().catch(() => undefined) as { message?: unknown } | undefined;
+        throw new Error(typeof payload?.message === 'string' && payload.message.trim()
+          ? payload.message
+          : 'Upload fehlgeschlagen. Verwenden Sie eine GLB-Datei mit eingebetteten Texturen und Geometrie.');
+      }
       const { fileId } = z.object({ fileId: z.uuid() }).parse(await response.json());
-      await create(String(data.get('name')), { kind: 'model', width: Number(data.get('width')), height: Number(data.get('height')), depth: Number(data.get('depth')), source: { kind: 'upload', fileId } });
-      setTab('inventory');
-    } catch (error) { setError(error instanceof Error ? error.message : 'Import fehlgeschlagen.'); }
+      await create(String(data.get('name')), { kind: 'model', ...dimensions, source: { kind: 'upload', fileId } });
+      setTab('inventory'); setBounds(null); setLengthMm('1000'); setAxis('height');
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Import fehlgeschlagen.'); }
     finally { setBusy(false); }
   }
   return <section className="asset-library" aria-label="Objektbibliothek">
@@ -73,13 +102,23 @@ export function AssetLibrary({ workspaceId, assets, readOnly, selected, onCreate
       </fieldset></form>}
       <p className="muted">Vorlagen erzeugen unabhängige Exemplare. Archivieren entfernt nur die Vorlage aus der Auswahl; bestehende Szenen behalten ihre Objekte.</p>
     </>}
-    {tab === 'import' && <form onSubmit={event => void upload(event)}><fieldset disabled={busy || readOnly}>
-      <p>GLB mit eingebetteten Texturen, bis 20 MB. Das Modell wird für alle Mitglieder gespeichert.</p>
+    {tab === 'import' && <form onSubmit={event => void upload(event)}><fieldset disabled={busy || readOnly || measuring}>
+      <p>GLB mit eingebetteten Texturen, bis {MAX_MODEL_MB} MB. Das Modell wird für alle Mitglieder gespeichert.</p>
       <label htmlFor="model-name">Modellname</label><input id="model-name" name="name" maxLength={120} required />
-      <label htmlFor="model-file">GLB-Datei</label><input id="model-file" name="file" type="file" accept=".glb,model/gltf-binary" required />
-      <p className="muted">Geben Sie die tatsächlichen Außenmaße ein. Die Vorschau wird darauf skaliert und auf den Boden gestellt.</p>
-      <div className="numeric-fields">{[['width', 'Modellbreite (mm)'], ['height', 'Modellhöhe (mm)'], ['depth', 'Modelltiefe (mm)']].map(([key, label]) => <label key={key}>{label}<input name={key} type="number" min="1" max="100000" step="any" defaultValue="1000" required /></label>)}</div>
-      <button type="submit">Modell ins Inventar importieren</button>
+      <label htmlFor="model-file">GLB-Datei</label>
+      <input id="model-file" name="file" type="file" accept=".glb,model/gltf-binary" required
+        onChange={event => void onFileChange(event.currentTarget.files?.[0])} />
+      {measuring && <p role="status">Modellmaße werden gelesen …</p>}
+      {bounds && <p className="muted">Dateimaße (Modell-Einheiten): {bounds.x.toFixed(3)} × {bounds.y.toFixed(3)} × {bounds.z.toFixed(3)} m. Ein bekanntes Außenmaß setzt die übrigen proportional — ohne Verzerrung.</p>}
+      <label htmlFor="model-axis">Bekanntes Außenmaß</label>
+      <select id="model-axis" value={axis} onChange={event => setAxis(modelAxisSchema.parse(event.target.value))} disabled={!bounds}>
+        {modelAxisSchema.options.map(key => <option key={key} value={key}>{axisLabels[key]}</option>)}
+      </select>
+      <label htmlFor="model-length">{axisLabels[axis]} (mm)</label>
+      <input id="model-length" type="number" min="1" max="100000" step="any" value={lengthMm}
+        onChange={event => setLengthMm(event.target.value)} required disabled={!bounds} />
+      {dimensions && <p className="muted">Ergebnis: {Math.round(dimensions.width)} × {Math.round(dimensions.height)} × {Math.round(dimensions.depth)} mm (Breite × Höhe × Tiefe).</p>}
+      <button type="submit" disabled={!dimensions}>Modell ins Inventar importieren</button>
     </fieldset></form>}
     {tab === 'catalog' && <Suspense fallback={<p role="status">Katalog wird geladen …</p>}><PascalCatalog disabled={readOnly || busy} onAdd={async (name, definition) => {
       setBusy(true); setError('');

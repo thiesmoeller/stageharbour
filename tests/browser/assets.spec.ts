@@ -40,7 +40,10 @@ test('inventory, GLB models and Pascal catalogue items participate in placement,
   await library.getByRole('button', { name: 'GLB importieren', exact: true }).click();
   await library.getByLabel('Modellname').fill('Testpodest');
   await library.getByLabel('GLB-Datei').setInputFiles({ name: 'cube.glb', mimeType: 'model/gltf-binary', buffer: cubeGlb() });
-  await library.getByLabel('Modellhöhe (mm)').fill('900');
+  await expect(library.getByText(/Dateimaße/)).toBeVisible();
+  await library.getByLabel('Bekanntes Außenmaß').selectOption('height');
+  await library.getByLabel('Höhe (mm)').fill('900');
+  await expect(library.getByText(/Ergebnis: 900 × 900 × 900 mm/)).toBeVisible();
   await library.getByRole('button', { name: 'Modell ins Inventar importieren' }).click();
   const modelCard = library.locator('article').filter({ hasText: 'Testpodest' });
   await modelCard.getByRole('button', { name: 'Platzieren' }).click();

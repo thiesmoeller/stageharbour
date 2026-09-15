@@ -49,7 +49,11 @@ export function registerAssetRoutes(app: FastifyInstance, db: Database, access: 
     const { workspaceId } = request.params;
     await editor(request, workspaceId);
     if (!Buffer.isBuffer(request.body)) throw new AccessError(400, 'Bitte eine GLB-Datei hochladen.');
-    try { validateGlb(request.body); } catch { throw new AccessError(400, 'Ungültige GLB-Datei. Texturen und Geometrie müssen in der Datei eingebettet sein.'); }
+    try { validateGlb(request.body); } catch (cause) {
+      const detail = cause instanceof Error ? cause.message : '';
+      if (detail.includes('MB')) throw new AccessError(400, detail.replace(/^GLB exceeds /, 'Die Datei darf höchstens ').replace(/ MB$/, ' MB groß sein.'));
+      throw new AccessError(400, 'Ungültige GLB-Datei. Texturen und Geometrie müssen in der Datei eingebettet sein.');
+    }
     const fileId = randomUUID(), storageKey = `${workspaceId}/models/${fileId}.glb`;
     await storage.put(storageKey, request.body);
     await db.insert(assetFile).values({ id: fileId, workspaceId, storageKey });

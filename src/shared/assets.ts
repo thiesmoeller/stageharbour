@@ -1,8 +1,32 @@
 import { z } from 'zod';
 import { wallSchema, braceSchema } from './layout.js';
 
+/** Uploaded GLB files stay under this limit so every workspace member can load them. */
+export const MAX_MODEL_BYTES = 50 * 1024 * 1024;
+export const MAX_MODEL_MB = MAX_MODEL_BYTES / (1024 * 1024);
+
 const dimension = z.number().finite().min(1).max(100000);
 const vector = z.tuple([z.number().finite(), z.number().finite(), z.number().finite()]);
+export const modelAxisSchema = z.enum(['width', 'height', 'depth']);
+export type ModelAxis = z.infer<typeof modelAxisSchema>;
+
+/** Scale a glTF metre bounding box uniformly from one known millimetre exterior length. */
+export function modelDimensionsFromReference(
+  boundsM: { x: number; y: number; z: number },
+  axis: ModelAxis,
+  lengthMm: number,
+): { width: number; height: number; depth: number } {
+  const native = { width: boundsM.x, height: boundsM.y, depth: boundsM.z }[axis];
+  if (!(native > 0) || !Number.isFinite(native)) throw new Error('Model has no usable bounds');
+  if (!(lengthMm >= 1) || !Number.isFinite(lengthMm)) throw new Error('Invalid reference length');
+  const scale = (lengthMm / 1000) / native;
+  return {
+    width: boundsM.x * scale * 1000,
+    height: boundsM.y * scale * 1000,
+    depth: boundsM.z * scale * 1000,
+  };
+}
+
 // Model definitions are immutable; scenes can resize individual instances.
 export const modelSourceSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('upload'), fileId: z.uuid() }),

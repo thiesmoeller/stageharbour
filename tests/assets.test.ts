@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { validateGlb } from '../src/server/assets/glb.js';
 import { pascalScene } from '../src/client/editor/pascalScene.js';
+import { modelDimensionsFromReference } from '../src/shared/assets.js';
 import { newWall } from '../src/shared/layout.js';
 import { placeholderCorners as propCorners } from '../src/shared/placeholders.js';
 import { cubeGlb } from './helpers/model.js';
@@ -13,6 +14,12 @@ test('GLB uploads validate framing and require embedded resources', () => {
   assert.throws(() => validateGlb(cubeGlb().subarray(0, 30)));
   const invalid = cubeGlb(); invalid.writeUInt32LE(0xffffffff, 12);
   assert.throws(() => validateGlb(invalid));
+});
+
+test('one known millimetre length scales a GLB bounding box uniformly', () => {
+  const dims = modelDimensionsFromReference({ x: 2, y: 1, z: 0.5 }, 'height', 900);
+  assert.deepEqual(dims, { width: 1800, height: 900, depth: 450 });
+  assert.throws(() => modelDimensionsFromReference({ x: 0, y: 1, z: 1 }, 'width', 1000));
 });
 test('Pascal projection retains physical panel dimensions, IDs and freely rotated model footprints', () => {
   const wall = { ...newWall(randomUUID(), 2500, 3000), rotation: 37, finish: 'library:color-white' };
