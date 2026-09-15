@@ -1,7 +1,10 @@
 import { venueGeometrySchema, type VenueGeometry, type Wall } from './layout.js';
-import { reassignVenueSupports, type Platform, type StairUnit } from './levels.js';
+import {
+  axisAlignedPlatformOutline, DIN_STAIR_RISER_MM, platformCentroid, reassignVenueSupports, type Platform, type StairUnit,
+} from './levels.js';
 import type { OverheadBox } from './overhead.js';
 import type { Placeholder } from './placeholders.js';
+import type { PlanPoint } from './venue.js';
 
 export type Vec3 = { x: number; y: number; z: number };
 export type LocalFace = 'px' | 'nx' | 'py' | 'ny' | 'pz' | 'nz';
@@ -26,11 +29,11 @@ export function classifyLocalFace(local: Vec3): LocalFace {
 
 /**
  * Convert a world-space face normal into the object's local box axes.
- * planRotationDeg is the theatre plan yaw; mirroredX undoes the audience-left mirror.
+ * Meshes use rotationY = -planRotation (see wallSolid); undo that yaw after un-mirroring.
  */
 export function localNormalFromWorld(world: Vec3, planRotationDeg: number, mirroredX: boolean): Vec3 {
   const wx = mirroredX ? -world.x : world.x;
-  const angle = -planRotationDeg * Math.PI / 180;
+  const angle = planRotationDeg * Math.PI / 180;
   const cos = Math.cos(angle), sin = Math.sin(angle);
   return {
     x: wx * cos + world.z * sin,
@@ -40,8 +43,32 @@ export function localNormalFromWorld(world: Vec3, planRotationDeg: number, mirro
 }
 
 export function resolvePushPullFace(handle: PushPullHandle): PushPullHandle | undefined {
-  if (handle.kind === 'platform' && handle.face !== 'py') return undefined;
+  // Floor-anchored solids keep the bottom face fixed.
+  if ((handle.kind === 'platform' || handle.kind === 'wall' || handle.kind === 'placeholder') && handle.face === 'ny') {
+    return undefined;
+  }
   return handle;
+}
+
+function outlinePlanRotation(outline: readonly PlanPoint[]) {
+  const a = outline[0], b = outline[1];
+  if (!a || !b) return 0;
+  return Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+}
+
+/** Oriented width/depth from the first two edges of a rectangular podium outline. */
+function orientedPlatformBox(platform: Platform) {
+  const a = platform.outline[0], b = platform.outline[1], c = platform.outline[2];
+  const centre = platformCentroid(platform.outline);
+  if (!a || !b || !c) {
+    return { x: centre.x, y: centre.y, width: 1, depth: 1, rotation: 0 };
+  }
+  return {
+    x: centre.x, y: centre.y,
+    width: Math.hypot(b.x - a.x, b.y - a.y),
+    depth: Math.hypot(c.x - b.x, c.y - b.y),
+    rotation: outlinePlanRotation(platform.outline),
+  };
 }
 
 function clampDim(value: number) {
@@ -129,9 +156,63 @@ function resizeStair(stair: StairUnit, face: LocalFace, delta: number): StairUni
   return stair;
 }
 
+/** Vertical stair pull raises/lowers the upper podium; step count follows DIN ~16 cm risers. */
+function applyStairPushPull(venue: VenueGeometry, stair: StairUnit, face: LocalFace, delta: number): VenueGeometry {
+  if (face === 'px' || face === 'nx' || face === 'pz' || face === 'nz') {
+    return {
+      ...venue,
+      stairs: venue.stairs?.map(item => item.id === stair.id ? resizeStair(item, face, delta) : item),
+    };
+  }
+  if (face !== 'py' && face !== 'ny') return venue;
+  const sign: 1 | -1 = face === 'py' ? 1 : -1;
+  return {
+    ...venue,
+    platforms: venue.platforms?.map(platform => platform.id === stair.upperSurfaceId
+      ? { ...platform, elevation: clampDim(platform.elevation + sign * delta) }
+      : platform),
+    stairs: venue.stairs?.map(item => item.id === stair.id
+      ? { ...item, riserHeight: DIN_STAIR_RISER_MM }
+      : item),
+  };
+}
+
 function resizePlatform(platform: Platform, face: LocalFace, delta: number): Platform {
-  if (face !== 'py') return platform;
-  return { ...platform, elevation: clampDim(platform.elevation + delta) };
+  if (face === 'ny') return platform;
+  if (face === 'py') return { ...platform, elevation: clampDim(platform.elevation + delta) };
+  const box = orientedPlatformBox(platform);
+  const axes = planAxes(box.rotation);
+  if (face === 'px' || face === 'nx') {
+    const sign: 1 | -1 = face === 'px' ? 1 : -1;
+    const next = growCentered(box.width, 0, delta, sign);
+    const centre = shiftPlan({ x: box.x, y: box.y }, axes.width, sign * delta / 2);
+    return {
+      ...platform,
+      outline: axisAlignedPlatformOutline(centre.x, centre.y, clampDim(next.size), clampDim(box.depth), box.rotation),
+    };
+  }
+  const sign: 1 | -1 = face === 'pz' ? 1 : -1;
+  const next = growCentered(box.depth, 0, delta, sign);
+  const centre = shiftPlan({ x: box.x, y: box.y }, axes.depth, sign * delta / 2);
+  return {
+    ...platform,
+    outline: axisAlignedPlatformOutline(centre.x, centre.y, clampDim(box.width), clampDim(next.size), box.rotation),
+  };
+}
+
+function applyPlatformPushPull(venue: VenueGeometry, platform: Platform, face: LocalFace, delta: number): VenueGeometry {
+  const next = resizePlatform(platform, face, delta);
+  if (next === platform) return venue;
+  const platforms = venue.platforms?.map(item => item.id === platform.id ? next : item);
+  if (face !== 'py') return { ...venue, platforms };
+  // Height change: keep attached stairs on DIN ~16 cm risers so steps are added/removed.
+  return {
+    ...venue,
+    platforms,
+    stairs: venue.stairs?.map(stair => stair.upperSurfaceId === platform.id || stair.lowerSurfaceId === platform.id
+      ? { ...stair, riserHeight: DIN_STAIR_RISER_MM }
+      : stair),
+  };
 }
 
 /** Apply a signed outward millimetre delta along the resolved face. */
@@ -144,14 +225,18 @@ export function applyPushPull(venue: VenueGeometry, handle: PushPullHandle, delt
     switch (resolved.kind) {
       case 'wall':
         return { ...venue, walls: venue.walls?.map(item => item.id === resolved.id ? resizeWall(item, resolved.face, delta) : item) };
-      case 'platform':
-        return { ...venue, platforms: venue.platforms?.map(item => item.id === resolved.id ? resizePlatform(item, resolved.face, delta) : item) };
+      case 'platform': {
+        const platform = venue.platforms?.find(item => item.id === resolved.id);
+        return platform ? applyPlatformPushPull(venue, platform, resolved.face, delta) : venue;
+      }
       case 'overhead':
         return { ...venue, overheadBoxes: venue.overheadBoxes?.map(item => item.id === resolved.id ? resizeOverhead(item, resolved.face, delta) : item) };
       case 'placeholder':
         return { ...venue, placeholders: venue.placeholders?.map(item => item.id === resolved.id ? resizePlaceholder(item, resolved.face, delta) : item) };
-      case 'stair':
-        return { ...venue, stairs: venue.stairs?.map(item => item.id === resolved.id ? resizeStair(item, resolved.face, delta) : item) };
+      case 'stair': {
+        const stair = venue.stairs?.find(item => item.id === resolved.id);
+        return stair ? applyStairPushPull(venue, stair, resolved.face, delta) : venue;
+      }
     }
   })();
   return venueGeometrySchema.safeParse(candidate).success ? reassignVenueSupports(candidate) : venue;
@@ -163,6 +248,9 @@ export function planRotationFor(venue: VenueGeometry, handle: PushPullHandle): n
     case 'overhead': return venue.overheadBoxes?.find(item => item.id === handle.id)?.rotation ?? 0;
     case 'placeholder': return venue.placeholders?.find(item => item.id === handle.id)?.rotation ?? 0;
     case 'stair': return venue.stairs?.find(item => item.id === handle.id)?.rotation ?? 0;
-    case 'platform': return 0;
+    case 'platform': {
+      const platform = venue.platforms?.find(item => item.id === handle.id);
+      return platform ? outlinePlanRotation(platform.outline) : 0;
+    }
   }
 }

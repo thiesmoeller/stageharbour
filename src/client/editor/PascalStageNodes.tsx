@@ -3,7 +3,7 @@ import { registerNode, nodeRegistry, useRegistry, useScene, type AnyNode, type A
 import { createMaterialFromPresetRef, ErrorBoundary, useGLTFKTX2, useViewer } from '@pascal-app/viewer';
 import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
-import { Box3, Group, Vector3 } from 'three';
+import { Box3, Group, Matrix4, Mesh, Vector3 } from 'three';
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { Asset, AssetDefinition } from '../../shared/assets.js';
 import type { Layout, VenueGeometry } from '../../shared/layout.js';
@@ -119,21 +119,61 @@ function StageNodeRenderer({ node }: { node: StageNode }) {
   </group>;
 }
 
-function SelectionBounds({ target }: { target: React.RefObject<Group> }) {
-  const outline = useRef<Group>(null!);
-  const box = useMemo(() => new Box3(), []);
+function SelectionBounds({ target }: { target: React.RefObject<Group | null> }) {
+  const outline = useRef<Mesh>(null!);
+  const localBox = useMemo(() => new Box3(), []);
+  const corner = useMemo(() => new Vector3(), []);
   const center = useMemo(() => new Vector3(), []);
   const size = useMemo(() => new Vector3(), []);
+  const rootInv = useMemo(() => new Matrix4(), []);
+  const basisInv = useMemo(() => new Matrix4(), []);
+  const local = useMemo(() => new Matrix4(), []);
+  const translate = useMemo(() => new Matrix4(), []);
+  const scaleMat = useMemo(() => new Matrix4(), []);
   useFrame(() => {
     const root = target.current, marker = outline.current, content = root?.children[0];
     if (!root || !marker || !content) return;
     root.updateWorldMatrix(true, true);
-    box.setFromObject(content);
-    root.worldToLocal(box.getCenter(center));
-    box.getSize(size);
-    marker.position.copy(center); marker.scale.set(size.x + .02, size.y + .02, size.z + .02);
+    let basis: Mesh | undefined;
+    content.traverse(obj => {
+      const mesh = obj as Mesh;
+      if (mesh.isMesh && mesh.geometry && !basis) basis = mesh;
+    });
+    if (!basis?.geometry) return;
+    // Union mesh bounds in the first mesh's local frame, then compose root-local matrix.
+    // Avoid getWorldQuaternion: the audience-left mirror (scale.x = -1) makes that path unstable.
+    basisInv.copy(basis.matrixWorld).invert();
+    localBox.makeEmpty();
+    content.traverse(obj => {
+      const mesh = obj as Mesh;
+      if (!mesh.isMesh || !mesh.geometry) return;
+      if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+      const bb = mesh.geometry.boundingBox;
+      if (!bb || bb.isEmpty()) return;
+      const { min, max } = bb;
+      for (const x of [min.x, max.x]) {
+        for (const y of [min.y, max.y]) {
+          for (const z of [min.z, max.z]) {
+            corner.set(x, y, z).applyMatrix4(mesh.matrixWorld).applyMatrix4(basisInv);
+            localBox.expandByPoint(corner);
+          }
+        }
+      }
+    });
+    if (localBox.isEmpty()) return;
+    localBox.getCenter(center);
+    localBox.getSize(size);
+    rootInv.copy(root.matrixWorld).invert();
+    translate.makeTranslation(center.x, center.y, center.z);
+    scaleMat.makeScale(size.x + 0.02, size.y + 0.02, size.z + 0.02);
+    local.copy(rootInv).multiply(basis.matrixWorld).multiply(translate).multiply(scaleMat);
+    marker.matrixAutoUpdate = false;
+    marker.matrix.copy(local);
   });
-  return <group ref={outline}><mesh raycast={() => {}}><boxGeometry args={[1, 1, 1]} /><meshBasicMaterial color="#e9a83b" wireframe depthTest={false} /></mesh></group>;
+  return <mesh ref={outline} matrixAutoUpdate={false} raycast={() => {}}>
+    <boxGeometry args={[1, 1, 1]} />
+    <meshBasicMaterial color="#e9a83b" wireframe depthTest={false} />
+  </mesh>;
 }
 
 if (!nodeRegistry.has('stage-object')) registerNode({

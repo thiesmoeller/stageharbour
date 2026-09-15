@@ -9,7 +9,7 @@ import { VenueLevels } from './VenueLevels.js';
 import { OverheadMarks, VenueOverhead } from './VenueOverhead.js';
 import { KeepClearMarks, KeepClearZones } from './KeepClearZones.js';
 import { calibrationSchema, insertOutlineVertex, measuredOutline, millimetresPerUnit, type Calibration, type PlanPoint } from '../../shared/venue.js';
-import { type Platform, type StairUnit, AUDIENCE_FLOOR_ID, newPlatform, newStair, platformBounds, platformCentroid, reassignVenueSupports, stairCorners } from '../../shared/levels.js';
+import { type Platform, type StairUnit, AUDIENCE_FLOOR_ID, axisAlignedPlatformOutline, newPlatform, newStair, platformBounds, platformCentroid, reassignVenueSupports, stairCorners } from '../../shared/levels.js';
 import { type OverheadBox, newOverheadBox, EXAMPLE_CEILING_HEIGHT } from '../../shared/overhead.js';
 import { newKeepClearZone, type KeepClearZone } from '../../shared/keepClear.js';
 import { newPlaceholder, type Placeholder } from '../../shared/placeholders.js';
@@ -610,6 +610,51 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
             </div>
           </fieldset> : selectedIds.length ? <fieldset disabled={readOnly || busy}>
             <p className="muted">{selectedIds.length} Objekt{selectedIds.length === 1 ? '' : 'e'} ausgewählt. Ziehen zum Verschieben · Orange ↻ dreht · Entf löscht.</p>
+            {selectedObject?.kind === 'platform' && (() => {
+              const platform = platforms.find(item => item.id === selected)!;
+              const centre = platformCentroid(platform.outline);
+              const a = platform.outline[0], b = platform.outline[1], c = platform.outline[2];
+              const width = a && b ? Math.hypot(b.x - a.x, b.y - a.y) : platformBounds(platform.outline).width;
+              const depth = b && c ? Math.hypot(c.x - b.x, c.y - b.y) : platformBounds(platform.outline).depth;
+              const rotation = outlineRotation(platform.outline);
+              function updatePlatform(patch: { label?: string; elevation?: number; width?: number; depth?: number; x?: number; y?: number; rotation?: number }) {
+                setPlatforms(items => items.map(item => {
+                  if (item.id !== platform.id) return item;
+                  const next = {
+                    label: patch.label ?? item.label,
+                    elevation: patch.elevation ?? item.elevation,
+                    width: patch.width ?? width,
+                    depth: patch.depth ?? depth,
+                    x: patch.x ?? centre.x,
+                    y: patch.y ?? centre.y,
+                    rotation: patch.rotation ?? rotation,
+                  };
+                  return {
+                    ...item, label: next.label, elevation: next.elevation,
+                    outline: axisAlignedPlatformOutline(next.x, next.y, next.width, next.depth, next.rotation),
+                  };
+                }));
+              }
+              return <div className="numeric-fields">
+                <label>Bezeichnung<input value={platform.label} onChange={event => updatePlatform({ label: event.target.value })} /></label>
+                {([
+                  ['elevation', 'Höhe über Fußboden', platform.elevation],
+                  ['width', 'Breite', width], ['depth', 'Tiefe', depth],
+                  ['x', 'X', centre.x], ['y', 'Y', centre.y], ['rotation', 'Drehung', rotation],
+                ] as const).map(([key, label, value]) =>
+                  <label key={key}>{label}<input aria-label={`${platform.label} ${label}`} type="number" value={value}
+                    onChange={event => updatePlatform({ [key]: Number(event.target.value) })} /></label>)}
+              </div>;
+            })()}
+            {selectedObject?.kind === 'stair' && (() => {
+              const stair = stairs.find(item => item.id === selected)!;
+              return <div className="numeric-fields">
+                <label>Bezeichnung<input value={stair.label} onChange={event => setStairs(items => items.map(item => item.id === stair.id ? { ...item, label: event.target.value } : item))} /></label>
+                {([['width', 'Breite'], ['run', 'Lauflänge'], ['riserHeight', 'Steigung'], ['x', 'X'], ['y', 'Y'], ['rotation', 'Drehung']] as const).map(([key, label]) =>
+                  <label key={key}>{label}<input aria-label={`${stair.label} ${label}`} type="number" value={stair[key]}
+                    onChange={event => setStairs(items => items.map(item => item.id === stair.id ? { ...item, [key]: Number(event.target.value) } : item))} /></label>)}
+              </div>;
+            })()}
             {selectedObject?.kind === 'pin' && (() => {
               const pin = pins.find(item => item.id === selected)!;
               return <div className="numeric-fields">

@@ -56,7 +56,7 @@ test('stairs connect two elevations using configurable millimetre dimensions', (
   assert.equal(stairRise(stair, surfaces), 400);
   assert.equal(stair.width, 1200);
   assert.equal(stair.run, 2000);
-  assert.equal(stair.riserHeight, 200);
+  assert.equal(stair.riserHeight, 160);
   assert.deepEqual(stairCorners(stair)[0], { x: 3400, y: 1500 });
   assert.deepEqual(stairCorners(stair)[2], { x: 4600, y: 3500 });
   assert(!stairSchema.safeParse({ ...stair, lowerSurfaceId: stair.upperSurfaceId }).success);

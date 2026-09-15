@@ -12,7 +12,9 @@ export const EXAMPLE_PLATFORM_DEPTH = 2500;
 export const EXAMPLE_PLATFORM_ELEVATION = 400;
 export const EXAMPLE_STAIR_WIDTH = 1200;
 export const EXAMPLE_STAIR_RUN = 2000;
-export const EXAMPLE_STAIR_RISER = 200;
+/** Preferred riser for step count (~DIN 18065 comfort band, ~16 cm). */
+export const DIN_STAIR_RISER_MM = 160;
+export const EXAMPLE_STAIR_RISER = DIN_STAIR_RISER_MM;
 export const EDGE_TOLERANCE_MM = 1;
 
 export const platformSchema = z.strictObject({
@@ -120,7 +122,8 @@ export function stairRise(stair: Pick<StairUnit, 'lowerSurfaceId' | 'upperSurfac
 
 export function stairSteps(stair: StairUnit, surfaces: SupportingSurface[]) {
   const rise = stairRise(stair, surfaces);
-  const count = Math.max(1, Math.round(rise / stair.riserHeight));
+  const preferred = stair.riserHeight > 0 ? stair.riserHeight : DIN_STAIR_RISER_MM;
+  const count = Math.max(1, Math.round(rise / preferred));
   const stepRise = rise / count, stepRun = stair.run / count;
   const base = surfaceElevation(surfaces, stair.lowerSurfaceId);
   const angle = stair.rotation * Math.PI / 180;

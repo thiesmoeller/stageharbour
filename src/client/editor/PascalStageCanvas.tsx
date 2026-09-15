@@ -5,7 +5,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { OrbitControls } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
 import { Viewer, useViewer } from '@pascal-app/viewer';
-import { Vector2 } from 'three';
+import { Vector2, MOUSE, type Object3D } from 'three';
 import type { StageModel } from '../../shared/transforms.js';
 import type { Layout, VenueGeometry } from '../../shared/layout.js';
 import type { Asset } from '../../shared/assets.js';
@@ -49,6 +49,29 @@ function ClearSelectionOnMiss({ onClear }: { onClear?: () => void }) {
   return null;
 }
 
+type OrbitLike = Object3D & {
+  enabled: boolean;
+  enableRotate: boolean;
+  mouseButtons: { LEFT?: number; MIDDLE?: number; RIGHT?: number };
+};
+
+/**
+ * CAD binding: LMB never orbits while an edit tool owns the viewport.
+ * Orbit is middle-mouse; pan is right-mouse. Avoids LMB races with gizmo / Größe ziehen.
+ */
+function EditOrbitBinding({ allowOrbit }: { allowOrbit: boolean }) {
+  const controls = useThree(state => state.controls) as OrbitLike | null;
+  useLayoutEffect(() => {
+    if (!controls?.mouseButtons) return;
+    controls.enableRotate = allowOrbit;
+    // -1 is OrbitControls' "no action" (see three-stdlib default branch).
+    controls.mouseButtons.LEFT = -1;
+    controls.mouseButtons.MIDDLE = MOUSE.ROTATE;
+    controls.mouseButtons.RIGHT = MOUSE.PAN;
+  }, [allowOrbit, controls]);
+  return null;
+}
+
 export default function PascalStageCanvas({ model, layout, venue, audience, view = audience ? 'audience' : 'orbit', assets, workspaceId, lighting = defaultLighting, ...editing }: { model: StageModel; layout: Layout; venue: VenueGeometry; audience: boolean; view?: StageCameraView; assets: Asset[]; workspaceId: string; lighting?: StageLightingSettings } & StageEditing) {
   const [focusSelection, setFocusSelection] = useState(false);
   const [frameRevision, setFrameRevision] = useState(0);
@@ -79,7 +102,7 @@ export default function PascalStageCanvas({ model, layout, venue, audience, view
     <div className="render-toolbar">
       <button type="button" className="quiet" disabled={!editing.pivot} onClick={() => frame(true)}><ToolIcon name="expand" />Auswahl einpassen</button><button type="button" className="quiet" onClick={() => frame(false)}><ToolIcon name="expand" />Bühne einpassen</button>
       {editing.onTransform && <><button type="button" className="quiet" aria-pressed={mode === 'translate'} onClick={() => setMode('translate')} title="3D verschieben"><ToolIcon name="move" />3D verschieben</button><button type="button" className="quiet" aria-pressed={mode === 'rotate'} onClick={() => setMode('rotate')} title="3D drehen"><ToolIcon name="rotate" />3D drehen</button></>}
-      {editing.onPushPull && <button type="button" className="quiet" aria-pressed={mode === 'pushPull'} onClick={() => setMode('pushPull')} title="Höhe ziehen" aria-label="Höhe ziehen"><ToolIcon name="expand" />Höhe ziehen</button>}
+      {editing.onPushPull && <button type="button" className="quiet" aria-pressed={mode === 'pushPull'} onClick={() => setMode('pushPull')} title="Größe ziehen" aria-label="Größe ziehen"><ToolIcon name="expand" />Größe ziehen</button>}
       <details className="render-settings"><summary>Darstellung</summary><div className="render-settings-body"><label>Umgebung <select value={theme} onChange={event => setTheme(event.target.value)}>
         <option value="studio">Studio</option><option value="paper">Warm</option>
         <option value="sunset">Abend</option>
@@ -100,7 +123,9 @@ export default function PascalStageCanvas({ model, layout, venue, audience, view
         </group>
         {mode !== 'pushPull' && <StageTransformControls {...editing} width={mirrorWidth} mode={mode === 'rotate' ? 'rotate' : 'translate'} />}
         <PushPullControls venue={venue} enabled={mode === 'pushPull'} snapEnabled={editing.snapEnabled} onPushPull={editing.onPushPull} />
-        <OrbitControls key={`${view}-${frameRevision}`} enableRotate={view === 'orbit'} makeDefault target={[mirroredTargetX / 1000, target.y / 1000, target.z / 1000]} maxPolarAngle={Math.PI / 2 - 0.01} minDistance={0.1} maxDistance={500} />
+        <OrbitControls key={`${view}-${frameRevision}`} makeDefault
+          target={[mirroredTargetX / 1000, target.y / 1000, target.z / 1000]} maxPolarAngle={Math.PI / 2 - 0.01} minDistance={0.1} maxDistance={500} />
+        <EditOrbitBinding allowOrbit={view === 'orbit'} />
       </Viewer>
     </div>
   </StageInteraction.Provider>;

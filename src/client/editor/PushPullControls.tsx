@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useThree } from '@react-three/fiber';
-import { DoubleSide, Plane, Quaternion, Vector2, Vector3, type Face, type Object3D } from 'three';
+import { DoubleSide, Plane, Quaternion, Vector2, Vector3, type Object3D } from 'three';
 import type { VenueGeometry } from '../../shared/layout.js';
 import {
   applyPushPull, classifyLocalFace, localNormalFromWorld, planRotationFor, resolvePushPullFace,
@@ -39,6 +39,7 @@ export function PushPullControls({
   const camera = useThree(state => state.camera);
   const scene = useThree(state => state.scene);
   const raycaster = useThree(state => state.raycaster);
+  const controls = useThree(state => state.controls) as { enabled?: boolean } | null;
   const [hover, setHover] = useState<{ handle: PushPullHandle; point: Vector3; normal: Vector3 }>();
   const drag = useRef<DragState | undefined>(undefined);
   const ndc = useMemo(() => new Vector2(), []);
@@ -52,19 +53,23 @@ export function PushPullControls({
     if (!enabled || !onPushPull) {
       setHover(undefined);
       drag.current = undefined;
+      if (controls) controls.enabled = true;
       return;
     }
     const publish = onPushPull;
+    function setOrbit(enabledOrbit: boolean) {
+      if (controls) controls.enabled = enabledOrbit;
+    }
     function pick(clientX: number, clientY: number) {
       const rect = gl.domElement.getBoundingClientRect();
       ndc.set((clientX - rect.left) / rect.width * 2 - 1, -(clientY - rect.top) / rect.height * 2 + 1);
       raycaster.setFromCamera(ndc, camera);
       return raycaster.intersectObjects(scene.children, true).find(hit => {
         if (!hit.object.visible || hit.object.name === 'venue-floor' || hit.object.userData?.pushPullIgnore) return false;
-        return !!kindFromNode(hit.object) && hit.face;
+        return !!kindFromNode(hit.object) && !!hit.face;
       });
     }
-    function handleFor(hit: { object: Object3D; face: Face; point: Vector3 }) {
+    function handleFor(hit: { object: Object3D; face: { normal: Vector3 }; point: Vector3 }) {
       const meta = kindFromNode(hit.object);
       if (!meta) return;
       const worldNormal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld).normalize();
@@ -100,6 +105,8 @@ export function PushPullControls({
       const picked = handleFor({ object: hit.object, face: hit.face, point: hit.point });
       if (!picked) return;
       event.preventDefault();
+      event.stopPropagation();
+      setOrbit(false);
       camera.getWorldDirection(camDir);
       axis.copy(picked.normal);
       side.crossVectors(camDir, axis);
@@ -121,6 +128,7 @@ export function PushPullControls({
       const bypass = active.bypass || event.altKey || !snapEnabled;
       const latest = active.latest;
       drag.current = undefined;
+      setOrbit(true);
       publish(cancel ? 'cancel' : 'commit', latest, bypass);
       if (gl.domElement.hasPointerCapture(event.pointerId)) gl.domElement.releasePointerCapture(event.pointerId);
     }
@@ -129,6 +137,7 @@ export function PushPullControls({
     function onKey(event: KeyboardEvent) {
       if (event.key !== 'Escape' || !drag.current) return;
       drag.current = undefined;
+      setOrbit(true);
       publish('cancel', venue, false);
     }
     gl.domElement.addEventListener('pointermove', onMove);
@@ -137,13 +146,14 @@ export function PushPullControls({
     gl.domElement.addEventListener('pointercancel', onCancel);
     window.addEventListener('keydown', onKey);
     return () => {
+      setOrbit(true);
       gl.domElement.removeEventListener('pointermove', onMove);
       gl.domElement.removeEventListener('pointerdown', onDown);
       gl.domElement.removeEventListener('pointerup', onUp);
       gl.domElement.removeEventListener('pointercancel', onCancel);
       window.removeEventListener('keydown', onKey);
     };
-  }, [axis, camera, camDir, enabled, gl, hitPoint, ndc, onPushPull, planeNormal, raycaster, scene, side, snapEnabled, venue]);
+  }, [axis, camera, camDir, controls, enabled, gl, hitPoint, ndc, onPushPull, planeNormal, raycaster, scene, side, snapEnabled, venue]);
 
   if (!enabled || !hover) return null;
   return <FaceHighlight point={hover.point} normal={hover.normal} />;
@@ -159,3 +169,5 @@ function FaceHighlight({ point, normal }: { point: Vector3; normal: Vector3 }) {
     <meshBasicMaterial color="#e9a83b" transparent opacity={0.45} depthTest={false} side={DoubleSide} />
   </mesh>;
 }
+
+export default PushPullControls;
