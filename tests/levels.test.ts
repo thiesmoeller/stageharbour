@@ -20,8 +20,10 @@ const platformOutline = [
 test('a supporting surface carries a known outline and elevation above the audience floor', () => {
   const platform = platformSchema.parse({
     id: randomUUID(), label: 'Bühne', elevation: EXAMPLE_PLATFORM_ELEVATION, outline: platformOutline,
+    finish: 'library:color-white',
   });
   assert.equal(platform.elevation, 400);
+  assert.equal(platform.finish, 'library:color-white');
   assert.deepEqual(platform.outline, platformOutline);
   const surfaces = supportingSurfaces({ ...venue, platforms: [platform] });
   assert.equal(surfaces[0]?.id, AUDIENCE_FLOOR_ID);

@@ -1,5 +1,7 @@
-import { useState, type FormEvent } from 'react';
+import { lazy, Suspense, useState, type FormEvent } from 'react';
 import { axisAlignedPlatformOutline, platformBounds, platformSchema, stairSchema, type Platform, type StairUnit, type SupportingSurface } from '../../shared/levels.js';
+
+const MaterialPicker = lazy(() => import('./MaterialPicker.js'));
 
 export function PlatformInspector({ platform, readOnly, onApply, onRemove }: {
   platform: Platform; readOnly: boolean; onApply: (platform: Platform) => void; onRemove: () => void;
@@ -12,9 +14,11 @@ export function PlatformInspector({ platform, readOnly, onApply, onRemove }: {
     const x = Number(data.get('x')), y = Number(data.get('y'));
     const width = Number(data.get('width')), depth = Number(data.get('depth'));
     const rotation = Number(data.get('rotation'));
+    const finish = data.get('finish');
     const result = platformSchema.safeParse({
       ...platform, label: data.get('label'), elevation: Number(data.get('elevation')),
       outline: axisAlignedPlatformOutline(x, y, width, depth, rotation),
+      finish: typeof finish === 'string' && finish ? finish : undefined,
     });
     if (!result.success) { setError('Bitte prüfen Sie die Maße und die Bezeichnung.'); return; }
     setError(''); onApply(result.data);
@@ -28,6 +32,7 @@ export function PlatformInspector({ platform, readOnly, onApply, onRemove }: {
       ['rotation', 'Drehung (°)', -360, 360, 0],
     ] as const).map(([key, label, min, max, value]) => <div key={key}><label htmlFor={`platform-${key}`}>{label}</label>
       <input id={`platform-${key}`} name={key} type="number" step="any" min={min} max={max} defaultValue={value} required /></div>)}</div>
+    <Suspense fallback={<p>Materialbibliothek wird geladen …</p>}><MaterialPicker id="platform-finish" value={platform.finish} /></Suspense>
     <p className="muted">Beispielmaße, keine gemessene Spielstättenvorgabe. Umriss aus Mittelpunkt, Rechteck und Drehung.</p>
     {error && <p role="alert" className="error">{error}</p>}
     {!readOnly && <div className="form-actions"><button type="submit">Übernehmen</button><button className="quiet" type="button" onClick={onRemove}>Podest löschen</button></div>}

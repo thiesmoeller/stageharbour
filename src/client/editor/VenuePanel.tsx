@@ -1,5 +1,4 @@
-import { defaultLighting, type StageLightingSettings } from '../../shared/lighting.js';
-import { useEffect, useRef, useState, type FormEvent, type PointerEvent } from 'react';
+import { useEffect, useRef, useState, lazy, Suspense, type FormEvent, type PointerEvent } from 'react';
 import { newWall, applyVenueResultSchema, saveVenueResultSchema, venueGeometrySchema, type Layout, type VenueGeometry } from '../../shared/layout.js';
 import {
   newCableRoutingCorridor, newConnectionPoint, type CableRoutingCorridor, type ConnectionKind, type ConnectionPoint,
@@ -29,7 +28,9 @@ import type { StageEditing } from './StageEditing.js';
 import { useViewportWheel } from './viewportWheel.js';
 import { ApiError, request, upload } from '../api.js';
 import { ToolIcon } from './ToolIcon.js';
+import { defaultLighting, type StageLightingSettings } from '../../shared/lighting.js';
 
+const MaterialPicker = lazy(() => import('./MaterialPicker.js'));
 type ClickMode = 'select' | 'vertex' | 'a' | 'b' | 'pin' | 'corridor' | 'zone';
 type ViewMode = 'split' | 'plan' | 'stage';
 type VenueDraft = {
@@ -604,6 +605,20 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
           {selectedWall && selectedWallIndex >= 0 ? <fieldset disabled={readOnly || busy}>
             <label>Bezeichnung<input value={selectedWall.label} onChange={event => setWalls(items => items.map(item => item.id === selectedWall.id ? { ...item, label: event.target.value } : item))} /></label>
             <div className="numeric-fields">{(['x', 'y', 'rotation', 'width', 'height', 'thickness'] as const).map(key => <label key={key}>{key}<input aria-label={`Feste Wand ${selectedWallIndex + 1} ${key}`} type="number" value={selectedWall[key]} onChange={event => setWalls(items => items.map(item => item.id === selectedWall.id ? { ...item, [key]: Number(event.target.value) } : item))} /></label>)}</div>
+            <Suspense fallback={<p>Materialbibliothek wird geladen …</p>}>
+              <MaterialPicker id="venue-wall-finish" value={selectedWall.finish} onChange={value => {
+                const finish = value || undefined;
+                const targets = selectedIds.filter(id => walls.some(wall => wall.id === id));
+                const ids = targets.length > 1 ? targets : [selectedWall.id];
+                setWalls(items => items.map(item => {
+                  if (!ids.includes(item.id)) return item;
+                  if (finish) return { ...item, finish };
+                  const { finish: _removed, ...rest } = item;
+                  return rest;
+                }));
+              }} />
+            </Suspense>
+            {selectedIds.filter(id => walls.some(wall => wall.id === id)).length > 1 && <p className="muted">Oberfläche gilt für alle ausgewählten festen Wände.</p>}
             <div className="form-actions">
               <button type="button" className="quiet" onClick={() => { setWalls(items => items.filter(item => item.id !== selectedWall.id)); setSelectedIds([]); }}>Feste Wand entfernen</button>
               <button type="button" className="quiet" onClick={() => remove()}>Löschen</button>
@@ -617,7 +632,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
               const width = a && b ? Math.hypot(b.x - a.x, b.y - a.y) : platformBounds(platform.outline).width;
               const depth = b && c ? Math.hypot(c.x - b.x, c.y - b.y) : platformBounds(platform.outline).depth;
               const rotation = outlineRotation(platform.outline);
-              function updatePlatform(patch: { label?: string; elevation?: number; width?: number; depth?: number; x?: number; y?: number; rotation?: number }) {
+              function updatePlatform(patch: { label?: string; elevation?: number; width?: number; depth?: number; x?: number; y?: number; rotation?: number; finish?: string | null }) {
                 setPlatforms(items => items.map(item => {
                   if (item.id !== platform.id) return item;
                   const next = {
@@ -629,22 +644,31 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
                     y: patch.y ?? centre.y,
                     rotation: patch.rotation ?? rotation,
                   };
-                  return {
+                  const finish = patch.finish === null ? undefined : patch.finish === undefined ? item.finish : patch.finish || undefined;
+                  const base = {
                     ...item, label: next.label, elevation: next.elevation,
                     outline: axisAlignedPlatformOutline(next.x, next.y, next.width, next.depth, next.rotation),
                   };
+                  if (finish) return { ...base, finish };
+                  const { finish: _removed, ...rest } = base;
+                  return rest;
                 }));
               }
-              return <div className="numeric-fields">
-                <label>Bezeichnung<input value={platform.label} onChange={event => updatePlatform({ label: event.target.value })} /></label>
-                {([
-                  ['elevation', 'Höhe über Fußboden', platform.elevation],
-                  ['width', 'Breite', width], ['depth', 'Tiefe', depth],
-                  ['x', 'X', centre.x], ['y', 'Y', centre.y], ['rotation', 'Drehung', rotation],
-                ] as const).map(([key, label, value]) =>
-                  <label key={key}>{label}<input aria-label={`${platform.label} ${label}`} type="number" value={value}
-                    onChange={event => updatePlatform({ [key]: Number(event.target.value) })} /></label>)}
-              </div>;
+              return <>
+                <div className="numeric-fields">
+                  <label>Bezeichnung<input value={platform.label} onChange={event => updatePlatform({ label: event.target.value })} /></label>
+                  {([
+                    ['elevation', 'Höhe über Fußboden', platform.elevation],
+                    ['width', 'Breite', width], ['depth', 'Tiefe', depth],
+                    ['x', 'X', centre.x], ['y', 'Y', centre.y], ['rotation', 'Drehung', rotation],
+                  ] as const).map(([key, label, value]) =>
+                    <label key={key}>{label}<input aria-label={`${platform.label} ${label}`} type="number" value={value}
+                      onChange={event => updatePlatform({ [key]: Number(event.target.value) })} /></label>)}
+                </div>
+                <Suspense fallback={<p>Materialbibliothek wird geladen …</p>}>
+                  <MaterialPicker id="venue-platform-finish" value={platform.finish} onChange={value => updatePlatform({ finish: value || null })} />
+                </Suspense>
+              </>;
             })()}
             {selectedObject?.kind === 'stair' && (() => {
               const stair = stairs.find(item => item.id === selected)!;

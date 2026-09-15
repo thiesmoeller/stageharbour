@@ -21,6 +21,7 @@ export const platformSchema = z.strictObject({
   id: z.uuid(), label: name,
   elevation: z.number().finite().min(1).max(100000),
   outline: venueOutlineSchema,
+  finish: z.string().regex(/^library:[a-zA-Z0-9_-]+$/).max(180).optional(),
 });
 export type Platform = z.infer<typeof platformSchema>;
 export const stairSchema = z.strictObject({

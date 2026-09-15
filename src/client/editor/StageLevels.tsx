@@ -1,5 +1,6 @@
 import { useLayoutEffect, useMemo } from 'react';
 import { ExtrudeGeometry, Shape } from 'three';
+import { createMaterialFromPresetRef } from '@pascal-app/viewer';
 import type { StageModel } from '../../shared/transforms.js';
 import { platformCentroid, type Platform } from '../../shared/levels.js';
 
@@ -13,6 +14,8 @@ function PlatformMesh({ platform, lit }: { platform: Platform; lit: boolean }) {
   const Surface = lit ? 'meshStandardMaterial' : 'meshBasicMaterial';
   const centre = platformCentroid(platform.outline);
   const rotation = outlinePlanRotation(platform.outline);
+  const finishMaterial = useMemo(() => createMaterialFromPresetRef(platform.finish), [platform.finish]);
+  useLayoutEffect(() => () => { finishMaterial?.dispose(); }, [finishMaterial]);
   const geometry = useMemo(() => {
     const cos = Math.cos(rotation), sin = Math.sin(rotation);
     const shape = new Shape();
@@ -34,7 +37,7 @@ function PlatformMesh({ platform, lit }: { platform: Platform; lit: boolean }) {
   // Match wallSolid: rotationY = -planRotation so local +X follows the first outline edge.
   return <group position={[centre.x, 0, centre.y]} rotation={[0, -rotation, 0]}>
     <mesh castShadow={lit} receiveShadow={lit} position={[0, platform.elevation, 0]} geometry={geometry}>
-      <Surface color="#c5d0b8" />
+      {finishMaterial ? <primitive object={finishMaterial} attach="material" dispose={null} /> : <Surface color="#c5d0b8" />}
     </mesh>
   </group>;
 }
