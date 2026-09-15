@@ -16,6 +16,7 @@ export const EXAMPLE_OVERHEAD_THICKNESS = 400;
 export const overheadBoxSchema = z.strictObject({
   id: z.uuid(), label: name,
   x: coordinate, y: coordinate,
+  rotation: z.number().finite().min(-360).max(360).default(0),
   length: dimension, width: dimension,
   bottomHeight: dimension, thickness: dimension,
 });
@@ -35,18 +36,14 @@ export const overheadWarningsSchema = z.array(overheadWarningSchema).max(500);
 
 export function newOverheadBox(id: string, x: number, y: number): OverheadBox {
   return {
-    id, label: 'Überbauung', x, y,
+    id, label: 'Überbauung', x, y, rotation: 0,
     length: EXAMPLE_OVERHEAD_LENGTH, width: EXAMPLE_OVERHEAD_WIDTH,
     bottomHeight: EXAMPLE_OVERHEAD_BOTTOM_HEIGHT, thickness: EXAMPLE_OVERHEAD_THICKNESS,
   };
 }
 
-export function overheadBoxCorners(box: Pick<OverheadBox, 'x' | 'y' | 'length' | 'width'>): PlanPoint[] {
-  const hx = box.length / 2, hy = box.width / 2;
-  return [
-    { x: box.x - hx, y: box.y - hy }, { x: box.x + hx, y: box.y - hy },
-    { x: box.x + hx, y: box.y + hy }, { x: box.x - hx, y: box.y + hy },
-  ];
+export function overheadBoxCorners(box: Pick<OverheadBox, 'x' | 'y' | 'length' | 'width'> & { rotation?: number }): PlanPoint[] {
+  return stairCorners({ x: box.x, y: box.y, rotation: box.rotation ?? 0, width: box.length, run: box.width });
 }
 
 type VenueOverhead = {

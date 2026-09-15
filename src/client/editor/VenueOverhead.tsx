@@ -37,7 +37,7 @@ export function VenueOverhead({ venue, ceilingHeight, boxes, readOnly, onCeiling
       <div><label htmlFor={`overhead-label-${box.id}`}>Überbauung {index + 1} Bezeichnung</label>
         <input id={`overhead-label-${box.id}`} maxLength={120} value={box.label}
           onChange={event => onBoxes(current => current.map(item => item.id === box.id ? { ...item, label: event.target.value } : item))} /></div>
-      {([['x', 'X (mm)'], ['y', 'Y (mm)'], ['length', 'Länge (mm)'], ['width', 'Breite (mm)'],
+      {([['x', 'X (mm)'], ['y', 'Y (mm)'], ['rotation', 'Drehung (°)'], ['length', 'Länge (mm)'], ['width', 'Breite (mm)'],
         ['bottomHeight', 'Unterkante über Fußboden (mm)'], ['thickness', 'Dicke (mm)']] as const).map(([key, label]) =>
         <div key={key}><label htmlFor={`overhead-${key}-${box.id}`}>Überbauung {index + 1} {label}</label>
           <input id={`overhead-${key}-${box.id}`} type="number" step="any" value={box[key]}

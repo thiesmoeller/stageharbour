@@ -246,6 +246,36 @@ export function reassignLayoutSupports<T extends SupportLayout>(layout: T, venue
   };
 }
 
+/** Same Auflagefläche majority vote for permanent venue walls, chairs and keep-clear zones. */
+export function reassignVenueSupports<T extends VenueLevels & {
+  walls?: SupportLayout['walls'];
+  placeholders?: SupportLayout['placeholders'];
+  keepClearZones?: { id: string; supportingSurfaceId: string; polygon: { x: number; y: number }[] }[];
+}>(venue: T): T {
+  const surfaces = supportingSurfaces(venue);
+  return {
+    ...venue,
+    walls: venue.walls?.map(wall => ({
+      ...wall,
+      supportingSurfaceId: resolveSupportingSurfaceId(
+        stairCorners({ x: wall.x, y: wall.y, rotation: wall.rotation, width: wall.width, run: wall.thickness }),
+        surfaces,
+      ),
+    })),
+    placeholders: venue.placeholders?.map(item => ({
+      ...item,
+      supportingSurfaceId: resolveSupportingSurfaceId(
+        stairCorners({ x: item.x, y: item.y, rotation: item.rotation, width: item.width, run: item.depth }),
+        surfaces,
+      ),
+    })),
+    keepClearZones: venue.keepClearZones?.map(zone => ({
+      ...zone,
+      supportingSurfaceId: resolveSupportingSurfaceId(zone.polygon, surfaces),
+    })),
+  };
+}
+
 const messages: Record<PlacementKind, string> = {
   'missing-surface': 'Bitte eine Auflagefläche wählen. Ohne Auswahl wird die Höhe nicht stillschweigend gesetzt.',
   'unknown-surface': 'Die gewählte Auflagefläche ist nicht vorhanden.',

@@ -104,7 +104,16 @@ function StageNodeRenderer({ node }: { node: StageNode }) {
       </ErrorBoundary>
     </group>;
   })();
-  return <group ref={ref} position={[mirrorWidth / 1000, 0, 0]} scale={[-1, 1, 1]} onClick={event => { event.stopPropagation(); if (node.scope === 'scene' || venueEditable) onSelect?.(element.value.id, event.shiftKey || event.ctrlKey || event.metaKey); }}>
+  return <group ref={ref} position={[mirrorWidth / 1000, 0, 0]} scale={[-1, 1, 1]}
+    userData={{
+      pushPull: {
+        id: element.value.id,
+        kind: element.kind === 'wall' || element.kind === 'platform' || element.kind === 'stair' || element.kind === 'overhead' || element.kind === 'placeholder'
+          ? element.kind : undefined,
+        scope: node.scope,
+      },
+    }}
+    onClick={event => { event.stopPropagation(); if (node.scope === 'scene' || venueEditable) onSelect?.(element.value.id, event.shiftKey || event.ctrlKey || event.metaKey); }}>
     {content}
     {selected && <SelectionBounds target={ref} />}
   </group>;

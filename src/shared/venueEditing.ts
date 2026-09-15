@@ -1,9 +1,10 @@
 import { venueGeometrySchema, wallCorners, type VenueGeometry } from './layout.js';
-import { platformCentroid, stairCorners } from './levels.js';
+import { platformCentroid, reassignVenueSupports, stairCorners } from './levels.js';
 import { placeholderCorners } from './placeholders.js';
 import { normalizeRotation, type PlanTransform } from './editing.js';
 import { resolveWall } from './wall-types.js';
 import type { PlanBounds } from './selection.js';
+import { overheadBoxCorners } from './overhead.js';
 
 export function venueObjects(venue: VenueGeometry) {
   return [
@@ -27,7 +28,7 @@ export function venueObjectFootprint(item: VenueObject, venue: VenueGeometry) {
     case 'zone': return item.polygon;
     case 'corridor': return item.path;
     case 'pin': return [{ x: item.x - 65, y: item.y - 65 }, { x: item.x + 65, y: item.y + 65 }];
-    case 'overhead': return stairCorners({ ...item, rotation: 0, width: item.length, run: item.width });
+    case 'overhead': return overheadBoxCorners(item);
   }
 }
 export function venueObjectsInBounds(venue: VenueGeometry, bounds: PlanBounds) {
@@ -98,5 +99,5 @@ export function transformVenue(venue: VenueGeometry, ids: readonly string[], del
     keepClearZones: venue.keepClearZones?.map(item => ids.includes(item.id) ? { ...item, polygon: item.polygon.map(point) } : item),
     cableRoutingCorridors: venue.cableRoutingCorridors?.map(item => ids.includes(item.id) ? { ...item, path: item.path.map(point) } : item),
   };
-  return venueGeometrySchema.safeParse(candidate).success ? candidate : venue;
+  return venueGeometrySchema.safeParse(candidate).success ? reassignVenueSupports(candidate) : venue;
 }

@@ -106,3 +106,10 @@ test('a wall beside a duct does not warn; a brace uses the same local height', (
   const warnings = overheadClearance({ walls: [], braces: [braceOnStage] }, venue);
   assert.equal(warnings.some(item => item.kind === 'overhead' && item.objectId === braceOnStage.id), true);
 });
+
+test('a rotated overhead box turns its plan footprint with the Drehung field', () => {
+  const box = { ...newOverheadBox(randomUUID(), 4000, 3000), rotation: 90, length: 2000, width: 1000 };
+  const corners = overheadBoxCorners(box);
+  assert.deepEqual(corners[0], { x: 4500, y: 2000 });
+  assert.deepEqual(corners[2], { x: 3500, y: 4000 });
+});

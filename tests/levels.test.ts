@@ -5,10 +5,11 @@ import {
   AUDIENCE_FLOOR_ID, EXAMPLE_PLATFORM_DEPTH, EXAMPLE_PLATFORM_ELEVATION, EXAMPLE_PLATFORM_WIDTH,
   EXAMPLE_STAIR_RISER, EXAMPLE_STAIR_RUN, EXAMPLE_STAIR_WIDTH,
   axisAlignedPlatformOutline, layoutDiagnostics, newPlatform, newStair, placementDiagnostic, platformCentroid,
-  platformSchema, reassignLayoutSupports, resolveSupportingSurfaceId, rotatePlatformOutline, stairCorners, stairRise,
+  platformSchema, reassignLayoutSupports, reassignVenueSupports, resolveSupportingSurfaceId, rotatePlatformOutline, stairCorners, stairRise,
   stairSchema, supportingSurfaces, surfaceElevation, translatePlatformOutline,
 } from '../src/shared/levels.js';
 import { newBrace, newWall, wallCorners } from '../src/shared/layout.js';
+import { newPlaceholder } from '../src/shared/placeholders.js';
 import { braceCorners } from '../src/shared/braceTransforms.js';
 
 const venue = { schemaVersion: 1 as const, width: 8000, depth: 6000 };
@@ -135,4 +136,16 @@ test('platform outline translate and rotate keep the centroid under control', ()
   const rebuilt = axisAlignedPlatformOutline(4000, 3000, 2000, 1000, 90);
   assert.equal(rebuilt.length, 4);
   assert(Math.abs(platformCentroid(rebuilt).x - 4000) < 1e-6);
+});
+
+test('venue chairs jump onto a podium the same way layout placeholders do', () => {
+  const platform = newPlatform(randomUUID(), 4000, 3000);
+  platform.elevation = 400;
+  const chair = newPlaceholder('chair', randomUUID(), 4000, 3000);
+  assert.equal(chair.supportingSurfaceId, AUDIENCE_FLOOR_ID);
+  const venue = reassignVenueSupports({
+    schemaVersion: 1 as const, width: 8000, depth: 6000, platforms: [platform], placeholders: [chair],
+  });
+  assert.equal(venue.placeholders?.[0]?.supportingSurfaceId, platform.id);
+  assert.equal(surfaceElevation(supportingSurfaces(venue), venue.placeholders?.[0]?.supportingSurfaceId), 400);
 });

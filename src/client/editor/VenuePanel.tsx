@@ -9,7 +9,7 @@ import { VenueLevels } from './VenueLevels.js';
 import { OverheadMarks, VenueOverhead } from './VenueOverhead.js';
 import { KeepClearMarks, KeepClearZones } from './KeepClearZones.js';
 import { calibrationSchema, measuredOutline, millimetresPerUnit, type Calibration, type PlanPoint } from '../../shared/venue.js';
-import { type Platform, type StairUnit, AUDIENCE_FLOOR_ID, newPlatform, newStair, platformBounds, platformCentroid, stairCorners } from '../../shared/levels.js';
+import { type Platform, type StairUnit, AUDIENCE_FLOOR_ID, newPlatform, newStair, platformBounds, platformCentroid, reassignVenueSupports, stairCorners } from '../../shared/levels.js';
 import { type OverheadBox, newOverheadBox, EXAMPLE_CEILING_HEIGHT } from '../../shared/overhead.js';
 import { newKeepClearZone, type KeepClearZone } from '../../shared/keepClear.js';
 import { newPlaceholder, type Placeholder } from '../../shared/placeholders.js';
@@ -246,12 +246,13 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
       overheadBoxes, keepClearZones: zones, stageCentreline: centreline,
     });
     if (!result.success) { setError('Bitte prüfen Sie den Umriss, die Kalibrierung, die Anschlüsse und die Überbauungen.'); return; }
+    const toSave = reassignVenueSupports(result.data);
     const acknowledged = structuredClone(draft.value);
     setBusy(true); setError('');
     try {
-      if (onPublish) await onPublish(result.data);
+      if (onPublish) await onPublish(toSave);
       else {
-        const body = saveVenueResultSchema.parse(await request(`/api/workspaces/${workspaceId}/scenes/${sceneId}/venue`, { venue: result.data }, 'PUT'));
+        const body = saveVenueResultSchema.parse(await request(`/api/workspaces/${workspaceId}/scenes/${sceneId}/venue`, { venue: toSave }, 'PUT'));
         onSaved?.({ ...body, venueUpdateAvailable: false });
       }
       draft.markSaved(acknowledged);
@@ -276,7 +277,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
   const planHeight = Math.max(height, ...vertices.map(p => p.y)) + 1200;
   const candidate = venueGeometrySchema.safeParse({ ...venue, lighting, outline: vertices, walls, platforms, stairs, placeholders, overheadBoxes,
     ceilingHeight: ceilingHeight === '' ? undefined : ceilingHeight, keepClearZones: zones, connectionPoints: pins, cableRoutingCorridors: corridors, stageCentreline: centreline });
-  const previewVenue = candidate.success ? candidate.data : venue;
+  const previewVenue = candidate.success ? reassignVenueSupports(candidate.data) : venue;
   // Placeholders stay on the venue only; putting them on the layout too duplicates chairs in 3D.
   const liveLayout: Layout = { schemaVersion: 1, walls: [], braces: [] };
   const pivot = venueSelectionPivot(previewVenue, selectedIds);
@@ -414,6 +415,15 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
     if (!start || !selected) return;
     const moved = transformVenue(sourceFromDraft(start), selectedIds, { ...delta, rotation: bypass ? delta.rotation : Math.round(delta.rotation / 15) * 15 });
     draft.preview(draftFromVenue(moved, start));
+    if (phase === 'commit') { draft.finish(); transformStart.current = undefined; }
+  };
+  const pushPull: StageEditing['onPushPull'] = (phase, next) => {
+    if (readOnly) return;
+    if (phase === 'begin') { transformStart.current = draft.value; draft.begin(); return; }
+    if (phase === 'cancel') { draft.finish(true); transformStart.current = undefined; return; }
+    const start = transformStart.current;
+    if (!start) return;
+    draft.preview(draftFromVenue(next, start));
     if (phase === 'commit') { draft.finish(); transformStart.current = undefined; }
   };
   useViewportWheel(svg, event => {
@@ -564,11 +574,18 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
                 testId={`rotate-venue-placeholder-${item.id}`} label="Platzhalter drehen"
                 onPointerDown={event => beginObjectRotate(event, item.id, item, item.rotation)} />;
             })()}
+            {selectedIds.length === 1 && !readOnly && (() => {
+              const box = overheadBoxes.find(item => item.id === selected);
+              if (!box) return null;
+              return <RotationHandle centre={box} rotation={box.rotation} width={box.length}
+                testId={`rotate-venue-overhead-${box.id}`} label="Überbauung drehen"
+                onPointerDown={event => beginObjectRotate(event, box.id, box, box.rotation)} />;
+            })()}
             {marqueeBox && <rect data-testid="venue-selection-marquee" className="selection-marquee"
               x={marqueeBox.minX} y={-marqueeBox.maxY} width={marqueeBox.maxX - marqueeBox.minX} height={marqueeBox.maxY - marqueeBox.minY} />}
           </svg>
         </div>
-        {viewMode !== 'plan' && <StageView onLightingChange={readOnly ? undefined : setLighting} layout={liveLayout} venue={previewVenue} venueEditable workspaceId={workspaceId} selectedIds={selectedIds} pivot={pivot} onSelect={(id, additive) => setSelectedIds(ids => additive ? ids.includes(id) ? ids.filter(value => value !== id) : [...ids, id] : [id])} onClearSelection={() => setSelectedIds([])} onTransform={readOnly ? undefined : transform} snapEnabled={snapEnabled} />}
+        {viewMode !== 'plan' && <StageView onLightingChange={readOnly ? undefined : setLighting} layout={liveLayout} venue={previewVenue} venueEditable workspaceId={workspaceId} selectedIds={selectedIds} pivot={pivot} onSelect={(id, additive) => setSelectedIds(ids => additive ? ids.includes(id) ? ids.filter(value => value !== id) : [...ids, id] : [id])} onClearSelection={() => setSelectedIds([])} onTransform={readOnly ? undefined : transform} onPushPull={readOnly ? undefined : pushPull} snapEnabled={snapEnabled} />}
       </div>
       <aside className="wall-inspector">
         <div className="inspector-title"><ToolIcon name="settings" /><h3>Eigenschaften</h3><span>mm</span></div>
@@ -602,7 +619,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
               return <>
                 <div className="numeric-fields">
                   <label>Bezeichnung<input value={box.label} onChange={event => setOverheadBoxes(items => items.map(item => item.id === box.id ? { ...item, label: event.target.value } : item))} /></label>
-                  {([['x', 'X'], ['y', 'Y'], ['bottomHeight', 'Unterkante'], ['thickness', 'Dicke'], ['length', 'Länge'], ['width', 'Breite']] as const).map(([key, label]) =>
+                  {([['x', 'X'], ['y', 'Y'], ['rotation', 'Drehung'], ['bottomHeight', 'Unterkante'], ['thickness', 'Dicke'], ['length', 'Länge'], ['width', 'Breite']] as const).map(([key, label]) =>
                     <label key={key}>{label}<input aria-label={`${box.label} ${label}`} type="number" value={box[key]}
                       onChange={event => setOverheadBoxes(items => items.map(item => item.id === box.id ? { ...item, [key]: Number(event.target.value) } : item))} /></label>)}
                 </div>

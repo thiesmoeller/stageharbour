@@ -11,6 +11,7 @@ import type { Layout, VenueGeometry } from '../../shared/layout.js';
 import type { Asset } from '../../shared/assets.js';
 import { StageCamera, type StageCameraView } from './StageCamera.js';
 import { StageTransformControls } from './StageTransformControls.js';
+import { PushPullControls } from './PushPullControls.js';
 import type { StageEditing } from './StageEditing.js';
 import { VenueFloor } from './VenueFloor.js';
 import { PascalSceneBridge, StageInteraction } from './PascalStageNodes.js';
@@ -52,7 +53,7 @@ export default function PascalStageCanvas({ model, layout, venue, audience, view
   const [focusSelection, setFocusSelection] = useState(false);
   const [frameRevision, setFrameRevision] = useState(0);
   function frame(selection: boolean) { setFocusSelection(selection); setFrameRevision(value => value + 1); }
-  const [mode, setMode] = useState<'translate' | 'rotate'>('translate');
+  const [mode, setMode] = useState<'translate' | 'rotate' | 'pushPull'>('translate');
   const [detailed, setDetailed] = useState(false);
   const theme = useViewer(state => state.sceneTheme);
   const setTheme = useViewer(state => state.setSceneTheme);
@@ -78,6 +79,7 @@ export default function PascalStageCanvas({ model, layout, venue, audience, view
     <div className="render-toolbar">
       <button type="button" className="quiet" disabled={!editing.pivot} onClick={() => frame(true)}><ToolIcon name="expand" />Auswahl einpassen</button><button type="button" className="quiet" onClick={() => frame(false)}><ToolIcon name="expand" />Bühne einpassen</button>
       {editing.onTransform && <><button type="button" className="quiet" aria-pressed={mode === 'translate'} onClick={() => setMode('translate')} title="3D verschieben"><ToolIcon name="move" />3D verschieben</button><button type="button" className="quiet" aria-pressed={mode === 'rotate'} onClick={() => setMode('rotate')} title="3D drehen"><ToolIcon name="rotate" />3D drehen</button></>}
+      {editing.onPushPull && <button type="button" className="quiet" aria-pressed={mode === 'pushPull'} onClick={() => setMode('pushPull')} title="Höhe ziehen" aria-label="Höhe ziehen"><ToolIcon name="expand" />Höhe ziehen</button>}
       <details className="render-settings"><summary>Darstellung</summary><div className="render-settings-body"><label>Umgebung <select value={theme} onChange={event => setTheme(event.target.value)}>
         <option value="studio">Studio</option><option value="paper">Warm</option>
         <option value="sunset">Abend</option>
@@ -96,7 +98,8 @@ export default function PascalStageCanvas({ model, layout, venue, audience, view
           <VenueFloor venue={venue} lit />
           </group>
         </group>
-        <StageTransformControls {...editing} width={mirrorWidth} mode={mode} />
+        {mode !== 'pushPull' && <StageTransformControls {...editing} width={mirrorWidth} mode={mode === 'rotate' ? 'rotate' : 'translate'} />}
+        <PushPullControls venue={venue} enabled={mode === 'pushPull'} snapEnabled={editing.snapEnabled} onPushPull={editing.onPushPull} />
         <OrbitControls key={`${view}-${frameRevision}`} enableRotate={view === 'orbit'} makeDefault target={[mirroredTargetX / 1000, target.y / 1000, target.z / 1000]} maxPolarAngle={Math.PI / 2 - 0.01} minDistance={0.1} maxDistance={500} />
       </Viewer>
     </div>
