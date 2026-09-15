@@ -12,6 +12,19 @@ export function selectionPivot(layout: Layout, selection: readonly SelectableMem
   return { x: centres.reduce((sum, p) => sum + p.x, 0) / centres.length, y: centres.reduce((sum, p) => sum + p.y, 0) / centres.length };
 }
 
+/** Paint the same Pascal library finish onto every listed wall id (or clear it). */
+export function applyWallFinish(layout: Layout, wallIds: readonly string[], finish: string | undefined): Layout {
+  const ids = new Set(wallIds);
+  if (!ids.size) return layout;
+  const walls = layout.walls.map(wall => {
+    if (!ids.has(wall.id)) return wall;
+    if (finish) return { ...wall, finish };
+    const { finish: _removed, ...rest } = wall;
+    return rest;
+  });
+  return { ...layout, walls };
+}
+
 /** A complete candidate transform from a gesture's original document, never from its previous preview. */
 export function transformSelection(layout: Layout, selection: readonly SelectableMember[], delta: PlanTransform): Layout {
   const pivot = selectionPivot(layout, selection);

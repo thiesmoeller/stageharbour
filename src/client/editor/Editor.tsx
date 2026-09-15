@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type PointerEvent } from 'react';
 import { z } from 'zod';
-import { selectionPivot, transformSelection, type PlanTransform } from '../../shared/editing.js';
+import { applyWallFinish, selectionPivot, transformSelection, type PlanTransform } from '../../shared/editing.js';
 import type { StageEditing } from './StageEditing.js';
 import { assemblyCaption } from '../../shared/assembly.js';
 import { copySelection, cutSelection, pasteClipboard, removeSelection, type ClipboardMember, type LayoutClipboard } from '../../shared/clipboard.js';
@@ -187,7 +187,11 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
   }
   function replace(wall: Wall) { commit({ ...current.current.present, walls: current.current.present.walls.map(item => item.id === wall.id ? wall : item) }); }
   function applyWall(wall: Wall) {
-    replace(wall);
+    const present = current.current.present;
+    const withPrimary = { ...present, walls: present.walls.map(item => item.id === wall.id ? wall : item) };
+    const wallIds = selection().flatMap(item => item.kind === 'wall' ? [item.id] : []);
+    const targets = wallIds.includes(wall.id) ? wallIds : [wall.id];
+    commit(targets.length > 1 ? applyWallFinish(withPrimary, targets, wall.finish) : withPrimary);
   }
   function applyType(type: WallElementType) {
     const present = current.current.present;
@@ -426,6 +430,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     return () => window.removeEventListener('keydown', shortcut);
   });
   const selectedWall = state.present.walls.find(wall => wall.id === selected);
+  const selectedWallCount = selection().filter(item => item.kind === 'wall').length;
   const wallTypes = typesOf(state.present);
   const selectedBraceItem = state.present.braces.find(brace => brace.id === selectedBrace);
   const selectedPlatformItem = (state.present.platforms ?? []).find(item => item.id === selectedPlatform);
@@ -1335,7 +1340,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     </div><aside className="wall-inspector">
       <div className="inspector-title"><ToolIcon name="settings" /><h3>Eigenschaften</h3><span>mm</span></div>
       <div className="selection-properties">
-      <h3>{selectedPlaceholderItem ? 'Platzhalter' : selectedPlatformItem ? 'Podest' : selectedStairItem ? 'Treppe' : selectedBraceItem ? 'Gewichtete Stütze' : selectedWall ? 'Wandelement' : 'Keine Auswahl'}</h3>
+      <h3>{selectedPlaceholderItem ? 'Platzhalter' : selectedPlatformItem ? 'Podest' : selectedStairItem ? 'Treppe' : selectedBraceItem ? 'Gewichtete Stütze' : selectedWall ? (selectedWallCount > 1 ? `${selectedWallCount} Wandelemente` : 'Wandelement') : 'Keine Auswahl'}</h3>
       <label htmlFor="wall-selection">Auswahl</label>
       <select id="wall-selection" value={selectedWall ? `wall:${selectedWall.id}` : selectedBraceItem ? `brace:${selectedBraceItem.id}` : selectedPlatformItem ? `platform:${selectedPlatformItem.id}` : selectedStairItem ? `stair:${selectedStairItem.id}` : selectedPlaceholderItem ? `placeholder:${selectedPlaceholderItem.id}` : ''} onChange={event => {
         const value = event.target.value;
@@ -1353,7 +1358,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
         {(state.present.stairs ?? []).map((stair, index) => <option key={stair.id} value={`stair:${stair.id}`}>T{index + 1}. {stair.label}</option>)}
         {(state.present.placeholders ?? []).map((item, index) => <option key={item.id} value={`placeholder:${item.id}`}>M{index + 1}. {item.label}</option>)}
       </select>
-      {selectedWall ? <WallForm key={JSON.stringify(selectedWall)} wall={selectedWall} openings={resolveWall(selectedWall, wallTypes).openings} typed={!!selectedWall.typeId} surfaces={surfaces} readOnly={readOnly} onApply={applyWall} onRemove={remove} />
+      {selectedWall ? <WallForm key={JSON.stringify(selectedWall)} wall={selectedWall} openings={resolveWall(selectedWall, wallTypes).openings} typed={!!selectedWall.typeId} surfaces={surfaces} readOnly={readOnly} bulkWallCount={selectedWallCount} onApply={applyWall} onRemove={remove} />
         : selectedBraceItem ? <BraceInspector key={JSON.stringify(selectedBraceItem)} brace={selectedBraceItem} surfaces={surfaces} readOnly={readOnly} onApply={replaceBrace} onRemove={remove}
             onAlign={() => {
               const types = typesOf(current.current.present);
@@ -1400,8 +1405,8 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
   </section>;
 }
 
-function WallForm({ wall, openings, typed, surfaces, readOnly, onApply, onRemove }: {
-  wall: Wall; openings: Opening[]; typed: boolean; surfaces: ReturnType<typeof supportingSurfaces>; readOnly: boolean; onApply: (wall: Wall) => void; onRemove: () => void;
+function WallForm({ wall, openings, typed, surfaces, readOnly, bulkWallCount = 1, onApply, onRemove }: {
+  wall: Wall; openings: Opening[]; typed: boolean; surfaces: ReturnType<typeof supportingSurfaces>; readOnly: boolean; bulkWallCount?: number; onApply: (wall: Wall) => void; onRemove: () => void;
 }) {
   const [error, setError] = useState('');
   const doors = openings.filter(isDoorOpening);
@@ -1419,6 +1424,7 @@ function WallForm({ wall, openings, typed, surfaces, readOnly, onApply, onRemove
     setError(''); onApply(result.data);
   }
   return <form onSubmit={submit}><fieldset disabled={readOnly}>
+    {bulkWallCount > 1 && <p className="muted">{bulkWallCount} Wände ausgewählt. Die Oberfläche wird auf alle übernommen; übrige Felder gelten nur für die hervorgehobene Wand.</p>}
     <label htmlFor="wall-label">Bezeichnung</label><input id="wall-label" name="label" defaultValue={wall.label} maxLength={120} required />
     <SurfaceField id="wall-surface" value={wall.supportingSurfaceId} surfaces={surfaces} />
     <div className="numeric-fields">{(typed ? [
@@ -1432,7 +1438,7 @@ function WallForm({ wall, openings, typed, surfaces, readOnly, onApply, onRemove
       <input id="wall-door-open" name="doorOpenPercent" type="number" min={0} max={100} step={1} defaultValue={wall.doorOpenPercent ?? 0} />
       <p className="muted">Scharnier {doors.map(door => door.hinge === 'left' ? 'links' : 'rechts').join(', ')} · Blatt 800×2000 mm weiß · Zarge 25×50 mm außen. 0 % geschlossen, 100 % = 90° offen.</p>
     </>}
-    <Suspense fallback={<p>Materialbibliothek wird geladen …</p>}><MaterialPicker value={wall.finish} /></Suspense>
+    <Suspense fallback={<p>Materialbibliothek wird geladen …</p>}><MaterialPicker id="wall-finish" value={wall.finish} /></Suspense>
     <p className="muted">{typed ? 'Außenmaße und Öffnungen kommen vom Wandtyp.' : 'X/Y beziehen sich auf die Wandmitte. Ursprung: vordere linke Ecke der Spielstätte.'}</p>
     {error && <p role="alert" className="error">{error}</p>}
     {!readOnly && <div className="form-actions"><button type="submit">Übernehmen</button><button className="quiet" type="button" onClick={onRemove}>Wand löschen</button></div>}
