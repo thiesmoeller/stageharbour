@@ -100,7 +100,7 @@ export function freezeSnapshot(
       if (!a || !b || !c || !d) throw new Error('Brace geometry must resolve to four corners.');
       return { id: brace.id, label: brace.label, height: brace.height, corners: [a, b, c, d] as const };
     }),
-    resolvedPlaceholders: (scene.layout.placeholders ?? []).map(item => {
+    resolvedPlaceholders: [...(venue.placeholders ?? []), ...(scene.layout.placeholders ?? [])].map(item => {
       const [a, b, c, d] = placeholderCorners(item);
       if (!a || !b || !c || !d) throw new Error('Placeholder geometry must resolve to four corners.');
       return {
@@ -108,7 +108,10 @@ export function freezeSnapshot(
         width: item.width, depth: item.depth, height: item.height, corners: [a, b, c, d] as const,
       };
     }),
-    unresolvedWarnings: keepClearWarnings(venue, layout),
+    unresolvedWarnings: keepClearWarnings(venue, {
+      ...layout,
+      placeholders: [...(venue.placeholders ?? []), ...(layout.placeholders ?? [])],
+    }),
   };
 }
 

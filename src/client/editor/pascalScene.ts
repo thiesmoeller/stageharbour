@@ -39,6 +39,7 @@ export function pascalScene(layout: Layout, venue?: VenueGeometry) {
     ...(venue.walls ?? []).map(value => ({ kind: 'wall' as const, value })),
     ...(venue.platforms ?? []).map(value => ({ kind: 'platform' as const, value })),
     ...(venue.stairs ?? []).map(value => ({ kind: 'stair' as const, value })),
+    ...(venue.placeholders ?? []).map(value => ({ kind: 'placeholder' as const, value })),
     ...(venue.overheadBoxes ?? []).map(value => ({ kind: 'overhead' as const, value })),
     ...(venue.keepClearZones ?? []).map(value => ({ kind: 'zone' as const, value })),
     ...(venue.connectionPoints ?? []).map(value => ({ kind: 'pin' as const, value })),

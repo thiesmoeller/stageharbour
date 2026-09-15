@@ -130,3 +130,13 @@ test('a table on a 400 mm platform sits 400 mm above the audience floor as a sim
   assert.deepEqual(model.placeholders[0]!.size, { x: 1200, y: 750, z: 800 });
   assertVec(model.placeholders[0]!.center, { x: 4000, y: 775, z: 5000 });
 });
+
+test('venue chairs appear once in the stage model without duplicating scene placeholders', () => {
+  const chair = newPlaceholder('chair', randomUUID(), 1200, 800);
+  const table = newPlaceholder('table', randomUUID(), 4000, 3000);
+  const venue = { schemaVersion: 1 as const, width: 8000, depth: 6000, placeholders: [chair] };
+  const model = stageModel({ schemaVersion: 1, walls: [], braces: [], placeholders: [table] }, venue);
+  assert.equal(model.placeholders.length, 2);
+  assert.equal(model.placeholders.filter(item => item.id === chair.id).length, 1);
+  assert.equal(model.placeholders.filter(item => item.id === table.id).length, 1);
+});

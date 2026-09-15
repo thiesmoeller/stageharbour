@@ -246,6 +246,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
       overheadBoxes, keepClearZones: zones, stageCentreline: centreline,
     });
     if (!result.success) { setError('Bitte prüfen Sie den Umriss, die Kalibrierung, die Anschlüsse und die Überbauungen.'); return; }
+    const acknowledged = structuredClone(draft.value);
     setBusy(true); setError('');
     try {
       if (onPublish) await onPublish(result.data);
@@ -253,7 +254,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
         const body = saveVenueResultSchema.parse(await request(`/api/workspaces/${workspaceId}/scenes/${sceneId}/venue`, { venue: result.data }, 'PUT'));
         onSaved?.({ ...body, venueUpdateAvailable: false });
       }
-      draft.markSaved();
+      draft.markSaved(acknowledged);
     } catch (caught) {
       setError(caught instanceof ApiError && caught.status === 409 ? 'Eine neuere Spielstättenfassung ist vorhanden. Ihr Entwurf bleibt erhalten. Sichern Sie ihn vor dem Neuladen.' : caught instanceof ApiError && caught.status === 400 ? 'Ungültiger Umriss oder ungültige Vorlage.' : 'Die Spielstätte konnte nicht gespeichert werden.');
     } finally { setBusy(false); }
@@ -276,7 +277,8 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
   const candidate = venueGeometrySchema.safeParse({ ...venue, lighting, outline: vertices, walls, platforms, stairs, placeholders, overheadBoxes,
     ceilingHeight: ceilingHeight === '' ? undefined : ceilingHeight, keepClearZones: zones, connectionPoints: pins, cableRoutingCorridors: corridors, stageCentreline: centreline });
   const previewVenue = candidate.success ? candidate.data : venue;
-  const liveLayout: Layout = { schemaVersion: 1, walls: [], braces: [], placeholders };
+  // Placeholders stay on the venue only; putting them on the layout too duplicates chairs in 3D.
+  const liveLayout: Layout = { schemaVersion: 1, walls: [], braces: [] };
   const pivot = venueSelectionPivot(previewVenue, selectedIds);
   function sourceFromDraft(start: VenueDraft): VenueGeometry {
     return {

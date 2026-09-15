@@ -27,3 +27,17 @@ test('Pascal projection retains physical panel dimensions, IDs and freely rotate
   assert.equal(Math.max(...corners.map(p => p.x)) - Math.min(...corners.map(p => p.x)), 1000);
   assert.equal(Math.max(...corners.map(p => p.y)) - Math.min(...corners.map(p => p.y)), 2000);
 });
+
+test('Pascal projection includes permanent venue chairs once, separate from scene placeholders', () => {
+  const venueChair = { id: randomUUID(), label: 'Parkett 1', x: 1200, y: 800, kind: 'chair' as const, rotation: 0, width: 450, depth: 450, height: 900 };
+  const sceneTable = { id: randomUUID(), label: 'Probetisch', x: 4000, y: 3000, kind: 'table' as const, rotation: 0, width: 1200, depth: 800, height: 750 };
+  const venue = { schemaVersion: 1 as const, width: 8000, depth: 6000, placeholders: [venueChair] };
+  const layout = { schemaVersion: 1 as const, walls: [], braces: [], placeholders: [sceneTable] };
+  const projected = pascalScene(layout, venue);
+  const placeholders = Object.values(projected.nodes).filter(node => node.element.kind === 'placeholder');
+  assert.equal(placeholders.length, 2);
+  const venueNode = placeholders.find(node => node.element.value.id === venueChair.id);
+  const sceneNode = placeholders.find(node => node.element.value.id === sceneTable.id);
+  assert.equal(venueNode?.scope, 'venue');
+  assert.equal(sceneNode?.scope, 'scene');
+});

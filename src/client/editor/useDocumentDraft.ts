@@ -31,6 +31,7 @@ export function useDocumentDraft<T>(initial: T) {
     undo() { const next = undo(current.current); current.current = next; setState(next); },
     redo() { const next = redo(current.current); current.current = next; setState(next); },
     discard() { const next = history(savedValue.current); current.current = next; setState(next); base.current = undefined; previewRef.current = undefined; setPreview(undefined); },
-    markSaved() { savedValue.current = current.current.present; setSaved(JSON.stringify(current.current.present)); },
+    /** Mark only the submitted snapshot saved so edits during the request stay dirty. */
+    markSaved(acknowledged: T) { savedValue.current = acknowledged; setSaved(JSON.stringify(acknowledged)); },
   };
 }

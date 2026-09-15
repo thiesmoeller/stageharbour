@@ -1183,6 +1183,12 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
         <path data-testid="venue-floor" d={`${floor.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')} Z`}
           fill="url(#metre-grid)" stroke="#718469" strokeWidth="2" vectorEffect="non-scaling-stroke" onPointerDown={startMarquee} />
         {(venue.walls ?? []).map(wall => <polygon key={wall.id} data-testid={`venue-wall-${wall.id}`} points={wallCorners(resolveWall(wall, venue.wallTypes ?? [])).map(p => `${p.x},${-p.y}`).join(' ')} fill="#8b8478" stroke="#625b50" vectorEffect="non-scaling-stroke" pointerEvents="none"><title>{wall.label} · feste Spielstättenwand</title></polygon>)}
+        {(venue.placeholders ?? []).map(item => <g key={item.id} data-testid={`venue-placeholder-${item.id}`}
+          transform={`translate(${item.x} ${-item.y}) rotate(${-item.rotation})`} pointerEvents="none">
+          <rect x={-item.width / 2} y={-item.depth / 2} width={item.width} height={item.depth}
+            fill="#8fa07a99" stroke="#625b50" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+          <title>{item.label} · fester Publikumsstuhl</title>
+        </g>)}
         <text x={venue.width / 2} y={-venue.depth - 200} textAnchor="middle" fontSize="180">{venue.width} mm</text>
         <text x="-170" y={-venue.depth / 2} textAnchor="middle" fontSize="180" transform={`rotate(-90 -170 ${-venue.depth / 2})`}>{venue.depth} mm</text>
         <text x={venue.width / 2} y="420" textAnchor="middle" fontSize="190">↑ Publikum · Blick zur Bühne</text>

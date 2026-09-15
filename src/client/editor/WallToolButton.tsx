@@ -76,10 +76,6 @@ export function WallToolButton({ disabled, sceneTypes, onAddPlain, onAddType }: 
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
-    if (disabled || event.button !== 0) return;
-    if (longPress.current) return;
-    setOpen(false);
-    onAddPlain();
   }
 
   function onPointerCancel(event: ReactPointerEvent<HTMLButtonElement>) {
@@ -88,6 +84,17 @@ export function WallToolButton({ disabled, sceneTypes, onAddPlain, onAddType }: 
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
+  }
+
+  /** Click covers pointer and keyboard (Enter/Space); long-press only opens the type menu. */
+  function onClick() {
+    if (disabled) return;
+    if (longPress.current) {
+      longPress.current = false;
+      return;
+    }
+    setOpen(false);
+    onAddPlain();
   }
 
   function chooseTemplate(kind: GroupWallTypeKind) {
@@ -107,6 +114,7 @@ export function WallToolButton({ disabled, sceneTypes, onAddPlain, onAddType }: 
       <button ref={button} type="button" className="quiet" disabled={disabled} aria-haspopup="dialog" aria-expanded={open}
         title="Wand hinzufügen · Lang drücken für Wandtypen" aria-label="Wand hinzufügen"
         onPointerDown={onPointerDown} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel}
+        onClick={onClick}
         onContextMenu={event => { event.preventDefault(); if (!disabled) openTypes(); }}>
         <ToolIcon name="wall" /><span>Wand</span>
       </button>

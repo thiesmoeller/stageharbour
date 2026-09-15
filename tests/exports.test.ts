@@ -246,6 +246,21 @@ test('freeze stores overhead warnings that later venue edits cannot change', asy
   assert(!/zertifiz|standsicher|freigegeben/i.test(text), text);
 });
 
+test('frozen construction plans include permanent venue chairs alongside scene placeholders', () => {
+  const chair = { ...newPlaceholder('chair', randomUUID(), 1200, 800), label: 'Parkett 12' };
+  const table = { ...newPlaceholder('table', randomUUID(), 2000, 3000), label: 'Probetisch' };
+  const scene: Scene = {
+    id: randomUUID(), name: 'Stuhlprobe', productionName: 'Beispielproduktion', venueName: 'Beispielsaal',
+    revision: 1, productionId: randomUUID(), venueId: randomUUID(), venueVersionId: randomUUID(),
+    venue: { schemaVersion: 1, width: 8000, depth: 6000, placeholders: [chair] },
+    lease: null, layout: { schemaVersion: 1, walls: [], braces: [], placeholders: [table] },
+  };
+  const snapshot = freezeSnapshot(scene, { id: randomUUID(), name: 'Fassung Stühle', issuedAt: new Date('2026-09-07T12:00:00.000Z') });
+  assert.equal(snapshot.resolvedPlaceholders.length, 2);
+  assert.equal(snapshot.resolvedPlaceholders.some(item => item.label === 'Parkett 12'), true);
+  assert.equal(snapshot.resolvedPlaceholders.some(item => item.label === 'Probetisch'), true);
+});
+
 test('a frozen 1200 x 800 mm table is 24 mm by 16 mm on the A4 page and later edits cannot change it', async () => {
   const table = { ...newPlaceholder('table', randomUUID(), 2000, 3000), label: 'Probetisch' };
   const scene: Scene = {
