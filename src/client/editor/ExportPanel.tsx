@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { exportListSchema, germanDate, type ExportRevision } from '../../shared/export.js';
+import { exportListSchema, exportRevisionSchema, germanDate, type ExportRevision } from '../../shared/export.js';
 import { ELEVATION_PROJECTION_NOTICE } from '../../shared/elevations.js';
 import type { Group } from '../../shared/groups.js';
 import type { Wall } from '../../shared/layout.js';
@@ -31,10 +31,18 @@ export function PackageExport({ workspaceId, productionId, sceneId, scenes, read
     if (!name || !sceneIds.length) { setError('Bitte wählen Sie mindestens eine Szene.'); return; }
     setBusy(true); setError('');
     try {
-      await request(base, { name, paper: data.get('paper'), scale: Number(data.get('scale')), sceneIds });
+      const created = exportRevisionSchema.parse(await request(base, {
+        name, paper: data.get('paper'), scale: Number(data.get('scale')), sceneIds,
+      }));
       (event.target as HTMLFormElement).reset();
+      if (created.status === 'failed') {
+        setError('Das PDF konnte nicht erzeugt werden. Bitte erneut versuchen.');
+      }
       load();
-    } catch { setError('Das Konstruktionspaket konnte nicht erzeugt werden.'); setBusy(false); }
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Das Konstruktionspaket konnte nicht erzeugt werden.');
+      setBusy(false);
+    }
   }
   async function retry(id: string) {
     setBusy(true); setError('');

@@ -51,9 +51,8 @@ export async function createApp(db: Database, config: Config, options: {
   registerInventoryRoutes(app, db, access, config.APP_ORIGIN, leases);
   registerVenueRoutes(app, db, access, config.APP_ORIGIN, storage, leases);
   registerExportRoutes(app, db, access, config.APP_ORIGIN, storage, options.renderPdf ?? renderOffThread);
-  registerPackageRoutes(app, db, access, config.APP_ORIGIN, storage, snapshot => (
-    options.renderPdf ? renderPackage(snapshot) : renderOffThread(snapshot)
-  ));
+  // Packages render in-process: the worker path was marking revisions failed without a useful client error.
+  registerPackageRoutes(app, db, access, config.APP_ORIGIN, storage, snapshot => renderPackage(snapshot));
   registerAssetRoutes(app, db, access, config.APP_ORIGIN, storage);
   app.addHook('onSend', async (request, reply) => {
     reply.header('X-Content-Type-Options', 'nosniff');

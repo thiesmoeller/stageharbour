@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { errorSchema, venueReferenceSchema, workspaceParamsSchema } from '../../shared/contracts.js';
+import { errorSchema, okSchema, venueReferenceSchema, workspaceParamsSchema } from '../../shared/contracts.js';
 import {
   applyVenueResultSchema, saveVenueResultSchema, saveVenueSchema, venueGeometrySchema, type Layout, type VenueGeometry,
 } from '../../shared/layout.js';
@@ -11,7 +11,7 @@ import { applyVenueVersion } from '../../shared/scenes.js';
 import { createVenueSchema, publishVenueSchema, venueListSchema, venueRecordSchema } from '../../shared/venueLibrary.js';
 import { boundsFromOutline } from '../../shared/venue.js';
 import type { Database } from '../db/connection.js';
-import { adaptation, production, scene, venue, venueReference, venueVersion } from '../db/schema.js';
+import { adaptation, editingLease, production, scene, venue, venueReference, venueVersion } from '../db/schema.js';
 import type { FileStorage } from '../exports/storage.js';
 import { AccessError, type createAccess } from '../identity/access.js';
 import { type Leases } from '../productions/leases.js';
@@ -246,5 +246,34 @@ export function registerVenueRoutes(
       warnings: diagnostics.warnings,
       unresolvedWarnings: diagnostics.unresolvedWarnings,
     };
+  });
+  api.delete(`${venuesPath}/:venueId`, { schema: { params: venueParams, response: { 200: okSchema, ...errors } } }, async request => {
+    const { workspaceId, venueId } = request.params;
+    await requireEditor(request, workspaceId);
+    await db.transaction(async tx => {
+      const [existing] = await tx.select({ id: venue.id }).from(venue)
+        .where(and(eq(venue.workspaceId, workspaceId), eq(venue.id, venueId)));
+      if (!existing) throw new AccessError(404, 'Spielstätte nicht verfügbar.');
+      const versions = await tx.select({ id: venueVersion.id }).from(venueVersion)
+        .where(and(eq(venueVersion.workspaceId, workspaceId), eq(venueVersion.venueId, venueId)));
+      if (versions.length) {
+        const inUse = await tx.select({ id: adaptation.id }).from(adaptation)
+          .where(and(
+            eq(adaptation.workspaceId, workspaceId),
+            inArray(adaptation.venueVersionId, versions.map(item => item.id)),
+          )).limit(1);
+        if (inUse.length) {
+          throw new AccessError(409, 'Diese Spielstätte wird noch von Produktionen verwendet. Löschen Sie zuerst die zugehörigen Szenen.');
+        }
+      }
+      await tx.delete(editingLease).where(and(
+        eq(editingLease.workspaceId, workspaceId),
+        eq(editingLease.resourceKind, 'venue'),
+        eq(editingLease.resourceId, venueId),
+      ));
+      await tx.delete(venueVersion).where(and(eq(venueVersion.workspaceId, workspaceId), eq(venueVersion.venueId, venueId)));
+      await tx.delete(venue).where(and(eq(venue.workspaceId, workspaceId), eq(venue.id, venueId)));
+    });
+    return { ok: true as const };
   });
 }

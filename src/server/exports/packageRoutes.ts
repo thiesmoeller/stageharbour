@@ -68,7 +68,8 @@ export function registerPackageRoutes(
       await storage.put(storageKey, await renderPdf(row.snapshot));
       await db.update(constructionPackage).set({ status: 'ready', storageKey })
         .where(and(eq(constructionPackage.workspaceId, row.workspaceId), eq(constructionPackage.id, row.id)));
-    } catch {
+    } catch (error) {
+      app.log.error({ err: error, packageId: row.id }, 'Konstruktionspaket-PDF fehlgeschlagen');
       await db.update(constructionPackage).set({ status: 'failed' })
         .where(and(eq(constructionPackage.workspaceId, row.workspaceId), eq(constructionPackage.id, row.id)));
     }

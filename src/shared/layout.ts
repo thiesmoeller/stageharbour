@@ -121,6 +121,11 @@ export const sceneSummarySchema = z.object({
   productionId: z.uuid(), venueId: z.uuid(), venueVersionId: z.uuid(),
   venueUpdateAvailable: z.boolean().optional(),
   lease: leaseHolderSchema.nullable(),
+  preview: z.object({
+    width: dimension, depth: dimension,
+    walls: z.array(z.object({ corners: z.array(z.object({ x: z.number(), y: z.number() })).min(3).max(8) })).max(250),
+    platforms: z.array(z.object({ outline: z.array(z.object({ x: z.number(), y: z.number() })).min(3).max(32) })).max(50),
+  }).optional(),
 });
 export const sceneSchema = sceneSummarySchema.extend({
   revision: z.number().int().nonnegative(),

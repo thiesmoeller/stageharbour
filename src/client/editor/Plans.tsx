@@ -8,6 +8,7 @@ import type { Me } from '../../shared/contracts.js';
 import { ApiError, request } from '../api.js';
 import { Editor } from './Editor.js';
 import { PackageExport } from './ExportPanel.js';
+import { PlanPreview } from './PlanPreview.js';
 
 function uniqueBy<T>(items: T[], key: (item: T) => string) {
   const seen = new Set<string>();
@@ -172,6 +173,18 @@ export function Plans({ me, onDirty }: { me: Me; onDirty: (value: boolean) => vo
       setAttempt(value => value + 1);
     } catch { setError('Die Spielstättenfassung konnte nicht übernommen werden.'); setBusy(false); }
   }
+  async function removeScene(id: string, label: string) {
+    if (!window.confirm(`„${label}“ wirklich löschen? Diese Szene und abhängige Exporte werden entfernt.`)) return;
+    setBusy(true); setError('');
+    try { await request(`${base}/${id}`, undefined, 'DELETE'); setAttempt(value => value + 1); }
+    catch (caught) { setError(caught instanceof ApiError ? caught.message : 'Die Szene konnte nicht gelöscht werden.'); setBusy(false); }
+  }
+  async function removeTemplate(id: string, label: string) {
+    if (!window.confirm(`Szenenvorlage „${label}“ wirklich löschen?`)) return;
+    setBusy(true); setError('');
+    try { await request(`${templatesBase}/${id}`, undefined, 'DELETE'); setAttempt(value => value + 1); }
+    catch (caught) { setError(caught instanceof ApiError ? caught.message : 'Die Szenenvorlage konnte nicht gelöscht werden.'); setBusy(false); }
+  }
   function leave() {
     if (opened?.holdsLease) void request(`${base}/${opened.scene.id}/lease/release`, {}).catch(() => {});
     setOpened(undefined); setAttempt(value => value + 1);
@@ -187,7 +200,8 @@ export function Plans({ me, onDirty }: { me: Me; onDirty: (value: boolean) => vo
     ...(destVenue?.platforms ?? []).map(platform => ({ id: platform.id, label: platform.label })),
   ];
   if (opened) return <Editor key={opened.scene.id} initial={opened.scene} workspaceId={me.workspace.id} readOnly={readOnly || !opened.holdsLease} onDirty={onDirty} onClose={leave} />;
-  return <section className="plans"><div className="section-heading"><h2>Bühnenbilder</h2>{!readOnly && !editingForm && <button onClick={() => { setSelectedVenueVersion(''); setCreating(true); }} disabled={busy}>Neues Bühnenbild</button>}</div>
+  return <section className="plans"><div className="section-heading"><h2>Produktionen & Szenen</h2>{!readOnly && !editingForm && <button onClick={() => { setSelectedVenueVersion(''); setCreating(true); }} disabled={busy}>Neues Bühnenbild</button>}</div>
+    <p className="muted">Zuerst die Produktion, dann die Szenen je Spielstätte. Vorschaubilder zeigen den aktuellen Grundriss.</p>
     {error && <div className="error" role="alert">{error} <button className="quiet" onClick={() => setAttempt(value => value + 1)} disabled={busy}>Übersicht neu laden</button></div>}
     {creating && <form className="create-plan" onSubmit={event => void create(event)}><fieldset disabled={busy}>
       <h3>Produktion anlegen</h3><p className="muted">Wählen Sie eine vorhandene Spielstätte oder legen Sie einen neuen Raum an.</p>
@@ -264,24 +278,42 @@ export function Plans({ me, onDirty }: { me: Me; onDirty: (value: boolean) => vo
     </fieldset></form>}
     {busy && <p role="status">Bühnenbilder werden geladen …</p>}
     {!busy && !scenes.length && !editingForm && !error && <p className="muted">Noch keine Bühnenbilder vorhanden.{!readOnly && ' Legen Sie Ihre erste Produktion mit Spielstätte und Szene an.'}</p>}
-    <div className="scene-list">{scenes.map(scene => <div className="scene-card" key={scene.id}>
-      <button className="quiet scene-open" onClick={() => void open(scene.id)} disabled={busy}>
-        <strong>{scene.productionName} · {scene.name}</strong>
-        <span>{scene.venueName}{scene.venueUpdateAvailable ? ' · Aktualisierung verfügbar' : ''}{scene.lease ? ` · Bearbeitung durch ${scene.lease.holderName}` : ''} →</span>
-      </button>
-      {!readOnly && scene.venueUpdateAvailable && <button className="quiet" type="button" onClick={() => void applyVenue(scene.id)} disabled={busy}>Spielstättenfassung übernehmen</button>}
-      {!readOnly && <button className="quiet" type="button" onClick={() => void duplicate(scene.id)} disabled={busy}>Szene duplizieren</button>}
-      {!readOnly && <button className="quiet" type="button" onClick={() => void startCopy(scene.id)} disabled={busy}>In andere Spielstätte kopieren</button>}
-      {!readOnly && <button className="quiet" type="button" onClick={() => { dismissForms(); setCapturing({ id: scene.id, name: scene.name }); }} disabled={busy}>Als Szenenvorlage speichern</button>}
-    </div>)}</div>
+    {productions.map(item => {
+      const productionScenes = scenes.filter(scene => scene.productionId === item.productionId);
+      const venueNames = uniqueBy(productionScenes, scene => scene.venueId);
+      return <section className="production-block" key={item.productionId} aria-label={`Produktion ${item.productionName}`}>
+        <div className="section-heading"><h2>{item.productionName}</h2></div>
+        {venueNames.map(venue => {
+          const venueScenes = productionScenes.filter(scene => scene.venueId === venue.venueId);
+          return <div className="venue-block" key={venue.venueId}>
+            <h3 className="venue-block-title">Spielstätte · {venue.venueName}</h3>
+            <div className="scene-list">{venueScenes.map(scene => <div className="scene-card" key={scene.id}>
+              <button className="quiet scene-open" onClick={() => void open(scene.id)} disabled={busy}>
+                {scene.preview && <PlanPreview preview={scene.preview} label={`Grundriss ${scene.name}`} />}
+                <span className="scene-open-copy">
+                  <strong>{scene.name}</strong>
+                  <span>{scene.venueUpdateAvailable ? 'Aktualisierung verfügbar · ' : ''}{scene.lease ? `Bearbeitung durch ${scene.lease.holderName}` : 'Bühnenbild öffnen'} →</span>
+                </span>
+              </button>
+              {!readOnly && scene.venueUpdateAvailable && <button className="quiet" type="button" onClick={() => void applyVenue(scene.id)} disabled={busy}>Spielstättenfassung übernehmen</button>}
+              {!readOnly && <button className="quiet" type="button" onClick={() => void duplicate(scene.id)} disabled={busy}>Szene duplizieren</button>}
+              {!readOnly && <button className="quiet" type="button" onClick={() => void startCopy(scene.id)} disabled={busy}>In andere Spielstätte kopieren</button>}
+              {!readOnly && <button className="quiet" type="button" onClick={() => { dismissForms(); setCapturing({ id: scene.id, name: scene.name }); }} disabled={busy}>Als Szenenvorlage speichern</button>}
+              {!readOnly && <button className="quiet" type="button" onClick={() => void removeScene(scene.id, `${scene.productionName} · ${scene.name}`)} disabled={busy}>Löschen</button>}
+            </div>)}</div>
+          </div>;
+        })}
+        <PackageExport workspaceId={me.workspace.id} productionId={item.productionId}
+          scenes={productionScenes.map(scene => ({ id: scene.id, name: `${scene.name} · ${scene.venueName}` }))}
+          readOnly={readOnly} freezeDisabled={busy} />
+      </section>;
+    })}
     <div className="section-heading"><h2>Szenenvorlagen</h2></div>
     {!busy && !templates.length && !capturing && !instantiating && !error && <p className="muted">Noch keine Szenenvorlagen vorhanden.{!readOnly && ' Speichern Sie eine Szene als schreibgeschützte Szenenvorlage.'}</p>}
     <div className="scene-list">{templates.map(template => <div className="scene-card" key={template.id}>
       <div className="scene-open"><strong>{template.name}</strong><span>schreibgeschützt</span></div>
       {!readOnly && <button className="quiet" type="button" onClick={() => void startInstantiate(template.id)} disabled={busy}>In Produktion einfügen</button>}
+      {!readOnly && <button className="quiet" type="button" onClick={() => void removeTemplate(template.id, template.name)} disabled={busy}>Löschen</button>}
     </div>)}</div>
-    {productions.map(item => <PackageExport key={item.productionId} workspaceId={me.workspace.id} productionId={item.productionId}
-      scenes={scenes.filter(scene => scene.productionId === item.productionId).map(scene => ({ id: scene.id, name: `${scene.productionName} · ${scene.name}` }))}
-      readOnly={readOnly} freezeDisabled={busy} />)}
   </section>;
 }

@@ -3,14 +3,17 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { errorSchema, workspaceParamsSchema } from '../../shared/contracts.js';
-import { captureTemplateSchema, createSceneSchema, copySceneSchema, duplicateSceneSchema, instantiateTemplateSchema, saveLayoutSchema, sceneSchema, sceneListSchema, sceneTemplateListSchema, sceneTemplateSchema, venueGeometrySchema } from '../../shared/layout.js';
+import { errorSchema, okSchema, workspaceParamsSchema } from '../../shared/contracts.js';
+import { captureTemplateSchema, createSceneSchema, copySceneSchema, duplicateSceneSchema, instantiateTemplateSchema, saveLayoutSchema, sceneSchema, sceneListSchema, sceneTemplateListSchema, sceneTemplateSchema, venueGeometrySchema, wallCorners } from '../../shared/layout.js';
 import { captureTemplateLayout, copiedSceneName, copyLayoutIntoVenue, duplicateLayout } from '../../shared/scenes.js';
 import { overheadClearance, overheadWarningSchema } from '../../shared/overhead.js';
 import { keepClearWarningSchema, keepClearWarnings } from '../../shared/keepClear.js';
 import { leaseHolderSchema } from '../../shared/leases.js';
+import { resolveWall } from '../../shared/wall-types.js';
 import type { Database } from '../db/connection.js';
-import { adaptation, inventoryAsset, production, scene, sceneTemplate, venue, venueVersion } from '../db/schema.js';
+import {
+  adaptation, constructionPackage, constructionPlanRevision, editingLease, inventoryAsset, production, scene, sceneTemplate, venue, venueVersion,
+} from '../db/schema.js';
 import { AccessError, type createAccess } from '../identity/access.js';
 import { LeaseError, type Leases } from './leases.js';
 
@@ -72,7 +75,23 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
   api.get(path, { schema: { params: workspaceParamsSchema, response: { 200: sceneListSchema, ...errors } } }, async request => {
     await access(request, request.params.workspaceId);
     const holders = await leases.holders(request.params.workspaceId, 'scene');
-    return (await loadScenes(request.params.workspaceId)).map(record => ({ ...record, lease: holders.get(record.id) ?? null }));
+    return (await loadScenes(request.params.workspaceId)).map(record => {
+      const venue = venueGeometrySchema.parse(record.venue);
+      const layout = record.layout;
+      return {
+        id: record.id, name: record.name, productionName: record.productionName, venueName: record.venueName,
+        productionId: record.productionId, venueId: record.venueId, venueVersionId: record.venueVersionId,
+        venueUpdateAvailable: record.venueUpdateAvailable,
+        lease: holders.get(record.id) ?? null,
+        preview: {
+          width: venue.width, depth: venue.depth,
+          walls: (layout.walls ?? []).map(wall => ({
+            corners: wallCorners(resolveWall(wall, layout.wallTypes ?? [])),
+          })),
+          platforms: [...(venue.platforms ?? []), ...(layout.platforms ?? [])].map(platform => ({ outline: platform.outline })),
+        },
+      };
+    });
   });
   api.get(`${path}/:sceneId`, { schema: { params, response: { 200: sceneSchema, ...errors } } }, async request => {
     await access(request, request.params.workspaceId);
@@ -276,5 +295,48 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
     });
     if (result) return result;
     return reply.code(409).send({ message: 'Die Szene wurde inzwischen geändert. Ihre lokalen Änderungen bleiben erhalten.' });
+  });
+  api.delete(`${path}/:sceneId`, { schema: { params, response: { 200: okSchema, ...errors } } }, async request => {
+    const { workspaceId, sceneId } = request.params;
+    await requireEditor(request, workspaceId);
+    await db.transaction(async tx => {
+      const [existing] = await tx.select({
+        id: scene.id, adaptationId: scene.adaptationId, productionId: production.id,
+      }).from(scene).innerJoin(adaptation, eq(scene.adaptationId, adaptation.id))
+        .innerJoin(production, eq(adaptation.productionId, production.id))
+        .where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, sceneId)));
+      if (!existing) throw new AccessError(404, 'Szene nicht verfügbar.');
+      await tx.delete(constructionPlanRevision)
+        .where(and(eq(constructionPlanRevision.workspaceId, workspaceId), eq(constructionPlanRevision.sceneId, sceneId)));
+      await tx.delete(editingLease).where(and(
+        eq(editingLease.workspaceId, workspaceId),
+        eq(editingLease.resourceKind, 'scene'),
+        eq(editingLease.resourceId, sceneId),
+      ));
+      await tx.delete(scene).where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, sceneId)));
+      const remainingScenes = await tx.select({ id: scene.id }).from(scene)
+        .where(and(eq(scene.workspaceId, workspaceId), eq(scene.adaptationId, existing.adaptationId)));
+      if (!remainingScenes.length) {
+        await tx.delete(adaptation)
+          .where(and(eq(adaptation.workspaceId, workspaceId), eq(adaptation.id, existing.adaptationId)));
+      }
+      const remainingAdaptations = await tx.select({ id: adaptation.id }).from(adaptation)
+        .where(and(eq(adaptation.workspaceId, workspaceId), eq(adaptation.productionId, existing.productionId)));
+      if (!remainingAdaptations.length) {
+        await tx.delete(constructionPackage)
+          .where(and(eq(constructionPackage.workspaceId, workspaceId), eq(constructionPackage.productionId, existing.productionId)));
+        await tx.delete(production)
+          .where(and(eq(production.workspaceId, workspaceId), eq(production.id, existing.productionId)));
+      }
+    });
+    return { ok: true as const };
+  });
+  api.delete(`${templatesPath}/:templateId`, { schema: { params: templateParams, response: { 200: okSchema, ...errors } } }, async request => {
+    await requireEditor(request, request.params.workspaceId);
+    const deleted = await db.delete(sceneTemplate)
+      .where(and(eq(sceneTemplate.workspaceId, request.params.workspaceId), eq(sceneTemplate.id, request.params.templateId)))
+      .returning({ id: sceneTemplate.id });
+    if (!deleted.length) throw new AccessError(404, 'Szenenvorlage nicht verfügbar.');
+    return { ok: true as const };
   });
 }

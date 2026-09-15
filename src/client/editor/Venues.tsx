@@ -1,9 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { Me } from '../../shared/contracts.js';
 import { createVenueSchema, venueListSchema, venueRecordSchema, type VenueRecord } from '../../shared/venueLibrary.js';
-import { request } from '../api.js';
+import { ApiError, request } from '../api.js';
 import { ToolIcon } from './ToolIcon.js';
 import { VenuePanel } from './VenuePanel.js';
+import { PlanPreview } from './PlanPreview.js';
 
 export function Venues({ me, onDirty }: { me: Me; onDirty: (dirty: boolean) => void }) {
   const [venues, setVenues] = useState<ReturnType<typeof venueListSchema.parse>>([]);
@@ -40,6 +41,12 @@ export function Venues({ me, onDirty }: { me: Me; onDirty: (dirty: boolean) => v
     catch { setError('Die Spielstätte konnte nicht angelegt werden.'); }
     finally { setBusy(false); }
   }
+  async function remove(id: string, name: string) {
+    if (!window.confirm(`Spielstätte „${name}“ wirklich löschen? Nur möglich, wenn keine Produktion sie mehr verwendet.`)) return;
+    setBusy(true); setError('');
+    try { await request(`${base}/${id}`, undefined, 'DELETE'); setAttempt(value => value + 1); }
+    catch (caught) { setError(caught instanceof ApiError ? caught.message : 'Die Spielstätte konnte nicht gelöscht werden.'); setBusy(false); }
+  }
   if (opened) return <section className="editor venue-workspace" aria-label="Spielstätte unabhängig bearbeiten">
     <div className="editor-heading"><button className="quiet back-button" disabled={dirty} onClick={() => { setOpened(undefined); setAttempt(value => value + 1); }} aria-label="Zur Spielstättenübersicht" title={dirty ? 'Entwurf zuerst speichern oder verwerfen' : 'Zur Spielstättenübersicht'}><ToolIcon name="back" /></button>
       <div><p className="eyebrow">SPIELSTÄTTEN & BÜHNEN</p><h2>{opened.name}</h2></div><span className="document-kind">{readOnly ? 'Nur Ansicht' : 'Spielstätte bearbeiten'}</span></div>
@@ -62,8 +69,16 @@ export function Venues({ me, onDirty }: { me: Me; onDirty: (dirty: boolean) => v
     </fieldset></form>}
     {busy && <p role="status">Spielstätten werden geladen …</p>}
     {!busy && !error && !venues.length && <p className="muted">Noch keine Spielstätten vorhanden. Eine Spielstätte ist unabhängig von einer Produktion oder Szene.</p>}
-    <div className="venue-cards">{venues.map(item => <button className="venue-card quiet" key={item.id} disabled={busy} onClick={() => void open(item.id)}>
-      <span className="venue-card-art" aria-hidden="true"><ToolIcon name="platform" /></span><strong>{item.name}</strong><span>{(item.width / 1000).toLocaleString('de-DE')} × {(item.depth / 1000).toLocaleString('de-DE')} m</span><span className="venue-card-action">{readOnly ? 'Spielstätte ansehen' : 'Spielstätte gestalten'} →</span>
-    </button>)}</div>
+    <div className="venue-cards">{venues.map(item => <div className="venue-card-wrap" key={item.id}>
+      <button className="venue-card quiet" disabled={busy} onClick={() => void open(item.id)}>
+        <span className="venue-card-art" aria-hidden="true">
+          <PlanPreview preview={{ width: item.width, depth: item.depth, walls: [], platforms: [] }} label={`Grundriss ${item.name}`} />
+        </span>
+        <strong>{item.name}</strong>
+        <span>{(item.width / 1000).toLocaleString('de-DE')} × {(item.depth / 1000).toLocaleString('de-DE')} m</span>
+        <span className="venue-card-action">{readOnly ? 'Spielstätte ansehen' : 'Spielstätte gestalten'} →</span>
+      </button>
+      {!readOnly && <button className="quiet" type="button" disabled={busy} onClick={() => void remove(item.id, item.name)}>Löschen</button>}
+    </div>)}</div>
   </section>;
 }

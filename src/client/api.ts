@@ -22,8 +22,14 @@ export async function request(path: string, body?: unknown, method?: string): Pr
   } catch {
     throw new ApiError(0, 'Keine Verbindung zum Server. Bitte versuchen Sie es erneut.');
   }
-  if (!response.ok) failure(response.status);
-  return response.json();
+  if (!response.ok) {
+    const payload = await response.json().catch(() => undefined) as { message?: unknown } | undefined;
+    if (typeof payload?.message === 'string' && payload.message.trim()) throw new ApiError(response.status, payload.message);
+    failure(response.status);
+  }
+  if (response.status === 204) return undefined;
+  const text = await response.text();
+  return text ? JSON.parse(text) : undefined;
 }
 
 export async function upload(path: string, file: File): Promise<unknown> {
