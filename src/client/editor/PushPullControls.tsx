@@ -18,20 +18,21 @@ type DragState = {
   latest: VenueGeometry;
 };
 
-function kindFromNode(object: Object3D): { id: string; kind: PushPullKind } | undefined {
+function kindFromNode(object: Object3D, scope: 'venue' | 'scene'): { id: string; kind: PushPullKind } | undefined {
   let current: Object3D | null = object;
   while (current) {
     const meta = current.userData?.pushPull as { id?: string; kind?: PushPullKind; scope?: string } | undefined;
-    if (meta?.id && meta.kind && meta.scope === 'venue') return { id: meta.id, kind: meta.kind };
+    if (meta?.id && meta.kind && meta.scope === scope) return { id: meta.id, kind: meta.kind };
     current = current.parent;
   }
 }
 
 export function PushPullControls({
-  venue, enabled, snapEnabled = true, onPushPull,
+  venue, enabled, scope = 'venue', snapEnabled = true, onPushPull,
 }: {
   venue: VenueGeometry;
   enabled: boolean;
+  scope?: 'venue' | 'scene';
   snapEnabled?: boolean;
   onPushPull?: (phase: 'begin' | 'preview' | 'commit' | 'cancel', next: VenueGeometry, bypass: boolean) => void;
 }) {
@@ -42,6 +43,14 @@ export function PushPullControls({
   const controls = useThree(state => state.controls) as { enabled?: boolean } | null;
   const [hover, setHover] = useState<{ handle: PushPullHandle; point: Vector3; normal: Vector3 }>();
   const drag = useRef<DragState | undefined>(undefined);
+  const publisher = useRef(onPushPull); publisher.current = onPushPull;
+  const currentControls = useRef(controls); currentControls.current = controls;
+  useEffect(() => () => {
+    const active = drag.current;
+    drag.current = undefined;
+    if (currentControls.current) currentControls.current.enabled = true;
+    if (active) publisher.current?.('cancel', active.start, active.bypass);
+  }, []);
   const ndc = useMemo(() => new Vector2(), []);
   const hitPoint = useMemo(() => new Vector3(), []);
   const axis = useMemo(() => new Vector3(), []);
@@ -52,7 +61,8 @@ export function PushPullControls({
   useEffect(() => {
     if (!enabled || !onPushPull) {
       setHover(undefined);
-      drag.current = undefined;
+      const active = drag.current; drag.current = undefined;
+      if (active) publisher.current?.('cancel', active.start, active.bypass);
       if (controls) controls.enabled = true;
       return;
     }
@@ -66,11 +76,11 @@ export function PushPullControls({
       raycaster.setFromCamera(ndc, camera);
       return raycaster.intersectObjects(scene.children, true).find(hit => {
         if (!hit.object.visible || hit.object.name === 'venue-floor' || hit.object.userData?.pushPullIgnore) return false;
-        return !!kindFromNode(hit.object) && !!hit.face;
+        return !!kindFromNode(hit.object, scope) && !!hit.face;
       });
     }
     function handleFor(hit: { object: Object3D; face: { normal: Vector3 }; point: Vector3 }) {
-      const meta = kindFromNode(hit.object);
+      const meta = kindFromNode(hit.object, scope);
       if (!meta) return;
       const worldNormal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld).normalize();
       const rotation = planRotationFor(venue, { ...meta, face: 'py' });
@@ -136,6 +146,7 @@ export function PushPullControls({
     function onCancel(event: PointerEvent) { endDrag(event, true); }
     function onKey(event: KeyboardEvent) {
       if (event.key !== 'Escape' || !drag.current) return;
+      event.preventDefault(); event.stopImmediatePropagation();
       drag.current = undefined;
       setOrbit(true);
       publish('cancel', venue, false);
@@ -146,14 +157,14 @@ export function PushPullControls({
     gl.domElement.addEventListener('pointercancel', onCancel);
     window.addEventListener('keydown', onKey);
     return () => {
-      setOrbit(true);
+      if (!drag.current) setOrbit(true);
       gl.domElement.removeEventListener('pointermove', onMove);
       gl.domElement.removeEventListener('pointerdown', onDown);
       gl.domElement.removeEventListener('pointerup', onUp);
       gl.domElement.removeEventListener('pointercancel', onCancel);
       window.removeEventListener('keydown', onKey);
     };
-  }, [axis, camera, camDir, controls, enabled, gl, hitPoint, ndc, onPushPull, planeNormal, raycaster, scene, side, snapEnabled, venue]);
+  }, [axis, camera, camDir, controls, enabled, gl, hitPoint, ndc, onPushPull, planeNormal, raycaster, scene, side, snapEnabled, venue, scope]);
 
   if (!enabled || !hover) return null;
   return <FaceHighlight point={hover.point} normal={hover.normal} />;

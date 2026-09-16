@@ -288,7 +288,7 @@ export function Plans({ me, onDirty }: { me: Me; onDirty: (value: boolean) => vo
           return <div className="venue-block" key={venue.venueId}>
             <h3 className="venue-block-title">Spielstätte · {venue.venueName}</h3>
             <div className="scene-list">{venueScenes.map(scene => <div className="scene-card" key={scene.id}>
-              <button className="quiet scene-open" onClick={() => void open(scene.id)} disabled={busy}>
+              <button className="quiet scene-open" aria-label={`${scene.productionName} · ${scene.name} ${scene.venueName}`} onClick={() => void open(scene.id)} disabled={busy}>
                 {scene.preview && <PlanPreview preview={scene.preview} label={`Grundriss ${scene.name}`} />}
                 <span className="scene-open-copy">
                   <strong>{scene.name}</strong>

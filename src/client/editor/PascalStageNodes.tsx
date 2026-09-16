@@ -67,10 +67,10 @@ function ModelMesh({ prop, definition }: { prop: Prop; definition: Extract<Asset
   </group>;
   const size = bounds.getSize(new Vector3()), center = bounds.getCenter(new Vector3());
   if (Math.min(size.x, size.y, size.z) <= 0 || !Number.isFinite(size.length())) throw new Error('Model has no usable bounds');
-  // Uniform scale from the millimetre box keeps the uploaded mesh proportions.
-  const scale = Math.cbrt((prop.width / 1000 / size.x) * (prop.height / 1000 / size.y) * (prop.depth / 1000 / size.z));
-  if (!(scale > 0) || !Number.isFinite(scale)) throw new Error('Model has no usable bounds');
-  return <group rotation={[0, Math.PI, 0]} scale={[scale, scale, scale]}>
+  // Match the editable millimetre dimensions on each axis.
+  const scale: [number, number, number] = [prop.width / 1000 / size.x, prop.height / 1000 / size.y, prop.depth / 1000 / size.z];
+  if (scale.some(value => !(value > 0) || !Number.isFinite(value))) throw new Error('Model has no usable bounds');
+  return <group rotation={[0, Math.PI, 0]} scale={scale}>
     <primitive object={object} position={[-center.x, -bounds.min.y, -center.z]} dispose={null} />
   </group>;
 }
@@ -111,7 +111,7 @@ function StageNodeRenderer({ node }: { node: StageNode }) {
     userData={{
       pushPull: {
         id: element.value.id,
-        kind: element.kind === 'wall' || element.kind === 'platform' || element.kind === 'stair' || element.kind === 'overhead' || element.kind === 'placeholder'
+        kind: element.kind === 'wall' && (element.value.typeId || element.value.panelId) ? undefined : element.kind === 'wall' || element.kind === 'platform' || element.kind === 'stair' || element.kind === 'overhead' || element.kind === 'placeholder'
           ? element.kind : undefined,
         scope: node.scope,
       },

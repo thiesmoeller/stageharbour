@@ -27,6 +27,7 @@ async function planToScreen(page: Page, x: number, y: number) {
 
 test('create a layout, move a panel, undo the move, and reload the saved result', async ({ page }) => {
   test.setTimeout(120_000);
+  page.setDefaultTimeout(10_000);
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await signIn(page);
@@ -126,11 +127,13 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
 
   await page.getByRole('button', { name: 'Spielstätte' }).click();
   await expect(page.getByRole('heading', { name: 'Spielstätte' })).toBeVisible();
+  await openInspector(page, 'Umriss');
   await page.getByLabel('Eckpunkt 2 X (mm)').fill('4000');
   await page.getByLabel('Eckpunkt 3 X (mm)').fill('4200');
   await page.getByLabel('Eckpunkt 3 Y (mm)').fill('3500');
   await page.getByLabel('Eckpunkt 4 X (mm)').fill('200');
   await page.getByLabel('Eckpunkt 4 Y (mm)').fill('3200');
+  await openInspector(page, 'Vorlage & Maßstab');
   const uploaded = page.waitForResponse(response => response.url().includes('/venue-references') && response.request().method() === 'POST');
   await page.getByLabel('Vorlage hochladen').setInputFiles({
     name: 'grundriss.png', mimeType: 'image/png', buffer: pngBytes(),
@@ -141,24 +144,30 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByLabel('Punkt B X').fill('30');
   await page.getByLabel('Punkt B Y').fill('40');
   await page.getByLabel('Bekannte Strecke (mm)').fill('5000');
+  await openInspector(page, 'Vorlage & Maßstab');
   await expect(page.getByText('Maßstab: 100 mm je Vorlagen-Einheit')).toBeVisible();
   await page.getByRole('button', { name: 'Stromanschluss hinzufügen' }).click();
+  await openInspector(page, 'Anschlüsse & Kabelwege');
   await page.getByLabel('Anschluss 1 Bezeichnung').fill('Lichtstrom');
   await page.getByLabel('Anschluss 1 X (mm)').fill('2500');
   await page.getByLabel('Anschluss 1 Y (mm)').fill('1800');
   await page.getByLabel('Anschluss 1 Notiz').fill('16A an der Bühnenkante');
+  await openInspector(page, 'Anschlüsse & Kabelwege');
   await page.getByRole('button', { name: 'Kabelkorridor hinzufügen' }).click();
   await page.getByLabel('Kabelkorridor 1 Bezeichnung').fill('Seitenbühne');
   await page.getByLabel('Kabelkorridor 1 Punkt 1 X (mm)').fill('0');
   await page.getByLabel('Kabelkorridor 1 Punkt 1 Y (mm)').fill('1200');
   await page.getByLabel('Kabelkorridor 1 Punkt 2 X (mm)').fill('4000');
   await page.getByLabel('Kabelkorridor 1 Punkt 2 Y (mm)').fill('1200');
+  await openInspector(page, 'Überbauung');
   await page.getByLabel('Deckenhöhe über Fußboden (mm)').fill('4000');
+  await openInspector(page, 'Überbauung');
   await page.getByRole('button', { name: 'Überbauung hinzufügen' }).click();
   await page.getByLabel('Überbauung 1 Bezeichnung').fill('Lüftung');
   await page.getByLabel('Überbauung 1 X (mm)').fill('2500');
   await page.getByLabel('Überbauung 1 Y (mm)').fill('1800');
-  await page.getByRole('button', { name: 'Freihaltezone hinzufügen' }).click();
+  await openInspector(page, 'Freihaltezonen');
+  await page.getByRole('button', { name: 'Freihaltezone hinzufügen', exact: true }).click();
   await page.getByLabel('Freihaltezone 1 Bezeichnung').fill('Notausgang Ost');
   await page.getByLabel('Freihaltezone 1 Grund').fill('Notausgang');
   const saved = page.waitForResponse(response => /\/scenes\/[^/]+\/venue$/.test(new URL(response.url()).pathname) && response.request().method() === 'PUT');
@@ -179,6 +188,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByLabel('Eckpunkt 4 X (mm)')).toHaveValue('200');
   await expect(page.getByLabel('Punkt B X')).toHaveValue('30');
   await expect(page.getByLabel('Bekannte Strecke (mm)')).toHaveValue('5000');
+  await openInspector(page, 'Vorlage & Maßstab');
   await expect(page.getByText('Maßstab: 100 mm je Vorlagen-Einheit')).toBeVisible();
   await expect(page.getByLabel('Anschluss 1 Bezeichnung')).toHaveValue('Lichtstrom');
   await expect(page.getByLabel('Anschluss 1 X (mm)')).toHaveValue('2500');
@@ -313,7 +323,8 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '2. Wand' });
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('5500');
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
-  await page.locator('[data-testid^="wall-"]').nth(1).click({ modifiers: ['Shift'] });
+  // Selecting a group member selects its whole group; Shift would deselect the second wall.
+  await expect(page.getByRole('heading', { name: '2 Wandelemente', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Kopieren' }).click();
   await page.getByRole('button', { name: 'Einfügen' }).click();
   await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(4);
@@ -335,7 +346,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await waitUntilSaved(page);
 
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();
-  await expect(page.getByRole('heading', { name: 'Bühnenbilder' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Produktionen & Szenen' })).toBeVisible();
   const duplicated = page.waitForResponse(response => response.url().includes('/duplicate') && response.request().method() === 'POST');
   await page.locator('.scene-card').filter({ has: page.getByRole('button', { name: /Beispielproduktion · Erste Szene Beispielsaal/ }) }).getByRole('button', { name: 'Szene duplizieren', exact: true }).click();
   expect((await duplicated).ok()).toBeTruthy();
@@ -364,8 +375,9 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByRole('button', { name: 'Gruppe auflösen' }).click();
   await waitUntilSaved(page);
   await page.getByRole('button', { name: 'Spielstätte' }).click();
+  await openInspector(page, 'Bühnenmittellinie');
   await page.getByLabel('Mittellinie X (mm)').fill('4000');
-  await page.getByLabel('Mittellinie Y (mm)').fill('3000');
+  await page.getByLabel('Mittellinie Y (mm)').fill('2500');
   await page.getByLabel('Mittellinie Drehung (°)').fill('90');
   const savedCentreline = page.waitForResponse(response => /\/scenes\/[^/]+\/venue$/.test(new URL(response.url()).pathname) && response.request().method() === 'PUT');
   await page.getByRole('button', { name: 'Spielstätte speichern' }).click();
@@ -397,11 +409,11 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByTestId('stage-centreline')).toBeVisible();
   await page.getByRole('button', { name: 'Spielstätte' }).click();
   await expect(page.getByLabel('Mittellinie X (mm)')).toHaveValue('4000');
-  await expect(page.getByLabel('Mittellinie Y (mm)')).toHaveValue('3000');
+  await expect(page.getByLabel('Mittellinie Y (mm)')).toHaveValue('2500');
   await expect(page.getByLabel('Mittellinie Drehung (°)')).toHaveValue('90');
 
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();
-  await expect(page.getByRole('heading', { name: 'Bühnenbilder' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Produktionen & Szenen' })).toBeVisible();
   await page.getByRole('button', { name: 'Neues Bühnenbild' }).click();
   await page.getByRole('textbox', { name: 'Produktion' }).fill('Gastspiel');
   await page.getByRole('textbox', { name: 'Spielstätte' }).fill('Stadthalle');
@@ -412,17 +424,20 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByRole('heading', { name: 'Gastszene' })).toBeVisible();
   await waitUntilSaved(page);
   await page.getByRole('button', { name: 'Spielstätte' }).click();
-  await page.getByRole('button', { name: 'Freihaltezone hinzufügen' }).click();
+  await openInspector(page, 'Freihaltezonen');
+  await page.getByRole('button', { name: 'Freihaltezone hinzufügen', exact: true }).click();
   await page.getByLabel('Freihaltezone 1 Bezeichnung').fill('Notausgang Ost');
+  await openInspector(page, 'Überbauung');
   await page.getByRole('button', { name: 'Überbauung hinzufügen' }).click();
   await page.getByLabel('Überbauung 1 Bezeichnung').fill('Lüftung');
+  await openInspector(page, 'Überbauung');
   await page.getByLabel('Deckenhöhe über Fußboden (mm)').fill('2000');
   const savedGuestVenue = page.waitForResponse(response => /\/scenes\/[^/]+\/venue$/.test(new URL(response.url()).pathname) && response.request().method() === 'PUT');
   await page.getByRole('button', { name: 'Spielstätte speichern' }).click();
   expect((await savedGuestVenue).ok()).toBeTruthy();
   await page.getByRole('button', { name: 'Spielstätte schließen' }).click();
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();
-  await expect(page.getByRole('heading', { name: 'Bühnenbilder' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Produktionen & Szenen' })).toBeVisible();
   const copiedAcross = page.waitForResponse(response => response.url().includes('/copy') && response.request().method() === 'POST');
   await page.getByRole('button', { name: /Beispielproduktion · Erste Szene Beispielsaal/ })
     .locator('xpath=ancestor::div[contains(@class,"scene-card")]')
@@ -443,7 +458,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByLabel('Freihaltezonen')).toBeVisible();
 
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();
-  await expect(page.getByRole('heading', { name: 'Bühnenbilder' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Produktionen & Szenen' })).toBeVisible();
   const capturedTemplate = page.waitForResponse(response => /\/scenes\/[^/]+\/templates$/.test(new URL(response.url()).pathname) && response.request().method() === 'POST');
   await page.getByRole('button', { name: /Beispielproduktion · Erste Szene Beispielsaal/ })
     .locator('xpath=ancestor::div[contains(@class,"scene-card")]')
@@ -469,7 +484,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByLabel('Platte zuweisen')).toHaveValue('');
 
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();
-  await expect(page.getByRole('heading', { name: 'Bühnenbilder' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Produktionen & Szenen' })).toBeVisible();
   const copiedReturn = page.waitForResponse(response => response.url().includes('/copy') && response.request().method() === 'POST');
   await page.getByRole('button', { name: /Beispielproduktion · Erste Szene Beispielsaal/ })
     .locator('xpath=ancestor::div[contains(@class,"scene-card")]')
@@ -483,12 +498,13 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByRole('button', { name: /Beispielproduktion · Erste Szene Beispielsaal/ }).click();
   await expect(page.getByRole('heading', { name: 'Erste Szene', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Spielstätte' }).click();
+  await openInspector(page, 'Überbauung');
   await page.getByLabel('Deckenhöhe über Fußboden (mm)').fill('1800');
   const savedCeiling = page.waitForResponse(response => /\/scenes\/[^/]+\/venue$/.test(new URL(response.url()).pathname) && response.request().method() === 'PUT');
   await page.getByRole('button', { name: 'Spielstätte speichern' }).click();
   expect((await savedCeiling).ok()).toBeTruthy();
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();
-  await expect(page.getByRole('heading', { name: 'Bühnenbilder' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Produktionen & Szenen' })).toBeVisible();
   await expect(page.getByRole('button', { name: /Gastspiel · Rückkehr/ })).toContainText('Aktualisierung verfügbar');
   await expect(page.getByRole('button', { name: /Beispielproduktion · Erste Szene Beispielsaal/ })).not.toContainText('Aktualisierung verfügbar');
   const appliedVenue = page.waitForResponse(response => response.url().includes('/venue-apply') && response.request().method() === 'POST');
@@ -520,7 +536,7 @@ test('create a wall type with a rectangular opening, place it, and export the pl
   await openInspector(page, 'Wandtypen');
   await page.getByRole('button', { name: 'Wandtyp anlegen' }).click();
   await page.getByLabel('Wandtyp-Bezeichnung').fill('Türwand');
-  await page.getByRole('button', { name: 'Öffnung hinzufügen' }).click();
+  await page.getByRole('button', { name: 'Öffnung hinzufügen', exact: true }).click();
   await expect(page.getByLabel('Öffnungsbreite (mm)')).toHaveValue('800');
   await page.getByLabel('Öffnungsbreite (mm)').fill('2000');
   await page.getByRole('button', { name: 'Wandtyp speichern' }).click();

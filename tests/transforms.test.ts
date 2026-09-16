@@ -114,6 +114,7 @@ test('a wall on a 400 mm platform sits 400 mm above the audience floor; missing 
   assertVec(model.walls[1]!.corners[0]!, { x: 3400, y: 0, z: 4986 });
   assert.equal(model.platforms[0]?.elevation, 400);
   const stair = newStair(randomUUID(), AUDIENCE_FLOOR_ID, platform.id, 4000, 2500);
+  stair.riserHeight = 200; // This fixture specifies two 200 mm steps; the default is 160 mm.
   const withStairs = stageModel({ schemaVersion: 1, walls: [], braces: [], stairs: [stair] }, venue);
   assert.equal(withStairs.stairs[0]?.rise, 400);
   assert.equal(withStairs.stairs[0]?.steps.length, 2);

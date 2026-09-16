@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { testAdministrator } from '../helpers/database.js';
-import { commitWallPlacement } from '../helpers/inspector.js';
+import { commitWallPlacement, commitObjectPlacement } from '../helpers/inspector.js';
 import { cubeGlb } from '../helpers/model.js';
 
 test('inventory, GLB models and Pascal catalogue items participate in placement, undo and saved layouts', async ({ page }) => {
@@ -25,7 +25,6 @@ test('inventory, GLB models and Pascal catalogue items participate in placement,
   await library.getByRole('button', { name: 'Inventarvorlage speichern' }).click();
   const wallCard = library.locator('article').filter({ hasText: 'Standardkulisse' });
   await wallCard.getByRole('button', { name: 'Platzieren' }).click();
-  await page.getByRole('button', { name: 'Objektbibliothek', exact: true }).click();
   await commitWallPlacement(page);
   await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(1);
   await expect(page.getByLabel('Dicke (mm)')).toHaveValue('28');
@@ -47,6 +46,12 @@ test('inventory, GLB models and Pascal catalogue items participate in placement,
   await library.getByRole('button', { name: 'Modell ins Inventar importieren' }).click();
   const modelCard = library.locator('article').filter({ hasText: 'Testpodest' });
   await modelCard.getByRole('button', { name: 'Platzieren' }).click();
+  await expect(page.getByTestId('placing-object')).toBeAttached();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('[data-testid^="placeholder-"]')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Objektbibliothek', exact: true }).click();
+  await modelCard.getByRole('button', { name: 'Platzieren' }).click();
+  await commitObjectPlacement(page);
   await expect(page.locator('[data-testid^="placeholder-"]')).toHaveCount(1);
   await page.getByLabel('X (mm)', { exact: true }).fill('2200');
   await page.getByLabel('Drehung (°)').fill('90');
@@ -57,11 +62,14 @@ test('inventory, GLB models and Pascal catalogue items participate in placement,
   await page.getByRole('button', { name: 'Wiederholen', exact: true }).click();
   await expect(page.getByLabel('Drehung (°)')).toHaveValue('90');
 
+  await page.getByRole('button', { name: 'Objektbibliothek', exact: true }).click();
   await library.getByRole('button', { name: 'Pascal-Katalog', exact: true }).click();
   await library.getByLabel('Pascal-Katalog durchsuchen').fill('Cactus');
   await library.getByRole('button', { name: 'Ins Inventar übernehmen' }).first().click();
   await library.locator('article').filter({ hasText: 'Cactus' }).getByRole('button', { name: 'Platzieren' }).click();
+  await commitObjectPlacement(page, 5000, 3000);
   await expect(page.locator('[data-testid^="placeholder-"]')).toHaveCount(2);
+  await page.getByRole('button', { name: 'Objektbibliothek', exact: true }).click();
   await modelCard.getByRole('button', { name: 'Archivieren' }).click();
   await expect(modelCard).toHaveCount(0);
   await expect(page.locator('[data-testid^="placeholder-"]')).toHaveCount(2);
@@ -74,7 +82,7 @@ test('inventory, GLB models and Pascal catalogue items participate in placement,
   await expect(page.locator('.model-error')).toHaveCount(0);
 
   await page.reload();
-  await page.getByRole('button', { name: /Inventarprobe · Objekte/ }).click();
+  await page.getByRole('region', { name: 'Produktion Inventarprobe', exact: true }).getByRole('button', { name: /Inventarprobe · Objekte/ }).click();
   await expect(page.locator('[data-testid^="placeholder-"]')).toHaveCount(2);
   await page.getByLabel('Auswahl', { exact: true }).selectOption(await page.locator('#wall-selection option').filter({ hasText: 'Testpodest' }).getAttribute('value') as string);
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('2200');

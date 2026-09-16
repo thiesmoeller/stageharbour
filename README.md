@@ -70,6 +70,30 @@ Tests cover concurrent/idempotent bootstrap, login, CSRF origin rejection, close
 
 Dependencies are exact-pinned in `package.json` and `package-lock.json`, with TypeScript 5.9.3. `npm run build` checks all TypeScript, builds browser assets into `dist/web`, and compiles the backend into `dist/server`.
 
-For the built server, set `NODE_ENV=production`, an HTTPS `APP_ORIGIN`, and run `npm start` with `.env` configured. The server then serves the built UI and API together. The application currently trusts only the socket peer for authentication throttling. Trusted reverse-proxy configuration, persistent/shared rate-limit storage, deployment packaging and HTTPS termination must be addressed in the installation slice. Authentication cookies are HttpOnly, SameSite=Lax and Secure when the configured origin uses HTTPS. Membership is read afresh on every protected request.
+For the built server, set `NODE_ENV=production`, an HTTPS `APP_ORIGIN`, and run `npm start` with `.env` configured. The server then serves the built UI and API together. The application currently trusts only the socket peer for authentication throttling. Trusted reverse-proxy configuration, persistent/shared rate-limit storage and HTTPS termination must be addressed in the installation slice. Authentication cookies are HttpOnly, SameSite=Lax and Secure when the configured origin uses HTTPS. Membership is read afresh on every protected request.
+
+## Container backend and persistent files
+
+GLB uploads, venue reference images/PDFs and generated PDFs already use filesystem storage. PostgreSQL stores file identifiers, storage keys and metadata; it does not store those binary payloads. Host development uses `STORAGE_DIR` (default `data/storage`).
+
+The optional Compose `app` profile builds the UI and backend and mounts the named `asset-data` volume at `/data/storage`, separately from `postgres-data`. Configure `.env` as above, plus `DEPLOY_APP_ORIGIN=https://planner.example.org` and optionally `BACKEND_PORT=3000`. Point an HTTPS reverse proxy for that origin at `127.0.0.1:3000` (or the chosen backend port). The container serves HTTP behind that proxy; the origin must be HTTPS for production authentication.
+
+```sh
+docker compose --profile app up -d --build
+```
+
+The backend runs migrations before listening and runs as the unprivileged `node` user. Its database host, listen address and storage path override the host-development values in `.env`. `docker compose up -d` without the profile continues to start only PostgreSQL for host development.
+
+When moving an existing host installation, stop its API before the cutover and copy the contents of its actual `STORAGE_DIR` into the volume before starting the container backend. For the default directory:
+
+```sh
+docker compose --profile app build backend
+docker compose --profile app create backend
+docker compose cp data/storage/. backend:/data/storage/
+docker compose --profile app run --rm --no-deps --user root --entrypoint chown backend -R node:node /data/storage
+docker compose --profile app up -d
+```
+
+Keep the workspace-relative directory structure and filenames intact: existing database keys point to them. No database blob migration is needed. Back up and restore `postgres-data` and `asset-data` together while writes are stopped. Container recreation preserves both volumes; `docker compose down -v` deletes them. External Pascal catalogue URLs remain external assets.
 
 Next: arch panel HITL measurements (slice 06), CapRover installation and crew validation (slices 29–30).

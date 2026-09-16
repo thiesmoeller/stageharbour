@@ -8,8 +8,8 @@ export async function openInspector(page: Page, title: string) {
 }
 
 /** Click the plan to commit an in-progress wall ghost at plan coordinates (mm). */
-export async function commitWallPlacement(page: Page, x = 4000, y = 3000) {
-  await expect(page.getByTestId('placing-wall')).toBeVisible();
+export async function commitWallPlacement(page: Page, x = 4000, y = 3000, testId = 'placing-wall') {
+  await expect(page.getByTestId(testId)).toBeAttached();
   await page.locator('.plan-canvas > svg').scrollIntoViewIfNeeded();
   const screen = await page.locator('.plan-canvas > svg').evaluate((svg, point) => {
     const ctm = (svg as SVGSVGElement).getScreenCTM();
@@ -18,8 +18,10 @@ export async function commitWallPlacement(page: Page, x = 4000, y = 3000) {
     return { x: mapped.x, y: mapped.y };
   }, { x, y });
   await page.mouse.click(screen.x, screen.y);
-  await expect(page.getByTestId('placing-wall')).toHaveCount(0);
+  await expect(page.getByTestId(testId)).toHaveCount(0);
 }
+
+export const commitObjectPlacement = (page: Page, x = 4000, y = 3000) => commitWallPlacement(page, x, y, 'placing-object');
 
 /** Start wall placement from the tool rail and commit at plan coordinates (mm). */
 export async function placeWallAt(page: Page, x = 4000, y = 3000) {

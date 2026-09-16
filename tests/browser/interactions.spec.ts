@@ -155,7 +155,11 @@ test('rendered Pascal translation handle moves the shared plan and undoes once',
   }).toPass();
   const bounds = (await canvas.boundingBox())!;
   const start = { x: bounds.x + handle!.x, y: bounds.y + handle!.y };
-  await drag(page, start, { x: start.x - 60, y: start.y });
+  await page.mouse.move(start.x, start.y); await page.mouse.down();
+  await page.mouse.move(start.x - 60, start.y, { steps: 8 });
+  await page.keyboard.press('Delete'); await page.keyboard.press('Control+z');
+  await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(1);
+  await page.mouse.up();
   await expect(page.locator('#wall-x')).not.toHaveValue('4000');
   const moved = await page.locator('#wall-x').inputValue();
   await expect(page.locator('[data-testid^="stage-wall-"]')).toHaveAttribute('data-x', moved);
@@ -164,4 +168,96 @@ test('rendered Pascal translation handle moves the shared plan and undoes once',
   await page.getByRole('button', { name: 'Wiederholen', exact: true }).click();
   await expect(page.locator('#wall-x')).toHaveValue(moved);
   expect(errors).toEqual([]);
+});
+
+test('Shift-deselect removes the object from every command target', async ({ page }) => {
+  await create(page);
+  await placeWallAt(page, 2000, 2500);
+  const at = await point(page, 2000, 2500);
+  await page.keyboard.down('Shift');
+  await page.mouse.click(at.x, at.y);
+  await page.keyboard.up('Shift');
+  await expect(page.getByRole('button', { name: 'Kopieren', exact: true })).toBeDisabled();
+  await expect(page.locator('#wall-selection')).toHaveValue('');
+  await page.keyboard.press('Delete');
+  await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(1);
+});
+
+test('mixed wall-platform selection moves from either object and cancels atomically', async ({ page }) => {
+  await create(page);
+  await placeWallAt(page, 1500, 1000);
+  await page.getByRole('button', { name: 'Podest hinzufügen', exact: true }).click();
+  await page.keyboard.press('Escape');
+  await drag(page, await point(page, 500, 500), await point(page, 6500, 5500));
+  await expect(page.locator('.clipboard-panel')).toContainText('2 ausgewählt');
+  await expect(page.getByTestId('rotate-selection')).toBeVisible();
+  const wall = page.locator('[data-testid^="wall-"]');
+  const platform = page.locator('[data-testid^="platform-"] path');
+  const before = await platform.getAttribute('d');
+  await page.keyboard.down('Alt');
+  await drag(page, await point(page, 4000, 3000), await point(page, 4300, 3200));
+  await page.keyboard.up('Alt');
+  await expect(wall).toHaveAttribute('transform', 'translate(1800 -1200) rotate(0)');
+  await expect(platform).not.toHaveAttribute('d', before!);
+  await expect(page.locator('.clipboard-panel')).toContainText('2 ausgewählt');
+  await page.keyboard.press('Control+z');
+  await expect(wall).toHaveAttribute('transform', 'translate(1500 -1000) rotate(0)');
+  await expect(platform).toHaveAttribute('d', before!);
+  const a = await point(page, 1500, 1000), b = await point(page, 1800, 1400);
+  await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(b.x, b.y, { steps: 5 });
+  await page.keyboard.press('Delete'); // Command is blocked for the whole transaction.
+  await page.keyboard.press('Escape'); await page.mouse.up();
+  await expect(wall).toHaveAttribute('transform', 'translate(1500 -1000) rotate(0)');
+  await expect(platform).toHaveAttribute('d', before!);
+  await expect(page.locator('.clipboard-panel')).toContainText('2 ausgewählt');
+});
+
+test('venue Shift toggles without dragging; mixed rotation and cancel preserve selection', async ({ page }) => {
+  await create(page);
+  await page.getByRole('button', { name: 'Spielstätte', exact: true }).click();
+  await page.getByRole('button', { name: 'Feste Wand hinzufügen' }).click();
+  const svg = 'svg[aria-label="Umriss der Spielstätte"]';
+  const a = await point(page, 4000, 3000, svg), b = await point(page, 4400, 3200, svg);
+  await page.keyboard.down('Shift');
+  await drag(page, a, b);
+  await page.keyboard.up('Shift');
+  await expect(page.locator('[data-testid^="venue-wall-"]')).toHaveAttribute('transform', 'translate(4000 -3000) rotate(0)');
+  await expect(page.getByRole('button', { name: 'Kopieren', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Publikumsstuhl hinzufügen' }).click();
+  await drag(page, await point(page, 500, 500, svg), await point(page, 6500, 5500, svg));
+  await expect(page.getByTestId('rotate-venue-selection')).toBeVisible();
+  await expect(page.locator('.clipboard-panel')).toContainText('2 ausgewählt');
+  await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(b.x, b.y, { steps: 5 });
+  await page.keyboard.press('Backspace'); await page.keyboard.press('Control+z');
+  await page.keyboard.press('Escape'); await page.mouse.up();
+  await expect(page.locator('.clipboard-panel')).toContainText('2 ausgewählt');
+  await expect(page.locator('[data-testid^="venue-wall-"]')).toHaveAttribute('transform', 'translate(4000 -3000) rotate(0)');
+});
+
+test('scene face resizing previews, cancels, commits and undoes once', async ({ page }) => {
+  await create(page);
+  await openInspector(page, 'Platzhalter');
+  await page.getByRole('button', { name: 'Kiste hinzufügen', exact: true }).click();
+  const solid = page.locator('[data-testid^="stage-placeholder-"]');
+  const dimensions = () => solid.evaluate(element => ['data-width', 'data-depth', 'data-height'].map(key => element.getAttribute(key)).join('/'));
+  const initial = await dimensions();
+  await page.getByRole('button', { name: 'Auswahl einpassen', exact: true }).click();
+  await page.getByRole('button', { name: 'Größe ziehen', exact: true }).click();
+  const canvas = page.locator('[data-renderer="pascal"] canvas');
+  await canvas.scrollIntoViewIfNeeded();
+  await canvas.screenshot();
+  const bounds = (await canvas.boundingBox())!;
+  const centre = { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
+  await page.mouse.move(centre.x, centre.y); await page.mouse.down();
+  await page.mouse.move(centre.x, centre.y - 55, { steps: 8 });
+  await expect.poll(dimensions).not.toBe(initial);
+  await page.keyboard.press('Delete');
+  await page.keyboard.press('Escape'); await page.mouse.up();
+  await expect.poll(dimensions).toBe(initial);
+  await expect(page.locator('.clipboard-panel')).toContainText('1 ausgewählt');
+  await drag(page, centre, { x: centre.x, y: centre.y - 55 });
+  await expect.poll(dimensions).not.toBe(initial);
+  await page.keyboard.press('Control+z');
+  await expect.poll(dimensions).toBe(initial);
+  await expect(page.locator('.save-status')).toHaveText('Gespeichert');
 });

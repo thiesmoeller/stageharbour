@@ -187,10 +187,10 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
   .workspace-commandbar { gap: 6px; padding: 6px 8px; }
   .workspace-viewbar { width: 100%; justify-content: space-between; gap: 4px; }
   .tool-rail { position: static; flex-direction: row; flex-wrap: nowrap; width: auto; height: auto; max-height: none; margin: 6px 8px; padding: 3px; order: 0; flex-shrink: 0; overflow-x: auto; scrollbar-width: thin; }
-  .editor .tool-rail button { flex: 0 0 auto; min-width: 52px; min-height: 44px; padding: 4px 2px; }
+  .editor .tool-rail button { flex: 0 0 auto; width: 52px; min-width: 52px; min-height: 44px; padding: 4px 2px; }
   .tool-rail button:first-child { margin: 0; border-bottom: 0; border-right: 1px solid var(--ui-line); }
   .tool-rail button span { font-size: 8px; }
-  .wall-tool { flex: 0 0 auto; min-width: 52px; }
+  .wall-tool { flex: 0 0 auto; width: 52px; min-width: 52px; }
   .plan-viewbar { min-height: 0; padding: 4px 8px; gap: 4px; }
   .plan-viewbar h3 { font-size: 11px; }
   .editor .plan-zoom button { padding: 2px 4px; min-height: 24px; }

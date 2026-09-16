@@ -15,7 +15,7 @@ export const GUIDE_PADDING_MM = 2000;
 export const SNAP_EDGE_FRACTIONS = [0, 1 / 3, 1 / 2, 2 / 3, 1] as const;
 /** Common layout-design angles in degrees. Mirroring is out of scope. */
 export const COMMON_LAYOUT_ANGLES_DEG = Array.from({ length: 49 }, (_, i) => -360 + i * 15);
-export const SNAP_NOTICE = `Einrasttoleranz ${SNAP_DISTANCE_MM} mm · Vorderseite bei ⅓·½·⅔, Stirnseiten an Enden, Mittellinie und 15°-Winkel. Alt umgeht. Keine Objektüberschneidungen.`;
+export const SNAP_NOTICE = `Einrasttoleranz ${SNAP_DISTANCE_MM} mm · Vorderseite bei ⅓·½·⅔, Stirnseiten an Enden, Mittellinie und 15°-Winkel. Alt umgeht. Objektüberschneidungen werden angezeigt.`;
 
 export const stageCentrelineSchema = z.strictObject({
   x: coordinate, y: coordinate,
@@ -326,7 +326,7 @@ function anchorGuide(point: PlanPoint): SnapGuide {
   return { kind: 'wall-anchor', a: { x: point.x - 120, y: point.y }, b: { x: point.x + 120, y: point.y } };
 }
 
-function translationFor(moving: SnapWall[], others: SnapWall[], centreline: StageCentreline | undefined, extraPoint?: PlanPoint) {
+export function translationFor(moving: SnapWall[], others: SnapWall[], centreline: StageCentreline | undefined, extraPoint?: PlanPoint) {
   const first = bestCandidate(moving, others, centreline, extraPoint);
   if (first?.full) {
     const finalPose = moving.map(wall => ({ ...wall, x: wall.x + first.dx, y: wall.y + first.dy }));

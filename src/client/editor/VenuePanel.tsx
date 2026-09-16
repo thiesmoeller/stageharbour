@@ -11,16 +11,20 @@ import { calibrationSchema, insertOutlineVertex, measuredOutline, millimetresPer
 import { type Platform, type StairUnit, AUDIENCE_FLOOR_ID, axisAlignedPlatformOutline, newPlatform, newStair, platformBounds, platformCentroid, reassignVenueSupports, stairCorners } from '../../shared/levels.js';
 import { type OverheadBox, newOverheadBox, EXAMPLE_CEILING_HEIGHT } from '../../shared/overhead.js';
 import { newKeepClearZone, type KeepClearZone } from '../../shared/keepClear.js';
+import { objectOverlapWarnings } from '../../shared/overlap.js';
 import { newPlaceholder, type Placeholder } from '../../shared/placeholders.js';
-import { defaultCentreline, planRotationAt, SNAP_NOTICE, snapStatusText, snapWallPose, type SnapGuide, type StageCentreline } from '../../shared/snapping.js';
+import { defaultCentreline, planRotationAt, SNAP_NOTICE, snapStatusText, type SnapGuide, type StageCentreline } from '../../shared/snapping.js';
 import { CentrelineMark, AlignmentGuides, SnapToggle } from './SnapGuides.js';
 import { RotationHandle } from './RotationHandle.js';
 import { PlaceholderLayer } from './PlaceholderLayer.js';
 import {
-  copyVenueSelection, cutVenueSelection, pasteVenueSelection, removeVenueSelection, transformVenue,
+  copyVenueSelection, cutVenueSelection, pasteVenueSelection, removeVenueSelection,
   venueObjects, venueObjectsInBounds, venueSelectionPivot, type VenueClipboard,
 } from '../../shared/venueEditing.js';
 import { normalizeBounds, type PlanBounds } from '../../shared/selection.js';
+import { navigatePlan } from './planNavigation.js';
+import { editorCommand } from './interactionKeys.js';
+import { transformVenueGesture } from '../../shared/plannerTransforms.js';
 import { useDocumentDraft } from './useDocumentDraft.js';
 import { StageView } from './StageView.js';
 import { ClipboardPanel } from './ClipboardPanel.js';
@@ -108,7 +112,8 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
   const [marqueeBox, setMarqueeBox] = useState<PlanBounds>();
   const selected = selectedIds[0];
   const vertexDrag = useRef<number | undefined>(undefined);
-  const transformStart = useRef<VenueDraft | undefined>(undefined);
+  const transformStart = useRef<{ draft: VenueDraft; ids: string[] } | undefined>(undefined);
+  const gestureSelection = useRef<string[]>([]);
   const objectDrag = useRef<{ ids: string[]; x: number; y: number; start: VenueDraft } | undefined>(undefined);
   const marqueeDrag = useRef<{ x: number; y: number; endX: number; endY: number; additive: boolean } | undefined>(undefined);
   const panDrag = useRef<{ clientX: number; clientY: number; panX: number; panY: number } | undefined>(undefined);
@@ -122,7 +127,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
   const [guides, setGuides] = useState<SnapGuide[]>([]);
   const [snapStatus, setSnapStatus] = useState<string>();
   const objectRotate = useRef<{
-    id: string; hinge: { x: number; y: number }; startAngle: number; startRotation: number; start: VenueDraft;
+    ids: string[]; hinge: { x: number; y: number }; startAngle: number; startRotation: number; start: VenueDraft;
   } | undefined>(undefined);
   useEffect(() => { onDirty?.(draft.dirty); }, [draft.dirty, onDirty]);
   const [meta, setMeta] = useState<VenueReference>();
@@ -148,7 +153,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
     }).catch(() => { if (!cancelled) setError('Die Vorlage konnte nicht geladen werden.'); });
     return () => { cancelled = true; };
   }, [fileId, page, workspaceId]);
-  function planPoint(event: PointerEvent) {
+  function planPoint(event: { clientX: number; clientY: number }) {
     const matrix = svg.current?.getScreenCTM();
     if (!matrix) return { x: 0, y: 0 };
     const value = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse());
@@ -158,7 +163,9 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
     const height = overlay?.pixelHeight ?? 0;
     return { x: Math.round(point.x / unit), y: Math.round(height - point.y / unit) };
   }
+  function busyGesture() { return draft.isActive() || !!panDrag.current || !!marqueeDrag.current; }
   function onPlan(event: PointerEvent) {
+    if (busyGesture()) return;
     if (event.button === 1) {
       event.preventDefault();
       panDrag.current = { clientX: event.clientX, clientY: event.clientY, panX: pan.x, panY: pan.y };
@@ -190,7 +197,8 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
     else if (click === 'a' || click === 'b') setCalibration(current => ({ ...current, [click === 'a' ? 'pointA' : 'pointB']: overlay ? toSource(point) : point }));
   }
   function startMarquee(event: PointerEvent) {
-    if (readOnly || event.button !== 0 || click !== 'select') return;
+    if (readOnly || busyGesture() || event.button !== 0 || click !== 'select') return;
+    gestureSelection.current = selectedIds;
     event.stopPropagation();
     const point = planPoint(event);
     marqueeDrag.current = { ...point, additive: event.shiftKey, endX: point.x, endY: point.y };
@@ -200,13 +208,14 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
   }
   function beginObjectDrag(event: PointerEvent, id: string) {
     event.stopPropagation();
-    if (event.button !== 0) return;
+    if (event.button !== 0 || busyGesture()) return;
+    gestureSelection.current = selectedIds;
     const ids = event.shiftKey
       ? (selectedIds.includes(id) ? selectedIds.filter(value => value !== id) : [...selectedIds, id])
       : (selectedIds.includes(id) ? selectedIds : [id]);
     setSelectedIds(ids);
     setClick('select');
-    if (readOnly || !ids.length) return;
+    if (event.shiftKey || readOnly || !ids.length) return;
     const point = planPoint(event);
     objectDrag.current = { ids, x: point.x, y: point.y, start: draft.value };
     draft.begin();
@@ -216,12 +225,15 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
   }
   function beginObjectRotate(event: PointerEvent, id: string, hinge: { x: number; y: number }, startRotation: number) {
     event.stopPropagation();
-    if (event.button !== 0 || readOnly) return;
-    setSelectedIds([id]);
+    if (event.button !== 0 || readOnly || busyGesture()) return;
+    gestureSelection.current = selectedIds;
+    const ids = selectedIds.includes(id) ? selectedIds : [id];
+    setSelectedIds(ids);
+    hinge = venueSelectionPivot(previewVenue, ids) ?? hinge;
     setClick('select');
     const point = planPoint(event);
     objectRotate.current = {
-      id, hinge, startAngle: planRotationAt(hinge, point), startRotation, start: draft.value,
+      ids, hinge, startAngle: planRotationAt(hinge, point), startRotation, start: draft.value,
     };
     draft.begin();
     setGuides([]);
@@ -312,11 +324,9 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
     const turning = objectRotate.current;
     if (turning) {
       const delta = planRotationAt(turning.hinge, point) - turning.startAngle;
-      const rotation = bypass ? turning.startRotation + delta : Math.round((turning.startRotation + delta) / 15) * 15;
-      const moved = transformVenue(sourceFromDraft(turning.start), [turning.id], { x: 0, y: 0, rotation: rotation - turning.startRotation });
-      draft.preview(draftFromVenue(moved, turning.start));
-      setGuides([]);
-      setSnapStatus(bypass ? 'Einrasten aus (Alt)' : undefined);
+      const moved = transformVenueGesture(sourceFromDraft(turning.start), turning.ids, { x: 0, y: 0, rotation: delta }, 'rotate', bypass);
+      draft.preview(draftFromVenue(moved.venue, turning.start));
+      setGuides(moved.guides); setSnapStatus(undefined);
       return;
     }
     const marquee = marqueeDrag.current;
@@ -327,27 +337,17 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
     }
     const dragging = objectDrag.current;
     if (dragging) {
-      let moved = transformVenue(sourceFromDraft(dragging.start), dragging.ids, { x: point.x - dragging.x, y: point.y - dragging.y, rotation: 0 });
-      let nextGuides: SnapGuide[] = [];
-      if (!bypass && dragging.ids.length === 1) {
-        const id = dragging.ids[0]!;
-        const wall = moved.walls?.find(item => item.id === id);
-        if (wall) {
-          const others = (moved.walls ?? []).filter(item => item.id !== id);
-          const snapped = snapWallPose(wall, others, centreline, { bypass });
-          moved = { ...moved, walls: moved.walls?.map(item => item.id === id ? { ...item, x: snapped.x, y: snapped.y } : item) };
-          nextGuides = snapped.guides;
-        }
-      }
-      draft.preview(draftFromVenue(moved, dragging.start));
-      setGuides(nextGuides);
-      setSnapStatus(snapStatusText({ guides: nextGuides }) ?? (bypass ? 'Einrasten aus (Alt)' : undefined));
+      const moved = transformVenueGesture(sourceFromDraft(dragging.start), dragging.ids, { x: point.x - dragging.x, y: point.y - dragging.y, rotation: 0 }, 'translate', bypass);
+      draft.preview(draftFromVenue(moved.venue, dragging.start));
+      setGuides(moved.guides);
+      setSnapStatus(snapStatusText({ guides: moved.guides }));
       return;
     }
     if (vertexDrag.current === undefined) return;
     setVertices(current => current.map((v, i) => i === vertexDrag.current ? point : v));
   }
   function endPlanGesture(cancel = false) {
+    if (cancel) setSelectedIds(gestureSelection.current);
     if (panDrag.current) {
       panDrag.current = undefined;
       if (svg.current) svg.current.style.cursor = '';
@@ -357,7 +357,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
     marqueeDrag.current = undefined;
     if (marquee) {
       const ids = venueObjectsInBounds(previewVenue, normalizeBounds(marquee, { x: marquee.endX, y: marquee.endY }));
-      setSelectedIds(current => marquee.additive ? [...new Set([...current, ...ids])] : ids);
+      if (!cancel) setSelectedIds(current => marquee.additive ? [...new Set([...current, ...ids])] : ids);
       setMarqueeBox(undefined);
       return;
     }
@@ -366,10 +366,12 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
     if (vertexDrag.current !== undefined) { vertexDrag.current = undefined; draft.finish(cancel); }
   }
   function copy() {
+    if (busyGesture()) return;
     const taken = copyVenueSelection(previewVenue, selectedIds);
     if (taken) setClipboard(taken);
   }
   function cut() {
+    if (busyGesture()) return;
     const result = cutVenueSelection(previewVenue, selectedIds);
     if (result.blocked) { setError('Abhängige Podestbezüge müssen mitgelöscht werden.'); return; }
     if (!result.clipboard) return;
@@ -378,6 +380,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
     setSelectedIds([]);
   }
   function paste() {
+    if (busyGesture()) return;
     if (!clipboard) return;
     const result = pasteVenueSelection(previewVenue, clipboard, () => crypto.randomUUID());
     if (!result.ids.length) return;
@@ -387,6 +390,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
     else setClipboard(copyVenueSelection(result.venue, result.ids));
   }
   function remove() {
+    if (busyGesture()) return;
     const result = removeVenueSelection(previewVenue, selectedIds);
     if (result.blocked) { setError('Abhängige Podestbezüge müssen mitgelöscht werden.'); return; }
     draft.commit(draftFromVenue(result.venue, draft.value));
@@ -395,46 +399,48 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => { if (draft.dirty) { event.preventDefault(); event.returnValue = ''; } };
     const key = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        vertexDrag.current = undefined; objectDrag.current = undefined; objectRotate.current = undefined; marqueeDrag.current = undefined; panDrag.current = undefined;
-        if (svg.current) svg.current.style.cursor = '';
-        setMarqueeBox(undefined); draft.finish(true);
-        setGuides([]); setSnapStatus(undefined);
-        setSelectedIds([]);
+      const command = editorCommand(event);
+      if (!command) return;
+      event.preventDefault();
+      if (command === 'cancel') {
+        if (objectDrag.current || objectRotate.current || vertexDrag.current !== undefined || marqueeDrag.current || panDrag.current) endPlanGesture(true);
+        else if (!transformStart.current) { setSelectedIds([]); setClick('select'); }
+        return;
       }
-      if (readOnly || event.target instanceof HTMLElement && event.target.closest('input, textarea, select')) return;
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') { event.preventDefault(); event.shiftKey ? draft.redo() : draft.undo(); }
-      else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'c') { event.preventDefault(); copy(); }
-      else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'x') { event.preventDefault(); cut(); }
-      else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'v') { event.preventDefault(); paste(); }
-      else if (event.key === 'Delete' || event.key === 'Backspace') { event.preventDefault(); remove(); }
+      if (readOnly || busyGesture()) return;
+      if (command === 'undo') draft.undo();
+      else if (command === 'redo') draft.redo();
+      else if (command === 'copy') copy();
+      else if (command === 'cut') cut();
+      else if (command === 'paste') paste();
+      else if (command === 'delete') remove();
     };
     window.addEventListener('beforeunload', warn); window.addEventListener('keydown', key);
     return () => { window.removeEventListener('beforeunload', warn); window.removeEventListener('keydown', key); };
   });
-  const transform: StageEditing['onTransform'] = (phase, delta, bypass) => {
+  const transform: StageEditing['onTransform'] = (phase, delta, bypass, operation = 'translate') => {
     if (readOnly) return;
-    if (phase === 'begin') { transformStart.current = draft.value; draft.begin(); return; }
-    if (phase === 'cancel') { draft.finish(true); transformStart.current = undefined; return; }
+    if (phase === 'begin') { if (!busyGesture()) { transformStart.current = { draft: draft.value, ids: selectedIds }; draft.begin(); } return; }
+    if (phase === 'cancel') { draft.finish(true); transformStart.current = undefined; setGuides([]); return; }
     const start = transformStart.current;
-    if (!start || !selected) return;
-    const moved = transformVenue(sourceFromDraft(start), selectedIds, { ...delta, rotation: bypass ? delta.rotation : Math.round(delta.rotation / 15) * 15 });
-    draft.preview(draftFromVenue(moved, start));
-    if (phase === 'commit') { draft.finish(); transformStart.current = undefined; }
+    if (!start) return;
+    const moved = transformVenueGesture(sourceFromDraft(start.draft), start.ids, delta, operation, bypass);
+    draft.preview(draftFromVenue(moved.venue, start.draft)); setGuides(moved.guides);
+    if (phase === 'commit') { draft.finish(); transformStart.current = undefined; setGuides([]); }
   };
   const pushPull: StageEditing['onPushPull'] = (phase, next) => {
     if (readOnly) return;
-    if (phase === 'begin') { transformStart.current = draft.value; draft.begin(); return; }
+    if (phase === 'begin') { if (!busyGesture()) { transformStart.current = { draft: draft.value, ids: selectedIds }; draft.begin(); } return; }
     if (phase === 'cancel') { draft.finish(true); transformStart.current = undefined; return; }
     const start = transformStart.current;
     if (!start) return;
-    draft.preview(draftFromVenue(next, start));
+    draft.preview(draftFromVenue(next, start.draft));
     if (phase === 'commit') { draft.finish(); transformStart.current = undefined; }
   };
   useViewportWheel(svg, event => {
-    if (!(event.ctrlKey || event.metaKey)) return;
-    event.preventDefault();
-    setZoom(value => Math.max(.4, Math.min(8, value * (event.deltaY < 0 ? 1.1 : 1 / 1.1))));
+    if (busyGesture()) return;
+    const next = navigatePlan(event, { zoom, pan, centre: { x: planLeft + planWidth / 2, y: -(planTop + planHeight / 2) } }, planPoint(event));
+    if (next) { event.preventDefault(); setZoom(next.zoom); setPan(next.pan); }
   });
   const selectedWall = walls.find(wall => wall.id === selected);
   const selectedWallIndex = selectedWall ? walls.findIndex(wall => wall.id === selectedWall.id) : -1;
@@ -449,8 +455,8 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
     <div className="workspace-commandbar">
       <div className="editor-toolbar">
         {!readOnly && <>
-          <button type="button" className="quiet" disabled={!draft.canUndo || busy} onClick={draft.undo} title="Spielstätte rückgängig" aria-label="Spielstätte rückgängig"><ToolIcon name="undo" /></button>
-          <button type="button" className="quiet" disabled={!draft.canRedo || busy} onClick={draft.redo} title="Spielstätte wiederholen" aria-label="Spielstätte wiederholen"><ToolIcon name="redo" /></button>
+          <button type="button" className="quiet" disabled={!draft.canUndo || busy || busyGesture()} onClick={draft.undo} title="Spielstätte rückgängig" aria-label="Spielstätte rückgängig"><ToolIcon name="undo" /></button>
+          <button type="button" className="quiet" disabled={!draft.canRedo || busy || busyGesture()} onClick={draft.redo} title="Spielstätte wiederholen" aria-label="Spielstätte wiederholen"><ToolIcon name="redo" /></button>
           <button type="button" disabled={!draft.dirty || busy} onClick={() => void save()}>Spielstätte speichern</button>
           <button type="button" className="quiet" disabled={!draft.dirty || busy} onClick={() => { draft.discard(); setError(''); }}>Spielstättenentwurf verwerfen</button>
           <button type="button" className="quiet" onClick={() => {
@@ -470,7 +476,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
       <button type="button" className="quiet" aria-expanded={inspectorOpen} onClick={() => setInspectorOpen(open => !open)} title={inspectorOpen ? 'Eigenschaften ausblenden' : 'Eigenschaften einblenden'} aria-label="Eigenschaften"><ToolIcon name="tray" /></button>
       </div>
     </div>
-    {!readOnly && <div className="tool-rail" role="toolbar" aria-label="Spielstättenwerkzeuge">
+    {!readOnly && <div className="tool-rail" role="toolbar" aria-label="Spielstättenwerkzeuge" inert={busyGesture()}>
       <button type="button" className="quiet" aria-pressed={click === 'select'} onClick={() => setClick('select')} title="Auswählen" aria-label="Auswählen"><ToolIcon name="settings" /><span>Auswahl</span></button>
       <button type="button" className="quiet" aria-pressed={click === 'vertex'} onClick={() => setClick('vertex')} title="Eckpunkt auf eine Umrisskante setzen" aria-label="Eckpunkt hinzufügen"><ToolIcon name="plus" /><span>Eckpunkt</span></button>
       <button type="button" disabled={walls.length >= 250} onClick={addFixedWall} title="Feste Wand hinzufügen" aria-label="Feste Wand hinzufügen"><ToolIcon name="wall" /><span>Wand</span></button>
@@ -531,7 +537,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
             <path data-testid="venue-outline" d={`${vertices.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')} Z`}
               fill="url(#venue-metre-grid)" stroke="#718469" strokeWidth="2" vectorEffect="non-scaling-stroke"
               onPointerDown={startMarquee} />
-            {vertices.map((point, index) => <circle key={index} data-testid={`venue-vertex-${index}`} cx={point.x} cy={-point.y} r="65" fill="#b67c35" onPointerDown={event => { if (readOnly || event.button !== 0) return; event.stopPropagation(); vertexDrag.current = index; draft.begin(); svg.current?.setPointerCapture(event.pointerId); }} />)}
+            {vertices.map((point, index) => <circle key={index} data-testid={`venue-vertex-${index}`} cx={point.x} cy={-point.y} r="65" fill="#b67c35" onPointerDown={event => { if (readOnly || busyGesture() || event.button !== 0) return; gestureSelection.current = selectedIds; event.stopPropagation(); vertexDrag.current = index; draft.begin(); svg.current?.setPointerCapture(event.pointerId); }} />)}
             {platforms.map(platform => <path key={platform.id} data-testid={`venue-platform-${platform.id}`}
               d={`${platform.outline.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')} Z`}
               fill={selectedIds.includes(platform.id) ? 'rgba(182,124,53,0.35)' : 'rgba(113,132,105,0.25)'} stroke="#718469" strokeWidth="2" vectorEffect="non-scaling-stroke"
@@ -555,6 +561,9 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
             <KeepClearMarks zones={zones} selectedIds={selectedIds} onPointerDown={beginObjectDrag} />
             <CentrelineMark centreline={centreline} />
             <AlignmentGuides guides={guides} />
+            {!readOnly && pivot && (selectedIds.length > 1 || ['zone', 'corridor'].includes(selectedObject?.kind ?? '')) &&
+              <RotationHandle centre={pivot} rotation={0} width={1200} testId="rotate-venue-selection" label="Auswahl drehen"
+                onPointerDown={event => beginObjectRotate(event, selected!, pivot, 0)} />}
             {selectedWall && !readOnly && selectedIds.length === 1 && <RotationHandle centre={selectedWall} rotation={selectedWall.rotation} width={selectedWall.width}
               testId={`rotate-venue-wall-${selectedWall.id}`} label="Feste Wand drehen" onPointerDown={event => beginObjectRotate(event, selectedWall.id, selectedWall, selectedWall.rotation)} />}
             {selectedIds.length === 1 && !readOnly && (() => {
@@ -589,10 +598,12 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
             {marqueeBox && <rect data-testid="venue-selection-marquee" className="selection-marquee"
               x={marqueeBox.minX} y={-marqueeBox.maxY} width={marqueeBox.maxX - marqueeBox.minX} height={marqueeBox.maxY - marqueeBox.minY} />}
           </svg>
+          {objectOverlapWarnings({ schemaVersion: 1, walls: previewVenue.walls ?? [], braces: [], platforms: previewVenue.platforms, stairs: previewVenue.stairs, placeholders: previewVenue.placeholders }).map(item =>
+            <p className="warning" role="status" data-testid="object-overlap" key={`${item.aId}-${item.bId}`}>{item.message}</p>)}
         </div>
-        {viewMode !== 'plan' && <StageView onLightingChange={readOnly ? undefined : setLighting} layout={liveLayout} venue={previewVenue} venueEditable workspaceId={workspaceId} selectedIds={selectedIds} pivot={pivot} onSelect={(id, additive) => setSelectedIds(ids => additive ? ids.includes(id) ? ids.filter(value => value !== id) : [...ids, id] : [id])} onClearSelection={() => setSelectedIds([])} onTransform={readOnly ? undefined : transform} onPushPull={readOnly ? undefined : pushPull} snapEnabled={snapEnabled} />}
+        {viewMode !== 'plan' && <StageView onLightingChange={readOnly ? undefined : setLighting} layout={liveLayout} venue={previewVenue} venueEditable workspaceId={workspaceId} selectedIds={selectedIds} pivot={pivot} onSelect={(id, additive) => { if (!busyGesture()) setSelectedIds(ids => additive ? ids.includes(id) ? ids.filter(value => value !== id) : [id, ...ids] : [id]); }} onClearSelection={() => { if (!busyGesture()) setSelectedIds([]); }} onTransform={readOnly ? undefined : transform} onPushPull={readOnly ? undefined : pushPull} snapEnabled={snapEnabled} />}
       </div>
-      <aside className="wall-inspector">
+      <aside className="wall-inspector" inert={busyGesture()}>
         <div className="inspector-title"><ToolIcon name="settings" /><h3>Eigenschaften</h3><span>mm</span></div>
         <div className="selection-properties">
           <h3>{selectedWall ? `Feste Wand ${selectedWallIndex + 1}` : selectedObject?.label ?? 'Keine Auswahl'}</h3>
@@ -602,7 +613,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
             {walls.map((wall, index) => <option key={wall.id} value={wall.id}>Feste Wand {index + 1}</option>)}
             {venueObjects(previewVenue).filter(item => !walls.some(wall => wall.id === item.id)).map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
           </select>
-          {selectedWall && selectedWallIndex >= 0 ? <fieldset disabled={readOnly || busy}>
+          {selectedWall && selectedWallIndex >= 0 ? <fieldset disabled={readOnly || busy || busyGesture()}>
             <label>Bezeichnung<input value={selectedWall.label} onChange={event => setWalls(items => items.map(item => item.id === selectedWall.id ? { ...item, label: event.target.value } : item))} /></label>
             <div className="numeric-fields">{(['x', 'y', 'rotation', 'width', 'height', 'thickness'] as const).map(key => <label key={key}>{key}<input aria-label={`Feste Wand ${selectedWallIndex + 1} ${key}`} type="number" value={selectedWall[key]} onChange={event => setWalls(items => items.map(item => item.id === selectedWall.id ? { ...item, [key]: Number(event.target.value) } : item))} /></label>)}</div>
             <Suspense fallback={<p>Materialbibliothek wird geladen …</p>}>
@@ -623,7 +634,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
               <button type="button" className="quiet" onClick={() => { setWalls(items => items.filter(item => item.id !== selectedWall.id)); setSelectedIds([]); }}>Feste Wand entfernen</button>
               <button type="button" className="quiet" onClick={() => remove()}>Löschen</button>
             </div>
-          </fieldset> : selectedIds.length ? <fieldset disabled={readOnly || busy}>
+          </fieldset> : selectedIds.length ? <fieldset disabled={readOnly || busy || busyGesture()}>
             <p className="muted">{selectedIds.length} Objekt{selectedIds.length === 1 ? '' : 'e'} ausgewählt. Ziehen zum Verschieben · Orange ↻ dreht · Entf löscht.</p>
             {selectedObject?.kind === 'platform' && (() => {
               const platform = platforms.find(item => item.id === selected)!;
@@ -719,7 +730,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
             onCopy={copy} onCut={cut} onPaste={paste} />
         </div></details>
         <details className="inspector-section"><summary>Umriss</summary><div className="inspector-section-body">
-          <fieldset disabled={readOnly || busy}>
+          <fieldset disabled={readOnly || busy || busyGesture()}>
             {vertices.map((point, index) => <div className="numeric-fields" key={index}>
               <div><label htmlFor={`vertex-x-${index}`}>Eckpunkt {index + 1} X (mm)</label>
                 <input id={`vertex-x-${index}`} type="number" step="any" value={point.x} onChange={event => setVertices(current => current.map((item, i) => i === index ? { ...item, x: Number(event.target.value) } : item))} /></div>
@@ -733,7 +744,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
           </fieldset>
         </div></details>
         <details className="inspector-section"><summary>Vorlage & Maßstab</summary><div className="inspector-section-body">
-          <fieldset disabled={readOnly || busy}>
+          <fieldset disabled={readOnly || busy || busyGesture()}>
             <label htmlFor="venue-file">Vorlage hochladen</label>
             <input id="venue-file" type="file" accept="image/png,image/jpeg,application/pdf" onChange={event => void chooseFile(event.currentTarget.files?.[0])} />
             {meta?.kind === 'pdf' && <div><label htmlFor="venue-page">PDF-Seite</label>
@@ -758,7 +769,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
           </fieldset>
         </div></details>
         <details className="inspector-section"><summary>Anschlüsse & Kabelwege</summary><div className="inspector-section-body">
-          <fieldset disabled={readOnly || busy}>
+          <fieldset disabled={readOnly || busy || busyGesture()}>
             <InfrastructureFields venue={venue} pins={pins} corridors={corridors} click={click} pinKind={pinKind}
               onClick={setClick} onPinKind={setPinKind} onPins={setPins} onCorridors={setCorridors} />
           </fieldset>
@@ -774,7 +785,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
           <KeepClearZones venue={venue} zones={zones} click={click} readOnly={readOnly} onClick={value => setClick(value)} onZones={setZones} />
         </div></details>
         <details className="inspector-section"><summary>Bühnenmittellinie</summary><div className="inspector-section-body">
-          <fieldset disabled={readOnly || busy}><CentrelineFields centreline={centreline} onChange={setCentreline} /></fieldset>
+          <fieldset disabled={readOnly || busy || busyGesture()}><CentrelineFields centreline={centreline} onChange={setCentreline} /></fieldset>
         </div></details>
       </aside>
     </div>

@@ -1,27 +1,31 @@
 import { lazy, Suspense, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type PointerEvent } from 'react';
 import { z } from 'zod';
-import { applyWallFinish, selectionPivot, transformSelection, type PlanTransform } from '../../shared/editing.js';
+import { applyWallFinish, selectionPivot } from '../../shared/editing.js';
+import { navigatePlan } from './planNavigation.js';
+import { sceneResizeDocument, resizedScene } from '../../shared/sceneResize.js';
+import { editorCommand } from './interactionKeys.js';
+import { layoutSelectionRotation, transformLayoutGesture, type TransformOperation } from '../../shared/plannerTransforms.js';
 import type { StageEditing } from './StageEditing.js';
 import { assemblyCaption } from '../../shared/assembly.js';
 import { copySelection, cutSelection, pasteClipboard, removeSelection, type ClipboardMember, type LayoutClipboard } from '../../shared/clipboard.js';
-import { dropMember, groupContaining, membersPivot, transformGroup, transformMembers, type GroupMember } from '../../shared/groups.js';
+import { groupContaining, type GroupMember } from '../../shared/groups.js';
 import { execute, history, redo, undo, type History } from '../../shared/history.js';
 import { layoutSchema, newBrace, newWall, wallCorners, wallSchema, type Brace, type Layout, type Scene, type VenueGeometry, type Wall } from '../../shared/layout.js';
 import {
-  SNAP_NOTICE, alignBraceToNearestWall, braceContactHinge, planRotationAt, rotateBraceOnContact, rotateToward,
-  snapBracePose, snapMembersPose, snapRotation, snapStatusText, snapWallPose, type SnapGuide,
+  SNAP_NOTICE, alignBraceToNearestWall, planRotationAt,
+  snapStatusText, snapWallPose, type SnapGuide,
 } from '../../shared/snapping.js';
 import { membersInBounds, normalizeBounds, type PlanBounds } from '../../shared/selection.js';
 import {
-  AUDIENCE_FLOOR_ID, layoutDiagnostics, newPlatform, newStair, platformCentroid, reassignLayoutSupports, rotatePlatformOutline,
-  supportingSurfaces, translatePlatformOutline, type Platform, type StairUnit,
+  AUDIENCE_FLOOR_ID, layoutDiagnostics, newPlatform, newStair, platformCentroid, reassignLayoutSupports,
+  supportingSurfaces, type Platform, type StairUnit,
 } from '../../shared/levels.js';
 import { placeholderCorners, type Placeholder } from '../../shared/placeholders.js';
 import { overheadBoxCorners, overheadClearance } from '../../shared/overhead.js';
 import { braceCorners } from '../../shared/braceTransforms.js';
 import { doorOpenAngleDegrees, isDoorOpening, resolveWall, typesOf, type Opening, type WallElementType } from '../../shared/wall-types.js';
 import { measuredOutline } from '../../shared/venue.js';
-import { planningWalls, permanentWalls } from '../../shared/planningGeometry.js';
+import { planningWalls } from '../../shared/planningGeometry.js';
 import { useViewportWheel } from './viewportWheel.js';
 import { LEASE_HEARTBEAT_MS } from '../../shared/leases.js';
 import { ApiError, request } from '../api.js';
@@ -40,7 +44,7 @@ import { WallTypePanel } from './WallTypePanel.js';
 import { VenuePanel, InfrastructureMarks } from './VenuePanel.js';
 import { OverheadMarks } from './VenueOverhead.js';
 import { KeepClearMarks } from './KeepClearZones.js';
-import { objectOverlapWarnings, placementOverlaps, braceFootprint, placeholderFootprint, platformFootprint, stairFootprint, wallFootprint } from '../../shared/overlap.js';
+import { objectOverlapWarnings } from '../../shared/overlap.js';
 import { keepClearWarnings } from '../../shared/keepClear.js';
 import { InventoryPanel } from './InventoryPanel.js';
 import { AssemblyPanel } from './AssemblyPanel.js';
@@ -76,25 +80,21 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     request(`/api/workspaces/${workspaceId}/assets`).then(data => { if (active) setAssets(assetListSchema.parse(data)); }).catch(() => { if (active) setAssetError('Die Objektbibliothek konnte nicht geladen werden.'); });
     return () => { active = false; };
   }, [workspaceId]);
-  const [selected, setSelected] = useState<string>();
   const [selectedType, setSelectedType] = useState<string>();
-  const [selectedBrace, setSelectedBrace] = useState<string>();
-  const [selectedPlatform, setSelectedPlatform] = useState<string>();
-  const [selectedStair, setSelectedStair] = useState<string>();
-  const [selectedPlaceholder, setSelectedPlaceholder] = useState<string>();
-  useEffect(() => {
-    root.current?.querySelector('.wall-inspector')?.scrollTo({ top: 0 });
-  }, [selected, selectedBrace, selectedPlatform, selectedStair, selectedPlaceholder]);
-  const [picked, setPicked] = useState<GroupMember[]>([]);
-  const [pickedPlatforms, setPickedPlatforms] = useState<string[]>([]);
+  const [picked, setPicked] = useState<ClipboardMember[]>([]);
+  const presentIds = new Set([...state.present.walls, ...state.present.braces, ...state.present.platforms ?? [], ...state.present.stairs ?? [], ...state.present.placeholders ?? []].map(item => item.id));
+  const primary = picked.find(item => presentIds.has(item.id));
+  const selected = primary?.kind === 'wall' ? primary.id : undefined;
+  const selectedBrace = primary?.kind === 'brace' ? primary.id : undefined;
+  const selectedPlatform = primary?.kind === 'platform' ? primary.id : undefined;
+  const selectedStair = primary?.kind === 'stair' ? primary.id : undefined;
+  const selectedPlaceholder = primary?.kind === 'placeholder' ? primary.id : undefined;
+  const pickedPlatforms = picked.filter(item => item.kind === 'platform').map(item => item.id);
+  useEffect(() => { root.current?.querySelector('.wall-inspector')?.scrollTo({ top: 0 }); }, [primary?.id]);
   const [clipboard, setClipboard] = useState<LayoutClipboard>();
-  const [preview, setPreview] = useState<Wall>();
-  const [previewBrace, setPreviewBrace] = useState<Brace>();
-  const [previewPlatform, setPreviewPlatform] = useState<Platform>();
-  const [previewStair, setPreviewStair] = useState<StairUnit>();
-  const [previewPlaceholder, setPreviewPlaceholder] = useState<Placeholder>();
   const [placing, setPlacing] = useState<{ wall: Wall; pendingType?: WallElementType }>();
   const placingRef = useRef<{ wall: Wall; pendingType?: WallElementType } | undefined>(undefined);
+  const objectPlacement = useRef<{ start: Layout; latest: Layout; member: ClipboardMember; origin: { x: number; y: number } } | undefined>(undefined);
   const [groupPreview, setGroupPreview] = useState<Layout>();
   const [panelLabels, setPanelLabels] = useState<Record<string, string>>({});
   const [exportsOpen, setExportsOpen] = useState(false);
@@ -108,25 +108,11 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
   const [marqueeBox, setMarqueeBox] = useState<PlanBounds>();
   const [viewZoom, setViewZoom] = useState(1);
   const [viewPan, setViewPan] = useState({ x: 0, y: 0 });
-  const gesture = useRef<{ wall: Wall; x: number; y: number; latest: Wall } | undefined>(undefined);
-  const rotateDrag = useRef<{ wall: Wall; latest: Wall; angleSnapped: boolean } | undefined>(undefined);
-  const braceDrag = useRef<{ brace: Brace; x: number; y: number; latest: Brace } | undefined>(undefined);
-  const braceRotate = useRef<{ brace: Brace; latest: Brace; angleSnapped: boolean; hinge?: { x: number; y: number }; startAngle: number } | undefined>(undefined);
-  const platformDrag = useRef<{ platform: Platform; x: number; y: number; latest: Platform } | undefined>(undefined);
-  const platformRotate = useRef<{ platform: Platform; centre: { x: number; y: number }; startAngle: number; baseOutline: Platform['outline']; latest: Platform; angleSnapped: boolean } | undefined>(undefined);
-  const stairDrag = useRef<{ stair: StairUnit; x: number; y: number; latest: StairUnit } | undefined>(undefined);
-  const stairRotate = useRef<{ stair: StairUnit; latest: StairUnit; angleSnapped: boolean } | undefined>(undefined);
-  const placeholderDrag = useRef<{ item: Placeholder; x: number; y: number; latest: Placeholder } | undefined>(undefined);
-  const placeholderRotate = useRef<{ item: Placeholder; latest: Placeholder; angleSnapped: boolean } | undefined>(undefined);
-  const groupDrag = useRef<{
-    x: number; y: number; start: Layout; latest: Layout;
-    members: GroupMember[]; baseRotation: number; groupId?: string;
+  const planGesture = useRef<{
+    start: Layout; latest: Layout; members: ClipboardMember[]; previousSelection: ClipboardMember[];
+    pointer: { x: number; y: number }; pivot: { x: number; y: number }; operation: TransformOperation;
   } | undefined>(undefined);
-  const groupRotate = useRef<{
-    start: Layout; latest: Layout; members: GroupMember[]; baseRotation: number; groupId?: string;
-    pivot: { x: number; y: number }; pointerStart: number; angleSnapped: boolean;
-  } | undefined>(undefined);
-  const marqueeDrag = useRef<{ x: number; y: number; endX: number; endY: number; additive: boolean } | undefined>(undefined);
+  const marqueeDrag = useRef<{ x: number; y: number; endX: number; endY: number; additive: boolean; previousSelection: ClipboardMember[] } | undefined>(undefined);
   const panDrag = useRef<{ clientX: number; clientY: number; panX: number; panY: number } | undefined>(undefined);
   const pickedRef = useRef(picked);
   pickedRef.current = picked;
@@ -144,7 +130,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     }
   }));
   const saveState = useSyncExternalStore(saver.subscribe, saver.getSnapshot);
-  const dirty = venueDirty || saveState.dirty || !!preview || !!previewBrace || !!previewPlatform || !!previewStair || !!previewPlaceholder || !!groupPreview;
+  const dirty = venueDirty || saveState.dirty || !!groupPreview || !!placing;
   useEffect(() => { onDirty(dirty); }, [dirty, onDirty]);
   useEffect(() => {
     if (readOnly) return;
@@ -157,13 +143,13 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
   }, [readOnly, saver, workspaceId, initial.id]);
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
-      if (saver.getSnapshot().dirty || gesture.current || braceDrag.current || placeholderDrag.current || groupDrag.current) { event.preventDefault(); event.returnValue = ''; }
+      if (saver.getSnapshot().dirty || busyGesture()) { event.preventDefault(); event.returnValue = ''; }
     };
     window.addEventListener('beforeunload', warn);
     return () => { window.removeEventListener('beforeunload', warn); saver.dispose(); onDirty(false); };
   }, [saver, onDirty]);
   function apply(next: History) {
-    if (readOnly || next === current.current) return;
+    if (readOnly || busyGesture() || next === current.current) return;
     current.current = next;
     setState(next);
     saver.queue(next.present);
@@ -205,7 +191,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
   }
   function beginPlacingWall(type?: WallElementType) {
     const present = current.current.present;
-    if (readOnly || present.walls.length >= 250) return;
+    if (readOnly || busyGesture() || present.walls.length >= 250) return;
     const types = typesOf(present);
     let pendingType: WallElementType | undefined;
     let wall: Wall;
@@ -230,18 +216,24 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     setSnapStatus('Klicken zum Platzieren · Escape abbricht');
   }
   function cancelPlacing() {
-    if (!placingRef.current) return;
+    objectPlacement.current = undefined; setGroupPreview(undefined);
     placingRef.current = undefined;
     setPlacing(undefined);
     setGuides([]);
     setSnapStatus(undefined);
   }
   function commitPlacing() {
+    const object = objectPlacement.current;
+    if (object) {
+      objectPlacement.current = undefined; setGroupPreview(undefined);
+      commit(object.latest); pick(object.member, false); setGuides([]); setSnapStatus(undefined); return;
+    }
     const draft = placingRef.current;
     if (!draft) return;
     const present = current.current.present;
     if (present.walls.length >= 250) { cancelPlacing(); return; }
     const types = typesOf(present);
+    placingRef.current = undefined;
     commit({
       ...present,
       wallTypes: draft.pendingType ? [...types, draft.pendingType] : present.wallTypes,
@@ -275,156 +267,71 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
   function replaceStair(stair: StairUnit) {
     commit({ ...current.current.present, stairs: (current.current.present.stairs ?? []).map(item => item.id === stair.id ? stair : item) });
   }
-  function clearSelection(except?: 'wall' | 'brace' | 'platform' | 'stair' | 'placeholder') {
-    if (except !== 'wall') setSelected(undefined);
-    if (except !== 'brace') setSelectedBrace(undefined);
-    if (except !== 'platform') setSelectedPlatform(undefined);
-    if (except !== 'stair') setSelectedStair(undefined);
-    if (except !== 'placeholder') setSelectedPlaceholder(undefined);
+  function clearSelection() { pickedRef.current = []; setPicked([]); }
+  function setSelection(members: ClipboardMember[]) { pickedRef.current = members; setPicked(members); }
+  function selection(): ClipboardMember[] {
+    const present = current.current.present;
+    const ids = new Set([...present.walls, ...present.braces, ...present.platforms ?? [], ...present.stairs ?? [], ...present.placeholders ?? []].map(item => item.id));
+    return pickedRef.current.filter(item => ids.has(item.id));
   }
-  function applyHits(hit: ReturnType<typeof membersInBounds>, additive: boolean) {
-    const groupable = hit.flatMap(item => item.kind === 'platform' ? [] : [{ kind: item.kind, id: item.id } satisfies GroupMember]);
-    const platforms = hit.flatMap(item => item.kind === 'platform' ? [item.id] : []);
-    if (additive) {
-      setPicked(current => {
-        const keys = new Set(current.map(item => `${item.kind}:${item.id}`));
-        const next = [...current];
-        for (const item of groupable) {
-          const key = `${item.kind}:${item.id}`;
-          if (keys.has(key)) continue;
-          keys.add(key); next.push(item);
-        }
-        return next;
-      });
-      setPickedPlatforms(current => [...new Set([...current, ...platforms])]);
-    } else {
-      setPicked(groupable);
-      setPickedPlatforms(platforms);
+  function applyHits(hit: ClipboardMember[], additive: boolean) {
+    setSelection(additive ? [...selection(), ...hit.filter(item => !selection().some(old => old.id === item.id))] : hit);
+  }
+  function pick(member: ClipboardMember, additive: boolean) {
+    if (busyGesture()) return;
+    const old = selection();
+    if (additive) setSelection(old.some(item => item.id === member.id) ? old.filter(item => item.id !== member.id) : [member, ...old]);
+    else {
+      const group = member.kind === 'platform' ? undefined : groupContaining(current.current.present, { kind: member.kind, id: member.id });
+      setSelection(group ? [member, ...group.members.filter(item => item.id !== member.id)] : [member]);
     }
-    clearSelection();
-    const wall = groupable.find(item => item.kind === 'wall');
-    const brace = groupable.find(item => item.kind === 'brace');
-    const stair = groupable.find(item => item.kind === 'stair');
-    const placeholder = groupable.find(item => item.kind === 'placeholder');
-    if (wall) { setSelected(wall.id); clearSelection('wall'); }
-    else if (brace) { setSelectedBrace(brace.id); clearSelection('brace'); }
-    else if (stair) { setSelectedStair(stair.id); clearSelection('stair'); }
-    else if (placeholder) { setSelectedPlaceholder(placeholder.id); clearSelection('placeholder'); }
-    else if (platforms[0]) { setSelectedPlatform(platforms[0]); clearSelection('platform'); }
-  }
-  function pick(member: GroupMember, additive: boolean) {
-    if (!additive) setPickedPlatforms([]);
-    setPicked(current => additive
-      ? current.some(item => item.kind === member.kind && item.id === member.id)
-        ? current.filter(item => !(item.kind === member.kind && item.id === member.id))
-        : [...current, member]
-      : [member]);
-    if (member.kind === 'wall') { setSelected(member.id); clearSelection('wall'); }
-    else if (member.kind === 'brace') { setSelectedBrace(member.id); clearSelection('brace'); }
-    else if (member.kind === 'stair') { setSelectedStair(member.id); clearSelection('stair'); }
-    else { setSelectedPlaceholder(member.id); clearSelection('placeholder'); }
-  }
-  function memberInPicked(member: GroupMember) {
-    return pickedRef.current.some(item => item.kind === member.kind && item.id === member.id);
-  }
-  /** Keep multi-select when dragging an already-selected member; otherwise replace. */
-  function selectForDrag(member: GroupMember, additive: boolean) {
-    if (additive) { pick(member, true); return undefined; }
-    const keepMulti = memberInPicked(member) && pickedRef.current.length > 1;
-    if (!keepMulti) pick(member, false);
-    else if (member.kind === 'wall') { setSelected(member.id); clearSelection('wall'); }
-    else if (member.kind === 'brace') { setSelectedBrace(member.id); clearSelection('brace'); }
-    else if (member.kind === 'stair') { setSelectedStair(member.id); clearSelection('stair'); }
-    else { setSelectedPlaceholder(member.id); clearSelection('placeholder'); }
-    return dragTargets(member, keepMulti);
-  }
-  function dragTargets(member: GroupMember, keepMulti: boolean) {
-    const formal = groupContaining(current.current.present, member);
-    if (formal) return { members: formal.members, groupId: formal.id, baseRotation: formal.rotation };
-    if (keepMulti) return { members: [...pickedRef.current], baseRotation: 0 };
-  }
-  function beginSelectionDrag(position: { x: number; y: number }, targets: { members: GroupMember[]; groupId?: string; baseRotation: number }, event: PointerEvent<SVGGElement>) {
-    groupDrag.current = {
-      ...position, start: current.current.present, latest: current.current.present,
-      members: targets.members, groupId: targets.groupId, baseRotation: targets.baseRotation,
-    };
-    setGroupPreview(current.current.present);
-    event.currentTarget.setPointerCapture(event.pointerId);
   }
   function remove() {
+    if (busyGesture()) return;
     commit(removeSelection(current.current.present, selection()));
-    clearSelection(); setPicked([]); setPickedPlatforms([]);
-  }
-  function selection(): ClipboardMember[] {
-    const members: ClipboardMember[] = [];
-    for (const item of picked) {
-      if (item.kind === 'wall' || item.kind === 'brace' || item.kind === 'stair' || item.kind === 'placeholder') {
-        members.push({ kind: item.kind, id: item.id });
-      }
-    }
-    for (const id of pickedPlatforms) {
-      if (!members.some(item => item.kind === 'platform' && item.id === id)) members.push({ kind: 'platform', id });
-    }
-    if (selected && !members.some(item => item.kind === 'wall' && item.id === selected)) members.push({ kind: 'wall', id: selected });
-    if (selectedBrace && !members.some(item => item.kind === 'brace' && item.id === selectedBrace)) members.push({ kind: 'brace', id: selectedBrace });
-    if (selectedStair && !members.some(item => item.kind === 'stair' && item.id === selectedStair)) members.push({ kind: 'stair', id: selectedStair });
-    if (selectedPlaceholder && !members.some(item => item.kind === 'placeholder' && item.id === selectedPlaceholder)) members.push({ kind: 'placeholder', id: selectedPlaceholder });
-    if (selectedPlatform && !members.some(item => item.kind === 'platform' && item.id === selectedPlatform)) {
-      members.push({ kind: 'platform', id: selectedPlatform });
-    }
-    return members;
+    clearSelection();
   }
   function copy() {
+    if (busyGesture()) return;
     const taken = copySelection(current.current.present, selection());
     if (taken) setClipboard(taken);
   }
   function cut() {
+    if (busyGesture()) return;
     const result = cutSelection(current.current.present, selection());
     if (!result.clipboard) return;
     setClipboard(result.clipboard);
     commit(result.layout);
-    clearSelection(); setPicked([]); setPickedPlatforms([]);
+    clearSelection();
   }
   function paste() {
+    if (busyGesture()) return;
     if (!clipboard) return;
     const result = pasteClipboard(current.current.present, clipboard, () => crypto.randomUUID());
     commit(result.layout);
     if (result.consumed) setClipboard(undefined);
-    setPicked(result.pasted.flatMap(item => item.kind === 'wall' || item.kind === 'brace' || item.kind === 'stair' || item.kind === 'placeholder' ? [{ kind: item.kind, id: item.id }] : []));
-    setPickedPlatforms(result.pasted.flatMap(item => item.kind === 'platform' ? [item.id] : []));
-    const wall = result.pasted.find(item => item.kind === 'wall');
-    const brace = result.pasted.find(item => item.kind === 'brace');
-    const stair = result.pasted.find(item => item.kind === 'stair');
-    const platform = result.pasted.find(item => item.kind === 'platform');
-    if (wall) { setSelected(wall.id); clearSelection('wall'); }
-    else if (brace) { setSelectedBrace(brace.id); clearSelection('brace'); }
-    else if (stair) { setSelectedStair(stair.id); clearSelection('stair'); }
-    else if (platform) { setSelectedPlatform(platform.id); clearSelection('platform'); }
-    else { const item = result.pasted.find(item => item.kind === 'placeholder'); if (item) { setSelectedPlaceholder(item.id); clearSelection('placeholder'); } }
+    setSelection(result.pasted);
     if (!result.consumed && result.pasted.length) setClipboard(copySelection(result.layout, result.pasted));
   }
   useEffect(() => {
     const shortcut = (event: KeyboardEvent) => {
       if (venueOpen) return;
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        if (placingRef.current) cancelPlacing();
-        else if (busyGesture()) finish(true);
-        else { clearSelection(); setPicked([]); setPickedPlatforms([]); }
+      const command = editorCommand(event);
+      if (!command) return;
+      event.preventDefault();
+      if (command === 'cancel') {
+        if (placingRef.current || objectPlacement.current) cancelPlacing();
+        else if (planGesture.current || marqueeDrag.current || panDrag.current) finish(true);
+        else if (!stageGesture.current) clearSelection();
         return;
       }
-      if (readOnly || gesture.current || rotateDrag.current || braceDrag.current || braceRotate.current || platformDrag.current || platformRotate.current || placeholderDrag.current || groupDrag.current || marqueeDrag.current || placingRef.current || event.target instanceof HTMLElement && (event.target.closest('input, textarea, select') || event.target.isContentEditable)) return;
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
-        event.preventDefault(); apply(event.shiftKey ? redo(current.current) : undo(current.current));
-      } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'y') {
-        event.preventDefault(); apply(redo(current.current));
-      } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'c') {
-        event.preventDefault(); copy();
-      } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'x') {
-        event.preventDefault(); cut();
-      } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'v') {
-        event.preventDefault(); paste();
-      } else if (event.key === 'Delete') { event.preventDefault(); remove(); }
+      if (readOnly || busyGesture()) return;
+      if (command === 'undo') apply(undo(current.current));
+      else if (command === 'redo') apply(redo(current.current));
+      else if (command === 'copy') copy();
+      else if (command === 'cut') cut();
+      else if (command === 'paste') paste();
+      else if (command === 'delete') remove();
     };
     window.addEventListener('keydown', shortcut);
     return () => window.removeEventListener('keydown', shortcut);
@@ -438,12 +345,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
   const selectedPlaceholderItem = (state.present.placeholders ?? []).find(item => item.id === selectedPlaceholder);
   const surfaces = supportingSurfaces(venue, state.present);
   const diagnostics = layoutDiagnostics(state.present, venue);
-  const liveLayout = {
-    ...state.present,
-    walls: state.present.walls.map(wall => preview?.id === wall.id ? preview : wall),
-    braces: state.present.braces.map(brace => previewBrace?.id === brace.id ? previewBrace : brace),
-    placeholders: (state.present.placeholders ?? []).map(item => previewPlaceholder?.id === item.id ? previewPlaceholder : item),
-  };
+  const liveLayout = groupPreview ?? state.present;
   const overheadWarnings = overheadClearance(liveLayout, venue);
   const overlapWarnings = keepClearWarnings(venue, {
     ...liveLayout,
@@ -454,205 +356,57 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     const matrix = svg.current?.getScreenCTM();
     if (!matrix) return { x: 0, y: 0 };
     const value = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse());
-    return { x: value.x, y: -value.y };
-  }
-  function startRotate(event: PointerEvent<SVGGElement>, wall: Wall) {
-    if (event.button !== 0 || readOnly) return;
-    event.stopPropagation();
-    if (busyGesture()) return;
-    const targets = selectForDrag({ kind: 'wall', id: wall.id }, false);
-    if (targets && targets.members.length > 1) {
-      beginSelectionRotate(point(event), targets, event);
-      return;
-    }
-    pick({ kind: 'wall', id: wall.id }, false);
-    rotateDrag.current = { wall, latest: wall, angleSnapped: false };
-    setPreview(wall);
-    setSnapStatus(undefined);
-    event.currentTarget.setPointerCapture(event.pointerId);
+    return { x: Math.round(value.x), y: Math.round(-value.y) };
   }
   function busyGesture() {
-    return !!(placingRef.current || gesture.current || rotateDrag.current || braceDrag.current || braceRotate.current || platformDrag.current || platformRotate.current || stairDrag.current || stairRotate.current || placeholderDrag.current || placeholderRotate.current || groupDrag.current || groupRotate.current || marqueeDrag.current || panDrag.current);
+    return !!(placingRef.current || objectPlacement.current || planGesture.current || stageGesture.current || marqueeDrag.current || panDrag.current);
   }
   function startPan(event: PointerEvent<SVGSVGElement>) {
-    if (event.button !== 1) return;
-    event.preventDefault();
-    event.stopPropagation();
+    if (event.button !== 1 || busyGesture()) return;
+    event.preventDefault(); event.stopPropagation();
     panDrag.current = { clientX: event.clientX, clientY: event.clientY, panX: viewPan.x, panY: viewPan.y };
     event.currentTarget.style.cursor = 'grabbing';
     event.currentTarget.setPointerCapture(event.pointerId);
   }
-  function beginSelectionRotate(position: { x: number; y: number }, targets: { members: GroupMember[]; groupId?: string; baseRotation: number }, event: PointerEvent<SVGGElement>) {
-    const pivot = membersPivot(current.current.present, targets.members);
+  function startObject(event: PointerEvent<SVGGElement>, member: ClipboardMember, operation: TransformOperation = 'translate') {
+    if (event.button !== 0) return;
+    event.stopPropagation();
+    if (busyGesture()) return;
+    if (event.shiftKey) { pick(member, true); return; }
+    const previousSelection = selection();
+    if (!previousSelection.some(item => item.id === member.id)) pick(member, false);
+    if (readOnly) return;
+    const members = selection();
+    const pivot = selectionPivot(current.current.present, members);
     if (!pivot) return;
-    groupRotate.current = {
-      start: current.current.present, latest: current.current.present,
-      members: targets.members, groupId: targets.groupId, baseRotation: targets.baseRotation,
-      pivot, pointerStart: planRotationAt(pivot, position), angleSnapped: false,
-    };
+    planGesture.current = { start: current.current.present, latest: current.current.present, members, previousSelection, pointer: point(event), pivot, operation };
     setGroupPreview(current.current.present);
-    setSnapStatus(undefined);
     event.currentTarget.setPointerCapture(event.pointerId);
   }
-  function startRotateBrace(event: PointerEvent<SVGGElement>, brace: Brace) {
-    if (event.button !== 0 || readOnly) return;
-    event.stopPropagation();
-    if (busyGesture()) return;
-    const targets = selectForDrag({ kind: 'brace', id: brace.id }, false);
-    if (targets && targets.members.length > 1) {
-      beginSelectionRotate(point(event), targets, event);
-      return;
-    }
-    pick({ kind: 'brace', id: brace.id }, false);
-    const types = typesOf(current.current.present);
-    const walls = planningWalls(current.current.present, venue);
-    const contact = braceContactHinge(brace, walls);
-    const hinge = contact?.hinge;
-    const position = point(event);
-    braceRotate.current = {
-      brace, latest: brace, angleSnapped: false, hinge,
-      startAngle: planRotationAt(hinge ?? brace, position),
-    };
-    setPreviewBrace(brace);
-    setSnapStatus(hinge ? 'Drehung an der Wand' : undefined);
-    event.currentTarget.setPointerCapture(event.pointerId);
-  }
-  function start(event: PointerEvent<SVGGElement>, wall: Wall) {
-    if (event.button !== 0) return;
-    event.stopPropagation();
-    if (event.shiftKey) { pick({ kind: 'wall', id: wall.id }, true); return; }
-    if (readOnly || busyGesture()) { pick({ kind: 'wall', id: wall.id }, false); return; }
-    const targets = selectForDrag({ kind: 'wall', id: wall.id }, false);
-    const position = point(event);
-    if (targets) {
-      beginSelectionDrag(position, targets, event);
-      return;
-    }
-    gesture.current = { wall, ...position, latest: wall };
-    setPreview(wall);
-    event.currentTarget.setPointerCapture(event.pointerId);
-  }
-  function startBrace(event: PointerEvent<SVGGElement>, brace: Brace) {
-    if (event.button !== 0) return;
-    event.stopPropagation();
-    if (event.shiftKey) { pick({ kind: 'brace', id: brace.id }, true); return; }
-    if (readOnly || busyGesture()) { pick({ kind: 'brace', id: brace.id }, false); return; }
-    const targets = selectForDrag({ kind: 'brace', id: brace.id }, false);
-    const position = point(event);
-    if (targets) {
-      beginSelectionDrag(position, targets, event);
-      return;
-    }
-    braceDrag.current = { brace, ...position, latest: brace };
-    setPreviewBrace(brace);
-    event.currentTarget.setPointerCapture(event.pointerId);
-  }
-  function startPlatform(event: PointerEvent<SVGGElement>, platform: Platform) {
-    if (event.button !== 0) return;
-    event.stopPropagation();
-    if (event.shiftKey) {
-      setPickedPlatforms(current => current.includes(platform.id) ? current.filter(id => id !== platform.id) : [...current, platform.id]);
-      setSelectedPlatform(platform.id); clearSelection('platform');
-      return;
-    }
-    setPicked([]);
-    setPickedPlatforms([platform.id]);
-    setSelectedPlatform(platform.id); clearSelection('platform');
-    if (readOnly || busyGesture()) return;
-    const position = point(event);
-    platformDrag.current = { platform, ...position, latest: platform };
-    setPreviewPlatform(platform);
-    event.currentTarget.setPointerCapture(event.pointerId);
-  }
-  function startPlatformRotate(event: PointerEvent<SVGGElement>, platform: Platform) {
-    if (event.button !== 0 || readOnly) return;
-    event.stopPropagation();
-    setPicked([]); setPickedPlatforms([platform.id]); setSelectedPlatform(platform.id); clearSelection('platform');
-    if (busyGesture()) return;
-    const centre = platformCentroid(platform.outline);
-    const position = point(event);
-    platformRotate.current = {
-      platform, centre, startAngle: Math.atan2(position.y - centre.y, position.x - centre.x) * 180 / Math.PI,
-      baseOutline: platform.outline, latest: platform, angleSnapped: false,
-    };
-    setPreviewPlatform(platform);
-    setSnapStatus(undefined);
-    event.currentTarget.setPointerCapture(event.pointerId);
-  }
-  function startStair(event: PointerEvent<SVGGElement>, stair: StairUnit) {
-    if (event.button !== 0) return;
-    event.stopPropagation();
-    if (event.shiftKey) { pick({ kind: 'stair', id: stair.id }, true); return; }
-    if (readOnly || busyGesture()) { pick({ kind: 'stair', id: stair.id }, false); return; }
-    const targets = selectForDrag({ kind: 'stair', id: stair.id }, false);
-    const position = point(event);
-    if (targets) {
-      beginSelectionDrag(position, targets, event);
-      return;
-    }
-    stairDrag.current = { stair, ...position, latest: stair };
-    setPreviewStair(stair);
-    event.currentTarget.setPointerCapture(event.pointerId);
-  }
-  function startRotateStair(event: PointerEvent<SVGGElement>, stair: StairUnit) {
-    if (event.button !== 0 || readOnly) return;
-    event.stopPropagation();
-    if (busyGesture()) return;
-    const targets = selectForDrag({ kind: 'stair', id: stair.id }, false);
-    if (targets && targets.members.length > 1) {
-      beginSelectionRotate(point(event), targets, event);
-      return;
-    }
-    pick({ kind: 'stair', id: stair.id }, false);
-    stairRotate.current = { stair, latest: stair, angleSnapped: false };
-    setPreviewStair(stair);
-    setSnapStatus(undefined);
-    event.currentTarget.setPointerCapture(event.pointerId);
-  }
-  function startRotatePlaceholder(event: PointerEvent<SVGGElement>, item: Placeholder) {
-    if (event.button !== 0 || readOnly) return;
-    event.stopPropagation();
-    if (busyGesture()) return;
-    const targets = selectForDrag({ kind: 'placeholder', id: item.id }, false);
-    if (targets && targets.members.length > 1) {
-      beginSelectionRotate(point(event), targets, event);
-      return;
-    }
-    pick({ kind: 'placeholder', id: item.id }, false);
-    placeholderRotate.current = { item, latest: item, angleSnapped: false };
-    setPreviewPlaceholder(item);
-    setSnapStatus(undefined);
-    event.currentTarget.setPointerCapture(event.pointerId);
-  }
-  function startPlaceholder(event: PointerEvent<SVGGElement>, item: Placeholder) {
-    if (event.button !== 0) return;
-    event.stopPropagation();
-    if (event.shiftKey) { pick({ kind: 'placeholder', id: item.id }, true); return; }
-    if (readOnly || busyGesture()) { pick({ kind: 'placeholder', id: item.id }, false); return; }
-    const targets = selectForDrag({ kind: 'placeholder', id: item.id }, false);
-    const position = point(event);
-    if (targets) {
-      beginSelectionDrag(position, targets, event);
-      return;
-    }
-    placeholderDrag.current = { item, ...position, latest: item };
-    setPreviewPlaceholder(item);
-    event.currentTarget.setPointerCapture(event.pointerId);
-  }
+  const start = (event: PointerEvent<SVGGElement>, wall: Wall) => startObject(event, { kind: 'wall', id: wall.id });
+  const startBrace = (event: PointerEvent<SVGGElement>, item: Brace) => startObject(event, { kind: 'brace', id: item.id });
+  const startPlatform = (event: PointerEvent<SVGGElement>, item: Platform) => startObject(event, { kind: 'platform', id: item.id });
+  const startStair = (event: PointerEvent<SVGGElement>, item: StairUnit) => startObject(event, { kind: 'stair', id: item.id });
+  const startPlaceholder = (event: PointerEvent<SVGGElement>, item: Placeholder) => startObject(event, { kind: 'placeholder', id: item.id });
+  const startRotate = (event: PointerEvent<SVGGElement>, item: Wall) => startObject(event, { kind: 'wall', id: item.id }, 'rotate');
+  const startRotateBrace = (event: PointerEvent<SVGGElement>, item: Brace) => startObject(event, { kind: 'brace', id: item.id }, 'rotate');
+  const startPlatformRotate = (event: PointerEvent<SVGGElement>, item: Platform) => startObject(event, { kind: 'platform', id: item.id }, 'rotate');
+  const startRotateStair = (event: PointerEvent<SVGGElement>, item: StairUnit) => startObject(event, { kind: 'stair', id: item.id }, 'rotate');
+  const startRotatePlaceholder = (event: PointerEvent<SVGGElement>, item: Placeholder) => startObject(event, { kind: 'placeholder', id: item.id }, 'rotate');
   function startMarquee(event: PointerEvent<SVGPathElement>) {
-    if (event.button !== 0 || readOnly) return;
-    if (busyGesture()) return;
+    if (event.button !== 0 || readOnly || busyGesture()) return;
     const position = point(event);
-    marqueeDrag.current = { ...position, additive: event.shiftKey, endX: position.x, endY: position.y };
-    if (!event.shiftKey) {
-      clearSelection();
-      setPicked([]);
-      setPickedPlatforms([]);
-    }
+    marqueeDrag.current = { ...position, additive: event.shiftKey, endX: position.x, endY: position.y, previousSelection: selection() };
+    if (!event.shiftKey) clearSelection();
     setMarqueeBox(normalizeBounds(position, position));
     event.currentTarget.setPointerCapture(event.pointerId);
   }
   function updatePlacingAt(position: { x: number; y: number }, bypass: boolean) {
+    const object = objectPlacement.current;
+    if (object) {
+      const result = transformLayoutGesture(object.start, venue, [object.member], { x: position.x - object.origin.x, y: position.y - object.origin.y, rotation: 0 }, 'translate', bypass);
+      object.latest = result.layout; setGroupPreview(result.layout); setGuides(result.guides); return;
+    }
     const draft = placingRef.current;
     if (!draft) return;
     const clamp = (value: number) => Math.max(-100000, Math.min(100000, Math.round(value)));
@@ -683,325 +437,41 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     }
     const position = point(event);
     const bypass = event.altKey || !snapEnabled;
-    if (placingRef.current && !gesture.current && !rotateDrag.current && !marqueeDrag.current && !groupDrag.current && !groupRotate.current) {
-      updatePlacingAt(position, bypass);
-      return;
-    }
-    const clamp = (value: number) => Math.max(-100000, Math.min(100000, Math.round(value)));
-    const types = typesOf(current.current.present);
-    const walls = planningWalls(current.current.present, venue);
+    if (placingRef.current || objectPlacement.current) { updatePlacingAt(position, bypass); return; }
     const marquee = marqueeDrag.current;
-    if (marquee) {
-      marquee.endX = position.x;
-      marquee.endY = position.y;
-      setMarqueeBox(normalizeBounds(marquee, position));
-      return;
-    }
-    const rotating = rotateDrag.current;
-    if (rotating) {
-      const turned = rotateToward(rotating.wall, position, { bypass });
-      rotating.latest = { ...rotating.wall, rotation: turned.rotation };
-      rotating.angleSnapped = turned.angleSnapped;
-      setPreview(rotating.latest);
-      setGuides([]);
-      setSnapStatus(snapStatusText({ rotation: turned.rotation, angleSnapped: turned.angleSnapped })
-        ?? `Drehung · ${Math.round(turned.rotation * 10) / 10}°`);
-      return;
-    }
-    const braceTurning = braceRotate.current;
-    if (braceTurning) {
-      if (braceTurning.hinge) {
-        const raw = planRotationAt(braceTurning.hinge, position);
-        const delta = raw - braceTurning.startAngle;
-        const absolute = braceTurning.brace.rotation + delta;
-        const turned = bypass ? { rotation: absolute, angleSnapped: false }
-          : { rotation: snapRotation(absolute), angleSnapped: Math.abs(snapRotation(absolute) - absolute) > 1e-9 };
-        braceTurning.latest = rotateBraceOnContact(braceTurning.brace, braceTurning.hinge, turned.rotation);
-        braceTurning.angleSnapped = turned.angleSnapped;
-        setPreviewBrace(braceTurning.latest);
-        setGuides([]);
-        setSnapStatus(snapStatusText({ rotation: turned.rotation, angleSnapped: turned.angleSnapped })
-          ?? `Drehung an der Wand · ${Math.round(turned.rotation * 10) / 10}°`);
-        return;
-      }
-      const turned = rotateToward(braceTurning.brace, position, { bypass });
-      braceTurning.latest = { ...braceTurning.brace, rotation: turned.rotation };
-      braceTurning.angleSnapped = turned.angleSnapped;
-      setPreviewBrace(braceTurning.latest);
-      setGuides([]);
-      setSnapStatus(snapStatusText({ rotation: turned.rotation, angleSnapped: turned.angleSnapped })
-        ?? `Drehung · ${Math.round(turned.rotation * 10) / 10}°`);
-      return;
-    }
-    const stairTurning = stairRotate.current;
-    if (stairTurning) {
-      const turned = rotateToward(stairTurning.stair, position, { bypass });
-      stairTurning.latest = { ...stairTurning.stair, rotation: turned.rotation };
-      stairTurning.angleSnapped = turned.angleSnapped;
-      setPreviewStair(stairTurning.latest);
-      setGuides([]);
-      setSnapStatus(snapStatusText({ rotation: turned.rotation, angleSnapped: turned.angleSnapped })
-        ?? `Drehung · ${Math.round(turned.rotation * 10) / 10}°`);
-      return;
-    }
-    const placeholderTurning = placeholderRotate.current;
-    if (placeholderTurning) {
-      const turned = rotateToward(placeholderTurning.item, position, { bypass });
-      placeholderTurning.latest = { ...placeholderTurning.item, rotation: turned.rotation };
-      placeholderTurning.angleSnapped = turned.angleSnapped;
-      setPreviewPlaceholder(placeholderTurning.latest);
-      setGuides([]);
-      setSnapStatus(snapStatusText({ rotation: turned.rotation, angleSnapped: turned.angleSnapped })
-        ?? `Drehung · ${Math.round(turned.rotation * 10) / 10}°`);
-      return;
-    }
-    const platformTurning = platformRotate.current;
-    if (platformTurning) {
-      const raw = Math.atan2(position.y - platformTurning.centre.y, position.x - platformTurning.centre.x) * 180 / Math.PI;
-      const delta = raw - platformTurning.startAngle;
-      const absolute = bypass ? delta : (() => {
-        const turned = rotateToward(platformTurning.centre, {
-          x: platformTurning.centre.x + Math.cos((platformTurning.startAngle + delta) * Math.PI / 180),
-          y: platformTurning.centre.y + Math.sin((platformTurning.startAngle + delta) * Math.PI / 180),
-        }, { bypass: false });
-        return turned.rotation - platformTurning.startAngle;
-      })();
-      // Simpler: rotate outline by delta from base, with optional angle snap on absolute orientation of first edge
-      const unsnapped = rotatePlatformOutline(platformTurning.baseOutline, delta, platformTurning.centre);
-      if (bypass) {
-        platformTurning.latest = { ...platformTurning.platform, outline: unsnapped };
-        platformTurning.angleSnapped = false;
-        setPreviewPlatform(platformTurning.latest);
-        setGuides([]);
-        setSnapStatus(`Drehung · ${Math.round(delta * 10) / 10}°`);
-        return;
-      }
-      const snappedAbs = rotateToward(platformTurning.centre, position, { bypass: false });
-      const snappedDelta = snappedAbs.rotation - platformTurning.startAngle;
-      platformTurning.latest = { ...platformTurning.platform, outline: rotatePlatformOutline(platformTurning.baseOutline, snappedDelta, platformTurning.centre) };
-      platformTurning.angleSnapped = snappedAbs.angleSnapped;
-      setPreviewPlatform(platformTurning.latest);
-      setGuides([]);
-      setSnapStatus(snapStatusText({ rotation: snappedAbs.rotation, angleSnapped: snappedAbs.angleSnapped })
-        ?? `Drehung · ${Math.round(snappedDelta * 10) / 10}°`);
-      return;
-    }
-    const grouped = groupDrag.current;
-    if (grouped) {
-      const pivot = membersPivot(grouped.start, grouped.members);
-      if (!pivot) return;
-      const snapped = snapMembersPose(grouped.start, grouped.members, {
-        x: clamp(pivot.x + position.x - grouped.x), y: clamp(pivot.y + position.y - grouped.y), rotation: grouped.baseRotation,
-      }, grouped.baseRotation, venue.stageCentreline, { bypass, fixedWalls: permanentWalls(venue) });
-      grouped.latest = grouped.groupId
-        ? transformGroup(grouped.start, grouped.groupId, {
-          x: clamp(snapped.pose.x), y: clamp(snapped.pose.y), rotation: snapped.pose.rotation,
-        })
-        : transformMembers(grouped.start, grouped.members, {
-          x: clamp(snapped.pose.x), y: clamp(snapped.pose.y), rotation: snapped.pose.rotation,
-        }, grouped.baseRotation);
-      setGroupPreview(grouped.latest);
-      setGuides(snapped.guides);
-      setSnapStatus(snapStatusText({ guides: snapped.guides }));
-      return;
-    }
-    const turningGroup = groupRotate.current;
-    if (turningGroup) {
-      const pointerAngle = planRotationAt(turningGroup.pivot, position);
-      let delta = pointerAngle - turningGroup.pointerStart;
-      while (delta > 180) delta -= 360;
-      while (delta < -180) delta += 360;
-      const raw = turningGroup.baseRotation + delta;
-      const rotation = bypass ? raw : snapRotation(raw);
-      turningGroup.angleSnapped = !bypass && rotation !== raw;
-      const pose = { x: turningGroup.pivot.x, y: turningGroup.pivot.y, rotation };
-      turningGroup.latest = turningGroup.groupId
-        ? transformGroup(turningGroup.start, turningGroup.groupId, pose)
-        : transformMembers(turningGroup.start, turningGroup.members, pose, turningGroup.baseRotation);
-      setGroupPreview(turningGroup.latest);
-      setGuides([]);
-      setSnapStatus(snapStatusText({ rotation, angleSnapped: turningGroup.angleSnapped })
-        ?? `Drehung · ${Math.round(rotation * 10) / 10}°`);
-      return;
-    }
-    const wallDrag = gesture.current;
-    if (wallDrag) {
-      const next = { ...wallDrag.wall, x: clamp(wallDrag.wall.x + position.x - wallDrag.x), y: clamp(wallDrag.wall.y + position.y - wallDrag.y) };
-      const snapped = snapWallPose(resolveWall(next, types), walls.filter(wall => wall.id !== next.id), venue.stageCentreline, { bypass });
-      wallDrag.latest = { ...next, x: clamp(snapped.x), y: clamp(snapped.y) };
-      setPreview(wallDrag.latest);
-      setGuides(snapped.guides);
-      setSnapStatus(snapStatusText({ guides: snapped.guides }));
-      return;
-    }
-    const drag = braceDrag.current;
-    if (drag) {
-      const next = { ...drag.brace, x: clamp(drag.brace.x + position.x - drag.x), y: clamp(drag.brace.y + position.y - drag.y) };
-      const snapped = snapBracePose(next, walls, venue.stageCentreline, { bypass });
-      drag.latest = { ...next, x: clamp(snapped.x), y: clamp(snapped.y) };
-      setPreviewBrace(drag.latest);
-      setGuides(snapped.guides);
-      setSnapStatus(snapStatusText({ guides: snapped.guides }));
-      return;
-    }
-    const heldStair = stairDrag.current;
-    if (heldStair) {
-      const next = { ...heldStair.stair, x: clamp(heldStair.stair.x + position.x - heldStair.x), y: clamp(heldStair.stair.y + position.y - heldStair.y) };
-      const snapped = snapWallPose(
-        { id: next.id, x: next.x, y: next.y, rotation: next.rotation, width: next.width, thickness: next.run },
-        walls, venue.stageCentreline, { bypass },
-      );
-      heldStair.latest = { ...next, x: clamp(snapped.x), y: clamp(snapped.y) };
-      setPreviewStair(heldStair.latest);
-      setGuides(snapped.guides);
-      setSnapStatus(snapStatusText({ guides: snapped.guides }));
-      return;
-    }
-    const heldPlatform = platformDrag.current;
-    if (heldPlatform) {
-      heldPlatform.latest = {
-        ...heldPlatform.platform,
-        outline: translatePlatformOutline(heldPlatform.platform.outline, position.x - heldPlatform.x, position.y - heldPlatform.y),
-      };
-      setPreviewPlatform(heldPlatform.latest);
-      return;
-    }
-    const held = placeholderDrag.current;
+    if (marquee) { marquee.endX = position.x; marquee.endY = position.y; setMarqueeBox(normalizeBounds(marquee, position)); return; }
+    const held = planGesture.current;
     if (!held) return;
-    const next = { ...held.item, x: clamp(held.item.x + position.x - held.x), y: clamp(held.item.y + position.y - held.y) };
-    const snapped = snapWallPose(
-      { id: next.id, x: next.x, y: next.y, rotation: next.rotation, width: next.width, thickness: next.depth },
-      walls, venue.stageCentreline, { bypass },
-    );
-    held.latest = { ...next, x: clamp(snapped.x), y: clamp(snapped.y) };
-    setPreviewPlaceholder(held.latest);
-    setGuides(snapped.guides);
-    setSnapStatus(snapStatusText({ guides: snapped.guides }));
+    const delta = held.operation === 'translate'
+      ? { x: position.x - held.pointer.x, y: position.y - held.pointer.y, rotation: 0 }
+      : { x: 0, y: 0, rotation: planRotationAt(held.pivot, position) - planRotationAt(held.pivot, held.pointer) };
+    const result = transformLayoutGesture(held.start, venue, held.members, delta, held.operation, bypass);
+    held.latest = result.layout;
+    setGroupPreview(result.layout); setGuides(result.guides);
+    setSnapStatus(snapStatusText({ guides: result.guides }));
   }
   function finish(cancelled = false) {
-    if (panDrag.current) {
-      panDrag.current = undefined;
-      if (svg.current) svg.current.style.cursor = '';
-      return;
-    }
+    if (panDrag.current) { panDrag.current = undefined; if (svg.current) svg.current.style.cursor = ''; return; }
     const marquee = marqueeDrag.current;
-    marqueeDrag.current = undefined;
-    setMarqueeBox(undefined);
+    marqueeDrag.current = undefined; setMarqueeBox(undefined);
     if (marquee) {
-      if (!cancelled) {
-        applyHits(membersInBounds(current.current.present, normalizeBounds(marquee, { x: marquee.endX, y: marquee.endY })), marquee.additive);
-      }
+      if (cancelled) setSelection(marquee.previousSelection);
+      else applyHits(membersInBounds(current.current.present, normalizeBounds(marquee, { x: marquee.endX, y: marquee.endY })), marquee.additive);
       return;
     }
-    const grouped = groupDrag.current;
-    groupDrag.current = undefined;
-    const turningGroup = groupRotate.current;
-    groupRotate.current = undefined;
-    setGroupPreview(undefined);
-    setGuides([]);
-    setSnapStatus(undefined);
-    if (grouped && !cancelled) commit(grouped.latest);
-    if (turningGroup && !cancelled) commit(turningGroup.latest);
-    if (grouped || turningGroup) return;
-    const rotating = rotateDrag.current;
-    rotateDrag.current = undefined;
-    if (rotating) {
-      setPreview(undefined);
-      if (!cancelled) replace(rotating.latest);
-      return;
-    }
-    const braceTurning = braceRotate.current;
-    braceRotate.current = undefined;
-    if (braceTurning) {
-      setPreviewBrace(undefined);
-      if (!cancelled) replaceBrace(braceTurning.latest);
-      return;
-    }
-    const stairTurning = stairRotate.current;
-    stairRotate.current = undefined;
-    if (stairTurning) {
-      setPreviewStair(undefined);
-      if (!cancelled) replaceStair(stairTurning.latest);
-      return;
-    }
-    const placeholderTurning = placeholderRotate.current;
-    placeholderRotate.current = undefined;
-    if (placeholderTurning) {
-      setPreviewPlaceholder(undefined);
-      if (!cancelled) replacePlaceholder(placeholderTurning.latest);
-      return;
-    }
-    const platformTurning = platformRotate.current;
-    platformRotate.current = undefined;
-    if (platformTurning) {
-      setPreviewPlatform(undefined);
-      if (!cancelled) replacePlatform(platformTurning.latest);
-      return;
-    }
-    const wallDrag = gesture.current;
-    gesture.current = undefined;
-    setPreview(undefined);
-    if (wallDrag && !cancelled) {
-      if (!rejectIfOverlap(wallFootprint(wallDrag.latest))) replace(wallDrag.latest);
-    }
-    const drag = braceDrag.current;
-    braceDrag.current = undefined;
-    setPreviewBrace(undefined);
-    if (drag && !cancelled) {
-      const types = typesOf(current.current.present);
-      const walls = planningWalls(current.current.present, venue);
-      const aligned = alignBraceToNearestWall(drag.latest, walls) ?? drag.latest;
-      if (!rejectIfOverlap(braceFootprint(aligned))) replaceBrace(aligned);
-    }
-    const heldStair = stairDrag.current;
-    stairDrag.current = undefined;
-    setPreviewStair(undefined);
-    if (heldStair && !cancelled) {
-      if (!rejectIfOverlap(stairFootprint(heldStair.latest))) replaceStair(heldStair.latest);
-    }
-    const heldPlatform = platformDrag.current;
-    platformDrag.current = undefined;
-    setPreviewPlatform(undefined);
-    if (heldPlatform && !cancelled) {
-      if (!rejectIfOverlap(platformFootprint(heldPlatform.latest))) replacePlatform(heldPlatform.latest);
-    }
-    const held = placeholderDrag.current;
-    placeholderDrag.current = undefined;
-    setPreviewPlaceholder(undefined);
-    if (held && !cancelled) {
-      if (!rejectIfOverlap(placeholderFootprint(held.latest))) replacePlaceholder(held.latest);
-    }
+    const held = planGesture.current;
+    planGesture.current = undefined;
+    setGroupPreview(undefined); setGuides([]); setSnapStatus(undefined);
+    if (!held) return;
+    if (cancelled) setSelection(held.previousSelection);
+    else if (JSON.stringify(held.start) !== JSON.stringify(held.latest)) commit(held.latest);
   }
   // Bounds stay fixed during a gesture, so moving an object cannot move its coordinate system.
-  const shown = groupPreview ?? {
-    ...state.present,
-    walls: state.present.walls.map(wall => preview?.id === wall.id ? preview : wall),
-    braces: state.present.braces.map(brace => previewBrace?.id === brace.id ? previewBrace : brace),
-    platforms: (state.present.platforms ?? []).map(item => previewPlatform?.id === item.id ? previewPlatform : item),
-    stairs: (state.present.stairs ?? []).map(item => previewStair?.id === item.id ? previewStair : item),
-    placeholders: (state.present.placeholders ?? []).map(item => previewPlaceholder?.id === item.id ? previewPlaceholder : item),
-  };
-  const groupedIds = new Set<string>();
-  for (const member of picked) {
-    const group = groupContaining(state.present, member);
-    for (const item of group?.members ?? [member]) groupedIds.add(`${item.kind}:${item.id}`);
-  }
-  for (const id of pickedPlatforms) groupedIds.add(`platform:${id}`);
-  const selectionBundle = (() => {
-    for (const member of picked) {
-      const formal = groupContaining(state.present, member);
-      if (formal) return { members: formal.members, groupId: formal.id, rotation: formal.rotation };
-    }
-    if (picked.length > 1) return { members: picked, rotation: 0 };
-  })();
-  const selectionCentre = selectionBundle ? membersPivot(shown, selectionBundle.members) : undefined;
-  const selectionHandleWidth = selectionBundle
-    ? Math.max(1200, ...selectionBundle.members.flatMap(member => {
-      if (member.kind !== 'wall') return [];
-      const wall = shown.walls.find(item => item.id === member.id);
-      return wall ? [resolveWall(wall, wallTypes).width] : [];
-    }))
-    : 1200;
+  const shown = groupPreview ?? state.present;
+  const groupedIds = new Set(selection().map(item => `${item.kind}:${item.id}`));
+  const selectionBundle = selection().length > 1 ? { members: selection(), rotation: layoutSelectionRotation(state.present, selection()) } : undefined;
+  const selectionCentre = selectionBundle ? selectionPivot(shown, selectionBundle.members) : undefined;
+  const selectionHandleWidth = 1200;
   const corners = [
     ...state.present.walls.flatMap(wall => wallCorners(resolveWall(wall, wallTypes))),
     ...state.present.braces.flatMap(braceCorners),
@@ -1021,62 +491,42 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
   const viewCx = (minX + maxX) / 2 + viewPan.x, viewCy = (minY + maxY) / 2 + viewPan.y;
   const viewBox = `${viewCx - viewW / 2} ${-(viewCy + viewH / 2)} ${viewW} ${viewH}`;
   const objectOverlaps = objectOverlapWarnings(shown);
-  function rejectIfOverlap(footprint: Parameters<typeof placementOverlaps>[1]) {
-    if (placementOverlaps(current.current.present, footprint)) {
-      setSnapStatus('Überschneidung — Position nicht übernommen');
-      return true;
-    }
-    return false;
-  }
   function onPlanWheel(event: WheelEvent) {
-    // Plain wheel scrolls the page; only modifier chords drive the plan view.
-    if (event.shiftKey && !(event.ctrlKey || event.metaKey)) {
-      event.preventDefault();
-      setViewPan(pan => ({ x: pan.x + event.deltaX * 2 / viewZoom, y: pan.y - event.deltaY * 2 / viewZoom }));
-      return;
-    }
-    if (!(event.ctrlKey || event.metaKey)) return;
-    event.preventDefault();
-    const cursor = point(event);
-    const factor = Math.exp(-event.deltaY * 0.0015);
-    const next = Math.min(8, Math.max(0.4, viewZoom * factor));
-    const ratio = viewZoom / next;
-    const newCx = cursor.x - (cursor.x - viewCx) * ratio;
-    const newCy = cursor.y - (cursor.y - viewCy) * ratio;
-    setViewZoom(next);
-    setViewPan({ x: newCx - (minX + maxX) / 2, y: newCy - (minY + maxY) / 2 });
+    if (busyGesture()) return;
+    const next = navigatePlan(event, { zoom: viewZoom, pan: viewPan, centre: { x: (minX + maxX) / 2, y: (minY + maxY) / 2 } }, point(event));
+    if (next) { event.preventDefault(); setViewZoom(next.zoom); setViewPan(next.pan); }
   }
   useViewportWheel(svg, onPlanWheel, !venueOpen);
   function stageSelect(id: string, additive: boolean) {
-    if (busyGesture() || stageGesture.current) return;
+    if (busyGesture()) return;
     const member = membersInBounds(current.current.present, { minX: -Infinity, maxX: Infinity, minY: -Infinity, maxY: Infinity }).find(item => item.id === id);
-    if (!member) return;
-    if (member.kind === 'platform') { applyHits([member], additive); return; }
-    const pickedMember: GroupMember = { kind: member.kind, id: member.id };
-    const group = groupContaining(current.current.present, pickedMember);
-    if (group && !additive) applyHits(group.members, false); else pick(pickedMember, additive);
+    if (member) pick(member, additive);
   }
-  const stageTransform: StageEditing['onTransform'] = (phase, delta, bypass) => {
+  const stageTransform: StageEditing['onTransform'] = (phase, delta, bypass, operation = 'translate') => {
     if (readOnly) return;
-    if (phase === 'begin') { stageGesture.current = { layout: current.current.present, members: selection() }; return; }
+    if (phase === 'begin') { if (!busyGesture()) { stageGesture.current = { layout: current.current.present, members: selection() }; setGroupPreview(current.current.present); } return; }
     if (phase === 'cancel') { stageGesture.current = undefined; setGroupPreview(undefined); setGuides([]); return; }
-    const gesture = stageGesture.current;
-    if (!gesture) return;
-    const pivot = selectionPivot(gesture.layout, gesture.members);
-    if (!pivot) return;
-    let adjusted = delta;
-    if (!bypass) {
-      const members = gesture.members.filter((item): item is GroupMember => item.kind !== 'platform');
-      const snapped = snapMembersPose(gesture.layout, members, { x: pivot.x + delta.x, y: pivot.y + delta.y, rotation: delta.rotation }, 0, venue.stageCentreline, { snapAngles: true, fixedWalls: permanentWalls(venue) });
-      adjusted = { x: snapped.pose.x - pivot.x, y: snapped.pose.y - pivot.y, rotation: snapped.pose.rotation };
-      setGuides(snapped.guides);
-    }
-    const next = transformSelection(gesture.layout, gesture.members, adjusted);
-    if (phase === 'preview') setGroupPreview(next);
-    else { stageGesture.current = undefined; setGroupPreview(undefined); setGuides([]); commit(next); }
+    const held = stageGesture.current;
+    if (!held) return;
+    const result = transformLayoutGesture(held.layout, venue, held.members, delta, operation, bypass);
+    setGuides(result.guides);
+    if (phase === 'preview') setGroupPreview(result.layout);
+    else { stageGesture.current = undefined; setGroupPreview(undefined); setGuides([]); if (JSON.stringify(result.layout) !== JSON.stringify(held.layout)) commit(result.layout); }
+  };
+  const stageResize: StageEditing['onPushPull'] = (phase, next) => {
+    if (readOnly) return;
+    if (phase === 'begin') { if (!busyGesture()) { stageGesture.current = { layout: current.current.present, members: selection() }; setGroupPreview(current.current.present); } return; }
+    if (phase === 'cancel') { stageGesture.current = undefined; setGroupPreview(undefined); return; }
+    const held = stageGesture.current;
+    if (!held) return;
+    const result = resizedScene(held.layout, next);
+    if (phase === 'preview') setGroupPreview(result);
+    else { stageGesture.current = undefined; setGroupPreview(undefined); if (JSON.stringify(result) !== JSON.stringify(held.layout)) commit(result); }
   };
   function placeAsset(asset: Asset) {
     if (readOnly || busyGesture()) return;
+    setLibraryOpen(false);
+    if (viewMode === 'stage') setViewMode('split');
     const definition = asset.definition, id = crypto.randomUUID(), x = venue.width / 2, y = venue.depth / 2;
     if (definition.kind === 'wall') {
       const { typeId: _type, panelId: _panel, assemblyNumber: _assembly, ...template } = definition.template;
@@ -1086,11 +536,13 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
       setPlacing(draft);
       setGuides([]);
       setSnapStatus('Klicken zum Platzieren · Escape abbricht');
-    } else if (definition.kind === 'brace') {
-      commit({ ...current.current.present, braces: [...current.current.present.braces, { ...definition.template, id, label: asset.name, x, y, rotation: 0, supportingSurfaceId: AUDIENCE_FLOOR_ID }] }); pick({ kind: 'brace', id }, false);
     } else {
-      const item = { ...newPlaceholder('box', id, x, y), label: asset.name, assetId: asset.id, width: definition.width, height: definition.height, depth: definition.depth };
-      commit({ ...current.current.present, placeholders: [...current.current.present.placeholders ?? [], item] }); pick({ kind: 'placeholder', id }, false);
+      const brace = definition.kind === 'brace' ? { ...definition.template, id, label: asset.name, x, y, rotation: 0, supportingSurfaceId: AUDIENCE_FLOOR_ID } : undefined;
+      const item = definition.kind === 'model' ? { ...newPlaceholder('box', id, x, y), label: asset.name, assetId: asset.id, width: definition.width, height: definition.height, depth: definition.depth } : undefined;
+      const start = brace ? { ...current.current.present, braces: [...current.current.present.braces, brace] }
+        : { ...current.current.present, placeholders: [...current.current.present.placeholders ?? [], item!] };
+      objectPlacement.current = { start, latest: start, member: { kind: brace ? 'brace' : 'placeholder', id }, origin: { x, y } };
+      setGroupPreview(start); setGuides([]); setSnapStatus('Klicken zum Platzieren · Escape abbricht');
     }
   }
   function downloadDraft() {
@@ -1103,8 +555,8 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
       <span className={`save-status ${saveState.status}`} role="status">{readOnly
         ? (initial.lease ? `Nur Ansicht · Bearbeitung durch ${initial.lease.holderName}` : 'Nur Ansicht')
         : saveState.status === 'conflict' && saveState.conflictKind === 'lease' ? 'Bearbeitung abgelaufen' : statusText[saveState.status]}</span><div className="document-history">{!readOnly && <>
-      <button className="quiet" disabled={!!preview || !!previewBrace || !!previewPlatform || !!previewStair || !!previewPlaceholder || !!groupPreview || !!placing || !state.past.length} onClick={() => apply(undo(current.current))} hidden={venueOpen} title="Rückgängig (Strg+Z)" aria-label="Rückgängig"><ToolIcon name="undo" /></button>
-      <button className="quiet" disabled={!!preview || !!previewBrace || !!previewPlatform || !!previewStair || !!previewPlaceholder || !!groupPreview || !!placing || !state.future.length} onClick={() => apply(redo(current.current))} hidden={venueOpen} title="Wiederholen (Strg+Shift+Z)" aria-label="Wiederholen"><ToolIcon name="redo" /></button></>}</div><span className="document-kind">{venueOpen ? 'Spielstätte bearbeiten' : 'Bühnenbild'}</span></div>
+      <button className="quiet" disabled={!!groupPreview || !!placing || !state.past.length} onClick={() => apply(undo(current.current))} hidden={venueOpen} title="Rückgängig (Strg+Z)" aria-label="Rückgängig"><ToolIcon name="undo" /></button>
+      <button className="quiet" disabled={!!groupPreview || !!placing || !state.future.length} onClick={() => apply(redo(current.current))} hidden={venueOpen} title="Wiederholen (Strg+Shift+Z)" aria-label="Wiederholen"><ToolIcon name="redo" /></button></>}</div><span className="document-kind">{venueOpen ? 'Spielstätte bearbeiten' : 'Bühnenbild'}</span></div>
     <div className="workspace-commandbar">
     <div className="editor-toolbar">
       <button className="quiet" aria-expanded={venueOpen} disabled={venueOpen ? venueDirty : dirty} onClick={() => { setVenueOpen(open => !open); setExportsOpen(false); }}>{venueOpen ? 'Spielstätte schließen' : 'Spielstätte'}</button>
@@ -1124,19 +576,19 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     <div className="tool-rail" hidden={venueOpen} role="toolbar" aria-label="Objekte hinzufügen">
       <button className="quiet" onClick={() => { setLibraryOpen(open => !open); setExportsOpen(false); }} aria-expanded={libraryOpen} title="Objektbibliothek" aria-label="Objektbibliothek"><ToolIcon name="library" /><span>Bibliothek</span></button>
       {!readOnly && <><WallToolButton
-        disabled={!!preview || !!previewBrace || !!previewPlatform || !!previewStair || !!previewPlaceholder || !!groupPreview || state.present.walls.length >= 250}
+        disabled={!!groupPreview || state.present.walls.length >= 250}
         sceneTypes={wallTypes}
         onAddPlain={() => beginPlacingWall()}
         onAddType={placeType} />
-      <button disabled={!!preview || !!previewBrace || !!previewPlatform || !!previewStair || !!previewPlaceholder || !!groupPreview || !!placing || state.present.braces.length >= 250} onClick={() => {
+      <button disabled={!!groupPreview || !!placing || state.present.braces.length >= 250} onClick={() => {
         const brace = newBrace(crypto.randomUUID(), venue.width / 2, venue.depth / 2);
         commit({ ...state.present, braces: [...state.present.braces, brace] }); pick({ kind: 'brace', id: brace.id }, false);
       }} title="Stütze hinzufügen" aria-label="Stütze hinzufügen"><ToolIcon name="brace" /><span>Stütze</span></button>
-      <button disabled={!!preview || !!previewBrace || !!previewPlatform || !!previewStair || !!previewPlaceholder || !!groupPreview || !!placing || (state.present.platforms ?? []).length >= 250} onClick={() => {
+      <button disabled={!!groupPreview || !!placing || (state.present.platforms ?? []).length >= 250} onClick={() => {
         const platform = newPlatform(crypto.randomUUID(), venue.width / 2, venue.depth / 2);
-        commit({ ...state.present, platforms: [...state.present.platforms ?? [], platform] }); setSelectedPlatform(platform.id); clearSelection('platform'); setPicked([]); setPickedPlatforms([platform.id]);
+        commit({ ...state.present, platforms: [...state.present.platforms ?? [], platform] }); pick({ kind: 'platform', id: platform.id }, false);
       }} title="Podest hinzufügen" aria-label="Podest hinzufügen"><ToolIcon name="platform" /><span>Podest</span></button>
-      <button disabled={!!preview || !!previewBrace || !!previewPlatform || !!previewStair || !!previewPlaceholder || !!groupPreview || !!placing || !raised || (state.present.stairs ?? []).length >= 250} onClick={() => {
+      <button disabled={!!groupPreview || !!placing || !raised || (state.present.stairs ?? []).length >= 250} onClick={() => {
         if (!raised) return;
         const stair = newStair(crypto.randomUUID(), AUDIENCE_FLOOR_ID, raised.id, venue.width / 2, venue.depth / 2);
         commit({ ...state.present, stairs: [...state.present.stairs ?? [], stair] }); pick({ kind: 'stair', id: stair.id }, false);
@@ -1165,9 +617,9 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
       <button type="button" className="quiet" onClick={() => { setViewZoom(1); setViewPan({ x: 0, y: 0 }); }}>Passend</button>
       <span className="muted">{Math.round(viewZoom * 100)} %</span></div></div>
       <svg ref={svg} role="img" aria-label="Grundriss der Spielstätte" viewBox={viewBox}
-        className={placing ? 'placing-cursor' : undefined}
+        className={placing || objectPlacement.current ? 'placing-cursor' : undefined}
         onPointerDownCapture={event => {
-          if (!placingRef.current || event.button !== 0 || readOnly) return;
+          if ((!placingRef.current && !objectPlacement.current) || event.button !== 0 || readOnly) return;
           updatePlacingAt(point(event), event.altKey || !snapEnabled);
           commitPlacing();
           event.preventDefault();
@@ -1206,18 +658,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
           readOnly={readOnly}
           onPlatformPointerDown={startPlatform}
           onStairPointerDown={startStair}
-          onSelect={(kind, id, additive) => {
-            if (kind === 'platform') {
-              if (additive) {
-                setPickedPlatforms(current => current.includes(id) ? current.filter(item => item !== id) : [...current, id]);
-              } else {
-                setPicked([]);
-                setPickedPlatforms([id]);
-              }
-              setSelectedPlatform(id); clearSelection('platform');
-            }
-            else pick({ kind: 'stair', id }, !!additive);
-          }} />
+          onSelect={(kind, id, additive) => pick({ kind, id }, !!additive)} />
         {shown.walls.map(wall => {
           const resolved = resolveWall(wall, wallTypes);
           const chosen = selected === wall.id || groupedIds.has(`wall:${wall.id}`);
@@ -1251,6 +692,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
             <text y={-resolved.thickness / 2 - 40} textAnchor="middle" fontSize="110" pointerEvents="none">R</text>
           </g>;
         })}
+        {objectPlacement.current && <g data-testid="placing-object" pointerEvents="none" />}
         {placing && (() => {
           const types = placing.pendingType ? [...wallTypes, placing.pendingType] : wallTypes;
           const resolved = resolveWall(placing.wall, types);
@@ -1264,8 +706,8 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
             <text y={-resolved.thickness / 2 - 160} textAnchor="middle" fontSize="150">{placing.wall.label}</text>
           </g>;
         })()}
-        <BraceLayer braces={shown.braces} selectedId={selectedBrace} groupedIds={groupedIds} preview={groupPreview ? undefined : previewBrace} readOnly={readOnly} onPointerDown={startBrace} />
-        <PlaceholderLayer placeholders={shown.placeholders ?? []} selectedId={selectedPlaceholder} preview={groupPreview ? undefined : previewPlaceholder}
+        <BraceLayer braces={shown.braces} selectedId={selectedBrace} groupedIds={groupedIds} readOnly={readOnly} onPointerDown={startBrace} />
+        <PlaceholderLayer placeholders={shown.placeholders ?? []} selectedId={selectedPlaceholder}
           readOnly={readOnly} groupedIds={groupedIds} onPointerDown={startPlaceholder} />
         <InfrastructureMarks pins={venue.connectionPoints ?? []} corridors={venue.cableRoutingCorridors ?? []} />
         <OverheadMarks boxes={venue.overheadBoxes ?? []} />
@@ -1282,11 +724,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
               if (event.button !== 0) return;
               event.stopPropagation();
               if (busyGesture()) return;
-              beginSelectionRotate(point(event), {
-                members: selectionBundle.members,
-                groupId: 'groupId' in selectionBundle ? selectionBundle.groupId : undefined,
-                baseRotation: selectionBundle.rotation,
-              }, event);
+              startObject(event, selectionBundle.members[0]!, 'rotate');
             }} />
         )}
         {selectedWall && !readOnly && !selectionBundle && (() => {
@@ -1335,9 +773,10 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     } : shown} venue={venue} assets={assets} workspaceId={workspaceId}
       selectedIds={selection().map(item => item.id)} pivot={selectionPivot(state.present, selection())} snapEnabled={snapEnabled}
       onLightingChange={readOnly ? undefined : lighting => { if (!busyGesture()) commit({ ...current.current.present, lighting }); }}
-      onSelect={stageSelect} onClearSelection={() => { if (!busyGesture() && !stageGesture.current) { clearSelection(); setPicked([]); setPickedPlatforms([]); } }}
-      onTransform={readOnly ? undefined : stageTransform} />}
-    </div><aside className="wall-inspector">
+      onSelect={stageSelect} onClearSelection={() => { if (!busyGesture() && !stageGesture.current) { clearSelection(); } }}
+      onTransform={readOnly ? undefined : stageTransform} onPushPull={readOnly ? undefined : stageResize}
+      resizeScope="scene" resizeDocument={sceneResizeDocument(shown, venue)} />}
+    </div><aside className="wall-inspector" inert={busyGesture()}>
       <div className="inspector-title"><ToolIcon name="settings" /><h3>Eigenschaften</h3><span>mm</span></div>
       <div className="selection-properties">
       <h3>{selectedPlaceholderItem ? 'Platzhalter' : selectedPlatformItem ? 'Podest' : selectedStairItem ? 'Treppe' : selectedBraceItem ? 'Gewichtete Stütze' : selectedWall ? (selectedWallCount > 1 ? `${selectedWallCount} Wandelemente` : 'Wandelement') : 'Keine Auswahl'}</h3>
@@ -1345,11 +784,11 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
       <select id="wall-selection" value={selectedWall ? `wall:${selectedWall.id}` : selectedBraceItem ? `brace:${selectedBraceItem.id}` : selectedPlatformItem ? `platform:${selectedPlatformItem.id}` : selectedStairItem ? `stair:${selectedStairItem.id}` : selectedPlaceholderItem ? `placeholder:${selectedPlaceholderItem.id}` : ''} onChange={event => {
         const value = event.target.value;
         if (value.startsWith('brace:')) pick({ kind: 'brace', id: value.slice(6) }, false);
-        else if (value.startsWith('platform:')) { setSelectedPlatform(value.slice(9)); clearSelection('platform'); setPicked([]); setPickedPlatforms([value.slice(9)]); }
+        else if (value.startsWith('platform:')) pick({ kind: 'platform', id: value.slice(9) }, false);
         else if (value.startsWith('stair:')) pick({ kind: 'stair', id: value.slice(6) }, false);
         else if (value.startsWith('placeholder:')) pick({ kind: 'placeholder', id: value.slice(12) }, false);
         else if (value) pick({ kind: 'wall', id: value.replace(/^wall:/, '') }, false);
-        else { clearSelection(); setPicked([]); setPickedPlatforms([]); }
+        else { clearSelection(); }
       }}>
         <option value="">Objekt auswählen</option>
         {state.present.walls.map((wall, index) => <option key={wall.id} value={`wall:${wall.id}`}>{index + 1}. {wall.label}</option>)}
@@ -1361,7 +800,6 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
       {selectedWall ? <WallForm key={JSON.stringify(selectedWall)} wall={selectedWall} openings={resolveWall(selectedWall, wallTypes).openings} typed={!!selectedWall.typeId} surfaces={surfaces} readOnly={readOnly} bulkWallCount={selectedWallCount} onApply={applyWall} onRemove={remove} />
         : selectedBraceItem ? <BraceInspector key={JSON.stringify(selectedBraceItem)} brace={selectedBraceItem} surfaces={surfaces} readOnly={readOnly} onApply={replaceBrace} onRemove={remove}
             onAlign={() => {
-              const types = typesOf(current.current.present);
               const walls = planningWalls(current.current.present, venue);
               const aligned = alignBraceToNearestWall(selectedBraceItem, walls, { force: true });
               if (aligned) replaceBrace(aligned);
@@ -1385,14 +823,14 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
       <AssemblyPanel layout={state.present} selectedWall={selectedWall} readOnly={readOnly} onChange={commit} />
       </div></details>
       <details className="inspector-section"><summary>Gruppieren</summary><div className="inspector-section-body">
-      <GroupInspector layout={state.present} picked={picked} readOnly={readOnly} onChange={commit} />
+      <GroupInspector layout={state.present} picked={picked.filter((item): item is GroupMember => item.kind !== 'platform')} readOnly={readOnly} onChange={commit} />
       </div></details>
       <details className="inspector-section" open><summary>Zwischenablage</summary><div className="inspector-section-body">
-      <ClipboardPanel selection={selection()} canPaste={!!clipboard} busy={!!preview || !!previewBrace || !!previewPlatform || !!previewStair || !!previewPlaceholder || !!groupPreview || !!placing}
+      <ClipboardPanel selection={selection()} canPaste={!!clipboard} busy={!!groupPreview || !!placing}
         readOnly={readOnly} onCopy={copy} onCut={cut} onPaste={paste} />
       </div></details>
       <details className="inspector-section"><summary>Platzhalter</summary><div className="inspector-section-body">
-      <PlaceholderLibrary readOnly={readOnly} disabled={!!preview || !!previewBrace || !!previewPlatform || !!previewStair || !!previewPlaceholder || !!groupPreview || !!placing || (state.present.placeholders ?? []).length >= 250}
+      <PlaceholderLibrary readOnly={readOnly} disabled={!!groupPreview || !!placing || (state.present.placeholders ?? []).length >= 250}
         onAdd={kind => {
           const item = addPlaceholder(kind, venue.width / 2, venue.depth / 2);
           commit({ ...state.present, placeholders: [...state.present.placeholders ?? [], item] });
