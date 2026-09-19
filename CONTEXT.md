@@ -79,7 +79,7 @@ A known power outlet or audio connection at a venue.
 A part of a venue identified as suitable for routing the group's long cables.
 
 **Raised platform**:
-A stage floor area elevated above the venue's reference floor level.
+A stage floor area elevated above the venue's reference floor level. Platforms have a build style: floating (thin slab), solid (filled to the floor), or Bühnenelement (catalog stage-deck modules 2×1 / 2×0,5 / 1×1 / 1×0,5 m with legs; size and height snap to that grid).
 
 **Performance area**:
 The space used for acting and set placement, which can span the audience floor, stairs, and raised stage surfaces.
@@ -92,6 +92,9 @@ A physical structure above the stage area, such as a ventilation duct, that loca
 
 **Traverse / hang bar**:
 A venue lighting hang bar with plan length, section, and underside height. Optional hang points along the bar are reserved for later fixture placement; they do not place lights in this version.
+
+**Molton curtain**:
+A venue soft-goods track (theatre molton) with plan length, drop height, and a parametric opening (traveler from centre, or stack to one side). In the ground plan it uses the USITT wavy soft-goods symbol; in 3D it renders as matte black molton with vertical folds that gather when open.
 
 **Placeholder**:
 A labelled, resizable stand-in for furniture, a person figure, a speaker, or a generic box. Placeholders carry example millimetre dimensions, sit on an explicit supporting surface, and are not measured inventory or CAD models. Venue chairs use a built-in low-poly chair form.

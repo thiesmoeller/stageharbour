@@ -12,6 +12,7 @@ import { placeholdersSchema } from './placeholders.js';
 import { panelConnectionSchema } from './assembly.js';
 import { groupSchema, groupsReferenceLayout } from './groups.js';
 import { trussesSchema } from './truss.js';
+import { curtainsSchema } from './curtains.js';
 
 const name = z.string().trim().min(1).max(120);
 const dimension = z.number().finite().min(1).max(100000);
@@ -88,6 +89,7 @@ export const venueGeometrySchema = z.strictObject({
   ceilingHeight: ceilingHeightSchema.optional(),
   overheadBoxes: overheadBoxesSchema.optional(),
   trusses: trussesSchema.optional(),
+  curtains: curtainsSchema.optional(),
   keepClearZones: keepClearZonesSchema.optional(),
   stageCentreline: stageCentrelineSchema.optional(),
 }).refine(venue => uniqueLevelIds(venue.platforms ?? [], venue.stairs ?? []), 'Platform and stair IDs must be unique');

@@ -1,7 +1,7 @@
-import { type Platform, type StairUnit, type SupportingSurface } from '../../shared/levels.js';
-import { platformCentroid } from '../../shared/levels.js';
+import { type Platform, type StairUnit, type SupportingSurface, platformBounds, platformCentroid } from '../../shared/levels.js';
 import type { PlanDisplayOptions } from '../../shared/planDisplay.js';
 import { defaultPlanDisplay } from '../../shared/planDisplay.js';
+import { layoutStageDeckModules } from '../../shared/stageDeck.js';
 import type { PointerEvent } from 'react';
 
 function path(outline: { x: number; y: number }[]) {
@@ -13,6 +13,33 @@ function platformCaption(platform: Platform, display: PlanDisplayOptions) {
     display.showObjectNames ? platform.label : undefined,
     display.showDimensions ? `${platform.elevation} mm` : undefined,
   ].filter(Boolean).join(' · ');
+}
+
+function outlinePlanRotation(outline: Platform['outline']) {
+  const a = outline[0], b = outline[1];
+  if (!a || !b) return 0;
+  return Math.atan2(b.y - a.y, b.x - a.x);
+}
+
+function StageDeckSeams({ platform }: { platform: Platform }) {
+  if ((platform.style ?? 'floating') !== 'stageDeck') return null;
+  const centre = platformCentroid(platform.outline);
+  const rotation = outlinePlanRotation(platform.outline);
+  const bounds = platformBounds(platform.outline);
+  const modules = layoutStageDeckModules(bounds.width, bounds.depth);
+  return <g transform={`translate(${centre.x} ${-centre.y}) rotate(${-rotation * 180 / Math.PI})`} pointerEvents="none">
+    {modules.map((module, index) => <rect key={index}
+      x={module.x - module.width / 2} y={-(module.y + module.depth / 2)}
+      width={module.width} height={module.depth}
+      fill="none" stroke="#5a6e52" strokeWidth="1.5" strokeDasharray="40 30" vectorEffect="non-scaling-stroke" />)}
+  </g>;
+}
+
+function platformFill(platform: Platform, chosen: boolean) {
+  const style = platform.style ?? 'floating';
+  if (style === 'solid') return chosen ? 'rgba(113,132,105,0.55)' : 'rgba(113,132,105,0.4)';
+  if (style === 'stageDeck') return chosen ? 'rgba(182,124,53,0.35)' : 'rgba(197,208,184,0.55)';
+  return chosen ? 'rgba(182,124,53,0.35)' : 'rgba(113,132,105,0.25)';
 }
 
 export function PlatformLayer({
@@ -33,7 +60,8 @@ export function PlatformLayer({
     {venuePlatforms.map(platform => {
       const caption = platformCaption(platform, display);
       return <g key={platform.id} data-testid={`venue-platform-${platform.id}`}>
-        <path d={path(platform.outline)} fill="#c5d0b8" stroke="#5a6e52" strokeWidth="2" vectorEffect="non-scaling-stroke" pointerEvents="none" />
+        <path d={path(platform.outline)} fill={platformFill(platform, false)} stroke="#5a6e52" strokeWidth="2" vectorEffect="non-scaling-stroke" pointerEvents="none" />
+        <StageDeckSeams platform={platform} />
         {caption && <text x={platform.outline.reduce((sum, point) => sum + point.x, 0) / platform.outline.length}
           y={-platform.outline.reduce((sum, point) => sum + point.y, 0) / platform.outline.length}
           textAnchor="middle" fontSize="160" pointerEvents="none">{caption}</text>}
@@ -48,8 +76,9 @@ export function PlatformLayer({
           if (onPlatformPointerDown) onPlatformPointerDown(event, platform);
           else { event.stopPropagation(); onSelect('platform', platform.id, event.shiftKey); }
         }}>
-        <path d={path(platform.outline)} fill={chosen ? '#b7c6a6' : '#c5d0b8'}
+        <path d={path(platform.outline)} fill={platformFill(platform, chosen)}
           stroke={chosen ? '#b67c35' : '#5a6e52'} strokeWidth="2" vectorEffect="non-scaling-stroke" />
+        <StageDeckSeams platform={platform} />
         {caption && <text x={centre.x} y={-centre.y} textAnchor="middle" fontSize="160" pointerEvents="none">{caption}</text>}
       </g>;
     })}

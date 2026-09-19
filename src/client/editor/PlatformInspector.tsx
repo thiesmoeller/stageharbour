@@ -1,5 +1,9 @@
 import { lazy, Suspense, useState, type FormEvent } from 'react';
-import { axisAlignedPlatformOutline, platformBounds, platformSchema, stairSchema, type Platform, type StairUnit, type SupportingSurface } from '../../shared/levels.js';
+import {
+  PLATFORM_STYLE_LABELS, axisAlignedPlatformOutline, platformBounds, platformSchema, stairSchema,
+  type Platform, type PlatformStyle, type StairUnit, type SupportingSurface,
+} from '../../shared/levels.js';
+import { clipPlatformToStageDeck, snapStageDeckElevation, snapStageDeckSize } from '../../shared/stageDeck.js';
 
 const MaterialPicker = lazy(() => import('./MaterialPicker.js'));
 
@@ -12,19 +16,33 @@ export function PlatformInspector({ platform, readOnly, onApply, onRemove }: {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const x = Number(data.get('x')), y = Number(data.get('y'));
-    const width = Number(data.get('width')), depth = Number(data.get('depth'));
+    let width = Number(data.get('width')), depth = Number(data.get('depth'));
+    let elevation = Number(data.get('elevation'));
     const rotation = Number(data.get('rotation'));
     const finish = data.get('finish');
+    const style = String(data.get('style') || 'floating') as PlatformStyle;
+    if (style === 'stageDeck') {
+      const snapped = snapStageDeckSize(width, depth);
+      width = snapped.width; depth = snapped.depth;
+      elevation = snapStageDeckElevation(elevation);
+    }
     const result = platformSchema.safeParse({
-      ...platform, label: data.get('label'), elevation: Number(data.get('elevation')),
+      ...platform, label: data.get('label'), elevation, style,
       outline: axisAlignedPlatformOutline(x, y, width, depth, rotation),
       finish: typeof finish === 'string' && finish ? finish : undefined,
     });
     if (!result.success) { setError('Bitte prüfen Sie die Maße und die Bezeichnung.'); return; }
-    setError(''); onApply(result.data);
+    setError('');
+    onApply(style === 'stageDeck' ? clipPlatformToStageDeck(result.data) : result.data);
   }
   return <form onSubmit={submit}><fieldset disabled={readOnly}>
     <label htmlFor="platform-label">Bezeichnung</label><input id="platform-label" name="label" defaultValue={platform.label} maxLength={120} required />
+    <label htmlFor="platform-style">Bauweise</label>
+    <select id="platform-style" name="style" defaultValue={platform.style ?? 'floating'}>
+      {(Object.keys(PLATFORM_STYLE_LABELS) as PlatformStyle[]).map(key =>
+        <option key={key} value={key}>{PLATFORM_STYLE_LABELS[key]}</option>)}
+    </select>
+    <p className="muted">Bühnenelement rastet auf 2×1 / 2×0,5 / 1×1 / 1×0,5&nbsp;m mit Beinen ein. Massiv füllt bis zum Boden. Schwebend ist die bisherige Platte.</p>
     <div className="numeric-fields">{([
       ['elevation', 'Höhe über Fußboden (mm)', 1, 100000, platform.elevation],
       ['width', 'Breite (mm)', 1, 100000, box.width], ['depth', 'Tiefe (mm)', 1, 100000, box.depth],
@@ -33,7 +51,6 @@ export function PlatformInspector({ platform, readOnly, onApply, onRemove }: {
     ] as const).map(([key, label, min, max, value]) => <div key={key}><label htmlFor={`platform-${key}`}>{label}</label>
       <input id={`platform-${key}`} name={key} type="number" step="any" min={min} max={max} defaultValue={value} required /></div>)}</div>
     <Suspense fallback={<p>Materialbibliothek wird geladen …</p>}><MaterialPicker id="platform-finish" value={platform.finish} /></Suspense>
-    <p className="muted">Beispielmaße, keine gemessene Spielstättenvorgabe. Umriss aus Mittelpunkt, Rechteck und Drehung.</p>
     {error && <p role="alert" className="error">{error}</p>}
     {!readOnly && <div className="form-actions"><button type="submit">Übernehmen</button><button className="quiet" type="button" onClick={onRemove}>Podest löschen</button></div>}
   </fieldset></form>;

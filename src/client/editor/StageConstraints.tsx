@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { Line } from '@react-three/drei';
 import { Shape, ShapeGeometry, DoubleSide } from 'three';
 import type { StageNode } from './pascalScene.js';
+import { StageCurtains } from './StageCurtains.js';
 
 export function StageConstraint({ element, elevation = 0 }: { element: StageNode['element']; elevation?: number }) {
   const geometry = useMemo(() => {
@@ -36,6 +37,7 @@ export function StageConstraint({ element, elevation = 0 }: { element: StageNode
       </mesh>)}
     </group>;
   }
+  if (element.kind === 'curtain') return <StageCurtains curtains={[element.value]} />;
   if (element.kind === 'pin') return <mesh position={[element.value.x, 100, element.value.y]}><sphereGeometry args={[80, 12, 8]} /><meshStandardMaterial color={element.value.kind === 'power' ? '#d69d34' : '#4f86ba'} /></mesh>;
   if (element.kind === 'corridor') return <Line points={element.value.path.map(p => [p.x, 15, p.y])} color="#5a6e8a" lineWidth={3} />;
   return null;

@@ -45,7 +45,7 @@ import { ExportPanel } from './ExportPanel.js';
 import { WallTypePanel } from './WallTypePanel.js';
 import { VenuePanel, InfrastructureMarks } from './VenuePanel.js';
 import { useEditingLease } from './useEditingLease.js';
-import { OverheadMarks, TrussMarks } from './VenueOverhead.js';
+import { OverheadMarks, TrussMarks, CurtainMarks } from './VenueOverhead.js';
 import { KeepClearMarks } from './KeepClearZones.js';
 import { objectOverlapWarnings } from '../../shared/overlap.js';
 import { keepClearWarnings } from '../../shared/keepClear.js';
@@ -745,6 +745,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
         <InfrastructureMarks pins={venue.connectionPoints ?? []} corridors={venue.cableRoutingCorridors ?? []} display={planDisplay} />
         <OverheadMarks boxes={venue.overheadBoxes ?? []} display={planDisplay} />
         <TrussMarks trusses={venue.trusses ?? []} display={planDisplay} />
+        <CurtainMarks curtains={venue.curtains ?? []} display={planDisplay} />
         <KeepClearMarks zones={venue.keepClearZones ?? []} display={planDisplay} />
         <CentrelineMark centreline={venue.stageCentreline} showLabel={planDisplay.showTexts} />
         <AlignmentGuides guides={guides} />

@@ -1,6 +1,7 @@
 import type { ConstructionSnapshot } from '../../shared/export.js';
 import { overheadBoxCorners } from '../../shared/overhead.js';
 import { trussCorners } from '../../shared/truss.js';
+import { curtainEndTicks, curtainWavyPoints } from '../../shared/curtains.js';
 
 const mm = (value: number) => value * 72 / 25.4;
 
@@ -28,6 +29,23 @@ export function strokeOverheadFeatures(
     const label = toPage(truss.x, truss.y);
     doc.fontSize(8).fillColor('#2f5f8a')
       .text(`${truss.label} ${truss.bottomHeight} mm`, label.x - mm(14), label.y - mm(2), { lineBreak: false });
+  }
+  for (const curtain of snapshot.venue.curtains ?? []) {
+    for (const wave of curtainWavyPoints(curtain)) {
+      const points = wave.map(point => toPage(point.x, point.y));
+      const first = points[0];
+      if (!first) continue;
+      doc.moveTo(first.x, first.y);
+      for (const point of points.slice(1)) doc.lineTo(point.x, point.y);
+      doc.lineWidth(1.1).undash().stroke('#1a1a1a');
+    }
+    for (const tick of curtainEndTicks(curtain)) {
+      const a = toPage(tick.a.x, tick.a.y), b = toPage(tick.b.x, tick.b.y);
+      doc.moveTo(a.x, a.y).lineTo(b.x, b.y).lineWidth(0.9).stroke('#1a1a1a');
+    }
+    const label = toPage(curtain.x, curtain.y);
+    doc.fontSize(8).fillColor('#1a1a1a')
+      .text(`${curtain.label} ${curtain.height} mm`, label.x - mm(14), label.y - mm(3), { lineBreak: false });
   }
   const warnings = snapshot.warnings ?? [];
   if (!warnings.length) return;

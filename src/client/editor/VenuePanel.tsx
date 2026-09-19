@@ -5,7 +5,7 @@ import {
 } from '../../shared/infrastructure.js';
 import { venueReferenceSchema, type VenueReference } from '../../shared/contracts.js';
 import { VenueLevels } from './VenueLevels.js';
-import { OverheadMarks, TrussMarks, VenueOverhead } from './VenueOverhead.js';
+import { CurtainMarks, OverheadMarks, TrussMarks, VenueOverhead } from './VenueOverhead.js';
 import { KeepClearMarks, KeepClearZones } from './KeepClearZones.js';
 import { commitDrawnKeepClear, nearFirstVertex, type KeepClearZone } from '../../shared/keepClear.js';
 import { calibrationSchema, insertOutlineVertex, measuredOutline, millimetresPerUnit, underlaySourceToPlan, type Calibration, type PlanPoint } from '../../shared/venue.js';
@@ -13,11 +13,13 @@ import { defaultPlanDisplay, type PlanDisplayOptions } from '../../shared/planDi
 import { PlanDisplayToggles } from './PlanDisplayToggles.js';
 import { VenueUnderlayDialog } from './VenueUnderlayDialog.js';
 import { prepareUnderlayFile, prepareUnderlayFromDataTransfer, prepareUnderlayFromClipboardRead, dataTransferHasUnderlay } from './underlayImport.js';
-import { type Platform, type StairUnit, AUDIENCE_FLOOR_ID, axisAlignedPlatformOutline, newPlatform, newStair, platformBounds, platformCentroid, reassignVenueSupports, stairCorners } from '../../shared/levels.js';
+import { type Platform, type StairUnit, AUDIENCE_FLOOR_ID, PLATFORM_STYLE_LABELS, axisAlignedPlatformOutline, newPlatform, newStair, platformBounds, platformCentroid, reassignVenueSupports, stairCorners, type PlatformStyle } from '../../shared/levels.js';
+import { clipPlatformToStageDeck, layoutStageDeckModules, snapStageDeckElevation, snapStageDeckSize } from '../../shared/stageDeck.js';
 import { type OverheadBox, newOverheadBox, EXAMPLE_CEILING_HEIGHT } from '../../shared/overhead.js';
 import { objectOverlapWarnings } from '../../shared/overlap.js';
 import { newPlaceholder, type Placeholder, type PlaceholderKind } from '../../shared/placeholders.js';
 import { trussFromSegment, type Truss } from '../../shared/truss.js';
+import { curtainFromSegment, type Curtain } from '../../shared/curtains.js';
 import { defaultCentreline, planRotationAt, SNAP_NOTICE, snapStatusText, type SnapGuide, type StageCentreline } from '../../shared/snapping.js';
 import { CentrelineMark, AlignmentGuides, SnapToggle } from './SnapGuides.js';
 import { RotationHandle } from './RotationHandle.js';
@@ -40,7 +42,7 @@ import { ToolIcon } from './ToolIcon.js';
 import { defaultLighting, type StageLightingSettings } from '../../shared/lighting.js';
 
 const MaterialPicker = lazy(() => import('./MaterialPicker.js'));
-type ClickMode = 'select' | 'vertex' | 'pin' | 'corridor' | 'draw-zone' | 'zone-vertex' | 'place' | 'draw-truss';
+type ClickMode = 'select' | 'vertex' | 'pin' | 'corridor' | 'draw-zone' | 'zone-vertex' | 'place' | 'draw-truss' | 'draw-curtain';
 type PlaceKind = 'wall' | 'platform' | 'stair' | 'chair' | 'table' | 'person' | 'speaker' | 'box' | 'overhead' | 'power' | 'audio';
 const CENTRELINE_SELECTION = 'stage-centreline';
 type ViewMode = 'split' | 'plan' | 'stage';
@@ -48,7 +50,7 @@ type VenueDraft = {
   lighting: StageLightingSettings;
   walls: NonNullable<VenueGeometry['walls']>; vertices: PlanPoint[]; platforms: Platform[]; stairs: StairUnit[];
   placeholders: Placeholder[];
-  ceilingHeight: number | ''; overheadBoxes: OverheadBox[]; trusses: Truss[];
+  ceilingHeight: number | ''; overheadBoxes: OverheadBox[]; trusses: Truss[]; curtains: Curtain[];
   fileId: string | undefined; page: number; rotationDeg: number; calibration: Calibration;
   pins: ConnectionPoint[]; corridors: CableRoutingCorridor[]; zones: KeepClearZone[]; centreline: StageCentreline;
 };
@@ -58,7 +60,8 @@ function draftFromVenue(venue: VenueGeometry, draft: VenueDraft): VenueDraft {
     ...draft,
     walls: venue.walls ?? [], platforms: venue.platforms ?? [], stairs: venue.stairs ?? [],
     placeholders: venue.placeholders ?? [],
-    overheadBoxes: venue.overheadBoxes ?? [], trusses: venue.trusses ?? [], pins: venue.connectionPoints ?? [],
+    overheadBoxes: venue.overheadBoxes ?? [], trusses: venue.trusses ?? [], curtains: venue.curtains ?? [],
+    pins: venue.connectionPoints ?? [],
     corridors: venue.cableRoutingCorridors ?? [], zones: venue.keepClearZones ?? [],
   };
 }
@@ -93,6 +96,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
     walls: venue.walls ?? [], vertices: measuredOutline(venue), platforms: venue.platforms ?? [], stairs: venue.stairs ?? [],
     placeholders: venue.placeholders ?? [],
     ceilingHeight: (venue.ceilingHeight ?? '') as number | '', overheadBoxes: venue.overheadBoxes ?? [], trusses: venue.trusses ?? [],
+    curtains: venue.curtains ?? [],
     fileId: venue.trace?.fileId, page: venue.trace?.page ?? 1,
     rotationDeg: venue.trace?.rotationDeg ?? 0,
     calibration: venue.trace?.calibration ?? { pointA: { x: 0, y: 0 }, pointB: { x: 0, y: 0 }, distanceMm: 1000 },
@@ -108,6 +112,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
   const [ceilingHeight, setCeilingHeight] = draft.field('ceilingHeight');
   const [overheadBoxes, setOverheadBoxes] = draft.field('overheadBoxes');
   const [trusses, setTrusses] = draft.field('trusses');
+  const [curtains, setCurtains] = draft.field('curtains');
   const [fileId, setFileId] = draft.field('fileId');
   const [page, setPage] = draft.field('page');
   const [rotationDeg, setRotationDeg] = draft.field('rotationDeg');
@@ -125,6 +130,8 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
   const [drawingZone, setDrawingZone] = useState<PlanPoint[]>([]);
   const [trussDrawStart, setTrussDrawStart] = useState<PlanPoint | undefined>();
   const [trussDrawHover, setTrussDrawHover] = useState<PlanPoint | undefined>();
+  const [curtainDrawStart, setCurtainDrawStart] = useState<PlanPoint | undefined>();
+  const [curtainDrawHover, setCurtainDrawHover] = useState<PlanPoint | undefined>();
   const selected = selectedIds[0];
   const vertexDrag = useRef<number | undefined>(undefined);
   const zoneVertexDrag = useRef<{ zoneId: string; index: number } | undefined>(undefined);
@@ -257,6 +264,13 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
       if (!truss || trusses.length >= 250) return;
       setTrusses(current => [...current, truss]); setSelectedIds([truss.id]); setClick('select');
     }
+    else if (click === 'draw-curtain') {
+      if (!curtainDrawStart) { setCurtainDrawStart(point); setCurtainDrawHover(point); return; }
+      const curtain = curtainFromSegment(crypto.randomUUID(), curtainDrawStart, point);
+      setCurtainDrawStart(undefined); setCurtainDrawHover(undefined);
+      if (!curtain || curtains.length >= 250) return;
+      setCurtains(current => [...current, curtain]); setSelectedIds([curtain.id]); setClick('select');
+    }
 
   }
   function startMarquee(event: PointerEvent) {
@@ -379,7 +393,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
       cableRoutingCorridors: corridors.map(corridor => ({ ...corridor, notes: optionalNotes(corridor.notes) })),
       walls, wallTypes: venue.wallTypes, platforms, stairs, placeholders, lighting,
       ...(ceilingHeight === '' ? {} : { ceilingHeight }),
-      overheadBoxes, trusses, keepClearZones: zones, stageCentreline: centreline,
+      overheadBoxes, trusses, curtains, keepClearZones: zones, stageCentreline: centreline,
     });
     if (!result.success) { setError('Bitte prüfen Sie den Umriss, die Kalibrierung, die Anschlüsse und die Überbauungen.'); return; }
     const toSave = reassignVenueSupports(result.data);
@@ -427,7 +441,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
   const planTop = -Math.max(height, ...vertices.map(p => p.y)) - 400;
   const planWidth = Math.max(width, ...vertices.map(p => p.x)) - planLeft + 400;
   const planHeight = Math.max(height, ...vertices.map(p => p.y)) + 1200;
-  const candidate = venueGeometrySchema.safeParse({ ...venue, lighting, outline: vertices, walls, platforms, stairs, placeholders, overheadBoxes, trusses,
+  const candidate = venueGeometrySchema.safeParse({ ...venue, lighting, outline: vertices, walls, platforms, stairs, placeholders, overheadBoxes, trusses, curtains,
     ceilingHeight: ceilingHeight === '' ? undefined : ceilingHeight, keepClearZones: zones, connectionPoints: pins, cableRoutingCorridors: corridors, stageCentreline: centreline });
   const previewVenue = candidate.success ? reassignVenueSupports(candidate.data) : venue;
   // Placeholders stay on the venue only; putting them on the layout too duplicates chairs in 3D.
@@ -436,7 +450,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
   function sourceFromDraft(start: VenueDraft): VenueGeometry {
     return {
       ...previewVenue, walls: start.walls, platforms: start.platforms, stairs: start.stairs, placeholders: start.placeholders,
-      overheadBoxes: start.overheadBoxes, trusses: start.trusses, connectionPoints: start.pins,
+      overheadBoxes: start.overheadBoxes, trusses: start.trusses, curtains: start.curtains, connectionPoints: start.pins,
       cableRoutingCorridors: start.corridors, keepClearZones: start.zones, stageCentreline: start.centreline,
     };
   }
@@ -501,6 +515,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
       return;
     }
     if (click === 'draw-truss' && trussDrawStart) setTrussDrawHover(point);
+    if (click === 'draw-curtain' && curtainDrawStart) setCurtainDrawHover(point);
     if (vertexDrag.current === undefined) return;
     setVertices(current => current.map((v, i) => i === vertexDrag.current ? point : v));
   }
@@ -570,7 +585,10 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
       event.preventDefault();
       if (command === 'cancel') {
         if (objectDrag.current || objectRotate.current || vertexDrag.current !== undefined || zoneVertexDrag.current || corridorVertexDrag.current || centrelineDrag.current || marqueeDrag.current || panDrag.current) endPlanGesture(true);
-        else if (drawingZone.length || trussDrawStart) { setDrawingZone([]); setTrussDrawStart(undefined); setTrussDrawHover(undefined); }
+        else if (drawingZone.length || trussDrawStart || curtainDrawStart) {
+          setDrawingZone([]); setTrussDrawStart(undefined); setTrussDrawHover(undefined);
+          setCurtainDrawStart(undefined); setCurtainDrawHover(undefined);
+        }
         else if (!transformStart.current) { setSelectedIds([]); setClick('select'); }
         return;
       }
@@ -644,7 +662,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
       </div>
     </div>
     {!readOnly && <div className="tool-rail" role="toolbar" aria-label="Spielstättenwerkzeuge" inert={busyGesture()}>
-      <button type="button" className="quiet" aria-pressed={click === 'select'} onClick={() => { setClick('select'); setDrawingZone([]); setTrussDrawStart(undefined); }} title="Auswählen" aria-label="Auswählen"><ToolIcon name="settings" /><span>Auswahl</span></button>
+      <button type="button" className="quiet" aria-pressed={click === 'select'} onClick={() => { setClick('select'); setDrawingZone([]); setTrussDrawStart(undefined); setCurtainDrawStart(undefined); }} title="Auswählen" aria-label="Auswählen"><ToolIcon name="settings" /><span>Auswahl</span></button>
       <button type="button" className="quiet" aria-pressed={click === 'vertex'} onClick={() => setClick('vertex')} title="Eckpunkt auf eine Umrisskante setzen" aria-label="Eckpunkt hinzufügen"><ToolIcon name="plus" /><span>Eckpunkt</span></button>
       <button type="button" className="quiet" aria-pressed={click === 'place' && placeKind === 'wall'} disabled={walls.length >= 250} onClick={() => { setPlaceKind('wall'); setClick('place'); }} title="Feste Wand setzen" aria-label="Feste Wand setzen"><ToolIcon name="wall" /><span>Wand</span></button>
       <button type="button" className="quiet" aria-pressed={click === 'place' && placeKind === 'platform'} disabled={platforms.length >= 250} onClick={() => { setPlaceKind('platform'); setClick('place'); }} title="Podest setzen" aria-label="Podest setzen"><ToolIcon name="platform" /><span>Podest</span></button>
@@ -658,7 +676,8 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
       <button type="button" className="quiet" aria-pressed={click === 'corridor'} disabled={corridors.length >= 250} onClick={() => setClick('corridor')} title="Kabelweg zeichnen" aria-label="Kabelweg zeichnen"><ToolIcon name="expand" /><span>Kabel</span></button>
       <button type="button" className="quiet" aria-pressed={click === 'draw-zone'} disabled={zones.length >= 250} onClick={() => { setDrawingZone([]); setClick('draw-zone'); }} title="Freihaltezone zeichnen" aria-label="Freihaltezone zeichnen"><ToolIcon name="expand" /><span>Notausgang</span></button>
       <button type="button" className="quiet" aria-pressed={click === 'place' && placeKind === 'overhead'} disabled={overheadBoxes.length >= 250} onClick={() => { setPlaceKind('overhead'); setClick('place'); }} title="Lüftungskanal setzen" aria-label="Lüftungskanal setzen"><ToolIcon name="expand" /><span>Lüftung</span></button>
-      <button type="button" className="quiet" aria-pressed={click === 'draw-truss'} disabled={trusses.length >= 250} onClick={() => { setTrussDrawStart(undefined); setTrussDrawHover(undefined); setClick('draw-truss'); }} title="Traverse zeichnen (Start und Ende)" aria-label="Traverse zeichnen"><ToolIcon name="expand" /><span>Traverse</span></button>
+      <button type="button" className="quiet" aria-pressed={click === 'draw-truss'} disabled={trusses.length >= 250} onClick={() => { setTrussDrawStart(undefined); setTrussDrawHover(undefined); setCurtainDrawStart(undefined); setClick('draw-truss'); }} title="Traverse zeichnen (Start und Ende)" aria-label="Traverse zeichnen"><ToolIcon name="expand" /><span>Traverse</span></button>
+      <button type="button" className="quiet" aria-pressed={click === 'draw-curtain'} disabled={curtains.length >= 250} onClick={() => { setCurtainDrawStart(undefined); setCurtainDrawHover(undefined); setTrussDrawStart(undefined); setClick('draw-curtain'); }} title="Molton zeichnen (Start und Ende)" aria-label="Molton zeichnen"><ToolIcon name="wall" /><span>Molton</span></button>
       <button type="button" className="quiet" aria-pressed={selectedIds.includes(CENTRELINE_SELECTION)} onClick={() => setSelectedIds([CENTRELINE_SELECTION])} title="Mittellinie wählen" aria-label="Mittellinie wählen"><ToolIcon name="settings" /><span>Mitte</span></button>
     </div>}
     <div className="editor-grid" data-inspector-open={inspectorOpen}>
@@ -705,10 +724,30 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
               fill="url(#venue-metre-grid)" stroke="#718469" strokeWidth="2" vectorEffect="non-scaling-stroke"
               onPointerDown={startMarquee} />
             {vertices.map((point, index) => <circle key={index} data-testid={`venue-vertex-${index}`} cx={point.x} cy={-point.y} r="65" fill="#b67c35" onPointerDown={event => { if (readOnly || busyGesture() || event.button !== 0) return; gestureSelection.current = selectedIds; event.stopPropagation(); vertexDrag.current = index; draft.begin(); svg.current?.setPointerCapture(event.pointerId); }} />)}
-            {platforms.map(platform => <path key={platform.id} data-testid={`venue-platform-${platform.id}`}
-              d={`${platform.outline.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')} Z`}
-              fill={selectedIds.includes(platform.id) ? 'rgba(182,124,53,0.35)' : 'rgba(113,132,105,0.25)'} stroke="#718469" strokeWidth="2" vectorEffect="non-scaling-stroke"
-              onPointerDown={event => beginObjectDrag(event, platform.id)} />)}
+            {platforms.map(platform => {
+              const chosen = selectedIds.includes(platform.id);
+              const style = platform.style ?? 'floating';
+              const fill = style === 'solid'
+                ? (chosen ? 'rgba(113,132,105,0.55)' : 'rgba(113,132,105,0.4)')
+                : style === 'stageDeck'
+                  ? (chosen ? 'rgba(182,124,53,0.35)' : 'rgba(197,208,184,0.55)')
+                  : (chosen ? 'rgba(182,124,53,0.35)' : 'rgba(113,132,105,0.25)');
+              const centre = platformCentroid(platform.outline);
+              const rotation = outlineRotation(platform.outline);
+              const bounds = platformBounds(platform.outline);
+              const modules = style === 'stageDeck' ? layoutStageDeckModules(bounds.width, bounds.depth) : [];
+              return <g key={platform.id}>
+                <path data-testid={`venue-platform-${platform.id}`}
+                  d={`${platform.outline.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')} Z`}
+                  fill={fill} stroke="#718469" strokeWidth="2" vectorEffect="non-scaling-stroke"
+                  onPointerDown={event => beginObjectDrag(event, platform.id)} />
+                {modules.map((module, index) => <rect key={index} pointerEvents="none"
+                  transform={`translate(${centre.x} ${-centre.y}) rotate(${-rotation})`}
+                  x={module.x - module.width / 2} y={-(module.y + module.depth / 2)}
+                  width={module.width} height={module.depth}
+                  fill="none" stroke="#5a6e52" strokeWidth="1.5" strokeDasharray="40 30" vectorEffect="non-scaling-stroke" />)}
+              </g>;
+            })}
             {stairs.map(stair => {
               const corners = stairCorners(stair);
               return <path key={stair.id} data-testid={`venue-stair-${stair.id}`}
@@ -732,6 +771,8 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
             <OverheadMarks boxes={overheadBoxes} selectedIds={selectedIds} display={planDisplay} onPointerDown={beginObjectDrag} />
             <TrussMarks trusses={trusses} selectedIds={selectedIds} display={planDisplay} onPointerDown={beginObjectDrag}
               drawing={trussDrawStart ? { start: trussDrawStart, end: trussDrawHover } : undefined} />
+            <CurtainMarks curtains={curtains} selectedIds={selectedIds} display={planDisplay} onPointerDown={beginObjectDrag}
+              drawing={curtainDrawStart ? { start: curtainDrawStart, end: curtainDrawHover } : undefined} />
             <KeepClearMarks zones={zones} selectedIds={selectedIds} drawing={drawingZone} display={planDisplay} onPointerDown={beginObjectDrag}
               onVertexPointerDown={(event, zoneId, index) => {
                 if (readOnly || busyGesture() || event.button !== 0) return;
@@ -747,7 +788,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
                 svg.current?.setPointerCapture(event.pointerId);
               }} />
             <AlignmentGuides guides={guides} />
-            {!readOnly && pivot && (selectedIds.length > 1 || ['zone', 'corridor', 'truss'].includes(selectedObject?.kind ?? '')) &&
+            {!readOnly && pivot && (selectedIds.length > 1 || ['zone', 'corridor', 'truss', 'curtain'].includes(selectedObject?.kind ?? '')) &&
               <RotationHandle centre={pivot} rotation={0} width={1200} testId="rotate-venue-selection" label="Auswahl drehen"
                 onPointerDown={event => beginObjectRotate(event, selected!, pivot, 0)} />}
             {selectedIds.includes(CENTRELINE_SELECTION) && !readOnly &&
@@ -801,6 +842,13 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
                 testId={`rotate-venue-truss-${truss.id}`} label="Traverse drehen"
                 onPointerDown={event => beginObjectRotate(event, truss.id, truss, truss.rotation)} />;
             })()}
+            {selectedIds.length === 1 && !readOnly && (() => {
+              const curtain = curtains.find(item => item.id === selected);
+              if (!curtain) return null;
+              return <RotationHandle centre={curtain} rotation={curtain.rotation} width={curtain.length}
+                testId={`rotate-venue-curtain-${curtain.id}`} label="Molton drehen"
+                onPointerDown={event => beginObjectRotate(event, curtain.id, curtain, curtain.rotation)} />;
+            })()}
             {marqueeBox && <rect data-testid="venue-selection-marquee" className="selection-marquee"
               x={marqueeBox.minX} y={-marqueeBox.maxY} width={marqueeBox.maxX - marqueeBox.minX} height={marqueeBox.maxY - marqueeBox.minY} />}
           </svg>
@@ -849,29 +897,48 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
               const width = a && b ? Math.hypot(b.x - a.x, b.y - a.y) : platformBounds(platform.outline).width;
               const depth = b && c ? Math.hypot(c.x - b.x, c.y - b.y) : platformBounds(platform.outline).depth;
               const rotation = outlineRotation(platform.outline);
-              function updatePlatform(patch: { label?: string; elevation?: number; width?: number; depth?: number; x?: number; y?: number; rotation?: number; finish?: string | null }) {
+              function updatePlatform(patch: {
+                label?: string; elevation?: number; width?: number; depth?: number; x?: number; y?: number; rotation?: number;
+                finish?: string | null; style?: PlatformStyle;
+              }) {
                 setPlatforms(items => items.map(item => {
                   if (item.id !== platform.id) return item;
+                  const style = patch.style ?? item.style ?? 'floating';
+                  let nextWidth = patch.width ?? width;
+                  let nextDepth = patch.depth ?? depth;
+                  let nextElevation = patch.elevation ?? item.elevation;
+                  if (style === 'stageDeck') {
+                    const snapped = snapStageDeckSize(nextWidth, nextDepth);
+                    nextWidth = snapped.width; nextDepth = snapped.depth;
+                    nextElevation = snapStageDeckElevation(nextElevation);
+                  }
                   const next = {
                     label: patch.label ?? item.label,
-                    elevation: patch.elevation ?? item.elevation,
-                    width: patch.width ?? width,
-                    depth: patch.depth ?? depth,
+                    elevation: nextElevation,
+                    width: nextWidth,
+                    depth: nextDepth,
                     x: patch.x ?? centre.x,
                     y: patch.y ?? centre.y,
                     rotation: patch.rotation ?? rotation,
                   };
                   const finish = patch.finish === null ? undefined : patch.finish === undefined ? item.finish : patch.finish || undefined;
-                  const base = {
-                    ...item, label: next.label, elevation: next.elevation,
+                  let base: Platform = {
+                    ...item, label: next.label, elevation: next.elevation, style,
                     outline: axisAlignedPlatformOutline(next.x, next.y, next.width, next.depth, next.rotation),
                   };
+                  if (style === 'stageDeck') base = clipPlatformToStageDeck(base);
                   if (finish) return { ...base, finish };
                   const { finish: _removed, ...rest } = base;
                   return rest;
                 }));
               }
               return <>
+                <label>Bauweise<select aria-label={`${platform.label} Bauweise`} value={platform.style ?? 'floating'}
+                  onChange={event => updatePlatform({ style: event.target.value as PlatformStyle })}>
+                  {(Object.keys(PLATFORM_STYLE_LABELS) as PlatformStyle[]).map(key =>
+                    <option key={key} value={key}>{PLATFORM_STYLE_LABELS[key]}</option>)}
+                </select></label>
+                <p className="muted">Bühnenelement: 2×1 / 2×0,5 / 1×1 / 1×0,5&nbsp;m mit Beinen. Massiv bis Boden. Schwebend wie bisher.</p>
                 <div className="numeric-fields">
                   <label>Bezeichnung<input value={platform.label} onChange={event => updatePlatform({ label: event.target.value })} /></label>
                   {([
@@ -938,6 +1005,27 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
                   <label key={key}>{label}<input aria-label={`${truss.label} ${label}`} type="number" value={truss[key]}
                     onChange={event => setTrusses(items => items.map(item => item.id === truss.id ? { ...item, [key]: Number(event.target.value) } : item))} /></label>)}
                 <p className="muted">Aufhängepunkte sind vorbereitet für spätere Leuchtenplanung.</p>
+              </div>;
+            })()}
+            {selectedObject?.kind === 'curtain' && (() => {
+              const curtain = curtains.find(item => item.id === selected)!;
+              return <div className="numeric-fields">
+                <label>Bezeichnung<input value={curtain.label} onChange={event => setCurtains(items => items.map(item => item.id === curtain.id ? { ...item, label: event.target.value } : item))} /></label>
+                {([['x', 'X'], ['y', 'Y'], ['rotation', 'Drehung'], ['length', 'Länge'], ['height', 'Fallhöhe'], ['bottomClearance', 'Bodenfreiheit']] as const).map(([key, label]) =>
+                  <label key={key}>{label}<input aria-label={`${curtain.label} ${label}`} type="number" value={curtain[key]}
+                    onChange={event => setCurtains(items => items.map(item => item.id === curtain.id ? { ...item, [key]: Number(event.target.value) } : item))} /></label>)}
+                <label>Öffnung %
+                  <input aria-label={`${curtain.label} Öffnung`} type="number" min={0} max={100} value={curtain.openPercent}
+                    onChange={event => setCurtains(items => items.map(item => item.id === curtain.id ? { ...item, openPercent: Number(event.target.value) } : item))} />
+                </label>
+                <label>Öffnungsart
+                  <select aria-label={`${curtain.label} Öffnungsart`} value={curtain.opening}
+                    onChange={event => setCurtains(items => items.map(item => item.id === curtain.id ? { ...item, opening: event.target.value as Curtain['opening'] } : item))}>
+                    <option value="traveler">Traveler (Mitte)</option>
+                    <option value="stackLeft">Stapel links</option>
+                    <option value="stackRight">Stapel rechts</option>
+                  </select>
+                </label>
               </div>;
             })()}
             {selectedIds.includes(CENTRELINE_SELECTION) && <CentrelineFields centreline={centreline} onChange={setCentreline} />}

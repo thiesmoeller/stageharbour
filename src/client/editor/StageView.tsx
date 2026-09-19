@@ -11,6 +11,7 @@ import { stageModel, type Vec3, type WallSolid } from '../../shared/transforms.j
 import { StageBraceList, StageBraces } from './StageBraces.js';
 import { StageLevelList, StageLevels } from './StageLevels.js';
 import { StageOverhead, StageOverheadList } from './StageOverhead.js';
+import { StageCurtains, StageCurtainList } from './StageCurtains.js';
 import { StagePlaceholderList, StagePlaceholders } from './StagePlaceholders.js';
 
 import type { Asset } from '../../shared/assets.js';
@@ -75,6 +76,7 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
             </mesh>
             <StageLevels model={model} lit={lighting.enabled} />
             <StageOverhead boxes={venue.overheadBoxes ?? []} trusses={venue.trusses ?? []} />
+            <StageCurtains curtains={venue.curtains ?? []} />
             {model.walls.map(wall => <WallMesh key={wall.id} wall={wall} lit={lighting.enabled} />)}
             <StageBraces braces={model.braces} lit={lighting.enabled} />
             <StagePlaceholders placeholders={model.placeholders} lit={lighting.enabled} />
@@ -96,6 +98,7 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
     <StagePlaceholderList placeholders={model.placeholders} />
     <StageLevelList model={model} />
     <StageOverheadList boxes={venue.overheadBoxes ?? []} trusses={venue.trusses ?? []} />
+    <StageCurtainList curtains={venue.curtains ?? []} />
     </details>
   </div>;
 }

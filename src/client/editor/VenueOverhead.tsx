@@ -1,5 +1,6 @@
 import { EXAMPLE_CEILING_HEIGHT, newOverheadBox, overheadBoxCorners, type OverheadBox } from '../../shared/overhead.js';
 import { trussCorners, type Truss } from '../../shared/truss.js';
+import { curtainEndTicks, curtainWavyPoints, type Curtain } from '../../shared/curtains.js';
 import type { VenueGeometry } from '../../shared/layout.js';
 import type { PlanDisplayOptions } from '../../shared/planDisplay.js';
 import { defaultPlanDisplay } from '../../shared/planDisplay.js';
@@ -62,6 +63,43 @@ export function TrussMarks({ trusses, selectedIds = [], drawing, display = defau
       <line x1={drawing.start.x} y1={-drawing.start.y} x2={(drawing.end ?? drawing.start).x} y2={-(drawing.end ?? drawing.start).y}
         stroke="#4f86ba" strokeWidth="3" strokeDasharray="40 40" vectorEffect="non-scaling-stroke" />
       <circle cx={drawing.start.x} cy={-drawing.start.y} r="50" fill="#4f86ba" />
+    </g>}
+  </g>;
+}
+
+/** USITT soft-goods plan symbol: sine-wave fullness with end ticks. */
+export function CurtainMarks({ curtains, selectedIds = [], drawing, display = defaultPlanDisplay, onPointerDown }: {
+  curtains: Curtain[]; selectedIds?: readonly string[];
+  drawing?: { start: { x: number; y: number }; end?: { x: number; y: number } };
+  display?: PlanDisplayOptions;
+  onPointerDown?: (event: PointerEvent<SVGGElement>, id: string) => void;
+}) {
+  return <g aria-label="Molton-Vorhänge" pointerEvents={onPointerDown ? undefined : 'none'}>
+    {curtains.map(curtain => {
+      const chosen = selectedIds.includes(curtain.id);
+      const waves = curtainWavyPoints(curtain);
+      const ticks = curtainEndTicks(curtain);
+      const caption = [
+        display.showObjectNames ? curtain.label : undefined,
+        display.showDimensions ? `${curtain.height} mm` : undefined,
+        display.showObjectNames && curtain.openPercent > 0 ? `offen ${Math.round(curtain.openPercent)}%` : undefined,
+      ].filter(Boolean).join(' · ');
+      return <g key={curtain.id} data-testid={`curtain-${curtain.id}`} className={onPointerDown ? 'draggable-wall' : undefined}
+        onPointerDown={onPointerDown ? event => onPointerDown(event, curtain.id) : undefined}>
+        {waves.map((points, index) =>
+          <path key={index} d={points.map((point, i) => `${i ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')}
+            fill="none" stroke={chosen ? '#1a1a1a' : '#2a2a2a'} strokeWidth={chosen ? 3.5 : 2.5}
+            strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />)}
+        {ticks.map((tick, index) =>
+          <line key={index} x1={tick.a.x} y1={-tick.a.y} x2={tick.b.x} y2={-tick.b.y}
+            stroke="#1a1a1a" strokeWidth="2" vectorEffect="non-scaling-stroke" />)}
+        {caption && <text x={curtain.x} y={-curtain.y - 160} textAnchor="middle" fontSize="140" fill="#1a1a1a" pointerEvents="none">{caption}</text>}
+      </g>;
+    })}
+    {drawing && <g data-testid="curtain-drawing" pointerEvents="none">
+      <line x1={drawing.start.x} y1={-drawing.start.y} x2={(drawing.end ?? drawing.start).x} y2={-(drawing.end ?? drawing.start).y}
+        stroke="#1a1a1a" strokeWidth="2.5" strokeDasharray="50 40" vectorEffect="non-scaling-stroke" />
+      <circle cx={drawing.start.x} cy={-drawing.start.y} r="50" fill="#1a1a1a" />
     </g>}
   </g>;
 }

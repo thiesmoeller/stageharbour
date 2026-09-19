@@ -1,4 +1,7 @@
-import { AUDIENCE_FLOOR_ID, newPlatform, newStair, type Platform, type StairUnit } from '../../shared/levels.js';
+import {
+  AUDIENCE_FLOOR_ID, PLATFORM_STYLE_LABELS, newPlatform, newStair, type Platform, type PlatformStyle, type StairUnit,
+} from '../../shared/levels.js';
+import { clipPlatformToStageDeck } from '../../shared/stageDeck.js';
 import type { VenueGeometry } from '../../shared/layout.js';
 
 export function VenueLevels({ venue, platforms, stairs, readOnly, onPlatforms, onStairs }: {
@@ -13,6 +16,19 @@ export function VenueLevels({ venue, platforms, stairs, readOnly, onPlatforms, o
       <div><label htmlFor={`perm-platform-label-${index}`}>Podest {index + 1}</label>
         <input id={`perm-platform-label-${index}`} value={platform.label} disabled={readOnly}
           onChange={event => onPlatforms(platforms.map(item => item.id === platform.id ? { ...item, label: event.target.value } : item))} /></div>
+      <div><label htmlFor={`perm-platform-style-${index}`}>Bauweise</label>
+        <select id={`perm-platform-style-${index}`} value={platform.style ?? 'floating'} disabled={readOnly}
+          onChange={event => {
+            const style = event.target.value as PlatformStyle;
+            onPlatforms(platforms.map(item => {
+              if (item.id !== platform.id) return item;
+              const next = { ...item, style };
+              return style === 'stageDeck' ? clipPlatformToStageDeck(next) : next;
+            }));
+          }}>
+          {(Object.keys(PLATFORM_STYLE_LABELS) as PlatformStyle[]).map(key =>
+            <option key={key} value={key}>{PLATFORM_STYLE_LABELS[key]}</option>)}
+        </select></div>
       <div><label htmlFor={`perm-platform-elev-${index}`}>Höhe über Fußboden (mm)</label>
         <input id={`perm-platform-elev-${index}`} type="number" min={1} step="any" value={platform.elevation} disabled={readOnly}
           onChange={event => onPlatforms(platforms.map(item => item.id === platform.id ? { ...item, elevation: Number(event.target.value) } : item))} /></div>

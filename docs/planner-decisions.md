@@ -82,6 +82,10 @@ Version one includes a small library of resizable placeholders: tables, chairs, 
 
 Venue Traversen (hang bars) are first-class venue geometry with length, section, underside height, and optional hang-point slots. They participate in overhead clearance and appear on plan/PDF/3D. Fixture placement on hang points and lighting simulation remain deferred to phase two; Traversen are the attachment seam for that work. Mood lighting (warm/cool preview) is unchanged and is not a fixture plan.
 
+## Molton curtains
+
+Installed venue Molton tracks are first-class venue geometry: track length, drop height, optional floor clearance, opening style (traveler / stack left / stack right), and open percent. Plan graphics follow USITT soft-goods with fullness (sine-wave polyline and end ticks). The 3D view uses matte black theatre molton with folded fabric leaves that gather according to the opening. Curtains are drawn like Traversen (click start and end on the plan).
+
 ## Lighting
 
 Lighting planning, including basic fixture placement, is deferred to phase two. It will be treated as a separate design workstream covering the desired physical realism, materials, and lighting simulation in Three.js.

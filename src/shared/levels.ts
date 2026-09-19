@@ -21,9 +21,18 @@ export const platformSchema = z.strictObject({
   id: z.uuid(), label: name,
   elevation: z.number().finite().min(1).max(100000),
   outline: venueOutlineSchema,
+  /** Visual build: floating slab (default), solid block to floor, or Bühnenelement deck with legs. */
+  style: z.enum(['floating', 'solid', 'stageDeck']).optional(),
   finish: z.string().regex(/^library:[a-zA-Z0-9_-]+$/).max(180).optional(),
 });
 export type Platform = z.infer<typeof platformSchema>;
+export type PlatformStyle = NonNullable<Platform['style']>;
+
+export const PLATFORM_STYLE_LABELS: Record<PlatformStyle, string> = {
+  floating: 'Schwebend',
+  solid: 'Massiv',
+  stageDeck: 'Bühnenelement',
+};
 export const stairSchema = z.strictObject({
   id: z.uuid(), label: name,
   lowerSurfaceId: z.uuid(), upperSurfaceId: z.uuid(),
