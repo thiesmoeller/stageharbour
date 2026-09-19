@@ -27,6 +27,7 @@ import { renderPackage } from './exports/packagePdf.js';
 import { localFilesystem, type FileStorage } from './exports/storage.js';
 import type { ConstructionSnapshot } from '../shared/export.js';
 import { registerAssetRoutes } from './assets/routes.js';
+import { registerBrandingRoutes } from './branding/routes.js';
 
 export async function createApp(db: Database, config: Config, options: {
   auth?: ReturnType<typeof createAuth>;
@@ -55,6 +56,7 @@ export async function createApp(db: Database, config: Config, options: {
   // Packages render in-process: the worker path was marking revisions failed without a useful client error.
   registerPackageRoutes(app, db, access, config.APP_ORIGIN, storage, snapshot => renderPackage(snapshot));
   registerAssetRoutes(app, db, access, config.APP_ORIGIN, storage, leases);
+  registerBrandingRoutes(app, db, access, config.APP_ORIGIN, config.WORKSPACE_ID, storage);
   app.addHook('onResponse', async (request, reply) => {
     if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method) || reply.statusCode >= 400) return;
     const route = request.routeOptions.url ?? '';

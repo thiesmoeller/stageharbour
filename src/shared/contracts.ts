@@ -35,3 +35,21 @@ export const venueReferenceSchema = z.object({
 });
 export type VenueReference = z.infer<typeof venueReferenceSchema>;
 export const loginOptionsSchema = z.object({ oidc: z.boolean() });
+export const brandingSchema = z.object({
+  productName: z.string().min(1).max(80),
+  tagline: z.string().max(120),
+  footerText: z.string().max(200),
+  hasLogo: z.boolean(),
+});
+export type Branding = z.infer<typeof brandingSchema>;
+export const updateBrandingSchema = z.object({
+  productName: z.string().trim().min(1).max(80),
+  tagline: z.string().trim().max(120),
+  footerText: z.string().trim().max(200),
+});
+export const DEFAULT_BRANDING = {
+  productName: 'Bühnenplaner',
+  tagline: 'GEMEINSAM THEATER MACHEN',
+  footerText: 'Für die Bühne. Für die Menschen dahinter.',
+  hasLogo: false,
+} as const satisfies Branding;

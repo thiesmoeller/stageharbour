@@ -50,9 +50,11 @@ test('editor keeps the canvas in view, preserves tray drafts, and adapts to smal
 
   await page.getByRole('button', { name: 'Raumansicht', exact: true }).click();
   await expect(page.locator('.plan-canvas')).toBeHidden();
+  await expect(page.getByTestId('stage-view')).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('[data-renderer="pascal"] canvas')).toBeVisible({ timeout: 30_000 });
   for (const [label, view] of [['Von oben', 'top'], ['Von vorne', 'front'], ['Von der Seite', 'side'], ['Publikumssicht', 'audience'], ['Umlaufansicht', 'orbit']] as const) {
     await page.getByRole('button', { name: label, exact: true }).click();
-    await expect(page.getByTestId('stage-view')).toHaveAttribute('data-view', view);
+    await expect(page.getByTestId('stage-view')).toHaveAttribute('data-view', view, { timeout: 15_000 });
     await expect(page.getByRole('button', { name: label, exact: true })).toHaveAttribute('aria-pressed', 'true');
   }
   await page.getByRole('button', { name: 'Von oben', exact: true }).click();

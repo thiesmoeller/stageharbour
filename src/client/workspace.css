@@ -4,6 +4,10 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
 .app:has(.workspace) > .masthead { height: 54px; padding: 0 24px; background: #fff; gap: 18px; flex-shrink: 0; border-color: var(--ui-line); }
 .app:has(.workspace) .brand { font-size: 15px; letter-spacing: -.025em; }
 .app:has(.workspace) .brand-icon { width: 29px; height: 29px; font-size: 24px; border-radius: 6px; }
+.app:has(.workspace) .brand-logo { width: 29px; height: 29px; border-radius: 6px; object-fit: contain; background: #fff; }
+.brand-logo { display: block; width: 35px; height: 35px; border-radius: 7px; object-fit: contain; background: #fff; }
+.branding-preview { margin: 0 0 12px; }
+.branding-preview img { display: block; max-width: 160px; max-height: 64px; object-fit: contain; border: 1px solid var(--ui-line); border-radius: 8px; padding: 8px; background: #fff; }
 .app:has(.workspace) .edition { font-size: 9px; }
 .app:has(.workspace) .masthead button { padding: 5px 12px; font-size: 12px; }
 .workspace { max-width: 1500px; margin: 30px auto; }

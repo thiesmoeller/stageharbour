@@ -1,8 +1,8 @@
 import { StrictMode, useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { z } from 'zod';
-import { invitationSchema, loginOptionsSchema, meSchema, membersSchema, invitationPreviewSchema, passwordResetPreviewSchema, type Me, type Member, type Role } from '../shared/contracts.js';
-import { ApiError, request } from './api.js';
+import { invitationSchema, loginOptionsSchema, meSchema, membersSchema, invitationPreviewSchema, passwordResetPreviewSchema, brandingSchema, DEFAULT_BRANDING, type Branding, type Me, type Member, type Role } from '../shared/contracts.js';
+import { ApiError, request, upload } from './api.js';
 import { Venues } from './editor/Venues.js';
 import { Plans } from './editor/Plans.js';
 import { can } from '../shared/permissions.js';
@@ -39,10 +39,27 @@ function App() {
   const [signOutError, setSignOutError] = useState('');
   const [signingOut, setSigningOut] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [branding, setBranding] = useState<Branding>(DEFAULT_BRANDING);
+  const [logoKey, setLogoKey] = useState(0);
   useEffect(() => {
     const onHash = () => setRoute(readHash());
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+  useEffect(() => {
+    let cancelled = false;
+    request('/api/branding').then(data => {
+      if (cancelled) return;
+      const next = brandingSchema.parse(data);
+      setBranding(next);
+      document.title = next.productName;
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+  const applyBranding = useCallback((next: Branding) => {
+    setBranding(next);
+    setLogoKey(value => value + 1);
+    document.title = next.productName;
   }, []);
   const load = useCallback(async () => {
     setScreen({ kind: 'loading' });
@@ -66,10 +83,16 @@ function App() {
     catch { setSignOutError('Abmeldung fehlgeschlagen. Bitte versuchen Sie es erneut.'); }
     finally { setSigningOut(false); }
   }
+  const homeLabel = `${branding.productName} Startseite`;
   return <div className="app">
     <header className="masthead">
-      <a className="brand" href="/" aria-label="Bühnenplaner Startseite"><span className="brand-icon" aria-hidden="true">▱</span> Bühnenplaner</a>
-      <span className="edition">GEMEINSAM THEATER MACHEN</span>
+      <a className="brand" href="/" aria-label={homeLabel}>
+        {branding.hasLogo
+          ? <img className="brand-logo" src={`/api/branding/logo?v=${logoKey}`} alt="" />
+          : <span className="brand-icon" aria-hidden="true">▱</span>}
+        {branding.productName}
+      </a>
+      {branding.tagline ? <span className="edition">{branding.tagline}</span> : null}
       {(screen.kind === 'workspace' || (screen.kind === 'error' && screen.denied)) && route.kind === 'app' && <button className="quiet" onClick={() => void signOut()} disabled={signingOut || dirty} title={dirty ? 'Bitte zuerst Änderungen speichern oder sichern.' : undefined}>{signingOut ? 'Abmeldung …' : 'Abmelden'}</button>}
     </header>
     {signOutError && <p className="error banner" role="alert">{signOutError}</p>}
@@ -78,9 +101,9 @@ function App() {
     {route.kind === 'forgot' && <ForgotPassword />}
     {route.kind === 'app' && screen.kind === 'loading' && <main className="loading" role="status">Arbeitsbereich wird geladen …</main>}
     {route.kind === 'app' && screen.kind === 'login' && <Login onSuccess={load} />}
-    {route.kind === 'app' && screen.kind === 'workspace' && <Workspace me={screen.me} onDirty={setDirty} />}
+    {route.kind === 'app' && screen.kind === 'workspace' && <Workspace me={screen.me} branding={branding} onBranding={applyBranding} onDirty={setDirty} />}
     {route.kind === 'app' && screen.kind === 'error' && <main className="error-page"><p className="eyebrow">ARBEITSBEREICH</p><h1>{screen.denied ? 'Zugang erforderlich' : 'Verbindung unterbrochen'}</h1><p role="alert">{screen.message}</p><button onClick={() => void load()}>Erneut versuchen</button></main>}
-    <footer>Für die Bühne. Für die Menschen dahinter.</footer>
+    <footer>{branding.footerText}</footer>
   </div>;
 }
 
@@ -239,7 +262,9 @@ function CompleteReset({ token }: { token: string }) {
   </TokenCard>;
 }
 
-function Workspace({ me, onDirty }: { me: Me; onDirty: (value: boolean) => void }) {
+function Workspace({ me, branding, onBranding, onDirty }: {
+  me: Me; branding: Branding; onBranding: (value: Branding) => void; onDirty: (value: boolean) => void;
+}) {
   const [section, setSection] = useState<'plans' | 'venues'>('plans');
   return <main className="workspace">
     <div className="workspace-heading"><div><p className="eyebrow">EUER ARBEITSBEREICH</p><h1>{me.workspace.name}</h1><p>Angemeldet als {me.user.name}</p></div><span className="role-badge">{roleNames[me.workspace.role]}</span></div>
@@ -249,8 +274,82 @@ function Workspace({ me, onDirty }: { me: Me; onDirty: (value: boolean) => void 
     </nav>
     {section === 'plans' ? <Plans me={me} onDirty={onDirty} /> : <Venues me={me} onDirty={onDirty} />}
     <div className="workspace-management"><LinkedAccounts />
-    {can(me.workspace.role, 'members') && <><Members me={me} /><AuditLog workspaceId={me.workspace.id} /></>}</div>
+    {can(me.workspace.role, 'members') && <><SiteBranding workspaceId={me.workspace.id} branding={branding} onBranding={onBranding} /><Members me={me} /><AuditLog workspaceId={me.workspace.id} /></>}</div>
   </main>;
+}
+
+function SiteBranding({ workspaceId, branding, onBranding }: {
+  workspaceId: string; branding: Branding; onBranding: (value: Branding) => void;
+}) {
+  const [pending, setPending] = useState(false);
+  const [notice, setNotice] = useState('');
+  const [error, setError] = useState('');
+  const [logoRevision, setLogoRevision] = useState(0);
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    setPending(true); setError(''); setNotice('');
+    try {
+      const next = brandingSchema.parse(await request(`/api/workspaces/${workspaceId}/branding`, {
+        productName: data.get('productName'),
+        tagline: data.get('tagline'),
+        footerText: data.get('footerText'),
+      }, 'PUT'));
+      onBranding(next);
+      setNotice('Darstellung wurde gespeichert.');
+    } catch { setError('Die Darstellung konnte nicht gespeichert werden.'); }
+    finally { setPending(false); }
+  }
+  async function replaceLogo(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const file = new FormData(event.currentTarget).get('logo');
+    if (!(file instanceof File) || !file.size) { setError('Bitte eine PNG- oder JPEG-Datei wählen.'); return; }
+    setPending(true); setError(''); setNotice('');
+    try {
+      const next = brandingSchema.parse(await upload(`/api/workspaces/${workspaceId}/branding/logo`, file));
+      onBranding(next);
+      setLogoRevision(value => value + 1);
+      setNotice('Logo wurde übernommen.');
+      event.currentTarget.reset();
+    } catch { setError('Das Logo konnte nicht übernommen werden. Bitte PNG oder JPEG bis 2 MB verwenden.'); }
+    finally { setPending(false); }
+  }
+  async function clearLogo() {
+    setPending(true); setError(''); setNotice('');
+    try {
+      const next = brandingSchema.parse(await request(`/api/workspaces/${workspaceId}/branding/logo`, undefined, 'DELETE'));
+      onBranding(next);
+      setNotice('Logo wurde entfernt.');
+    } catch { setError('Das Logo konnte nicht entfernt werden.'); }
+    finally { setPending(false); }
+  }
+  return <section className="members site-branding" aria-labelledby="branding-title">
+    <div className="section-heading"><h2 id="branding-title">Darstellung</h2><span>Nur für die Administration sichtbar</span></div>
+    <p>Name, Unterzeile, Fußzeile und Logo erscheinen auf der Anmeldeseite und im Kopfbereich für alle Nutzer dieser Installation.</p>
+    <form className="invite-form" onSubmit={event => void save(event)}>
+      <label htmlFor="product-name">Produktname</label>
+      <input id="product-name" name="productName" required maxLength={80} defaultValue={branding.productName} key={`name-${branding.productName}`} disabled={pending} />
+      <label htmlFor="tagline">Unterzeile</label>
+      <input id="tagline" name="tagline" maxLength={120} defaultValue={branding.tagline} key={`tag-${branding.tagline}`} disabled={pending} />
+      <label htmlFor="footer-text">Fußzeile</label>
+      <input id="footer-text" name="footerText" maxLength={200} defaultValue={branding.footerText} key={`foot-${branding.footerText}`} disabled={pending} />
+      <button className="primary" type="submit" disabled={pending}>{pending ? 'Wird gespeichert …' : 'Darstellung speichern'}<span aria-hidden="true">→</span></button>
+    </form>
+    <form className="invite-form" onSubmit={event => void replaceLogo(event)}>
+      <h3>Logo</h3>
+      {branding.hasLogo
+        ? <p className="branding-preview"><img src={`/api/branding/logo?v=${logoRevision}`} alt="Aktuelles Logo" /></p>
+        : <p>Noch kein eigenes Logo · Standardzeichen ▱</p>}
+      <label htmlFor="brand-logo">PNG oder JPEG</label>
+      <input id="brand-logo" name="logo" type="file" accept="image/png,image/jpeg" disabled={pending} />
+      <div className="member-actions">
+        <button className="primary" type="submit" disabled={pending}>Logo hochladen</button>
+        {branding.hasLogo && <button className="quiet" type="button" disabled={pending} onClick={() => void clearLogo()}>Logo entfernen</button>}
+      </div>
+    </form>
+    {notice && <p className="success" role="status">{notice}</p>}
+    {error && <p className="error" role="alert">{error}</p>}
+  </section>;
 }
 
 function LinkedAccounts() {

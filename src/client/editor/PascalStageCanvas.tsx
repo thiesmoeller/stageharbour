@@ -125,7 +125,7 @@ export default function PascalStageCanvas({ model, layout, venue, audience, view
         </group>
         {mode !== 'pushPull' && <StageTransformControls {...editing} width={mirrorWidth} mode={mode === 'rotate' ? 'rotate' : 'translate'} />}
         <PushPullControls venue={editing.resizeDocument ?? venue} scope={editing.resizeScope ?? 'venue'} enabled={mode === 'pushPull'} snapEnabled={editing.snapEnabled} onPushPull={editing.onPushPull} />
-        <OrbitControls key={`${view}-${frameRevision}`} makeDefault
+        <OrbitControls makeDefault
           target={[mirroredTargetX / 1000, target.y / 1000, target.z / 1000]} maxPolarAngle={Math.PI / 2 - 0.01} minDistance={0.1} maxDistance={500} />
         <EditOrbitBinding allowOrbit={view === 'orbit'} />
       </Viewer>

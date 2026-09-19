@@ -7,6 +7,7 @@ export const capabilityRoles = {
   inventory: ['administrator', 'editor'],
   exports: ['administrator', 'editor'],
   members: ['administrator'],
+  branding: ['administrator'],
 } as const satisfies Record<string, readonly Role[]>;
 export type Capability = keyof typeof capabilityRoles;
 export function can(role: Role, capability: Capability) {

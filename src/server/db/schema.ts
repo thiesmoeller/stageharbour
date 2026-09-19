@@ -54,6 +54,11 @@ export const verification = pgTable('auth_verification', {
 export const workspace = pgTable('workspace', {
   id: uuid('id').primaryKey(),
   name: text('name').notNull(),
+  productName: text('product_name').notNull().default('Bühnenplaner'),
+  tagline: text('tagline').notNull().default('GEMEINSAM THEATER MACHEN'),
+  footerText: text('footer_text').notNull().default('Für die Bühne. Für die Menschen dahinter.'),
+  logoStorageKey: text('logo_storage_key'),
+  logoMediaType: text('logo_media_type'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 export const workspaceRole = pgEnum('workspace_role', ['administrator', 'editor', 'viewer']);

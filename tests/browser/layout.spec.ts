@@ -397,9 +397,14 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByLabel('Mittellinie X (mm)').fill('4000');
   await page.getByLabel('Mittellinie Y (mm)').fill('2500');
   await page.getByLabel('Mittellinie Drehung (°)').fill('90');
+  await expect(page.getByLabel('Mittellinie Drehung (°)')).toHaveValue('90');
+  await page.getByLabel('Mittellinie Drehung (°)').blur();
+  await expect(page.getByRole('button', { name: 'Spielstätte schließen' })).toBeDisabled();
   const savedCentreline = page.waitForResponse(response => /\/scenes\/[^/]+\/venue$/.test(new URL(response.url()).pathname) && response.request().method() === 'PUT');
   await page.getByRole('button', { name: 'Spielstätte speichern' }).click();
   expect((await savedCentreline).ok()).toBeTruthy();
+  await expect(page.getByText('Spielstättenfassung gespeichert', { exact: true })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('button', { name: 'Spielstätte schließen' })).toBeEnabled({ timeout: 15_000 });
   await page.getByRole('button', { name: 'Spielstätte schließen' }).click();
   await expect(page.getByTestId('stage-centreline')).toBeVisible();
   await expect(page.getByText('Einrasten', { exact: true })).toBeVisible();

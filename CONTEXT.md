@@ -4,6 +4,10 @@ The group plans stage arrangements made from reusable wall elements for differen
 
 ## Language
 
+**Site branding**:
+The product name, tagline, footer text and optional logo shown on the sign-in page and masthead for a self-hosted installation. Administrators set branding for the workspace; it is not per-production.
+_Avoid_: Theme, skin
+
 **Production**:
 A theatre show whose set design can include multiple scene layouts and adaptations for different venues.
 
