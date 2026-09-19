@@ -2,6 +2,7 @@ import { and, eq, gt, sql } from 'drizzle-orm';
 import { LEASE_TTL_MS, type LeaseHolder, type LeaseKind } from '../../shared/leases.js';
 import type { Database } from '../db/connection.js';
 import { editingLease, user } from '../db/schema.js';
+import { audit } from '../audit.js';
 
 export class LeaseError extends Error {
   constructor(public statusCode: 409 | 423, message: string) { super(message); }
@@ -45,6 +46,7 @@ export function createLeases(db: Database, clock: () => Date = () => new Date())
       const expiresAt = expiry(now);
       if (row) await tx.update(editingLease).set({ holderUserId: holder.id, expiresAt }).where(key(workspaceId, kind, resourceId));
       else await tx.insert(editingLease).values({ workspaceId, resourceKind: kind, resourceId, holderUserId: holder.id, expiresAt });
+      if (!row || row.expiresAt <= now) await audit(tx, workspaceId, holder.id, `lease.${row ? 'takeover' : 'acquire'}.${kind}`, resourceId);
       return { acquired: true, lease: { holderUserId: holder.id, holderName: holder.name } };
     });
   }
@@ -55,13 +57,22 @@ export function createLeases(db: Database, clock: () => Date = () => new Date())
     if (!row) throw new LeaseError(423, 'Die Bearbeitungsberechtigung ist abgelaufen.');
   }
   async function release(workspaceId: string, kind: LeaseKind, resourceId: string, userId: string) {
-    await db.delete(editingLease).where(and(key(workspaceId, kind, resourceId), eq(editingLease.holderUserId, userId)));
+    await db.transaction(async tx => {
+      await tx.execute(lock(workspaceId, kind, resourceId));
+      const removed = await tx.delete(editingLease).where(and(key(workspaceId, kind, resourceId), eq(editingLease.holderUserId, userId))).returning();
+      if (removed.length) await audit(tx, workspaceId, userId, `lease.release.${kind}`, resourceId);
+    });
   }
   async function requireHeld(store: Pick<Database, 'execute' | 'select'>, workspaceId: string, kind: LeaseKind, resourceId: string, userId: string) {
     await store.execute(lock(workspaceId, kind, resourceId));
     const [row] = await store.select().from(editingLease).where(and(key(workspaceId, kind, resourceId), eq(editingLease.holderUserId, userId), gt(editingLease.expiresAt, clock())));
     if (!row) throw new LeaseError(423, 'Die Bearbeitungsberechtigung ist abgelaufen oder gehört jemand anderem. Ihre Änderungen wurden nicht gespeichert.');
   }
-  return { acquire, heartbeat, release, requireHeld, read, holders };
+  async function requireAvailable(store: Pick<Database, 'execute' | 'select'>, workspaceId: string, kind: LeaseKind, resourceId: string, userId: string) {
+    await store.execute(lock(workspaceId, kind, resourceId));
+    const [row] = await store.select().from(editingLease).where(and(key(workspaceId, kind, resourceId), gt(editingLease.expiresAt, clock())));
+    if (row && row.holderUserId !== userId) throw new LeaseError(423, `Wird bereits von ${await holderName(row.holderUserId)} bearbeitet.`);
+  }
+  return { acquire, heartbeat, release, requireHeld, requireAvailable, read, holders };
 }
 export type Leases = ReturnType<typeof createLeases>;

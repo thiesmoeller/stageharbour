@@ -62,10 +62,15 @@ export class Autosave {
       const revision = await this.save(layout, this.state.revision);
       this.saved = JSON.stringify(layout);
       this.inFlight = false;
+      if (this.getSnapshot().status === 'conflict') {
+        this.publish('conflict', JSON.stringify(this.latest) !== this.saved, revision);
+        return;
+      }
       this.publish('saved', JSON.stringify(this.latest) !== this.saved, revision);
       this.queue(this.latest);
     } catch (error) {
       this.inFlight = false;
+      if (this.getSnapshot().status === 'conflict') return;
       this.publish(error instanceof SaveConflict ? 'conflict' : 'failed', true, this.state.revision, error instanceof SaveConflict ? error.kind : undefined);
     }
   }

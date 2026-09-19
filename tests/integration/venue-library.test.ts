@@ -33,6 +33,7 @@ test('independent venues create no scenes; productions reuse and explicitly adop
   assert.equal(scene.venueId, venue.id);
   assert.equal((await app.inject({ url: `${base}/venues`, headers })).json().length, 1);
   const geometry = { ...venue.venue, ceilingHeight: 5000, lighting: { ...defaultLighting, enabled: true } };
+  assert.equal((await app.inject({ method: 'POST', url: `${base}/venues/${venue.id}/lease`, headers })).statusCode, 200);
   const published = await app.inject({ method: 'PUT', url: `${base}/venues/${venue.id}`, headers, payload: { venueVersionId: venue.venueVersionId, venue: geometry } });
   assert.equal(published.statusCode, 200, published.body);
   const originalVersion = await app.inject({ url: `${base}/venues/${venue.id}/versions/${venue.venueVersionId}`, headers });
@@ -57,6 +58,7 @@ test('independent venues create no scenes; productions reuse and explicitly adop
 
 test('concurrent publishers cannot overwrite a newer venue version', async () => {
   const venue = (await app.inject({ method: 'POST', url: `${base}/venues`, headers, payload: { name: 'Kleine Bühne', width: 4000, depth: 3000 } })).json();
+  assert.equal((await app.inject({ method: 'POST', url: `${base}/venues/${venue.id}/lease`, headers })).statusCode, 200);
   const responses = await Promise.all([2000, 3000].map(ceilingHeight => app.inject({ method: 'PUT', url: `${base}/venues/${venue.id}`, headers,
     payload: { venueVersionId: venue.venueVersionId, venue: { ...venue.venue, ceilingHeight } } })));
   assert.deepEqual(responses.map(response => response.statusCode).sort(), [200, 409]);

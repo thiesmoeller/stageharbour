@@ -5,6 +5,8 @@ import { ApiError, request } from '../api.js';
 import { ToolIcon } from './ToolIcon.js';
 import { VenuePanel } from './VenuePanel.js';
 import { PlanPreview } from './PlanPreview.js';
+import { can } from '../../shared/permissions.js';
+import { useEditingLease } from './useEditingLease.js';
 
 export function Venues({ me, onDirty }: { me: Me; onDirty: (dirty: boolean) => void }) {
   const [venues, setVenues] = useState<ReturnType<typeof venueListSchema.parse>>([]);
@@ -14,8 +16,10 @@ export function Venues({ me, onDirty }: { me: Me; onDirty: (dirty: boolean) => v
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
-  const readOnly = me.workspace.role === 'viewer';
+  const readOnly = !can(me.workspace.role, 'venues');
   const base = `/api/workspaces/${me.workspace.id}/venues`;
+  const lease = useEditingLease(`${base}/${opened?.id ?? ''}`, !!opened && !readOnly);
+  useEffect(() => { if (opened && !readOnly) void lease.acquire(); }, [opened?.id, readOnly]);
   useEffect(() => {
     let active = true;
     setBusy(true); setError('');
@@ -51,7 +55,8 @@ export function Venues({ me, onDirty }: { me: Me; onDirty: (dirty: boolean) => v
     <div className="editor-heading"><button className="quiet back-button" disabled={dirty} onClick={() => { setOpened(undefined); setAttempt(value => value + 1); }} aria-label="Zur Spielstättenübersicht" title={dirty ? 'Entwurf zuerst speichern oder verwerfen' : 'Zur Spielstättenübersicht'}><ToolIcon name="back" /></button>
       <div><p className="eyebrow">SPIELSTÄTTEN & BÜHNEN</p><h2>{opened.name}</h2></div><span className="document-kind">{readOnly ? 'Nur Ansicht' : 'Spielstätte bearbeiten'}</span></div>
     <p className="venue-independence">Raum einmal anlegen · Produktionen übernehmen Fassungen auf Wunsch.</p>
-    <VenuePanel key={opened.id} workspaceId={me.workspace.id} venue={opened.venue} readOnly={readOnly} onDirty={setDirty}
+    {!readOnly && <p role="status">{lease.message || 'Bearbeitung wird angefordert …'} {!lease.holding && <button onClick={() => void lease.acquire()}>Bearbeitung erneut anfordern</button>}</p>}
+    <VenuePanel key={opened.id} workspaceId={me.workspace.id} venue={opened.venue} readOnly={readOnly || !lease.holding} onDirty={setDirty}
       onPublish={async geometry => {
         const result = venueRecordSchema.parse(await request(`${base}/${opened.id}`, { venueVersionId: opened.venueVersionId, venue: geometry }, 'PUT'));
         setOpened(result);

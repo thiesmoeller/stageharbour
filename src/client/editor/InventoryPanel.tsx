@@ -4,7 +4,7 @@ import {
   inventoryPanelSchema, inventorySchema, inventoryWarnings,
   placementType, typesCompatible, type GroupWallTypeKind, type InventoryPanel,
 } from '../../shared/inventory.js';
-import { LEASE_HEARTBEAT_MS } from '../../shared/leases.js';
+import { useEditingLease } from './useEditingLease.js';
 import type { Layout, Wall } from '../../shared/layout.js';
 import { typesOf } from '../../shared/wall-types.js';
 import { ApiError, request } from '../api.js';
@@ -14,10 +14,11 @@ export function InventoryPanel({ workspaceId, layout, selectedWall, readOnly, on
   onAssign: (panelId: string) => void; onUnassign: () => void; onPanels?: (panels: InventoryPanel[]) => void;
 }) {
   const [panels, setPanels] = useState<InventoryPanel[]>([]);
-  const [holding, setHolding] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const base = `/api/workspaces/${workspaceId}/inventory`;
+  const lease = useEditingLease(base, !readOnly);
+  const holding = lease.holding;
   async function load() {
     const data = inventorySchema.parse(await request(base));
     setPanels(data.panels);
@@ -29,19 +30,9 @@ export function InventoryPanel({ workspaceId, layout, selectedWall, readOnly, on
     load().catch(() => { if (!cancelled) setError('Bestand konnte nicht geladen werden.'); });
     return () => { cancelled = true; };
   }, [base]);
-  useEffect(() => {
-    if (!holding) return;
-    const tick = window.setInterval(() => {
-      request(`${base}/lease/heartbeat`, {}).catch(caught => {
-        if (caught instanceof ApiError && caught.status === 423) setHolding(false);
-      });
-    }, LEASE_HEARTBEAT_MS);
-    return () => clearInterval(tick);
-  }, [holding, base]);
-  useEffect(() => () => { if (holding) void request(`${base}/lease/release`, {}).catch(() => {}); }, [holding, base]);
   async function acquire() {
     setBusy(true); setError('');
-    try { await request(`${base}/lease`, {}); setHolding(true); await load(); }
+    try { if (await lease.acquire()) await load(); }
     catch (caught) { setError(caught instanceof ApiError && caught.status === 423 ? 'Der Bestand wird bereits bearbeitet.' : 'Bestand konnte nicht gesperrt werden.'); }
     finally { setBusy(false); }
   }
@@ -84,6 +75,7 @@ export function InventoryPanel({ workspaceId, layout, selectedWall, readOnly, on
     <p className="muted">Gemeldeter Bestand: {REPORTED_PANEL_COUNTS.plain} {GROUP_WALL_TYPE_NAMES.plain}, {REPORTED_PANEL_COUNTS.door} {GROUP_DOOR_STOCK_NAME}, {REPORTED_PANEL_COUNTS.window} {GROUP_WALL_TYPE_NAMES.window}, {REPORTED_PANEL_COUNTS.arch} {GROUP_WALL_TYPE_NAMES.arch} ({REPORTED_PANEL_COUNTS.plain + REPORTED_PANEL_COUNTS.door + REPORTED_PANEL_COUNTS.window + REPORTED_PANEL_COUNTS.arch} Platten), zuzüglich Halbe Wände 600×2400×250 mm. Etiketten hier sind Beispiele. Das Bogenprofil bleibt vorerst rechteckig.</p>
     {warnings.length > 0 && <ul data-testid="inventory-warnings" role="status">{warnings.map((warning, index) => <li key={`${warning.kind}-${warning.wallId ?? index}`} data-kind={warning.kind}>{warning.message}</li>)}</ul>}
     {error && <p role="alert" className="error">{error}</p>}
+    {lease.message && <p role="status">{lease.message}</p>}
     {!readOnly && !holding && <div className="form-actions"><button type="button" onClick={() => void acquire()} disabled={busy}>Bestand bearbeiten</button></div>}
     <p className="muted">Verfügbar: {panels.filter(panel => panel.available).length} von {panels.length} Platten.</p>
     {panels.length > 0 && <ul className="inventory-list">{panels.map(panel => <li key={panel.id}>

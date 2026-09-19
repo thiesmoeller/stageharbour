@@ -42,6 +42,7 @@ import { StageView } from './StageView.js';
 import { ExportPanel } from './ExportPanel.js';
 import { WallTypePanel } from './WallTypePanel.js';
 import { VenuePanel, InfrastructureMarks } from './VenuePanel.js';
+import { useEditingLease } from './useEditingLease.js';
 import { OverheadMarks } from './VenueOverhead.js';
 import { KeepClearMarks } from './KeepClearZones.js';
 import { objectOverlapWarnings } from '../../shared/overlap.js';
@@ -58,8 +59,8 @@ import { AlignmentGuides, CentrelineMark, SnapToggle } from './SnapGuides.js';
 
 const MaterialPicker = lazy(() => import('./MaterialPicker.js'));
 const statusText = { saved: 'Gespeichert', pending: 'Änderungen ausstehend …', saving: 'Speichert …', failed: 'Speichern fehlgeschlagen', conflict: 'Neuere Fassung vorhanden' };
-export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
-  initial: Scene; workspaceId: string; readOnly: boolean; onClose: () => void; onDirty: (value: boolean) => void;
+export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onClose, onDirty, onRequestEditing }: {
+  initial: Scene; workspaceId: string; readOnly: boolean; onClose: () => void; onDirty: (value: boolean) => void; onRequestEditing?: () => void;
 }) {
   const [state, setState] = useState<History>(() => history<Layout>({
     ...initial.layout, braces: initial.layout.braces ?? [], connections: initial.layout.connections ?? [],
@@ -130,13 +131,30 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     }
   }));
   const saveState = useSyncExternalStore(saver.subscribe, saver.getSnapshot);
+  const readOnly = permissionReadOnly || saveState.status === 'conflict';
+  const venueLease = useEditingLease(`/api/workspaces/${workspaceId}/venues/${initial.venueId}`, venueOpen && !readOnly);
+  useEffect(() => { if (venueOpen && !readOnly) void venueLease.acquire(); }, [venueOpen, readOnly]);
+  const [recoveryMessage, setRecoveryMessage] = useState('');
+  const [recovering, setRecovering] = useState(false);
+  async function recoverDraft() {
+    const name = window.prompt('Name der Szenenvorlage', `${initial.name} – gesicherter Entwurf`);
+    if (!name) return;
+    setRecovering(true);
+    try {
+      await request(`/api/workspaces/${workspaceId}/scenes/${initial.id}/recover`, {
+        name, layout: current.current.present, sourceSurfaces: (venue.platforms ?? []).map(({ id, label }) => ({ id, label })),
+      });
+      setRecoveryMessage('Entwurf als Szenenvorlage gesichert. Sie finden ihn in der Übersicht.');
+    } catch (error) { setRecoveryMessage(error instanceof ApiError ? error.message : 'Entwurf konnte nicht gesichert werden. Bitte herunterladen.'); }
+    finally { setRecovering(false); }
+  }
   const dirty = venueDirty || saveState.dirty || !!groupPreview || !!placing;
   useEffect(() => { onDirty(dirty); }, [dirty, onDirty]);
   useEffect(() => {
     if (readOnly) return;
     const tick = window.setInterval(() => {
       request(`/api/workspaces/${workspaceId}/scenes/${initial.id}/lease/heartbeat`, {}).catch(error => {
-        if (error instanceof ApiError && error.status === 423) saver.markConflict('lease');
+        saver.markConflict('lease');
       });
     }, LEASE_HEARTBEAT_MS);
     return () => clearInterval(tick);
@@ -552,7 +570,7 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
   }
   return <section ref={root} className="editor" aria-label="Bühnenbild bearbeiten">
     <div className="editor-heading"><button className="quiet back-button" disabled={dirty} onClick={onClose} title="Zur Übersicht" aria-label="Zur Übersicht"><ToolIcon name="back" /></button><div><p className="eyebrow">{initial.productionName} · {initial.venueName}</p><h2>{initial.name}</h2></div>
-      <span className={`save-status ${saveState.status}`} role="status">{readOnly
+      <span className={`save-status ${saveState.status}`} role="status">{permissionReadOnly
         ? (initial.lease ? `Nur Ansicht · Bearbeitung durch ${initial.lease.holderName}` : 'Nur Ansicht')
         : saveState.status === 'conflict' && saveState.conflictKind === 'lease' ? 'Bearbeitung abgelaufen' : statusText[saveState.status]}</span><div className="document-history">{!readOnly && <>
       <button className="quiet" disabled={!!groupPreview || !!placing || !state.past.length} onClick={() => apply(undo(current.current))} hidden={venueOpen} title="Rückgängig (Strg+Z)" aria-label="Rückgängig"><ToolIcon name="undo" /></button>
@@ -597,7 +615,8 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
     </div>
     {assetError && <p className="error" role="alert">{assetError}</p>}
     {libraryOpen && !venueOpen && <AssetLibrary workspaceId={workspaceId} assets={assets} readOnly={readOnly || busyGesture()} selected={selectedWall ?? selectedBraceItem} onCreated={asset => setAssets(items => [...items, asset])} onArchive={id => setAssets(items => items.map(asset => asset.id === id ? { ...asset, archived: true } : asset))} onPlace={placeAsset} />}
-    {venueOpen && <VenuePanel workspaceId={workspaceId} sceneId={initial.id} venue={venue} venueUpdateAvailable={updateAvailable} readOnly={readOnly} onDirty={setVenueDirty} onSaved={adoptVenue} />}
+    {venueOpen && !readOnly && <p role="status">{venueLease.message || 'Bearbeitung wird angefordert …'} {!venueLease.holding && <button onClick={() => void venueLease.acquire()}>Bearbeitung erneut anfordern</button>}</p>}
+    {venueOpen && <VenuePanel workspaceId={workspaceId} sceneId={initial.id} venue={venue} venueUpdateAvailable={updateAvailable} readOnly={readOnly || !venueLease.holding} onDirty={setVenueDirty} onSaved={adoptVenue} />}
     {exportsOpen && <div className="export-drawer"><ExportPanel workspaceId={workspaceId} sceneId={initial.id} productionId={initial.productionId}
       readOnly={readOnly} freezeDisabled={dirty || saveState.status !== 'saved'} groups={state.present.groups ?? []} walls={state.present.walls} /></div>}
     {['failed', 'conflict'].includes(saveState.status) && <div className="error" role="alert">
@@ -608,8 +627,11 @@ export function Editor({ initial, workspaceId, readOnly, onClose, onDirty }: {
         : 'Ihre Änderungen sind noch nicht gespeichert. Prüfen Sie die Verbindung; bei abgelaufener Anmeldung sichern Sie zunächst den lokalen Entwurf.'}</p>
       {saveState.status === 'failed' && <button onClick={() => saver.retry()}>Speichern erneut versuchen</button>}{' '}
       <button onClick={downloadDraft}>Lokalen Entwurf herunterladen</button>{' '}
+      <button disabled={recovering} onClick={() => void recoverDraft()}>Entwurf als Szenenvorlage sichern</button>
+      {recoveryMessage && <p role="status">{recoveryMessage}</p>}
       <button className="quiet" onClick={() => { if (window.confirm('Lokale Änderungen verwerfen und die gespeicherte Fassung laden?')) { saver.dispose(); onDirty(false); onClose(); } }}>Gespeicherte Fassung laden</button>
     </div>}
+    {permissionReadOnly && onRequestEditing && <p role="status">Eine Bearbeitung ist möglich, sobald die bisherige Freigabe endet (spätestens 45 Sekunden nach dem letzten Lebenszeichen). <button onClick={onRequestEditing}>Bearbeitung erneut anfordern</button></p>}
     {!venueOpen && <div className="editor-grid" data-inspector-open={inspectorOpen}><div className="editor-views" data-mode={viewMode} style={viewMode === 'split' ? { gridTemplateColumns: `minmax(0, ${viewShare}fr) minmax(0, ${100 - viewShare}fr)` } : { gridTemplateColumns: 'minmax(0, 1fr)' }}><div className="plan-canvas" hidden={viewMode === 'stage'}>
       <div className="plan-viewbar"><h3>Grundriss <span>2D</span></h3><div className="plan-zoom">
       <button type="button" className="quiet" onClick={() => setViewZoom(z => Math.min(8, z * 1.25))} title="Grundriss vergrößern" aria-label="Vergrößern"><ToolIcon name="plus" /></button>

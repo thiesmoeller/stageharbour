@@ -5,6 +5,8 @@ import { invitationSchema, loginOptionsSchema, meSchema, membersSchema, invitati
 import { ApiError, request } from './api.js';
 import { Venues } from './editor/Venues.js';
 import { Plans } from './editor/Plans.js';
+import { can } from '../shared/permissions.js';
+import { AuditLog } from './AuditLog.js';
 import './style.css';
 import './workspace.css';
 
@@ -247,7 +249,7 @@ function Workspace({ me, onDirty }: { me: Me; onDirty: (value: boolean) => void 
     </nav>
     {section === 'plans' ? <Plans me={me} onDirty={onDirty} /> : <Venues me={me} onDirty={onDirty} />}
     <div className="workspace-management"><LinkedAccounts />
-    {me.workspace.role === 'administrator' && <Members me={me} />}</div>
+    {can(me.workspace.role, 'members') && <><Members me={me} /><AuditLog workspaceId={me.workspace.id} /></>}</div>
   </main>;
 }
 

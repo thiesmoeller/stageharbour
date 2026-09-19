@@ -21,7 +21,7 @@ export function registerIdentityRoutes(
     schema: { params: workspaceParamsSchema, body: inviteMemberSchema, response: { 201: invitationSchema, ...errors } },
   }, async (request, reply) => {
     requireOrigin(request);
-    await access(request, request.params.workspaceId, ['administrator']);
+    await access(request, request.params.workspaceId, 'members');
     return reply.code(201).send(await membership.invite(request.params.workspaceId, request.body));
   });
   api.get('/api/invitations/:token', {
@@ -37,14 +37,14 @@ export function registerIdentityRoutes(
     schema: { params: memberParamsSchema, body: changeRoleSchema, response: { 200: memberSchema, ...errors } },
   }, async request => {
     requireOrigin(request);
-    await access(request, request.params.workspaceId, ['administrator']);
+    await access(request, request.params.workspaceId, 'members');
     return membership.changeRole(request.params.workspaceId, request.params.userId, request.body.role);
   });
   api.delete('/api/workspaces/:workspaceId/members/:userId', {
     schema: { params: memberParamsSchema, response: { 200: okSchema, ...errors } },
   }, async request => {
     requireOrigin(request);
-    await access(request, request.params.workspaceId, ['administrator']);
+    await access(request, request.params.workspaceId, 'members');
     return membership.revoke(request.params.workspaceId, request.params.userId);
   });
   api.post('/api/password-resets', {

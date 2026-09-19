@@ -6,6 +6,22 @@ import { newWall, type Layout } from '../src/shared/layout.js';
 
 const empty: Layout = { schemaVersion: 1, walls: [], braces: [] };
 const placed: Layout = { schemaVersion: 1, walls: [newWall(randomUUID(), 1000, 2000)], braces: [] };
+test('a late save response cannot clear lease loss or restart saving', async () => {
+  let finish!: (revision: number) => void;
+  let calls = 0;
+  const saver = new Autosave(empty, 0, () => { calls++; return new Promise(resolve => { finish = resolve; }); }, 0);
+  saver.queue(placed);
+  await waitFor(saver, 'saving');
+  saver.queue(empty);
+  saver.markConflict('lease');
+  finish(1);
+  await new Promise(resolve => setTimeout(resolve, 10));
+  assert.equal(saver.getSnapshot().status, 'conflict');
+  assert.equal(saver.getSnapshot().conflictKind, 'lease');
+  assert.equal(saver.getSnapshot().dirty, true);
+  assert.equal(calls, 1);
+  saver.dispose();
+});
 function waitFor(saver: Autosave, status: SaveState['status']) {
   if (saver.getSnapshot().status === status) return Promise.resolve();
   return new Promise<void>(resolve => {

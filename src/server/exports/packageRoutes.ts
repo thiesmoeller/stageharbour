@@ -84,7 +84,7 @@ export function registerPackageRoutes(
   });
   api.post(path, { schema: { params, body: freezePackageSchema, response: { 201: exportRevisionSchema, ...errors } } }, async (request, reply) => {
     if (request.headers.origin !== origin) throw new AccessError(403, 'Ungültiger Ursprung.');
-    await access(request, request.params.workspaceId, ['administrator', 'editor']);
+    await access(request, request.params.workspaceId, 'exports');
     await loadProduction(request.params.workspaceId, request.params.productionId);
     const scenes = await loadScenes(request.params.workspaceId, request.params.productionId, request.body.sceneIds);
     const id = randomUUID();
@@ -103,7 +103,7 @@ export function registerPackageRoutes(
   });
   api.post(`${path}/:packageId/retry`, { schema: { params: item, response: { 200: exportRevisionSchema, ...errors } } }, async (request, reply) => {
     if (request.headers.origin !== origin) throw new AccessError(403, 'Ungültiger Ursprung.');
-    await access(request, request.params.workspaceId, ['administrator', 'editor']);
+    await access(request, request.params.workspaceId, 'exports');
     const row = await loadRevision(request.params.workspaceId, request.params.productionId, request.params.packageId);
     if (row.status === 'ready') return reply.code(409).send({ message: 'Diese Fassung ist bereits erzeugt.' });
     await produce(row);

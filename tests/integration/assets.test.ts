@@ -19,6 +19,7 @@ before(async () => {
   const login = await app.inject({ method: 'POST', url: '/api/auth/sign-in/email', payload: testAdministrator });
   headers = { cookie: login.cookies.map(value => `${value.name}=${value.value}`).join('; '), origin: fixture.config.APP_ORIGIN };
   base = `/api/workspaces/${fixture.config.WORKSPACE_ID}/assets`;
+  assert.equal((await app.inject({ method: 'POST', url: `/api/workspaces/${fixture.config.WORKSPACE_ID}/inventory/lease`, headers })).statusCode, 200);
 });
 after(async () => { await app?.close(); await fixture?.dispose(); });
 
@@ -52,6 +53,7 @@ test('shared GLB assets survive restart and archival; layout references are work
   const member = (await fixture.db.select().from(membership))[0]!;
   await fixture.db.insert(membership).values({ workspaceId: foreign, userId: member.userId, role: 'editor' });
   const foreignBase = `/api/workspaces/${foreign}/assets`;
+  assert.equal((await app.inject({ method: 'POST', url: `/api/workspaces/${foreign}/inventory/lease`, headers })).statusCode, 200);
   assert.equal((await app.inject({ url: `${foreignBase}/files/${fileId}`, headers })).statusCode, 404);
   assert.equal((await app.inject({ method: 'POST', url: foreignBase, headers, payload: { name: 'Fremd', definition } })).statusCode, 400);
   const foreignAsset = (await app.inject({ method: 'POST', url: foreignBase, headers, payload: { name: 'Wand', definition: { kind: 'wall', template: { width: 1200, height: 2400, thickness: 28 } } } })).json();

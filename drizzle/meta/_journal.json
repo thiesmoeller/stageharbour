@@ -78,6 +78,13 @@
       "when": 1789201323494,
       "tag": "0010_true_mockingbird",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1789811932252,
+      "tag": "0011_thick_drax",
+      "breakpoints": true
     }
   ]
 }

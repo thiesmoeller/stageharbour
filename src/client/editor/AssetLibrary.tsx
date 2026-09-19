@@ -7,6 +7,7 @@ import {
 import { newBrace, newWall, type Brace, type Wall } from '../../shared/layout.js';
 import { request } from '../api.js';
 import { measureGlbFile } from './measureGlb.js';
+import { useEditingLease } from './useEditingLease.js';
 
 const PascalCatalog = lazy(() => import('./PascalCatalog.js'));
 const axisLabels: Record<ModelAxis, string> = { width: 'Breite', height: 'Höhe', depth: 'Tiefe' };
@@ -24,10 +25,15 @@ export function AssetLibrary({ workspaceId, assets, readOnly, selected, onCreate
   const [lengthMm, setLengthMm] = useState('1000');
   const [measuring, setMeasuring] = useState(false);
   const base = `/api/workspaces/${workspaceId}/assets`;
+  const lease = useEditingLease(`/api/workspaces/${workspaceId}/inventory`, !readOnly);
+  async function requireLease() {
+    if (!await lease.acquire()) throw new Error('Der Bestand wird bereits bearbeitet oder ist nicht erreichbar. Bitte erneut versuchen.');
+  }
   const reference = Number(lengthMm);
   const dimensions = bounds && Number.isFinite(reference) && reference >= 1
     ? modelDimensionsFromReference(bounds, axis, reference) : null;
   async function create(name: string, definition: AssetDefinition) {
+    await requireLease();
     const asset = assetSchema.parse(await request(base, { name, definition }));
     onCreated(asset);
     return asset;
@@ -62,6 +68,7 @@ export function AssetLibrary({ workspaceId, assets, readOnly, selected, onCreate
     setBusy(true); setError('');
     try {
       if (file.size > MAX_MODEL_BYTES) throw new Error(`Die Datei darf höchstens ${MAX_MODEL_MB} MB groß sein.`);
+      await requireLease();
       const response = await fetch(`${base}/files`, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'model/gltf-binary' }, body: file });
       if (!response.ok) {
         const payload = await response.json().catch(() => undefined) as { message?: unknown } | undefined;
@@ -87,7 +94,7 @@ export function AssetLibrary({ workspaceId, assets, readOnly, selected, onCreate
         <button type="button" disabled={readOnly || busy} onClick={() => onPlace(asset)}>Platzieren</button>
         {!readOnly && <button className="quiet" type="button" disabled={busy} onClick={async () => {
           setBusy(true); setError('');
-          try { await request(`${base}/${asset.id}`, undefined, 'DELETE'); onArchive(asset.id); }
+          try { await requireLease(); await request(`${base}/${asset.id}`, undefined, 'DELETE'); onArchive(asset.id); }
           catch { setError('Das Objekt konnte nicht archiviert werden.'); }
           finally { setBusy(false); }
         }}>Archivieren</button>}
@@ -128,5 +135,6 @@ export function AssetLibrary({ workspaceId, assets, readOnly, selected, onCreate
     }} /></Suspense>}
     {busy && <p role="status">Bibliothek wird gespeichert …</p>}
     {error && <p className="error" role="alert">{error}</p>}
+    {lease.message && <p role="status">{lease.message}</p>}
   </section>;
 }

@@ -4,7 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { errorSchema, okSchema, workspaceParamsSchema } from '../../shared/contracts.js';
-import { captureTemplateSchema, createSceneSchema, copySceneSchema, duplicateSceneSchema, instantiateTemplateSchema, saveLayoutSchema, sceneSchema, sceneListSchema, sceneTemplateListSchema, sceneTemplateSchema, venueGeometrySchema, wallCorners } from '../../shared/layout.js';
+import { layoutSchema, captureTemplateSchema, createSceneSchema, copySceneSchema, duplicateSceneSchema, instantiateTemplateSchema, saveLayoutSchema, sceneSchema, sceneListSchema, sceneTemplateListSchema, sceneTemplateSchema, venueGeometrySchema, wallCorners } from '../../shared/layout.js';
 import { captureTemplateLayout, copiedSceneName, copyLayoutIntoVenue, duplicateLayout } from '../../shared/scenes.js';
 import { overheadClearance, overheadWarningSchema } from '../../shared/overhead.js';
 import { keepClearWarningSchema, keepClearWarnings } from '../../shared/keepClear.js';
@@ -24,6 +24,24 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
   const params = workspaceParamsSchema.extend({ sceneId: z.uuid() });
   const templateParams = workspaceParamsSchema.extend({ templateId: z.uuid() });
   const errors = { 400: errorSchema, 401: errorSchema, 403: errorSchema, 404: errorSchema, 409: errorSchema, 423: errorSchema };
+  api.post(`${path}/:sceneId/recover`, { bodyLimit: 128 * 1024, schema: {
+    params, body: z.object({ name: z.string().trim().min(1).max(120), layout: layoutSchema,
+      sourceSurfaces: z.array(z.object({ id: z.string(), label: z.string().max(120) })).max(250) }).strict(),
+    response: { 201: sceneTemplateSchema, ...errors },
+  } }, async (request, reply) => {
+    const { workspaceId, sceneId } = request.params;
+    await requireEditor(request, workspaceId);
+    if (!(await loadScenes(workspaceId, sceneId)).length) throw new AccessError(404, 'Szene nicht verfügbar.');
+    const assetIds = [...new Set((request.body.layout.placeholders ?? []).flatMap(item => item.assetId ? [item.assetId] : []))];
+    if (assetIds.length) {
+      const assets = await db.select().from(inventoryAsset).where(and(eq(inventoryAsset.workspaceId, workspaceId), inArray(inventoryAsset.id, assetIds)));
+      if (assets.length !== assetIds.length || assets.some(asset => asset.definition.kind !== 'model')) throw new AccessError(400, 'Ein Modell ist in dieser Theatergruppe nicht verfügbar.');
+    }
+    const id = randomUUID();
+    const record = { id, workspaceId, ...request.body, layout: captureTemplateLayout(request.body.layout) };
+    await db.insert(sceneTemplate).values(record);
+    return reply.code(201).send(record);
+  });
   function readScenes(workspaceId: string, sceneId?: string) {
     return db.select({
       id: scene.id, name: scene.name, productionName: production.name, venueName: venue.name,
@@ -70,7 +88,7 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
   }
   async function requireEditor(request: Parameters<typeof access>[0], workspaceId: string) {
     if (request.headers.origin !== origin) throw new AccessError(403, 'Ungültiger Ursprung.');
-    return access(request, workspaceId, ['administrator', 'editor']);
+    return access(request, workspaceId, 'scenes');
   }
   api.get(path, { schema: { params: workspaceParamsSchema, response: { 200: sceneListSchema, ...errors } } }, async request => {
     await access(request, request.params.workspaceId);
@@ -298,8 +316,9 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
   });
   api.delete(`${path}/:sceneId`, { schema: { params, response: { 200: okSchema, ...errors } } }, async request => {
     const { workspaceId, sceneId } = request.params;
-    await requireEditor(request, workspaceId);
+    const { user } = await requireEditor(request, workspaceId);
     await db.transaction(async tx => {
+      await leases.requireAvailable(tx, workspaceId, 'scene', sceneId, user.id);
       const [existing] = await tx.select({
         id: scene.id, adaptationId: scene.adaptationId, productionId: production.id,
       }).from(scene).innerJoin(adaptation, eq(scene.adaptationId, adaptation.id))

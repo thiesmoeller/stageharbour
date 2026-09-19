@@ -458,6 +458,8 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
           <button type="button" className="quiet" disabled={!draft.canUndo || busy || busyGesture()} onClick={draft.undo} title="Spielstätte rückgängig" aria-label="Spielstätte rückgängig"><ToolIcon name="undo" /></button>
           <button type="button" className="quiet" disabled={!draft.canRedo || busy || busyGesture()} onClick={draft.redo} title="Spielstätte wiederholen" aria-label="Spielstätte wiederholen"><ToolIcon name="redo" /></button>
           <button type="button" disabled={!draft.dirty || busy} onClick={() => void save()}>Spielstätte speichern</button>
+        </>}
+        {(!readOnly || draft.dirty) && <>
           <button type="button" className="quiet" disabled={!draft.dirty || busy} onClick={() => { draft.discard(); setError(''); }}>Spielstättenentwurf verwerfen</button>
           <button type="button" className="quiet" onClick={() => {
             const url = URL.createObjectURL(new Blob([JSON.stringify({ venue, draft: draft.value }, null, 2)], { type: 'application/json' }));

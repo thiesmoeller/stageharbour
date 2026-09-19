@@ -2,14 +2,15 @@ import Fastify, { type FastifyError } from 'fastify';
 import swagger from '@fastify/swagger';
 import fastifyStatic from '@fastify/static';
 import { fromNodeHeaders } from 'better-auth/node';
-import { eq } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 import { z } from 'zod';
 import { validatorCompiler, serializerCompiler, jsonSchemaTransform, type ZodTypeProvider } from 'fastify-type-provider-zod';
 import { errorSchema, loginOptionsSchema, meSchema, membersSchema, workspaceParamsSchema, workspaceSchema } from '../shared/contracts.js';
 import type { Config } from './config.js';
 import { oidcEnabled } from './config.js';
 import type { Database } from './db/connection.js';
-import { membership, user } from './db/schema.js';
+import { membership, user, auditEvent } from './db/schema.js';
+import { audit } from './audit.js';
 import { createAuth, pocketIdProvider } from './identity/auth.js';
 import { AccessError, createAccess } from './identity/access.js';
 import { createMembership } from './identity/membership.js';
@@ -53,7 +54,21 @@ export async function createApp(db: Database, config: Config, options: {
   registerExportRoutes(app, db, access, config.APP_ORIGIN, storage, options.renderPdf ?? renderOffThread);
   // Packages render in-process: the worker path was marking revisions failed without a useful client error.
   registerPackageRoutes(app, db, access, config.APP_ORIGIN, storage, snapshot => renderPackage(snapshot));
-  registerAssetRoutes(app, db, access, config.APP_ORIGIN, storage);
+  registerAssetRoutes(app, db, access, config.APP_ORIGIN, storage, leases);
+  app.addHook('onResponse', async (request, reply) => {
+    if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method) || reply.statusCode >= 400) return;
+    const route = request.routeOptions.url ?? '';
+    if (!route.startsWith('/api/workspaces/') || route.includes('/lease')) return;
+    const params = request.params as { workspaceId: string };
+    const session = await auth.api.getSession({ headers: fromNodeHeaders(request.headers) });
+    if (session) await audit(db, params.workspaceId, session.user.id, `${request.method} ${route}`, request.url.split('?')[0]!);
+  });
+  api.get('/api/workspaces/:workspaceId/audit', { schema: { params: workspaceParamsSchema } }, async request => {
+    await access(request, request.params.workspaceId, 'members');
+    return db.select({ id: auditEvent.id, actorId: auditEvent.actorId, actorName: user.name, action: auditEvent.action, resourceId: auditEvent.resourceId, createdAt: auditEvent.createdAt })
+      .from(auditEvent).leftJoin(user, eq(user.id, auditEvent.actorId)).where(eq(auditEvent.workspaceId, request.params.workspaceId))
+      .orderBy(desc(auditEvent.createdAt), desc(auditEvent.id)).limit(100);
+  });
   app.addHook('onSend', async (request, reply) => {
     reply.header('X-Content-Type-Options', 'nosniff');
     reply.header('Referrer-Policy', 'same-origin');
@@ -112,7 +127,7 @@ export async function createApp(db: Database, config: Config, options: {
   api.get('/api/workspaces/:workspaceId/members', {
     schema: { params: workspaceParamsSchema, response: { 200: membersSchema, ...errors } },
   }, async request => {
-    await access(request, request.params.workspaceId, ['administrator']);
+    await access(request, request.params.workspaceId, 'members');
     return db.select({ userId: user.id, name: user.name, email: user.email, role: membership.role })
       .from(membership).innerJoin(user, eq(membership.userId, user.id))
       .where(eq(membership.workspaceId, request.params.workspaceId)).orderBy(user.name);

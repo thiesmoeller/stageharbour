@@ -44,7 +44,7 @@ export function registerVenueRoutes(
   }
   async function requireEditor(request: Parameters<typeof access>[0], workspaceId: string) {
     if (request.headers.origin !== origin) throw new AccessError(403, 'Ungültiger Ursprung.');
-    return access(request, workspaceId, ['administrator', 'editor']);
+    return access(request, workspaceId, 'venues');
   }
   async function loadPinned(store: Pick<Database, 'select'>, workspaceId: string, sceneId: string) {
     const [record] = await store.select({
@@ -58,14 +58,18 @@ export function registerVenueRoutes(
     return record;
   }
   async function retargetAdaptation(
-    tx: Store, workspaceId: string, adaptationId: string, nextVersionId: string, geometry: VenueGeometry,
+    tx: Store, workspaceId: string, adaptationId: string, nextVersionId: string, geometry: VenueGeometry, userId: string,
   ) {
     await tx.update(adaptation).set({ venueVersionId: nextVersionId })
       .where(and(eq(adaptation.workspaceId, workspaceId), eq(adaptation.id, adaptationId)));
     const rows = await tx.select({ id: scene.id, layout: scene.layout, revision: scene.revision })
-      .from(scene).where(and(eq(scene.workspaceId, workspaceId), eq(scene.adaptationId, adaptationId)));
+      .from(scene).where(and(eq(scene.workspaceId, workspaceId), eq(scene.adaptationId, adaptationId))).orderBy(scene.id);
     const applied = new Map<string, { layout: Layout; revision: number }>();
-    for (const row of rows) {
+    for (const candidate of rows) {
+      await leases.requireAvailable(tx, workspaceId, 'scene', candidate.id, userId);
+      const [row] = await tx.select({ id: scene.id, layout: scene.layout, revision: scene.revision })
+        .from(scene).where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, candidate.id)));
+      if (!row) continue;
       const next = applyVenueVersion(row.layout, geometry);
       if (JSON.stringify(next.layout) === JSON.stringify(row.layout)) {
         applied.set(row.id, { layout: row.layout, revision: row.revision });
@@ -147,6 +151,21 @@ export function registerVenueRoutes(
   }
   const venuesPath = '/api/workspaces/:workspaceId/venues';
   const venueParams = workspaceParamsSchema.extend({ venueId: z.uuid() });
+  for (const operation of ['acquire', 'heartbeat', 'release'] as const) {
+    const suffix = operation === 'acquire' ? '' : `/${operation}`;
+    api.post(`${venuesPath}/:venueId/lease${suffix}`, { schema: { params: venueParams } }, async (request, reply) => {
+      const { workspaceId, venueId } = request.params;
+      const { user } = await requireEditor(request, workspaceId);
+      await loadVenue(db, workspaceId, venueId);
+      if (operation === 'acquire') {
+        const result = await leases.acquire(workspaceId, 'venue', venueId, user);
+        if (!result.acquired) return reply.code(423).send({ message: `Wird bereits von ${result.lease.holderName} bearbeitet.` });
+        return result.lease;
+      }
+      await leases[operation](workspaceId, 'venue', venueId, user.id);
+      return { ok: true };
+    });
+  }
   async function loadVenue(store: Pick<Database, 'select'>, workspaceId: string, venueId: string, versionId?: string) {
     const [row] = await store.select({ id: venue.id, name: venue.name, venueVersionId: venueVersion.id, venue: venueVersion.geometry })
       .from(venue).innerJoin(venueVersion, eq(venueVersion.venueId, venue.id))
@@ -189,9 +208,10 @@ export function registerVenueRoutes(
   });
   api.put(`${venuesPath}/:venueId`, { schema: { params: venueParams, body: publishVenueSchema, response: { 200: venueRecordSchema, ...errors } } }, async request => {
     const { workspaceId, venueId } = request.params;
-    await requireEditor(request, workspaceId);
+    const { user } = await requireEditor(request, workspaceId);
     await validateReference(workspaceId, request.body.venue);
     return db.transaction(async tx => {
+      await leases.requireHeld(tx, workspaceId, 'venue', venueId, user.id);
       await tx.select({ id: venue.id }).from(venue).where(and(eq(venue.workspaceId, workspaceId), eq(venue.id, venueId))).for('update');
       const current = await loadVenue(tx, workspaceId, venueId);
       if (current.venueVersionId !== request.body.venueVersionId) throw new AccessError(409, 'Eine neuere Spielstättenfassung ist vorhanden. Bitte sichern Sie Ihren Entwurf und laden Sie die Spielstätte neu.');
@@ -212,13 +232,14 @@ export function registerVenueRoutes(
     const geometry = input.outline ? { ...input, ...boundsFromOutline(input.outline) } : input;
     return db.transaction(async tx => {
       const pinned = await loadPinned(tx, workspaceId, sceneId);
+      await leases.requireAvailable(tx, workspaceId, 'venue', pinned.venueId, user.id);
       await leases.requireHeld(tx, workspaceId, 'scene', sceneId, user.id);
       await tx.select({ id: venue.id }).from(venue).where(eq(venue.id, pinned.venueId)).for('update');
       const nextId = randomUUID();
       // Auto-apply the issuing adaptation so VenuePanel reload after save shows
       // the new version. Sibling adaptations remain on the previous pin.
       await tx.insert(venueVersion).values({ id: nextId, workspaceId, venueId: pinned.venueId, geometry, createdAt: sql`clock_timestamp()` });
-      const applied = await retargetAdaptation(tx, workspaceId, pinned.adaptationId, nextId, geometry);
+      const applied = await retargetAdaptation(tx, workspaceId, pinned.adaptationId, nextId, geometry, user.id);
       const state = applied.get(sceneId)!;
       return { venue: geometry, venueVersionId: nextId, layout: state.layout, revision: state.revision };
     });
@@ -230,13 +251,14 @@ export function registerVenueRoutes(
     const { user } = await requireEditor(request, workspaceId);
     await db.transaction(async tx => {
       const pinned = await loadPinned(tx, workspaceId, sceneId);
+      await leases.requireAvailable(tx, workspaceId, 'venue', pinned.venueId, user.id);
       await leases.requireHeld(tx, workspaceId, 'scene', sceneId, user.id);
       const [latest] = await tx.select().from(venueVersion)
         .where(and(eq(venueVersion.workspaceId, workspaceId), eq(venueVersion.venueId, pinned.venueId)))
         .orderBy(desc(venueVersion.createdAt), desc(venueVersion.id)).limit(1);
       if (!latest) throw new AccessError(404, 'Spielstätte nicht verfügbar.');
       if (latest.id === pinned.venueVersionId) return;
-      await retargetAdaptation(tx, workspaceId, pinned.adaptationId, latest.id, venueGeometrySchema.parse(latest.geometry));
+      await retargetAdaptation(tx, workspaceId, pinned.adaptationId, latest.id, venueGeometrySchema.parse(latest.geometry), user.id);
     });
     const record = await loadSceneRecord(workspaceId, sceneId);
     const diagnostics = applyVenueVersion(record.layout, record.venue);
@@ -249,8 +271,9 @@ export function registerVenueRoutes(
   });
   api.delete(`${venuesPath}/:venueId`, { schema: { params: venueParams, response: { 200: okSchema, ...errors } } }, async request => {
     const { workspaceId, venueId } = request.params;
-    await requireEditor(request, workspaceId);
+    const { user } = await requireEditor(request, workspaceId);
     await db.transaction(async tx => {
+      await leases.requireAvailable(tx, workspaceId, 'venue', venueId, user.id);
       const [existing] = await tx.select({ id: venue.id }).from(venue)
         .where(and(eq(venue.workspaceId, workspaceId), eq(venue.id, venueId)));
       if (!existing) throw new AccessError(404, 'Spielstätte nicht verfügbar.');

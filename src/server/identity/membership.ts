@@ -1,9 +1,9 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { hashPassword } from 'better-auth/crypto';
 import type { Role } from '../../shared/contracts.js';
 import type { Database } from '../db/connection.js';
-import { account, invitation, membership, passwordReset, session, user, workspace } from '../db/schema.js';
+import { account, invitation, membership, passwordReset, session, user, workspace, editingLease } from '../db/schema.js';
 import type { MailTransport } from '../mail/transport.js';
 import { AccessError } from './access.js';
 
@@ -25,16 +25,16 @@ export function createMembership(db: Database, mail: MailTransport, origin: stri
     if (!record) throw new AccessError(404, 'Arbeitsbereich nicht verfügbar.');
     return record;
   }
-  async function administratorCount(workspaceId: string) {
-    const rows = await db.select({ userId: membership.userId }).from(membership)
+  async function administratorCount(store: Pick<Database, 'select'>, workspaceId: string) {
+    const rows = await store.select({ userId: membership.userId }).from(membership)
       .where(and(eq(membership.workspaceId, workspaceId), eq(membership.role, 'administrator')));
     return rows.length;
   }
-  async function protectLastAdministrator(workspaceId: string, userId: string, next: Role | null) {
-    const [current] = await db.select().from(membership)
+  async function protectLastAdministrator(store: Pick<Database, 'select'>, workspaceId: string, userId: string, next: Role | null) {
+    const [current] = await store.select().from(membership)
       .where(and(eq(membership.workspaceId, workspaceId), eq(membership.userId, userId)));
     if (!current) throw new AccessError(404, 'Arbeitsbereich nicht verfügbar.');
-    if (current.role === 'administrator' && next !== 'administrator' && await administratorCount(workspaceId) < 2) {
+    if (current.role === 'administrator' && next !== 'administrator' && await administratorCount(store, workspaceId) < 2) {
       throw new AccessError(409, 'Die letzte Administration kann nicht entfernt oder herabgestuft werden.');
     }
     return current;
@@ -111,10 +111,14 @@ export function createMembership(db: Database, mail: MailTransport, origin: stri
     },
 
     async changeRole(workspaceId: string, userId: string, role: Role) {
-      await protectLastAdministrator(workspaceId, userId, role);
-      const [updated] = await db.update(membership).set({ role })
-        .where(and(eq(membership.workspaceId, workspaceId), eq(membership.userId, userId))).returning();
-      if (!updated) throw new AccessError(404, 'Arbeitsbereich nicht verfügbar.');
+      await db.transaction(async tx => {
+        await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${workspaceId}), 19471)`);
+        await protectLastAdministrator(tx, workspaceId, userId, role);
+        const [updated] = await tx.update(membership).set({ role })
+          .where(and(eq(membership.workspaceId, workspaceId), eq(membership.userId, userId))).returning();
+        if (!updated) throw new AccessError(404, 'Arbeitsbereich nicht verfügbar.');
+        if (role === 'viewer') await tx.delete(editingLease).where(and(eq(editingLease.workspaceId, workspaceId), eq(editingLease.holderUserId, userId)));
+      });
       const [member] = await db.select({ userId: user.id, name: user.name, email: user.email, role: membership.role })
         .from(membership).innerJoin(user, eq(membership.userId, user.id))
         .where(and(eq(membership.workspaceId, workspaceId), eq(membership.userId, userId)));
@@ -122,10 +126,14 @@ export function createMembership(db: Database, mail: MailTransport, origin: stri
     },
 
     async revoke(workspaceId: string, userId: string) {
-      await protectLastAdministrator(workspaceId, userId, null);
-      const deleted = await db.delete(membership)
-        .where(and(eq(membership.workspaceId, workspaceId), eq(membership.userId, userId))).returning();
-      if (!deleted.length) throw new AccessError(404, 'Arbeitsbereich nicht verfügbar.');
+      await db.transaction(async tx => {
+        await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${workspaceId}), 19471)`);
+        await protectLastAdministrator(tx, workspaceId, userId, null);
+        const deleted = await tx.delete(membership)
+          .where(and(eq(membership.workspaceId, workspaceId), eq(membership.userId, userId))).returning();
+        if (!deleted.length) throw new AccessError(404, 'Arbeitsbereich nicht verfügbar.');
+        await tx.delete(editingLease).where(and(eq(editingLease.workspaceId, workspaceId), eq(editingLease.holderUserId, userId)));
+      });
       return { ok: true as const };
     },
 

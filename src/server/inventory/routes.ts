@@ -24,17 +24,12 @@ export function registerInventoryRoutes(app: FastifyInstance, db: Database, acce
   const errors = { 400: errorSchema, 401: errorSchema, 403: errorSchema, 404: errorSchema, 409: errorSchema, 423: errorSchema };
   async function requireEditor(request: FastifyRequest, workspaceId: string) {
     if (request.headers.origin !== origin) throw new AccessError(403, 'Ungültiger Ursprung.');
-    return access(request, workspaceId, ['administrator', 'editor']);
+    return access(request, workspaceId, 'inventory');
   }
-  async function requireInventoryLease(request: FastifyRequest, workspaceId: string) {
-    const { user } = await requireEditor(request, workspaceId);
-    await leases.requireHeld(db, workspaceId, 'inventory', workspaceId, user.id);
-    return user;
-  }
-  async function readInventory(workspaceId: string) {
-    const types = await db.select().from(inventoryWallType).where(eq(inventoryWallType.workspaceId, workspaceId));
+  async function readInventory(workspaceId: string, store: Pick<Database, 'select'> = db) {
+    const types = await store.select().from(inventoryWallType).where(eq(inventoryWallType.workspaceId, workspaceId));
     const typeMap = new Map(types.map(row => [row.id, row.definition]));
-    const rows = await db.select().from(inventoryPanel).where(eq(inventoryPanel.workspaceId, workspaceId)).orderBy(inventoryPanel.label);
+    const rows = await store.select().from(inventoryPanel).where(eq(inventoryPanel.workspaceId, workspaceId)).orderBy(inventoryPanel.label);
     return {
       types: types.map(row => row.definition),
       panels: rows.map(row => {
@@ -44,10 +39,10 @@ export function registerInventoryRoutes(app: FastifyInstance, db: Database, acce
       }),
     };
   }
-  async function ensureType(workspaceId: string, definition: WallElementType) {
-    const [existing] = await db.select().from(inventoryWallType).where(and(eq(inventoryWallType.workspaceId, workspaceId), eq(inventoryWallType.id, definition.id)));
+  async function ensureType(workspaceId: string, definition: WallElementType, store: Pick<Database, 'select' | 'insert'>) {
+    const [existing] = await store.select().from(inventoryWallType).where(and(eq(inventoryWallType.workspaceId, workspaceId), eq(inventoryWallType.id, definition.id)));
     if (!existing) {
-      await db.insert(inventoryWallType).values({ id: definition.id, workspaceId, definition });
+      await store.insert(inventoryWallType).values({ id: definition.id, workspaceId, definition });
       return definition;
     }
     if (!sameGeometry(existing.definition, definition)) {
@@ -78,30 +73,38 @@ export function registerInventoryRoutes(app: FastifyInstance, db: Database, acce
   });
   api.post(`${path}/panels`, { schema: { params: workspaceParamsSchema, body: createPanelSchema, response: { 201: inventoryPanelSchema, ...errors } } }, async (request, reply) => {
     const { workspaceId } = request.params;
-    await requireInventoryLease(request, workspaceId);
-    const [duplicate] = await db.select({ id: inventoryPanel.id }).from(inventoryPanel)
-      .where(and(eq(inventoryPanel.workspaceId, workspaceId), eq(inventoryPanel.label, request.body.label)));
-    if (duplicate) throw new AccessError(409, 'Dieses Plattenetikett ist bereits vergeben.');
-    const type = await ensureType(workspaceId, request.body.type);
-    const id = randomUUID();
-    const available = request.body.available ?? true;
-    const note = request.body.note ?? null;
-    await db.insert(inventoryPanel).values({ id, workspaceId, typeId: type.id, label: request.body.label, available, note });
-    return reply.code(201).send({ id, label: request.body.label, typeId: type.id, available, note, type });
+    const { user } = await requireEditor(request, workspaceId);
+    const result = await db.transaction(async tx => {
+      await leases.requireHeld(tx, workspaceId, 'inventory', workspaceId, user.id);
+      const [duplicate] = await tx.select({ id: inventoryPanel.id }).from(inventoryPanel)
+        .where(and(eq(inventoryPanel.workspaceId, workspaceId), eq(inventoryPanel.label, request.body.label)));
+      if (duplicate) throw new AccessError(409, 'Dieses Plattenetikett ist bereits vergeben.');
+      const type = await ensureType(workspaceId, request.body.type, tx);
+      const id = randomUUID();
+      const available = request.body.available ?? true;
+      const note = request.body.note ?? null;
+      await tx.insert(inventoryPanel).values({ id, workspaceId, typeId: type.id, label: request.body.label, available, note });
+      return { id, label: request.body.label, typeId: type.id, available, note, type };
+    });
+    return reply.code(201).send(result);
   });
   api.patch(`${path}/panels/:panelId`, { schema: { params: panelParams, body: updatePanelSchema, response: { 200: inventoryPanelSchema, ...errors } } }, async request => {
     const { workspaceId, panelId } = request.params;
-    await requireInventoryLease(request, workspaceId);
-    const [existing] = await db.select().from(inventoryPanel).where(and(eq(inventoryPanel.workspaceId, workspaceId), eq(inventoryPanel.id, panelId)));
-    if (!existing) throw new AccessError(404, 'Platte nicht verfügbar.');
-    const [updated] = await db.update(inventoryPanel).set({
-      available: request.body.available ?? existing.available,
-      note: request.body.note === undefined ? existing.note : request.body.note,
-    }).where(and(eq(inventoryPanel.workspaceId, workspaceId), eq(inventoryPanel.id, panelId))).returning();
-    const inventory = await readInventory(workspaceId);
-    const panel = inventory.panels.find(item => item.id === updated!.id);
-    if (!panel) throw new AccessError(404, 'Platte nicht verfügbar.');
-    return panel;
+    const { user } = await requireEditor(request, workspaceId);
+    const result = await db.transaction(async tx => {
+      await leases.requireHeld(tx, workspaceId, 'inventory', workspaceId, user.id);
+      const [existing] = await tx.select().from(inventoryPanel).where(and(eq(inventoryPanel.workspaceId, workspaceId), eq(inventoryPanel.id, panelId)));
+      if (!existing) throw new AccessError(404, 'Platte nicht verfügbar.');
+      const [updated] = await tx.update(inventoryPanel).set({
+        available: request.body.available ?? existing.available,
+        note: request.body.note === undefined ? existing.note : request.body.note,
+      }).where(and(eq(inventoryPanel.workspaceId, workspaceId), eq(inventoryPanel.id, panelId))).returning();
+      const inventory = await readInventory(workspaceId, tx);
+      const panel = inventory.panels.find(item => item.id === updated!.id);
+      if (!panel) throw new AccessError(404, 'Platte nicht verfügbar.');
+      return panel;
+    });
+    return result;
   });
   api.post('/api/workspaces/:workspaceId/scenes/:sceneId/walls/:wallId/assignment', {
     schema: { params: assignmentParams, body: assignPanelSchema, response: { 200: z.object({ panelId: z.uuid() }), ...errors } },

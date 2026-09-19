@@ -123,6 +123,14 @@ export const assetFile = pgTable('asset_file', {
   id: uuid('id').primaryKey(), workspaceId: uuid('workspace_id').notNull().references(() => workspace.id),
   storageKey: text('storage_key').notNull(),
 }, t => [index('asset_file_workspace_idx').on(t.workspaceId)]);
+export const auditEvent = pgTable('audit_event', {
+  id: uuid('id').primaryKey(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspace.id),
+  actorId: text('actor_id').notNull(),
+  action: text('action').notNull(),
+  resourceId: text('resource_id').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [index('audit_workspace_created_idx').on(t.workspaceId, t.createdAt)]);
 export const editingLease = pgTable('editing_lease', {
   workspaceId: uuid('workspace_id').notNull().references(() => workspace.id),
   resourceKind: text('resource_kind').notNull().$type<LeaseKind>(),

@@ -5,6 +5,7 @@ import { leaseHolderSchema } from '../../shared/leases.js';
 import { AUDIENCE_FLOOR_ID } from '../../shared/levels.js';
 import { copiedSceneName } from '../../shared/scenes.js';
 import type { Me } from '../../shared/contracts.js';
+import { can } from '../../shared/permissions.js';
 import { ApiError, request } from '../api.js';
 import { Editor } from './Editor.js';
 import { PackageExport } from './ExportPanel.js';
@@ -28,7 +29,7 @@ export function Plans({ me, onDirty }: { me: Me; onDirty: (value: boolean) => vo
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
-  const readOnly = me.workspace.role === 'viewer';
+  const readOnly = !can(me.workspace.role, 'scenes');
   const base = `/api/workspaces/${me.workspace.id}/scenes`;
   const templatesBase = `/api/workspaces/${me.workspace.id}/scene-templates`;
   const editingForm = creating || copying || capturing || instantiating;
@@ -48,7 +49,8 @@ export function Plans({ me, onDirty }: { me: Me; onDirty: (value: boolean) => vo
     if (readOnly) { setOpened({ scene, holdsLease: false }); return; }
     try {
       const lease = leaseHolderSchema.parse(await request(`${base}/${scene.id}/lease`, {}));
-      setOpened({ scene: { ...scene, lease }, holdsLease: true });
+      const latest = sceneSchema.parse(await request(`${base}/${scene.id}`));
+      setOpened({ scene: { ...latest, lease }, holdsLease: true });
     } catch (error) {
       if (error instanceof ApiError && error.status === 423) setOpened({ scene, holdsLease: false });
       else throw error;
@@ -199,7 +201,8 @@ export function Plans({ me, onDirty }: { me: Me; onDirty: (value: boolean) => vo
     { id: AUDIENCE_FLOOR_ID, label: 'Zuschauerboden' },
     ...(destVenue?.platforms ?? []).map(platform => ({ id: platform.id, label: platform.label })),
   ];
-  if (opened) return <Editor key={opened.scene.id} initial={opened.scene} workspaceId={me.workspace.id} readOnly={readOnly || !opened.holdsLease} onDirty={onDirty} onClose={leave} />;
+  if (opened) return <><Editor key={`${opened.scene.id}:${opened.holdsLease}`} initial={opened.scene} workspaceId={me.workspace.id} readOnly={readOnly || !opened.holdsLease} onDirty={onDirty} onClose={leave}
+    onRequestEditing={readOnly ? undefined : () => void open(opened.scene.id)} />{error && <p role="alert">{error}</p>}</>;
   return <section className="plans"><div className="section-heading"><h2>Produktionen & Szenen</h2>{!readOnly && !editingForm && <button onClick={() => { setSelectedVenueVersion(''); setCreating(true); }} disabled={busy}>Neues Bühnenbild</button>}</div>
     <p className="muted">Zuerst die Produktion, dann die Szenen je Spielstätte. Vorschaubilder zeigen den aktuellen Grundriss.</p>
     {error && <div className="error" role="alert">{error} <button className="quiet" onClick={() => setAttempt(value => value + 1)} disabled={busy}>Übersicht neu laden</button></div>}

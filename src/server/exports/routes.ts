@@ -71,7 +71,7 @@ export function registerExportRoutes(
   });
   api.post(path, { schema: { params, body: freezeExportSchema, response: { 201: exportRevisionSchema, ...errors } } }, async (request, reply) => {
     if (request.headers.origin !== origin) throw new AccessError(403, 'Ungültiger Ursprung.');
-    await access(request, request.params.workspaceId, ['administrator', 'editor']);
+    await access(request, request.params.workspaceId, 'exports');
     const loaded = await loadScene(request.params.workspaceId, request.params.sceneId);
     const id = randomUUID();
     const issuedAt = new Date();
@@ -91,7 +91,7 @@ export function registerExportRoutes(
   });
   api.post(`${path}/:exportId/retry`, { schema: { params: item, response: { 200: exportRevisionSchema, ...errors } } }, async (request, reply) => {
     if (request.headers.origin !== origin) throw new AccessError(403, 'Ungültiger Ursprung.');
-    await access(request, request.params.workspaceId, ['administrator', 'editor']);
+    await access(request, request.params.workspaceId, 'exports');
     const row = await loadRevision(request.params.workspaceId, request.params.sceneId, request.params.exportId);
     if (row.status === 'ready') return reply.code(409).send({ message: 'Diese Fassung ist bereits erzeugt.' });
     await produce(row);
