@@ -13,5 +13,6 @@ export function editorCommand(event: KeyboardEvent) {
     case 'c': return 'copy';
     case 'x': return 'cut';
     case 'v': return 'paste';
+    case 's': return 'save';
   }
 }

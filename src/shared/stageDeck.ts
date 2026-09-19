@@ -13,7 +13,15 @@ export const STAGE_DECK_LEG_HEIGHTS_MM = [200, 400, 600, 800, 1000, 1200] as con
 
 export const STAGE_DECK_STEP_MM = 500;
 export const STAGE_DECK_TOP_THICKNESS_MM = 80;
+/** Square Steckfuß tube section (GUIL PTA-440: 5 × 5 cm). */
 export const STAGE_DECK_LEG_SECTION_MM = 50;
+/** Clearance from panel edge to outer face of each Steckfuß (mm). */
+export const STAGE_DECK_LEG_EDGE_INSET_MM = 8;
+/** Soft rubber cap under each Steckfuß (mm). */
+export const STAGE_DECK_RUBBER_HEIGHT_MM = 12;
+export const STAGE_DECK_RUBBER_SECTION_MM = 50;
+/** Visible aluminum rim width on the walking surface (mm). */
+export const STAGE_DECK_FRAME_PROFILE_MM = 4;
 
 export type StageDeckModule = { x: number; y: number; width: number; depth: number };
 
@@ -83,19 +91,18 @@ export function layoutStageDeckModules(width: number, depth: number): StageDeckM
   return modules;
 }
 
-/** Leg positions in local plan millimetres (origin at podium centre), one per unique module corner. */
+/**
+ * Four feet per catalog module, inset under the panel (outer face 8 mm inside the edge).
+ * Neighbouring modules keep their own feet — abutting decks show eight legs, not six.
+ */
 export function stageDeckLegPositions(width: number, depth: number) {
-  const modules = layoutStageDeckModules(width, depth);
-  const keys = new Set<string>();
+  const inset = STAGE_DECK_LEG_EDGE_INSET_MM + STAGE_DECK_LEG_SECTION_MM / 2;
   const legs: { x: number; y: number }[] = [];
-  for (const module of modules) {
+  for (const module of layoutStageDeckModules(width, depth)) {
+    const hx = Math.max(0, module.width / 2 - inset);
+    const hy = Math.max(0, module.depth / 2 - inset);
     for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]] as const) {
-      const x = Math.round(module.x + sx * module.width / 2);
-      const y = Math.round(module.y + sy * module.depth / 2);
-      const key = `${x}:${y}`;
-      if (keys.has(key)) continue;
-      keys.add(key);
-      legs.push({ x, y });
+      legs.push({ x: Math.round(module.x + sx * hx), y: Math.round(module.y + sy * hy) });
     }
   }
   return legs;

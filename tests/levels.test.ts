@@ -151,3 +151,52 @@ test('venue chairs jump onto a podium the same way layout placeholders do', () =
   assert.equal(venue.placeholders?.[0]?.supportingSurfaceId, platform.id);
   assert.equal(surfaceElevation(supportingSurfaces(venue), venue.placeholders?.[0]?.supportingSurfaceId), 400);
 });
+
+test('a podium fully on another jumps on top and keeps its rise', () => {
+  const lower = {
+    ...newPlatform(randomUUID(), 4000, 3000),
+    elevation: 400,
+    outline: [
+      { x: 1000, y: 1000 }, { x: 7000, y: 1000 }, { x: 7000, y: 5000 }, { x: 1000, y: 5000 },
+    ],
+  };
+  const upper = {
+    ...newPlatform(randomUUID(), 4000, 3000),
+    elevation: 400,
+    outline: [
+      { x: 2500, y: 2000 }, { x: 5500, y: 2000 }, { x: 5500, y: 4000 }, { x: 2500, y: 4000 },
+    ],
+  };
+  const venue = reassignVenueSupports({
+    schemaVersion: 1 as const, width: 10000, depth: 8000, platforms: [lower, upper],
+  });
+  const stacked = venue.platforms!.find(item => item.id === upper.id)!;
+  assert.equal(stacked.supportingSurfaceId, lower.id);
+  assert.equal(stacked.elevation, 800);
+  const base = venue.platforms!.find(item => item.id === lower.id)!;
+  assert.equal(base.supportingSurfaceId, undefined);
+  assert.equal(base.elevation, 400);
+});
+
+test('a podium that only partially overlaps stays on the floor', () => {
+  const lower = {
+    ...newPlatform(randomUUID(), 3000, 3000),
+    elevation: 400,
+    outline: [
+      { x: 0, y: 0 }, { x: 4000, y: 0 }, { x: 4000, y: 4000 }, { x: 0, y: 4000 },
+    ],
+  };
+  const overhang = {
+    ...newPlatform(randomUUID(), 5000, 2000),
+    elevation: 400,
+    outline: [
+      { x: 3000, y: 1000 }, { x: 7000, y: 1000 }, { x: 7000, y: 3000 }, { x: 3000, y: 3000 },
+    ],
+  };
+  const venue = reassignVenueSupports({
+    schemaVersion: 1 as const, width: 10000, depth: 8000, platforms: [lower, overhang],
+  });
+  const item = venue.platforms!.find(entry => entry.id === overhang.id)!;
+  assert.equal(item.supportingSurfaceId, undefined);
+  assert.equal(item.elevation, 400);
+});

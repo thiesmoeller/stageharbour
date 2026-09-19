@@ -352,6 +352,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
       else if (command === 'copy') copy();
       else if (command === 'cut') cut();
       else if (command === 'paste') paste();
+      else if (command === 'save') saver.saveNow();
       else if (command === 'delete') remove();
     };
     window.addEventListener('keydown', shortcut);

@@ -42,6 +42,16 @@ export class Autosave {
       void this.flush();
     }
   }
+  /** Flush pending edits immediately (e.g. Ctrl+S). */
+  saveNow() {
+    if (this.state.status === 'conflict') return;
+    clearTimeout(this.timer);
+    if (JSON.stringify(this.latest) === this.saved && !this.inFlight) {
+      this.publish('saved', false);
+      return;
+    }
+    void this.flush();
+  }
   markConflict(kind: 'revision' | 'lease' = 'revision') {
     clearTimeout(this.timer);
     this.publish('conflict', JSON.stringify(this.latest) !== this.saved, this.state.revision, kind);

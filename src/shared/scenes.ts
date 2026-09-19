@@ -43,7 +43,11 @@ export function duplicateLayout(layout: Layout, nextId: () => string): Layout {
       id: braceMap.get(brace.id)!,
       supportingSurfaceId: brace.supportingSurfaceId ? surfaceId(brace.supportingSurfaceId) : brace.supportingSurfaceId,
     })),
-    platforms: source.platforms?.map(platform => ({ ...platform, id: platformMap.get(platform.id)! })),
+    platforms: source.platforms?.map(platform => ({
+      ...platform,
+      id: platformMap.get(platform.id)!,
+      supportingSurfaceId: platform.supportingSurfaceId ? surfaceId(platform.supportingSurfaceId) : platform.supportingSurfaceId,
+    })),
     stairs: source.stairs?.map(stair => ({
       ...stair,
       id: stairMap.get(stair.id)!,
@@ -112,6 +116,7 @@ export function copyLayoutIntoVenue(
     ...transferred,
     walls: transferred.walls.map(wall => ({ ...withoutPanel(wall), supportingSurfaceId: mappedSupport(wall.supportingSurfaceId) })),
     braces: transferred.braces.map(brace => ({ ...brace, supportingSurfaceId: mappedSupport(brace.supportingSurfaceId) })),
+    platforms: transferred.platforms?.map(platform => ({ ...platform, supportingSurfaceId: mappedSupport(platform.supportingSurfaceId) })),
     placeholders: transferred.placeholders?.map(item => ({ ...item, supportingSurfaceId: mappedSupport(item.supportingSurfaceId) })),
     stairs: transferred.stairs?.map(stair => ({
       ...stair, lowerSurfaceId: mappedStairSurface(stair.lowerSurfaceId), upperSurfaceId: mappedStairSurface(stair.upperSurfaceId),
@@ -154,6 +159,7 @@ export function applyVenueVersion(layout: Layout, destination: VenueGeometry): A
     ...layout,
     walls: layout.walls.map(wall => ({ ...wall, supportingSurfaceId: mappedSupport(wall.supportingSurfaceId) })),
     braces: layout.braces.map(brace => ({ ...brace, supportingSurfaceId: mappedSupport(brace.supportingSurfaceId) })),
+    platforms: layout.platforms?.map(platform => ({ ...platform, supportingSurfaceId: mappedSupport(platform.supportingSurfaceId) })),
     placeholders: layout.placeholders?.map(item => ({ ...item, supportingSurfaceId: mappedSupport(item.supportingSurfaceId) })),
   };
   return {

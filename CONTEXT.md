@@ -79,7 +79,7 @@ A known power outlet or audio connection at a venue.
 A part of a venue identified as suitable for routing the group's long cables.
 
 **Raised platform**:
-A stage floor area elevated above the venue's reference floor level. Platforms have a build style: floating (thin slab), solid (filled to the floor), or Bühnenelement (catalog stage-deck modules 2×1 / 2×0,5 / 1×1 / 1×0,5 m with legs; size and height snap to that grid).
+A stage floor area elevated above the venue's reference floor level. Platforms have a build style: floating (thin slab), solid (filled to the support), or Bühnenelement (catalog stage-deck modules 2×1 / 2×0,5 / 1×1 / 1×0,5 m with legs; size and height snap to that grid). A podium whose outline lies fully on another podium stacks on it (same Auflagefläche idea as walls/chairs, but full containment so it cannot overhang); its walking height becomes the lower surface plus its own rise.
 
 **Performance area**:
 The space used for acting and set placement, which can span the audience floor, stairs, and raised stage surfaces.
@@ -101,7 +101,7 @@ A labelled, resizable stand-in for furniture, a person figure, a speaker, or a g
 _Avoid_: Fixture, CAD furniture
 
 **Venue trace / underlay**:
-An optional image or PDF page behind the venue plan. Authors import via file picker, drag-and-drop, or paste; clipboard and non-PNG/JPEG rasters are converted to PNG client-side before upload. Scale and rotation are set inside the import dialog on a zoomable/pannable preview with a known-length measure line (Sweet Home 3D style), then applied to the main plan. Session display toggles can hide the underlay, object names, dimensions, or annotation texts without changing the saved venue.
+An optional image or PDF page behind the venue plan. Authors import via file picker, drag-and-drop onto the underlay dropzone, or the “Aus Zwischenablage” button (not Ctrl+V — that pastes venue objects). Clipboard and non-PNG/JPEG rasters are converted to PNG client-side before upload. Scale and rotation are set inside the import dialog on a zoomable/pannable preview with a known-length measure line (Sweet Home 3D style), then applied to the main plan. Session display toggles can hide the underlay, object names, dimensions, or annotation texts without changing the saved venue.
 
 **Person figure**:
 A simple standing-person placeholder used to mark where someone would be on the set.

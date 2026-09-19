@@ -12,7 +12,7 @@ import { calibrationSchema, insertOutlineVertex, measuredOutline, millimetresPer
 import { defaultPlanDisplay, type PlanDisplayOptions } from '../../shared/planDisplay.js';
 import { PlanDisplayToggles } from './PlanDisplayToggles.js';
 import { VenueUnderlayDialog } from './VenueUnderlayDialog.js';
-import { prepareUnderlayFile, prepareUnderlayFromDataTransfer, prepareUnderlayFromClipboardRead, dataTransferHasUnderlay } from './underlayImport.js';
+import { prepareUnderlayFile, prepareUnderlayFromDataTransfer, prepareUnderlayFromClipboardRead } from './underlayImport.js';
 import { type Platform, type StairUnit, AUDIENCE_FLOOR_ID, PLATFORM_STYLE_LABELS, axisAlignedPlatformOutline, newPlatform, newStair, platformBounds, platformCentroid, reassignVenueSupports, stairCorners, type PlatformStyle } from '../../shared/levels.js';
 import { clipPlatformToStageDeck, layoutStageDeckModules, snapStageDeckElevation, snapStageDeckSize } from '../../shared/stageDeck.js';
 import { type OverheadBox, newOverheadBox, EXAMPLE_CEILING_HEIGHT } from '../../shared/overhead.js';
@@ -341,12 +341,12 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
     try {
       const prepared = await prepareUnderlayFromClipboardRead();
       if (!prepared) {
-        setError('Kein Screenshot in der Zwischenablage. In Spectacle „In die Zwischenablage kopieren“, dann hier einfügen.');
+        setError('Kein Screenshot in der Zwischenablage. In Spectacle „In die Zwischenablage kopieren“, dann „Aus Zwischenablage“.');
         return;
       }
       await chooseFile(prepared);
     } catch {
-      setError('Zwischenablage nicht lesbar. Screenshot in Spectacle kopieren, dann Strg+V — oder Datei wählen.');
+      setError('Zwischenablage nicht lesbar. Screenshot in Spectacle kopieren und „Aus Zwischenablage“ nutzen — oder Datei wählen.');
     }
   }
   function underlayDragOver(event: DragEvent) {
@@ -359,21 +359,13 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
     if (event.currentTarget.contains(event.relatedTarget as Node)) return;
     setUnderlayDrag(false);
   }
-  const acceptUnderlayRef = useRef(acceptUnderlayTransfer);
-  acceptUnderlayRef.current = acceptUnderlayTransfer;
   const pasteObjectsRef = useRef<() => void>(() => {});
   useEffect(() => {
     if (readOnly) return;
     function onPaste(event: ClipboardEvent) {
       const target = event.target as HTMLElement | null;
       if (target?.closest('input, textarea, select, [contenteditable=true]')) return;
-      const data = event.clipboardData;
-      // Prefer system screenshot/PDF (Spectacle → Ctrl+V), like Teams / WhatsApp Web.
-      if (data && dataTransferHasUnderlay(data)) {
-        event.preventDefault();
-        void acceptUnderlayRef.current(data);
-        return;
-      }
+      // Strg+V always pastes plan objects. Underlay screenshots use „Aus Zwischenablage“ only.
       event.preventDefault();
       pasteObjectsRef.current();
     }
@@ -580,8 +572,6 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
     const key = (event: KeyboardEvent) => {
       const command = editorCommand(event);
       if (!command) return;
-      // Ctrl+V must not be cancelled here — the paste event carries Spectacle/PNG clipboard images.
-      if (command === 'paste') return;
       event.preventDefault();
       if (command === 'cancel') {
         if (objectDrag.current || objectRotate.current || vertexDrag.current !== undefined || zoneVertexDrag.current || corridorVertexDrag.current || centrelineDrag.current || marqueeDrag.current || panDrag.current) endPlanGesture(true);
@@ -602,6 +592,8 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
       else if (command === 'redo') draft.redo();
       else if (command === 'copy') copy();
       else if (command === 'cut') cut();
+      else if (command === 'paste') paste();
+      else if (command === 'save') { if (draft.dirty && !busy) void save(); }
       else if (command === 'delete') remove();
     };
     window.addEventListener('beforeunload', warn); window.addEventListener('keydown', key);
@@ -1056,7 +1048,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
               data-testid="underlay-dropzone"
               onDragEnter={underlayDragOver} onDragOver={underlayDragOver} onDragLeave={underlayDragLeave}
               onDrop={event => { event.preventDefault(); setUnderlayDrag(false); void acceptUnderlayTransfer(event.dataTransfer); }}>
-              <p className="muted">Screenshot (z.&nbsp;B. Spectacle → In Zwischenablage) hierher ziehen oder Strg+V. WebP/GIF werden als PNG übernommen.</p>
+              <p className="muted">Screenshot (z.&nbsp;B. Spectacle → In Zwischenablage) hierher ziehen oder über „Aus Zwischenablage“. WebP/GIF werden als PNG übernommen. Strg+V fügt Spielstättenobjekte ein.</p>
               <div className="form-actions">
                 <button type="button" className="quiet" disabled={readOnly || busy} onClick={() => void pasteUnderlayFromSystemClipboard()}>
                   Aus Zwischenablage

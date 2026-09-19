@@ -36,7 +36,7 @@ Existing venue adaptations retain the venue version they use when newer venue in
 
 Users draw venue floor plans with exact dimensions. They can optionally upload an image or PDF as a tracing reference, calibrating its scale against a known distance.
 
-Venues default to a flat floor and can include raised platforms defined by outline and height. Overhead obstructions, including ventilation structures crossing the stage area, must be represented so clearance can vary by position. Clearance is measured from the local supporting floor or platform surface.
+Venues default to a flat floor and can include raised platforms defined by outline and height. A podium whose plan outline lies fully on another podium stacks onto it and rises by its own height above that surface; partial overlap does not stack. Overhead obstructions, including ventilation structures crossing the stage area, must be represented so clearance can vary by position. Clearance is measured from the local supporting floor or platform surface.
 
 Overhead obstructions are represented by rectangular boxes with adjustable position, length, width, bottom height, and thickness. Multiple boxes can describe a complex structure. They appear in 3D and participate in overlap warnings.
 

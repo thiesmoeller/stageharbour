@@ -123,3 +123,25 @@ test('pulling a stair up raises its upper podium and adds DIN ~16 cm steps', () 
   const after = stairSteps(raised.stairs![0]!, supportingSurfaces(raised));
   assert.equal(after.length, 3);
 });
+
+test('Bühnenelement push-pull snaps plan size to 0.5 m module grid', () => {
+  const platform = {
+    ...newPlatform(randomUUID(), 3000, 2000),
+    style: 'stageDeck' as const,
+    elevation: 400,
+    outline: [
+      { x: 2000, y: 1500 }, { x: 4000, y: 1500 }, { x: 4000, y: 2500 }, { x: 2000, y: 2500 },
+    ],
+  };
+  const venue = { schemaVersion: 1 as const, width: 10000, depth: 8000, platforms: [platform] };
+  // 2×1 m deck; small pull should not move off the grid until past the midpoint.
+  const tiny = applyPushPull(venue, { kind: 'platform', id: platform.id, face: 'px' }, 100);
+  const tinyXs = tiny.platforms![0]!.outline.map(point => point.x);
+  assert.equal(Math.max(...tinyXs) - Math.min(...tinyXs), 2000);
+  const wider = applyPushPull(venue, { kind: 'platform', id: platform.id, face: 'px' }, 300);
+  const widerXs = wider.platforms![0]!.outline.map(point => point.x);
+  const widerYs = wider.platforms![0]!.outline.map(point => point.y);
+  assert.equal(Math.max(...widerXs) - Math.min(...widerXs), 2500);
+  assert.equal(Math.min(...widerXs), 2000);
+  assert.equal(Math.max(...widerYs) - Math.min(...widerYs), 1000);
+});

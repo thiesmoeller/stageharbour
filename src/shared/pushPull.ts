@@ -1,10 +1,11 @@
 import { venueGeometrySchema, type VenueGeometry, type Wall } from './layout.js';
 import {
-  axisAlignedPlatformOutline, DIN_STAIR_RISER_MM, platformCentroid, reassignVenueSupports, type Platform, type StairUnit,
+  AUDIENCE_FLOOR_ID, axisAlignedPlatformOutline, DIN_STAIR_RISER_MM, platformCentroid, reassignVenueSupports, type Platform, type StairUnit,
 } from './levels.js';
 import type { OverheadBox } from './overhead.js';
 import type { Placeholder } from './placeholders.js';
 import type { PlanPoint } from './venue.js';
+import { snapStageDeckElevation, snapStageDeckSize, STAGE_DECK_STEP_MM } from './stageDeck.js';
 
 export type Vec3 = { x: number; y: number; z: number };
 export type LocalFace = 'px' | 'nx' | 'py' | 'ny' | 'pz' | 'nz';
@@ -177,31 +178,51 @@ function applyStairPushPull(venue: VenueGeometry, stair: StairUnit, face: LocalF
   };
 }
 
-function resizePlatform(platform: Platform, face: LocalFace, delta: number): Platform {
+function resizePlatform(platform: Platform, face: LocalFace, delta: number, supportElevation = 0): Platform {
   if (face === 'ny') return platform;
-  if (face === 'py') return { ...platform, elevation: clampDim(platform.elevation + delta) };
+  if (face === 'py') {
+    if (platform.style === 'stageDeck') {
+      const rise = snapStageDeckElevation(platform.elevation - supportElevation + delta);
+      const elevation = Math.min(100000, Math.max(1, supportElevation + rise));
+      return elevation === platform.elevation ? platform : { ...platform, elevation };
+    }
+    const elevation = clampDim(platform.elevation + delta);
+    return elevation === platform.elevation ? platform : { ...platform, elevation };
+  }
   const box = orientedPlatformBox(platform);
   const axes = planAxes(box.rotation);
+  const stageDeck = platform.style === 'stageDeck';
   if (face === 'px' || face === 'nx') {
     const sign: 1 | -1 = face === 'px' ? 1 : -1;
-    const next = growCentered(box.width, 0, delta, sign);
-    const centre = shiftPlan({ x: box.x, y: box.y }, axes.width, sign * delta / 2);
+    const raw = box.width + delta;
+    const width = stageDeck
+      ? Math.max(STAGE_DECK_STEP_MM, Math.round(raw / STAGE_DECK_STEP_MM) * STAGE_DECK_STEP_MM)
+      : clampDim(raw);
+    if (width === box.width) return platform;
+    const centre = shiftPlan({ x: box.x, y: box.y }, axes.width, sign * (width - box.width) / 2);
     return {
       ...platform,
-      outline: axisAlignedPlatformOutline(centre.x, centre.y, clampDim(next.size), clampDim(box.depth), box.rotation),
+      outline: axisAlignedPlatformOutline(centre.x, centre.y, width, stageDeck ? snapStageDeckSize(width, box.depth).depth : clampDim(box.depth), box.rotation),
     };
   }
   const sign: 1 | -1 = face === 'pz' ? 1 : -1;
-  const next = growCentered(box.depth, 0, delta, sign);
-  const centre = shiftPlan({ x: box.x, y: box.y }, axes.depth, sign * delta / 2);
+  const raw = box.depth + delta;
+  const depth = stageDeck
+    ? Math.max(STAGE_DECK_STEP_MM, Math.round(raw / STAGE_DECK_STEP_MM) * STAGE_DECK_STEP_MM)
+    : clampDim(raw);
+  if (depth === box.depth) return platform;
+  const centre = shiftPlan({ x: box.x, y: box.y }, axes.depth, sign * (depth - box.depth) / 2);
   return {
     ...platform,
-    outline: axisAlignedPlatformOutline(centre.x, centre.y, clampDim(box.width), clampDim(next.size), box.rotation),
+    outline: axisAlignedPlatformOutline(centre.x, centre.y, stageDeck ? snapStageDeckSize(box.width, depth).width : clampDim(box.width), depth, box.rotation),
   };
 }
 
 function applyPlatformPushPull(venue: VenueGeometry, platform: Platform, face: LocalFace, delta: number): VenueGeometry {
-  const next = resizePlatform(platform, face, delta);
+  const supportElevation = platform.supportingSurfaceId && platform.supportingSurfaceId !== AUDIENCE_FLOOR_ID
+    ? (venue.platforms?.find(item => item.id === platform.supportingSurfaceId)?.elevation ?? 0)
+    : 0;
+  const next = resizePlatform(platform, face, delta, supportElevation);
   if (next === platform) return venue;
   const platforms = venue.platforms?.map(item => item.id === platform.id ? next : item);
   if (face !== 'py') return { ...venue, platforms };

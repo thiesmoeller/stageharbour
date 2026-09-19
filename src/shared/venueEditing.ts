@@ -61,7 +61,7 @@ export function cutVenueSelection(venue: VenueGeometry, ids: readonly string[]) 
 /** Deletion is atomic: retaining a dependent object must not leave an unknown platform reference. */
 export function removeVenueSelection(venue: VenueGeometry, ids: readonly string[]): { venue: VenueGeometry; blocked: boolean } {
   const platforms = new Set((venue.platforms ?? []).filter(p => ids.includes(p.id)).map(p => p.id));
-  const dependent = [...venue.walls ?? [], ...venue.keepClearZones ?? [], ...venue.placeholders ?? []].some(item => !ids.includes(item.id) && item.supportingSurfaceId && platforms.has(item.supportingSurfaceId))
+  const dependent = [...venue.walls ?? [], ...venue.keepClearZones ?? [], ...venue.placeholders ?? [], ...venue.platforms ?? []].some(item => !ids.includes(item.id) && item.supportingSurfaceId && platforms.has(item.supportingSurfaceId))
     || (venue.stairs ?? []).some(item => !ids.includes(item.id) && (platforms.has(item.lowerSurfaceId) || platforms.has(item.upperSurfaceId)));
   if (dependent) return { venue, blocked: true };
   const next = { ...venue };

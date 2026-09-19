@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { newPlatform } from '../src/shared/levels.js';
 import {
-  STAGE_DECK_MODULES_MM, clipPlatformToStageDeck, layoutStageDeckModules,
+  STAGE_DECK_LEG_EDGE_INSET_MM, STAGE_DECK_LEG_SECTION_MM, STAGE_DECK_MODULES_MM,
+  clipPlatformToStageDeck, layoutStageDeckModules,
   snapStageDeckElevation, snapStageDeckSize, stageDeckLegPositions,
 } from '../src/shared/stageDeck.js';
 
@@ -44,4 +45,15 @@ test('clipPlatformToStageDeck snaps size and elevation and sets stageDeck style'
   assert.equal(platform.elevation, 400);
   const legs = stageDeckLegPositions(4000, 2500);
   assert.ok(legs.length >= 4);
+});
+
+test('each module keeps four feet inset under the panel', () => {
+  assert.equal(stageDeckLegPositions(2000, 1000).length, 4);
+  assert.equal(stageDeckLegPositions(4000, 1000).length, 8);
+  const inset = STAGE_DECK_LEG_EDGE_INSET_MM + STAGE_DECK_LEG_SECTION_MM / 2;
+  const legs = stageDeckLegPositions(2000, 1000);
+  const xs = legs.map(leg => Math.abs(leg.x));
+  const ys = legs.map(leg => Math.abs(leg.y));
+  assert.ok(xs.every(x => x === 1000 - inset));
+  assert.ok(ys.every(y => y === 500 - inset));
 });
