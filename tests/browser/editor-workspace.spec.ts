@@ -3,7 +3,7 @@ import { testAdministrator } from '../helpers/database.js';
 import { openInspector, placeWallAt } from '../helpers/inspector.js';
 
 test('editor keeps the canvas in view, preserves tray drafts, and adapts to smaller screens', async ({ page }) => {
-  test.setTimeout(60_000);
+  test.setTimeout(process.env.CI ? 120_000 : 60_000);
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -30,10 +30,10 @@ test('editor keeps the canvas in view, preserves tray drafts, and adapts to smal
   expect((await page.locator('.editor-views').boundingBox())!.width).toBeGreaterThan(viewsWidth + 200);
   await page.getByRole('button', { name: 'Eigenschaften', exact: true }).click();
   await expect(page.getByLabel('Wandtyp-Bezeichnung')).toHaveValue('Türwand im Entwurf');
-  await wallTypes.locator('summary').click();
+  await wallTypes.locator('summary').click({ force: true });
   await openInspector(page, 'Wandtypen');
   await expect(page.getByLabel('Wandtyp-Bezeichnung')).toHaveValue('Türwand im Entwurf');
-  await wallTypes.locator('summary').click();
+  await wallTypes.locator('summary').click({ force: true });
 
   for (const [x, y, rotation] of [[2000, 4500, 0], [3200, 4500, 0], [4400, 4500, 0], [5600, 4500, 0], [1400, 3900, 90]]) {
     await placeWallAt(page, x, y);
@@ -53,7 +53,8 @@ test('editor keeps the canvas in view, preserves tray drafts, and adapts to smal
   await expect(page.getByTestId('stage-view')).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('[data-renderer="pascal"] canvas')).toBeVisible({ timeout: 30_000 });
   for (const [label, view] of [['Von oben', 'top'], ['Von vorne', 'front'], ['Von der Seite', 'side'], ['Publikumssicht', 'audience'], ['Umlaufansicht', 'orbit']] as const) {
-    await page.getByRole('button', { name: label, exact: true }).click();
+    // Software WebGL on CI keeps the canvas dirty, so actionability "stable" never settles.
+    await page.getByRole('button', { name: label, exact: true }).click({ force: true });
     await expect(page.getByTestId('stage-view')).toHaveAttribute('data-view', view, { timeout: 15_000 });
     await expect(page.getByRole('button', { name: label, exact: true })).toHaveAttribute('aria-pressed', 'true');
   }

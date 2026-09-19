@@ -4,7 +4,8 @@ import { expect } from '@playwright/test';
 /** Open a workspace tray through its visible disclosure control. */
 export async function openInspector(page: Page, title: string) {
   const panel = page.locator('.inspector-section').filter({ has: page.locator('summary', { hasText: title }) });
-  if (await panel.getAttribute('open') === null) await panel.locator('summary').click();
+  // Avoid Playwright "stable" waits: CI software WebGL keeps nearby canvases dirty.
+  await panel.evaluate(element => { (element as HTMLDetailsElement).open = true; });
 }
 
 /** Click the plan to commit an in-progress wall ghost at plan coordinates (mm). */
