@@ -34,9 +34,49 @@ export type VenueOutline = z.infer<typeof venueOutlineSchema>;
 export const venueTraceSchema = z.strictObject({
   fileId: z.uuid(),
   page: z.number().int().min(1).max(9999).optional(),
+  /** Degrees clockwise in plan view (SVG uses negated Y; positive rotates the underlay image clockwise on screen). */
+  rotationDeg: z.number().finite().min(-360).max(360).optional(),
   calibration: calibrationSchema.optional(),
 });
 export type VenueTrace = z.infer<typeof venueTraceSchema>;
+
+/** Convert a plan millimetre point to underlay source pixels, undoing scale and rotation. */
+export function planToUnderlaySource(
+  point: PlanPoint,
+  overlay: { pixelWidth: number; pixelHeight: number },
+  unit: number,
+  rotationDeg = 0,
+): PlanPoint {
+  const cx = overlay.pixelWidth * unit / 2;
+  const cy = overlay.pixelHeight * unit / 2;
+  const angle = -rotationDeg * Math.PI / 180;
+  const dx = point.x - cx, dy = point.y - cy;
+  const localX = cx + dx * Math.cos(angle) - dy * Math.sin(angle);
+  const localY = cy + dx * Math.sin(angle) + dy * Math.cos(angle);
+  return {
+    x: Math.round(localX / unit),
+    y: Math.round(overlay.pixelHeight - localY / unit),
+  };
+}
+
+/** Plan-space point from underlay source pixels after scale and rotation. */
+export function underlaySourceToPlan(
+  source: PlanPoint,
+  overlay: { pixelWidth: number; pixelHeight: number },
+  unit: number,
+  rotationDeg = 0,
+): PlanPoint {
+  const localX = source.x * unit;
+  const localY = (overlay.pixelHeight - source.y) * unit;
+  const cx = overlay.pixelWidth * unit / 2;
+  const cy = overlay.pixelHeight * unit / 2;
+  const angle = rotationDeg * Math.PI / 180;
+  const dx = localX - cx, dy = localY - cy;
+  return {
+    x: cx + dx * Math.cos(angle) - dy * Math.sin(angle),
+    y: cy + dx * Math.sin(angle) + dy * Math.cos(angle),
+  };
+}
 
 export function measuredOutline(venue: { width: number; depth: number; outline?: PlanPoint[] }): PlanPoint[] {
   return venue.outline ?? [

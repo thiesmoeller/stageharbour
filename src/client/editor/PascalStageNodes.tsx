@@ -95,7 +95,7 @@ function StageNodeRenderer({ node }: { node: StageNode }) {
     }
     if (element.kind === 'brace') return <group scale={0.001}><StageBraces braces={model.braces.filter(item => item.id === element.value.id)} lit /></group>;
     if (element.kind === 'platform' || element.kind === 'stair') return <group scale={0.001}><StageLevels lit model={{ ...model, platforms: model.platforms.filter(item => item.id === element.value.id), stairs: model.stairs.filter(item => item.id === element.value.id) }} /></group>;
-    if (element.kind === 'overhead' || element.kind === 'zone' || element.kind === 'pin' || element.kind === 'corridor') return <group scale={0.001}><StageConstraint element={element} elevation={element.kind === 'zone' ? model.platforms.find(p => p.id === element.value.supportingSurfaceId)?.elevation : 0} /></group>;
+    if (element.kind === 'overhead' || element.kind === 'truss' || element.kind === 'zone' || element.kind === 'pin' || element.kind === 'corridor') return <group scale={0.001}><StageConstraint element={element} elevation={element.kind === 'zone' ? model.platforms.find(p => p.id === element.value.supportingSurfaceId)?.elevation : 0} /></group>;
     const prop = element.value, solid = model.placeholders.find(item => item.id === prop.id);
     if (!prop.assetId) return <group scale={0.001}><StagePlaceholders lit placeholders={model.placeholders.filter(item => item.id === prop.id)} /></group>;
     const definition = assets.find(asset => asset.id === prop.assetId)?.definition;

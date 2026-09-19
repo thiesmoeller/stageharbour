@@ -76,7 +76,11 @@ Scene copies into a destination venue bring only movable set pieces, preserving 
 
 ## Furniture, people, and equipment
 
-Version one includes a small library of resizable placeholders: tables, chairs, person figures, speakers, and generic boxes, each with a label and dimensions. Importing models from a CAD database or library is a possible later extension; sources and formats remain undecided.
+Version one includes a small library of resizable placeholders: tables, chairs, person figures, speakers, and generic boxes, each with a label and dimensions. Chairs render as built-in low-poly seat/back geometry with an optional Sitzfigur. Importing models from a CAD database or library remains a possible later extension for other props.
+
+## Traversen and lighting
+
+Venue Traversen (hang bars) are first-class venue geometry with length, section, underside height, and optional hang-point slots. They participate in overhead clearance and appear on plan/PDF/3D. Fixture placement on hang points and lighting simulation remain deferred to phase two; Traversen are the attachment seam for that work. Mood lighting (warm/cool preview) is unchanged and is not a fixture plan.
 
 ## Lighting
 

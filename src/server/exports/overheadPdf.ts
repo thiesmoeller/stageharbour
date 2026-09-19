@@ -1,5 +1,6 @@
 import type { ConstructionSnapshot } from '../../shared/export.js';
 import { overheadBoxCorners } from '../../shared/overhead.js';
+import { trussCorners } from '../../shared/truss.js';
 
 const mm = (value: number) => value * 72 / 25.4;
 
@@ -17,6 +18,16 @@ export function strokeOverheadFeatures(
     const label = toPage(box.x, box.y);
     doc.fontSize(8).fillColor('#395640')
       .text(`${box.label} ${box.bottomHeight} mm`, label.x - mm(14), label.y - mm(2), { lineBreak: false });
+  }
+  for (const truss of snapshot.venue.trusses ?? []) {
+    const [a, b, c, d] = trussCorners(truss).map(point => toPage(point.x, point.y));
+    if (!a || !b || !c || !d) continue;
+    doc.moveTo(a.x, a.y).lineTo(b.x, b.y).lineTo(c.x, c.y).lineTo(d.x, d.y).closePath()
+      .lineWidth(0.9).dash(2, { space: 2 }).stroke('#4f86ba');
+    doc.undash();
+    const label = toPage(truss.x, truss.y);
+    doc.fontSize(8).fillColor('#2f5f8a')
+      .text(`${truss.label} ${truss.bottomHeight} mm`, label.x - mm(14), label.y - mm(2), { lineBreak: false });
   }
   const warnings = snapshot.warnings ?? [];
   if (!warnings.length) return;

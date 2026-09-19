@@ -70,7 +70,7 @@ A number assigned from left to right during the initial assembly, used by the cr
 A restriction on placement or use of space at a venue, such as a ceiling limit or an emergency exit path that must remain clear.
 
 **Keep-clear zone**:
-A designated area that must remain free of placed objects for a stated reason, such as an emergency exit route or access to equipment.
+A designated polygonal area that must remain free of placed objects for a stated reason, such as an emergency exit route or access to equipment. Authors draw the polygon in the venue plan (click vertices, close near the first point) and can drag zone vertices.
 
 **Connection point**:
 A known power outlet or audio connection at a venue.
@@ -90,9 +90,15 @@ A set of steps connecting performance surfaces at different heights.
 **Overhead obstruction**:
 A physical structure above the stage area, such as a ventilation duct, that locally limits usable space and height.
 
+**Traverse / hang bar**:
+A venue lighting hang bar with plan length, section, and underside height. Optional hang points along the bar are reserved for later fixture placement; they do not place lights in this version.
+
 **Placeholder**:
-A labelled, resizable stand-in for furniture, a person figure, a speaker, or a generic box. Placeholders carry example millimetre dimensions, sit on an explicit supporting surface, and are not measured inventory or CAD models.
+A labelled, resizable stand-in for furniture, a person figure, a speaker, or a generic box. Placeholders carry example millimetre dimensions, sit on an explicit supporting surface, and are not measured inventory or CAD models. Venue chairs use a built-in low-poly chair form.
 _Avoid_: Fixture, CAD furniture
+
+**Venue trace / underlay**:
+An optional image or PDF page behind the venue plan. Authors import via file picker, drag-and-drop, or paste; clipboard and non-PNG/JPEG rasters are converted to PNG client-side before upload. Scale and rotation are set inside the import dialog on a zoomable/pannable preview with a known-length measure line (Sweet Home 3D style), then applied to the main plan. Session display toggles can hide the underlay, object names, dimensions, or annotation texts without changing the saved venue.
 
 **Person figure**:
 A simple standing-person placeholder used to mark where someone would be on the set.

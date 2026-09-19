@@ -1,22 +1,68 @@
 import { EXAMPLE_CEILING_HEIGHT, newOverheadBox, overheadBoxCorners, type OverheadBox } from '../../shared/overhead.js';
+import { trussCorners, type Truss } from '../../shared/truss.js';
 import type { VenueGeometry } from '../../shared/layout.js';
+import type { PlanDisplayOptions } from '../../shared/planDisplay.js';
+import { defaultPlanDisplay } from '../../shared/planDisplay.js';
 import type { PointerEvent } from 'react';
 
-export function OverheadMarks({ boxes, selectedIds = [], onPointerDown }: {
+export function OverheadMarks({ boxes, selectedIds = [], display = defaultPlanDisplay, onPointerDown }: {
   boxes: OverheadBox[]; selectedIds?: readonly string[];
+  display?: PlanDisplayOptions;
   onPointerDown?: (event: PointerEvent<SVGGElement>, id: string) => void;
 }) {
   return <g aria-label="Überbauungen" pointerEvents={onPointerDown ? undefined : 'none'}>
     {boxes.map(box => {
       const corners = overheadBoxCorners(box);
       const chosen = selectedIds.includes(box.id);
+      const caption = [
+        display.showObjectNames ? box.label : undefined,
+        display.showDimensions ? `${box.bottomHeight} mm` : undefined,
+      ].filter(Boolean).join(' · ');
       return <g key={box.id} data-testid={`overhead-box-${box.id}`} className={onPointerDown ? 'draggable-wall' : undefined}
         onPointerDown={onPointerDown ? event => onPointerDown(event, box.id) : undefined}>
         <path d={`${corners.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')} Z`}
           fill={chosen ? '#d9c6a166' : '#d9c6a133'} stroke="#8a6a3a" strokeWidth="2" strokeDasharray="80 50" vectorEffect="non-scaling-stroke" />
-        <text x={box.x} y={-box.y} textAnchor="middle" fontSize="140" pointerEvents="none">{box.label} · {box.bottomHeight} mm</text>
+        {caption && <text x={box.x} y={-box.y} textAnchor="middle" fontSize="140" pointerEvents="none">{caption}</text>}
       </g>;
     })}
+  </g>;
+}
+
+export function TrussMarks({ trusses, selectedIds = [], drawing, display = defaultPlanDisplay, onPointerDown }: {
+  trusses: Truss[]; selectedIds?: readonly string[];
+  drawing?: { start: { x: number; y: number }; end?: { x: number; y: number } };
+  display?: PlanDisplayOptions;
+  onPointerDown?: (event: PointerEvent<SVGGElement>, id: string) => void;
+}) {
+  return <g aria-label="Traversen" pointerEvents={onPointerDown ? undefined : 'none'}>
+    {trusses.map(truss => {
+      const corners = trussCorners(truss);
+      const chosen = selectedIds.includes(truss.id);
+      const angle = (truss.rotation ?? 0) * Math.PI / 180;
+      const hx = Math.cos(angle) * truss.length / 2, hy = Math.sin(angle) * truss.length / 2;
+      const caption = [
+        display.showObjectNames ? truss.label : undefined,
+        display.showDimensions ? `${truss.bottomHeight} mm` : undefined,
+      ].filter(Boolean).join(' · ');
+      return <g key={truss.id} data-testid={`truss-${truss.id}`} className={onPointerDown ? 'draggable-wall' : undefined}
+        onPointerDown={onPointerDown ? event => onPointerDown(event, truss.id) : undefined}>
+        <path d={`${corners.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')} Z`}
+          fill={chosen ? '#4f86ba55' : '#4f86ba22'} stroke="#4f86ba" strokeWidth="2" strokeDasharray="40 30" vectorEffect="non-scaling-stroke" />
+        <line x1={truss.x - hx} y1={-(truss.y - hy)} x2={truss.x + hx} y2={-(truss.y + hy)}
+          stroke="#4f86ba" strokeWidth="3" vectorEffect="non-scaling-stroke" />
+        {truss.hangPoints.map(hang => {
+          const x = truss.x + hang.offsetMm * Math.cos(angle);
+          const y = truss.y + hang.offsetMm * Math.sin(angle);
+          return <circle key={hang.id} cx={x} cy={-y} r="40" fill="#2f5f8a" pointerEvents="none" />;
+        })}
+        {caption && <text x={truss.x} y={-truss.y} textAnchor="middle" fontSize="140" pointerEvents="none">{caption}</text>}
+      </g>;
+    })}
+    {drawing && <g data-testid="truss-drawing" pointerEvents="none">
+      <line x1={drawing.start.x} y1={-drawing.start.y} x2={(drawing.end ?? drawing.start).x} y2={-(drawing.end ?? drawing.start).y}
+        stroke="#4f86ba" strokeWidth="3" strokeDasharray="40 40" vectorEffect="non-scaling-stroke" />
+      <circle cx={drawing.start.x} cy={-drawing.start.y} r="50" fill="#4f86ba" />
+    </g>}
   </g>;
 }
 
@@ -27,7 +73,7 @@ export function VenueOverhead({ venue, ceilingHeight, boxes, readOnly, onCeiling
 }) {
   return <div className="venue-overhead">
     <h4>Decke und Überbauungen</h4>
-    <p className="muted">Beispielmaße, keine gemessene Spielstättenvorgabe. Mehrere Kästen beschreiben ein komplexes Bauteil (z. B. Lüftungskanal über der Bühne). Geometrische Hinweise, kein statischer Nachweis.</p>
+    <p className="muted">Lüftung und andere Höhenhindernisse. Traversen für Licht sind ein eigenes Werkzeug.</p>
     <div><label htmlFor="venue-ceiling">Deckenhöhe über Fußboden (mm)</label>
       <input id="venue-ceiling" type="number" min={1} step="any" value={ceilingHeight}
         placeholder={`${EXAMPLE_CEILING_HEIGHT}`}

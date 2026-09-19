@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { stairCorners, supportingSurfaces, surfaceElevation, type Platform, type StairUnit } from './levels.js';
 import { type PlanPoint } from './venue.js';
+import { trussCorners, type Truss } from './truss.js';
 
 const name = z.string().trim().min(1).max(120);
 const dimension = z.number().finite().min(1).max(100000);
@@ -48,7 +49,7 @@ export function overheadBoxCorners(box: Pick<OverheadBox, 'x' | 'y' | 'length' |
 
 type VenueOverhead = {
   width: number; depth: number; outline?: PlanPoint[]; platforms?: Platform[];
-  ceilingHeight?: number; overheadBoxes?: OverheadBox[];
+  ceilingHeight?: number; overheadBoxes?: OverheadBox[]; trusses?: Truss[];
 };
 type PlacedWall = {
   id: string; label: string; supportingSurfaceId?: string;
@@ -118,6 +119,15 @@ export function overheadClearance(layout: LayoutOverhead, venue: VenueOverhead):
         warnings.push({
           objectId: object.id, kind: 'overhead', obstructionId: box.id,
           message: `„${object.label}“ ragt von der Auflagefläche in die Überbauung „${box.label}“. ${disclaimer}`,
+        });
+      }
+    }
+    for (const truss of venue.trusses ?? []) {
+      if (planOverlap(object.corners, trussCorners(truss))
+        && heightOverlap(object.bottom, object.top, truss.bottomHeight, truss.bottomHeight + truss.thickness)) {
+        warnings.push({
+          objectId: object.id, kind: 'overhead', obstructionId: truss.id,
+          message: `„${object.label}“ ragt von der Auflagefläche in die Traverse „${truss.label}“. ${disclaimer}`,
         });
       }
     }

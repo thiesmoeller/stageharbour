@@ -74,7 +74,7 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
               {lighting.enabled ? <meshStandardMaterial color="#dce4d4" /> : <meshBasicMaterial color="#dce4d4" />}
             </mesh>
             <StageLevels model={model} lit={lighting.enabled} />
-            <StageOverhead boxes={venue.overheadBoxes ?? []} />
+            <StageOverhead boxes={venue.overheadBoxes ?? []} trusses={venue.trusses ?? []} />
             {model.walls.map(wall => <WallMesh key={wall.id} wall={wall} lit={lighting.enabled} />)}
             <StageBraces braces={model.braces} lit={lighting.enabled} />
             <StagePlaceholders placeholders={model.placeholders} lit={lighting.enabled} />
@@ -95,7 +95,7 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
     <StageBraceList braces={model.braces} />
     <StagePlaceholderList placeholders={model.placeholders} />
     <StageLevelList model={model} />
-    <StageOverheadList boxes={venue.overheadBoxes ?? []} />
+    <StageOverheadList boxes={venue.overheadBoxes ?? []} trusses={venue.trusses ?? []} />
     </details>
   </div>;
 }

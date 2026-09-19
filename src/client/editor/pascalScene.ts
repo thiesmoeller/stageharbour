@@ -1,6 +1,7 @@
 import { overheadBoxSchema } from '../../shared/overhead.js';
 import { keepClearZoneSchema } from '../../shared/keepClear.js';
 import { connectionPointSchema, cableRoutingCorridorSchema } from '../../shared/infrastructure.js';
+import { trussSchema } from '../../shared/truss.js';
 import { z } from 'zod';
 import { braceSchema, wallSchema, type Layout, type VenueGeometry } from '../../shared/layout.js';
 import { placeholderSchema } from '../../shared/placeholders.js';
@@ -17,6 +18,7 @@ export const stageNodeSchema = z.object({
     z.object({ kind: z.literal('platform'), value: platformSchema }),
     z.object({ kind: z.literal('stair'), value: stairSchema }),
     z.object({ kind: z.literal('overhead'), value: overheadBoxSchema }),
+    z.object({ kind: z.literal('truss'), value: trussSchema }),
     z.object({ kind: z.literal('zone'), value: keepClearZoneSchema }),
     z.object({ kind: z.literal('pin'), value: connectionPointSchema }),
     z.object({ kind: z.literal('corridor'), value: cableRoutingCorridorSchema }),
@@ -41,11 +43,16 @@ export function pascalScene(layout: Layout, venue?: VenueGeometry) {
     ...(venue.stairs ?? []).map(value => ({ kind: 'stair' as const, value })),
     ...(venue.placeholders ?? []).map(value => ({ kind: 'placeholder' as const, value })),
     ...(venue.overheadBoxes ?? []).map(value => ({ kind: 'overhead' as const, value })),
+    ...(venue.trusses ?? []).map(value => ({ kind: 'truss' as const, value })),
     ...(venue.keepClearZones ?? []).map(value => ({ kind: 'zone' as const, value })),
     ...(venue.connectionPoints ?? []).map(value => ({ kind: 'pin' as const, value })),
     ...(venue.cableRoutingCorridors ?? []).map(value => ({ kind: 'corridor' as const, value })),
   ] : [];
   const permanentIds = new Set(permanent.map(item => item.value.id));
-  const nodes = [...permanent, ...elements].map(element => stageNodeSchema.parse({ scope: permanentIds.has(element.value.id) ? 'venue' : 'scene', object: 'node', type: 'stage-object', id: stageNodeId(element.value.id), name: element.value.label, parentId: null, visible: true, element }));
+  const nodes = [...permanent, ...elements].map(element => stageNodeSchema.parse({
+    scope: permanentIds.has(element.value.id) ? 'venue' : 'scene',
+    object: 'node', type: 'stage-object', id: stageNodeId(element.value.id),
+    name: element.value.label, parentId: null, visible: true, element,
+  }));
   return { nodes: Object.fromEntries(nodes.map(node => [node.id, node])), rootNodeIds: nodes.map(node => node.id) };
 }

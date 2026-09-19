@@ -1,12 +1,21 @@
 import { centrelineSpan, type SnapGuide, type StageCentreline } from '../../shared/snapping.js';
+import type { PointerEvent } from 'react';
 
-export function CentrelineMark({ centreline }: { centreline?: StageCentreline }) {
+export function CentrelineMark({ centreline, selected, showLabel = true, onPointerDown }: {
+  centreline?: StageCentreline;
+  selected?: boolean;
+  showLabel?: boolean;
+  onPointerDown?: (event: PointerEvent<SVGGElement>) => void;
+}) {
   if (!centreline) return null;
   const span = centrelineSpan(centreline);
-  return <g data-testid="stage-centreline" pointerEvents="none">
+  return <g data-testid="stage-centreline" className={onPointerDown ? 'draggable-wall' : undefined}
+    pointerEvents={onPointerDown ? undefined : 'none'}
+    onPointerDown={onPointerDown}>
     <line x1={span.a.x} y1={-span.a.y} x2={span.b.x} y2={-span.b.y}
-      stroke="#986122" strokeWidth="2" strokeDasharray="120 80" vectorEffect="non-scaling-stroke" />
-    <text x={centreline.x} y={-centreline.y - 80} textAnchor="middle" fontSize="140">Mittellinie</text>
+      stroke={selected ? '#b67c35' : '#986122'} strokeWidth={selected ? 4 : 2} strokeDasharray="120 80" vectorEffect="non-scaling-stroke" />
+    <circle cx={centreline.x} cy={-centreline.y} r="80" fill={selected ? '#b67c35' : '#986122'} />
+    {showLabel && <text x={centreline.x} y={-centreline.y - 80} textAnchor="middle" fontSize="140" pointerEvents="none">Mittellinie</text>}
   </g>;
 }
 

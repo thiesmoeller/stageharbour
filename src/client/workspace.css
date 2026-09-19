@@ -260,3 +260,34 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
 .editor .render-settings-body label { font-size: 12px; justify-content: space-between; }
 .editor .render-settings-body select { font-size: 12px; padding: 4px; }
 @media (max-width: 1100px) { .camera-projection { display: none; } }
+
+.underlay-dropzone { margin: 0 0 12px; padding: 10px 12px; border: 1px dashed #b7c4bb; border-radius: 8px; background: #f7faf8; }
+.underlay-dropzone--active, .venue-plan[data-underlay-drag] { border-color: #3f8970; background: #eef6f1; outline: 2px dashed #3f8970; outline-offset: -2px; }
+.underlay-dropzone .muted { margin: 0 0 8px; }
+.underlay-dropzone label { display: block; margin-top: 4px; }
+.plan-display-toggles { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; margin: 0 auto 0 8px; }
+.plan-display-toggle { display: inline-flex; align-items: center; gap: 4px; margin: 0; font-size: 10px; font-weight: 500; color: #4b5b64; white-space: nowrap; }
+.plan-display-toggle input { margin: 0; }
+
+.modal-backdrop { position: fixed; inset: 0; z-index: 1200; display: grid; place-items: center; padding: 16px; background: #20304055; }
+.modal { width: min(440px, 100%); max-height: min(90vh, 720px); overflow: auto; padding: 18px 20px; background: #fff; border: 1px solid var(--ui-line); border-radius: 10px; box-shadow: 0 18px 48px #20304033; }
+.modal h2 { margin: 0 0 8px; font-size: 1.15rem; }
+.underlay-dialog .muted { margin: 0 0 12px; }
+.underlay-dialog--workspace { width: min(920px, calc(100vw - 32px)); max-height: min(94vh, 900px); }
+.underlay-workspace { display: flex; flex-direction: column; gap: 6px; margin: 10px 0 12px; }
+.underlay-workspace-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.underlay-workspace-hint { margin-left: auto; font-size: 10px; }
+.underlay-workspace-svg { width: 100%; height: min(52vh, 480px); background: #e8eee9; border: 1px solid var(--ui-line); border-radius: 8px; touch-action: none; cursor: grab; }
+.underlay-workspace-svg--measure { cursor: crosshair; }
+.underlay-workspace-svg:active { cursor: grabbing; }
+.underlay-workspace-svg--measure:active { cursor: crosshair; }
+.underlay-preview { display: grid; place-items: center; min-height: 120px; margin: 0 0 14px; padding: 12px; background: #f4f7f5; border: 1px solid var(--ui-line); border-radius: 8px; overflow: hidden; }
+.underlay-measure { margin: 12px 0; padding: 10px 12px; border: 1px solid var(--ui-line); border-radius: 8px; }
+.underlay-measure legend { padding: 0 4px; font-size: 12px; font-weight: 600; }
+.underlay-measure-status { margin: 0 0 10px; padding: 8px 10px; border-radius: 6px; background: #eef6f1; color: #2f5f4a; font-size: 12px; font-weight: 600; }
+@media (max-width: 760px) {
+  .plan-display-toggles { margin: 4px 0; width: 100%; }
+  .underlay-dialog--workspace { width: min(100%, calc(100vw - 16px)); }
+  .underlay-workspace-svg { height: min(40vh, 320px); }
+  .underlay-workspace-hint { margin-left: 0; flex: 1 1 100%; }
+}

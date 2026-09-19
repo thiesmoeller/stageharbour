@@ -1,13 +1,19 @@
-import { AUDIENCE_FLOOR_ID, supportingSurfaces } from '../../shared/levels.js';
-import { newKeepClearZone, type KeepClearZone } from '../../shared/keepClear.js';
+import { supportingSurfaces } from '../../shared/levels.js';
+import { type KeepClearZone } from '../../shared/keepClear.js';
+import { OUTLINE_VERTEX_INSERT_MM, type PlanPoint } from '../../shared/venue.js';
 import type { VenueGeometry } from '../../shared/layout.js';
+import type { PlanDisplayOptions } from '../../shared/planDisplay.js';
+import { defaultPlanDisplay } from '../../shared/planDisplay.js';
 import type { PointerEvent } from 'react';
 
-export function KeepClearMarks({ zones, selectedIds = [], onPointerDown }: {
+export function KeepClearMarks({ zones, selectedIds = [], drawing, display = defaultPlanDisplay, onPointerDown, onVertexPointerDown }: {
   zones: KeepClearZone[]; selectedIds?: readonly string[];
+  drawing?: PlanPoint[];
+  display?: PlanDisplayOptions;
   onPointerDown?: (event: PointerEvent<SVGGElement>, id: string) => void;
+  onVertexPointerDown?: (event: PointerEvent<SVGCircleElement>, zoneId: string, index: number) => void;
 }) {
-  return <g aria-label="Freihaltezonen" pointerEvents={onPointerDown ? undefined : 'none'}>
+  return <g aria-label="Freihaltezonen" pointerEvents={onPointerDown || onVertexPointerDown ? undefined : 'none'}>
     {zones.map(zone => {
       const cx = zone.polygon.reduce((sum, point) => sum + point.x, 0) / zone.polygon.length;
       const cy = zone.polygon.reduce((sum, point) => sum + point.y, 0) / zone.polygon.length;
@@ -16,29 +22,38 @@ export function KeepClearMarks({ zones, selectedIds = [], onPointerDown }: {
         onPointerDown={onPointerDown ? event => onPointerDown(event, zone.id) : undefined}>
         <path d={`${zone.polygon.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')} Z`}
           fill={chosen ? '#b67c3555' : '#b67c3522'} stroke="#b67c35" strokeWidth="2" strokeDasharray="80 50" vectorEffect="non-scaling-stroke" />
-        {zone.polygon.map((point, index) => <circle key={index} cx={point.x} cy={-point.y} r="35" fill="#b67c35" pointerEvents="none" />)}
-        <text x={cx} y={-cy} textAnchor="middle" fontSize="140" pointerEvents="none">{zone.label}</text>
+        {zone.polygon.map((point, index) => <circle key={index} data-testid={`keep-clear-vertex-${zone.id}-${index}`}
+          cx={point.x} cy={-point.y} r="65" fill="#b67c35"
+          pointerEvents={onVertexPointerDown ? undefined : 'none'}
+          onPointerDown={onVertexPointerDown ? event => onVertexPointerDown(event, zone.id, index) : undefined} />)}
+        {display.showObjectNames && <text x={cx} y={-cy} textAnchor="middle" fontSize="140" pointerEvents="none">{zone.label}</text>}
       </g>;
     })}
+    {drawing && drawing.length > 0 && <g data-testid="keep-clear-drawing" pointerEvents="none">
+      <path d={drawing.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')}
+        fill="none" stroke="#b67c35" strokeWidth="3" strokeDasharray="40 40" vectorEffect="non-scaling-stroke" />
+      {drawing.map((point, index) => <circle key={index} cx={point.x} cy={-point.y} r="50" fill="#b67c35" />)}
+      {drawing.length >= 3 && <circle cx={drawing[0]!.x} cy={-drawing[0]!.y} r={OUTLINE_VERTEX_INSERT_MM}
+        fill="none" stroke="#b67c35" strokeWidth="2" strokeDasharray="20 20" vectorEffect="non-scaling-stroke" />}
+    </g>}
   </g>;
 }
 
 export function KeepClearZones({ venue, zones, click, readOnly, onClick, onZones }: {
   venue: VenueGeometry; zones: KeepClearZone[]; click: string; readOnly: boolean;
-  onClick: (value: 'zone') => void;
+  onClick: (value: 'draw-zone' | 'zone-vertex') => void;
   onZones: (value: KeepClearZone[] | ((current: KeepClearZone[]) => KeepClearZone[])) => void;
 }) {
   const surfaces = supportingSurfaces(venue);
   const centre = { x: Math.round(venue.width / 2), y: Math.round(venue.depth / 2) };
   return <div className="keep-clear">
     <h4>Freihaltezonen</h4>
-    <p className="muted">Beispielmaße, keine gemessene Spielstättenvorgabe. Beschriftete Flächen mit einem Grund wie Notausgang oder Zugang zur Tontechnik. Überlappungen mit Wänden, Stützen, Möbeln und beweglichen Teilen auf derselben Auflagefläche werden gewarnt; Speichern bleibt möglich.</p>
+    <p className="muted">Polygonflächen zeichnen (Eckpunkte setzen, nahe dem ersten Punkt schließen). Eckpunkte im Grundriss ziehen. Überlappungen werden gewarnt; Speichern bleibt möglich.</p>
     {!readOnly && <div className="form-actions">
-      <button type="button" className="quiet" disabled={zones.length >= 250} onClick={() => {
-        onClick('zone');
-        onZones(current => [...current, { ...newKeepClearZone(crypto.randomUUID(), AUDIENCE_FLOOR_ID, centre.x, centre.y), label: 'Notausgang', reason: 'Notausgang' }]);
-      }}>Freihaltezone hinzufügen</button>
-      <button type="button" className={click === 'zone' ? '' : 'quiet'} onClick={() => onClick('zone')}>Punkt der Freihaltezone in der Zeichnung setzen</button>
+      <button type="button" className={click === 'draw-zone' ? '' : 'quiet'} disabled={zones.length >= 250}
+        onClick={() => onClick('draw-zone')}>Freihaltezone zeichnen</button>
+      <button type="button" className={click === 'zone-vertex' ? '' : 'quiet'} disabled={!zones.length}
+        onClick={() => onClick('zone-vertex')}>Eckpunkt auf Zonenkante setzen</button>
       {zones.length > 0 && <button type="button" className="quiet" onClick={() => onZones(current => current.slice(0, -1))}>Letzte Freihaltezone entfernen</button>}
     </div>}
     {zones.map((zone, index) => <div className="opening-fields" key={zone.id}>

@@ -5,6 +5,7 @@ import { normalizeRotation, type PlanTransform } from './editing.js';
 import { resolveWall } from './wall-types.js';
 import type { PlanBounds } from './selection.js';
 import { overheadBoxCorners } from './overhead.js';
+import { trussCorners } from './truss.js';
 
 export function venueObjects(venue: VenueGeometry) {
   return [
@@ -13,6 +14,7 @@ export function venueObjects(venue: VenueGeometry) {
     ...(venue.stairs ?? []).map(item => ({ ...item, kind: 'stair' as const })),
     ...(venue.placeholders ?? []).map(item => ({ ...item, kind: 'placeholder' as const })),
     ...(venue.overheadBoxes ?? []).map(item => ({ ...item, kind: 'overhead' as const })),
+    ...(venue.trusses ?? []).map(item => ({ ...item, kind: 'truss' as const })),
     ...(venue.connectionPoints ?? []).map(item => ({ ...item, kind: 'pin' as const })),
     ...(venue.keepClearZones ?? []).map(item => ({ ...item, ...platformCentroid(item.polygon), kind: 'zone' as const })),
     ...(venue.cableRoutingCorridors ?? []).map(item => ({ ...item, ...platformCentroid(item.path), kind: 'corridor' as const })),
@@ -29,6 +31,7 @@ export function venueObjectFootprint(item: VenueObject, venue: VenueGeometry) {
     case 'corridor': return item.path;
     case 'pin': return [{ x: item.x - 65, y: item.y - 65 }, { x: item.x + 65, y: item.y + 65 }];
     case 'overhead': return overheadBoxCorners(item);
+    case 'truss': return trussCorners(item);
   }
 }
 export function venueObjectsInBounds(venue: VenueGeometry, bounds: PlanBounds) {
@@ -39,7 +42,7 @@ export function venueObjectsInBounds(venue: VenueGeometry, bounds: PlanBounds) {
   }).map(item => item.id);
 }
 
-const objectFields = ['walls', 'platforms', 'stairs', 'placeholders', 'overheadBoxes', 'connectionPoints', 'keepClearZones', 'cableRoutingCorridors'] as const;
+const objectFields = ['walls', 'platforms', 'stairs', 'placeholders', 'overheadBoxes', 'trusses', 'connectionPoints', 'keepClearZones', 'cableRoutingCorridors'] as const;
 export type VenueClipboard = { source: VenueGeometry; ids: string[]; cut: boolean; offset: number };
 export function copyVenueSelection(venue: VenueGeometry, ids: readonly string[], cut = false): VenueClipboard | undefined {
   const selected = venueObjects(venue).filter(item => ids.includes(item.id)).map(item => item.id);
@@ -94,7 +97,7 @@ export function transformVenue(venue: VenueGeometry, ids: readonly string[], del
   const point = (p: { x: number; y: number }) => ({ x: pivot.x + (p.x - pivot.x) * cos - (p.y - pivot.y) * sin + delta.x, y: pivot.y + (p.x - pivot.x) * sin + (p.y - pivot.y) * cos + delta.y });
   const posed = <T extends { id: string; x: number; y: number }>(items: T[] | undefined) => items?.map(item => ids.includes(item.id) ? { ...item, ...point(item), ...('rotation' in item && typeof item.rotation === 'number' ? { rotation: normalizeRotation(item.rotation + delta.rotation) } : {}) } : item);
   const candidate = { ...venue, walls: posed(venue.walls), stairs: posed(venue.stairs), placeholders: posed(venue.placeholders),
-    overheadBoxes: posed(venue.overheadBoxes), connectionPoints: posed(venue.connectionPoints),
+    overheadBoxes: posed(venue.overheadBoxes), trusses: posed(venue.trusses), connectionPoints: posed(venue.connectionPoints),
     platforms: venue.platforms?.map(item => ids.includes(item.id) ? { ...item, outline: item.outline.map(point) } : item),
     keepClearZones: venue.keepClearZones?.map(item => ids.includes(item.id) ? { ...item, polygon: item.polygon.map(point) } : item),
     cableRoutingCorridors: venue.cableRoutingCorridors?.map(item => ids.includes(item.id) ? { ...item, path: item.path.map(point) } : item),

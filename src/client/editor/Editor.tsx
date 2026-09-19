@@ -25,6 +25,8 @@ import { overheadBoxCorners, overheadClearance } from '../../shared/overhead.js'
 import { braceCorners } from '../../shared/braceTransforms.js';
 import { doorOpenAngleDegrees, isDoorOpening, resolveWall, typesOf, type Opening, type WallElementType } from '../../shared/wall-types.js';
 import { measuredOutline } from '../../shared/venue.js';
+import { defaultPlanDisplay, type PlanDisplayOptions } from '../../shared/planDisplay.js';
+import { PlanDisplayToggles } from './PlanDisplayToggles.js';
 import { planningWalls } from '../../shared/planningGeometry.js';
 import { useViewportWheel } from './viewportWheel.js';
 import { LEASE_HEARTBEAT_MS } from '../../shared/leases.js';
@@ -43,7 +45,7 @@ import { ExportPanel } from './ExportPanel.js';
 import { WallTypePanel } from './WallTypePanel.js';
 import { VenuePanel, InfrastructureMarks } from './VenuePanel.js';
 import { useEditingLease } from './useEditingLease.js';
-import { OverheadMarks } from './VenueOverhead.js';
+import { OverheadMarks, TrussMarks } from './VenueOverhead.js';
 import { KeepClearMarks } from './KeepClearZones.js';
 import { objectOverlapWarnings } from '../../shared/overlap.js';
 import { keepClearWarnings } from '../../shared/keepClear.js';
@@ -109,6 +111,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
   const [marqueeBox, setMarqueeBox] = useState<PlanBounds>();
   const [viewZoom, setViewZoom] = useState(1);
   const [viewPan, setViewPan] = useState({ x: 0, y: 0 });
+  const [planDisplay, setPlanDisplay] = useState<PlanDisplayOptions>(defaultPlanDisplay);
   const planGesture = useRef<{
     start: Layout; latest: Layout; members: ClipboardMember[]; previousSelection: ClipboardMember[];
     pointer: { x: number; y: number }; pivot: { x: number; y: number }; operation: TransformOperation;
@@ -633,7 +636,9 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     </div>}
     {permissionReadOnly && onRequestEditing && <p role="status">Eine Bearbeitung ist möglich, sobald die bisherige Freigabe endet (spätestens 45 Sekunden nach dem letzten Lebenszeichen). <button onClick={onRequestEditing}>Bearbeitung erneut anfordern</button></p>}
     {!venueOpen && <div className="editor-grid" data-inspector-open={inspectorOpen}><div className="editor-views" data-mode={viewMode} style={viewMode === 'split' ? { gridTemplateColumns: `minmax(0, ${viewShare}fr) minmax(0, ${100 - viewShare}fr)` } : { gridTemplateColumns: 'minmax(0, 1fr)' }}><div className="plan-canvas" hidden={viewMode === 'stage'}>
-      <div className="plan-viewbar"><h3>Grundriss <span>2D</span></h3><div className="plan-zoom">
+      <div className="plan-viewbar"><h3>Grundriss <span>2D</span></h3>
+      <PlanDisplayToggles value={planDisplay} onChange={setPlanDisplay} />
+      <div className="plan-zoom">
       <button type="button" className="quiet" onClick={() => setViewZoom(z => Math.min(8, z * 1.25))} title="Grundriss vergrößern" aria-label="Vergrößern"><ToolIcon name="plus" /></button>
       <button type="button" className="quiet" onClick={() => setViewZoom(z => Math.max(0.4, z / 1.25))} title="Grundriss verkleinern" aria-label="Verkleinern"><ToolIcon name="minus" /></button>
       <button type="button" className="quiet" onClick={() => { setViewZoom(1); setViewPan({ x: 0, y: 0 }); }}>Passend</button>
@@ -668,16 +673,20 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
             fill="#8fa07a99" stroke="#625b50" strokeWidth="2" vectorEffect="non-scaling-stroke" />
           <title>{item.label} · fester Publikumsstuhl</title>
         </g>)}
-        <text x={venue.width / 2} y={-venue.depth - 200} textAnchor="middle" fontSize="180">{venue.width} mm</text>
-        <text x="-170" y={-venue.depth / 2} textAnchor="middle" fontSize="180" transform={`rotate(-90 -170 ${-venue.depth / 2})`}>{venue.depth} mm</text>
-        <text x={venue.width / 2} y="420" textAnchor="middle" fontSize="190">↑ Publikum · Blick zur Bühne</text>
-        <text x={venue.width / 2} y="620" textAnchor="middle" fontSize="140">V Vorderseite · R Rückseite</text>
+        {planDisplay.showDimensions && <>
+          <text x={venue.width / 2} y={-venue.depth - 200} textAnchor="middle" fontSize="180">{venue.width} mm</text>
+          <text x="-170" y={-venue.depth / 2} textAnchor="middle" fontSize="180" transform={`rotate(-90 -170 ${-venue.depth / 2})`}>{venue.depth} mm</text>
+        </>}
+        {planDisplay.showTexts && <>
+          <text x={venue.width / 2} y="420" textAnchor="middle" fontSize="190">↑ Publikum · Blick zur Bühne</text>
+          <text x={venue.width / 2} y="620" textAnchor="middle" fontSize="140">V Vorderseite · R Rückseite</text>
+        </>}
         <PlatformLayer venuePlatforms={venue.platforms ?? []} layoutPlatforms={shown.platforms ?? []}
           venueStairs={venue.stairs ?? []} layoutStairs={shown.stairs ?? []}
           selectedId={selectedPlatform ?? selectedStair}
           selectedPlatformIds={pickedPlatforms}
           selectedMemberIds={groupedIds}
-          readOnly={readOnly}
+          readOnly={readOnly} display={planDisplay}
           onPlatformPointerDown={startPlatform}
           onStairPointerDown={startStair}
           onSelect={(kind, id, additive) => pick({ kind, id }, !!additive)} />
@@ -707,11 +716,13 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
                 </>}
               </g>;
             })}
-            <text y={-resolved.thickness / 2 - 160} textAnchor="middle" fontSize="150" pointerEvents="none" data-testid={`assembly-label-${wall.id}`}>
+            {planDisplay.showObjectNames && <text y={-resolved.thickness / 2 - 160} textAnchor="middle" fontSize="150" pointerEvents="none" data-testid={`assembly-label-${wall.id}`}>
               {wall.assemblyNumber ? assemblyCaption(wall.assemblyNumber, wall.panelId ? panelLabels[wall.panelId] : undefined) : wall.label}
-            </text>
-            <text y={resolved.thickness / 2 + 90} textAnchor="middle" fontSize="110" pointerEvents="none">V</text>
-            <text y={-resolved.thickness / 2 - 40} textAnchor="middle" fontSize="110" pointerEvents="none">R</text>
+            </text>}
+            {planDisplay.showTexts && <>
+              <text y={resolved.thickness / 2 + 90} textAnchor="middle" fontSize="110" pointerEvents="none">V</text>
+              <text y={-resolved.thickness / 2 - 40} textAnchor="middle" fontSize="110" pointerEvents="none">R</text>
+            </>}
           </g>;
         })}
         {objectPlacement.current && <g data-testid="placing-object" pointerEvents="none" />}
@@ -725,16 +736,17 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
             {resolved.openings.map(opening => <rect key={opening.id}
               x={-resolved.width / 2 + opening.left} y={-resolved.thickness / 2} width={opening.width} height={resolved.thickness}
               fill="#f8faf5" stroke="#986122" strokeWidth="1" vectorEffect="non-scaling-stroke" />)}
-            <text y={-resolved.thickness / 2 - 160} textAnchor="middle" fontSize="150">{placing.wall.label}</text>
+            {planDisplay.showObjectNames && <text y={-resolved.thickness / 2 - 160} textAnchor="middle" fontSize="150">{placing.wall.label}</text>}
           </g>;
         })()}
-        <BraceLayer braces={shown.braces} selectedId={selectedBrace} groupedIds={groupedIds} readOnly={readOnly} onPointerDown={startBrace} />
+        <BraceLayer braces={shown.braces} selectedId={selectedBrace} groupedIds={groupedIds} readOnly={readOnly} display={planDisplay} onPointerDown={startBrace} />
         <PlaceholderLayer placeholders={shown.placeholders ?? []} selectedId={selectedPlaceholder}
-          readOnly={readOnly} groupedIds={groupedIds} onPointerDown={startPlaceholder} />
-        <InfrastructureMarks pins={venue.connectionPoints ?? []} corridors={venue.cableRoutingCorridors ?? []} />
-        <OverheadMarks boxes={venue.overheadBoxes ?? []} />
-        <KeepClearMarks zones={venue.keepClearZones ?? []} />
-        <CentrelineMark centreline={venue.stageCentreline} />
+          readOnly={readOnly} groupedIds={groupedIds} display={planDisplay} onPointerDown={startPlaceholder} />
+        <InfrastructureMarks pins={venue.connectionPoints ?? []} corridors={venue.cableRoutingCorridors ?? []} display={planDisplay} />
+        <OverheadMarks boxes={venue.overheadBoxes ?? []} display={planDisplay} />
+        <TrussMarks trusses={venue.trusses ?? []} display={planDisplay} />
+        <KeepClearMarks zones={venue.keepClearZones ?? []} display={planDisplay} />
+        <CentrelineMark centreline={venue.stageCentreline} showLabel={planDisplay.showTexts} />
         <AlignmentGuides guides={guides} />
         {marqueeBox && <rect data-testid="selection-marquee" className="selection-marquee"
           x={marqueeBox.minX} y={-marqueeBox.maxY} width={marqueeBox.maxX - marqueeBox.minX} height={marqueeBox.maxY - marqueeBox.minY}

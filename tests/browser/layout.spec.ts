@@ -139,6 +139,11 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
     name: 'grundriss.png', mimeType: 'image/png', buffer: pngBytes(),
   });
   expect((await uploaded).ok()).toBeTruthy();
+  await expect(page.getByRole('dialog', { name: 'Vorlage einrichten' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Im Grundriss übernehmen' })).toBeEnabled({ timeout: 15000 });
+  await page.getByRole('button', { name: 'Im Grundriss übernehmen' }).click();
+  await expect(page.getByRole('dialog', { name: 'Vorlage einrichten' })).toHaveCount(0);
+  await openInspector(page, 'Vorlage & Maßstab');
   await page.getByLabel('Punkt A X').fill('0');
   await page.getByLabel('Punkt A Y').fill('0');
   await page.getByLabel('Punkt B X').fill('30');
@@ -167,7 +172,19 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByLabel('Überbauung 1 X (mm)').fill('2500');
   await page.getByLabel('Überbauung 1 Y (mm)').fill('1800');
   await openInspector(page, 'Freihaltezonen');
-  await page.getByRole('button', { name: 'Freihaltezone hinzufügen', exact: true }).click();
+  await page.getByRole('button', { name: 'Freihaltezone zeichnen', exact: true }).click();
+  const venueSvg = page.locator('svg[aria-label="Umriss der Spielstätte"]');
+  async function clickVenue(x: number, y: number) {
+    const p = await venueSvg.evaluate((element, pt) => {
+      const result = new DOMPoint(pt.x, -pt.y).matrixTransform((element as SVGSVGElement).getScreenCTM()!);
+      return { x: result.x, y: result.y };
+    }, { x, y });
+    await page.mouse.click(p.x, p.y);
+  }
+  await clickVenue(3500, 2500);
+  await clickVenue(5500, 2500);
+  await clickVenue(5500, 4000);
+  await clickVenue(3550, 2550);
   await page.getByLabel('Freihaltezone 1 Bezeichnung').fill('Notausgang Ost');
   await page.getByLabel('Freihaltezone 1 Grund').fill('Notausgang');
   const saved = page.waitForResponse(response => /\/scenes\/[^/]+\/venue$/.test(new URL(response.url()).pathname) && response.request().method() === 'PUT');
@@ -425,7 +442,21 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await waitUntilSaved(page);
   await page.getByRole('button', { name: 'Spielstätte' }).click();
   await openInspector(page, 'Freihaltezonen');
-  await page.getByRole('button', { name: 'Freihaltezone hinzufügen', exact: true }).click();
+  await page.getByRole('button', { name: 'Freihaltezone zeichnen', exact: true }).click();
+  {
+    const venueSvg = page.locator('svg[aria-label="Umriss der Spielstätte"]');
+    async function clickVenue(x: number, y: number) {
+      const p = await venueSvg.evaluate((element, pt) => {
+        const result = new DOMPoint(pt.x, -pt.y).matrixTransform((element as SVGSVGElement).getScreenCTM()!);
+        return { x: result.x, y: result.y };
+      }, { x, y });
+      await page.mouse.click(p.x, p.y);
+    }
+    await clickVenue(1000, 1000);
+    await clickVenue(2500, 1000);
+    await clickVenue(2500, 2000);
+    await clickVenue(1050, 1050);
+  }
   await page.getByLabel('Freihaltezone 1 Bezeichnung').fill('Notausgang Ost');
   await openInspector(page, 'Überbauung');
   await page.getByRole('button', { name: 'Überbauung hinzufügen' }).click();

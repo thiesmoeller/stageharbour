@@ -3,8 +3,10 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { venueGeometrySchema } from '../src/shared/layout.js';
 import {
-  calibrationSchema, insertOutlineVertex, measuredOutline, millimetresPerUnit, OUTLINE_VERTEX_INSERT_MM, venueOutlineSchema,
+  calibrationSchema, insertOutlineVertex, measuredOutline, millimetresPerUnit, OUTLINE_VERTEX_INSERT_MM,
+  planToUnderlaySource, underlaySourceToPlan, venueOutlineSchema,
 } from '../src/shared/venue.js';
+import { defaultPlanDisplay } from '../src/shared/planDisplay.js';
 
 test('two-point calibration with a known distance yields a reproducible millimetre scale', () => {
   const calibration = calibrationSchema.parse({
@@ -37,11 +39,12 @@ test('accepts an irregular outline and derives millimetre bounds from it', () =>
   const venue = venueGeometrySchema.parse({
     schemaVersion: 1, width: 8000, depth: 6000, outline,
     trace: {
-      fileId: randomUUID(), page: 1,
+      fileId: randomUUID(), page: 1, rotationDeg: 15,
       calibration: { pointA: { x: 0, y: 0 }, pointB: { x: 30, y: 40 }, distanceMm: 5000 },
     },
   });
   assert.deepEqual(measuredOutline(venue), outline);
+  assert.equal(venue.trace?.rotationDeg, 15);
 });
 
 test('rejects degenerate outlines and synthesizes a rectangle when none is stored', () => {
@@ -68,4 +71,23 @@ test('a click near an outline edge inserts a vertex on that edge, not at the end
   ]);
   assert.equal(insertOutlineVertex(outline, { x: 4000, y: OUTLINE_VERTEX_INSERT_MM + 50 }), undefined);
   assert.equal(insertOutlineVertex(outline, { x: 0, y: 0 }), undefined);
+});
+
+test('underlay source and plan coordinates round-trip through scale and rotation', () => {
+  const overlay = { pixelWidth: 200, pixelHeight: 100 };
+  const unit = 50;
+  const rotationDeg = 90;
+  const source = { x: 40, y: 20 };
+  const plan = underlaySourceToPlan(source, overlay, unit, rotationDeg);
+  const back = planToUnderlaySource(plan, overlay, unit, rotationDeg);
+  assert.deepEqual(back, source);
+  const unrotated = underlaySourceToPlan(source, overlay, unit, 0);
+  assert.equal(unrotated.x, 40 * unit);
+  assert.equal(unrotated.y, (100 - 20) * unit);
+});
+
+test('plan display defaults show underlay, names, dimensions and texts', () => {
+  assert.deepEqual(defaultPlanDisplay, {
+    showUnderlay: true, showObjectNames: true, showDimensions: true, showTexts: true,
+  });
 });

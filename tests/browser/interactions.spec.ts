@@ -111,19 +111,31 @@ test('venue pins, exits, podiums and chairs can be selected, moved and rotated',
   await page.getByRole('button', { name: 'Spielstätte', exact: true }).click();
   const svg = 'svg[aria-label="Umriss der Spielstätte"]';
   const tools = page.locator('.venue-editor .tool-rail');
-  await tools.getByRole('button', { name: 'Stromanschluss hinzufügen' }).click();
+  async function clickPlan(x: number, y: number) {
+    const p = await point(page, x, y, svg);
+    await page.mouse.click(p.x, p.y);
+  }
+  await tools.getByRole('button', { name: 'Strom setzen' }).click();
+  await clickPlan(4000, 3000);
   await expect(page.locator('[data-testid^="connection-point-"]')).toHaveCount(1);
   await drag(page, await point(page, 4000, 3000, svg), await point(page, 4200, 3100, svg));
   await expect(page.getByLabel('Strom X')).toHaveValue('4200');
-  await tools.getByRole('button', { name: 'Notausgang / Freihaltezone hinzufügen' }).click();
+  await tools.getByRole('button', { name: 'Freihaltezone zeichnen' }).click();
+  await clickPlan(1000, 1000);
+  await clickPlan(3000, 1000);
+  await clickPlan(3000, 2500);
+  await clickPlan(1050, 1050);
   await expect(page.locator('[data-testid^="keep-clear-zone-"]')).toHaveCount(1);
-  await tools.getByRole('button', { name: 'Permanentes Podest hinzufügen' }).click();
+  await tools.getByRole('button', { name: 'Podest setzen' }).click();
+  await clickPlan(5000, 4000);
   await expect(page.locator('[data-testid^="venue-platform-"]')).toHaveCount(1);
   await expect(page.getByTestId(/^rotate-venue-platform-/)).toBeVisible();
-  await tools.getByRole('button', { name: 'Publikumsstuhl hinzufügen' }).click();
+  await tools.getByRole('button', { name: 'Stuhl setzen' }).click();
+  await clickPlan(2000, 1500);
   await expect(page.locator('[data-testid^="placeholder-"]')).toHaveCount(1);
   await expect(page.getByTestId(/^rotate-venue-placeholder-/)).toBeVisible();
-  await tools.getByRole('button', { name: 'Lüftungskanal / Höhenbeschränkung hinzufügen' }).click();
+  await tools.getByRole('button', { name: 'Lüftungskanal setzen' }).click();
+  await clickPlan(4500, 3500);
   await expect(page.locator('[data-testid^="overhead-box-"]')).toHaveCount(1);
   await expect(page.locator('#venue-ceiling-selected')).toHaveValue('4000');
 });

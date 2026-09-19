@@ -1,8 +1,11 @@
 import type { PointerEvent } from 'react';
 import type { Brace } from '../../shared/layout.js';
+import type { PlanDisplayOptions } from '../../shared/planDisplay.js';
+import { defaultPlanDisplay } from '../../shared/planDisplay.js';
 
-export function BraceLayer({ braces, selectedId, groupedIds, preview, readOnly, onPointerDown }: {
+export function BraceLayer({ braces, selectedId, groupedIds, preview, readOnly, display = defaultPlanDisplay, onPointerDown }: {
   braces: Brace[]; selectedId?: string; groupedIds?: Set<string>; preview?: Brace; readOnly: boolean;
+  display?: PlanDisplayOptions;
   onPointerDown: (event: PointerEvent<SVGGElement>, brace: Brace) => void;
 }) {
   return braces.map(saved => {
@@ -18,9 +21,11 @@ export function BraceLayer({ braces, selectedId, groupedIds, preview, readOnly, 
       {/* Wall face at local −Y; floor tip at +Y. */}
       <line x1={-halfW} y1={-halfD} x2={halfW} y2={-halfD} stroke="#8a6a3a" strokeWidth="4" vectorEffect="non-scaling-stroke" />
       <line x1={0} y1={-halfD} x2={0} y2={halfD} stroke="#a48454" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-      <text y={-halfD - 80} textAnchor="middle" fontSize="150" pointerEvents="none">{brace.label}</text>
-      <text y={halfD + 160} textAnchor="middle" fontSize="130" pointerEvents="none">{brace.footprintWidth} × {brace.footprintDepth} mm</text>
-      <text y={halfD + 310} textAnchor="middle" fontSize="130" pointerEvents="none">{brace.height} mm</text>
+      {display.showObjectNames && <text y={-halfD - 80} textAnchor="middle" fontSize="150" pointerEvents="none">{brace.label}</text>}
+      {display.showDimensions && <>
+        <text y={halfD + 160} textAnchor="middle" fontSize="130" pointerEvents="none">{brace.footprintWidth} × {brace.footprintDepth} mm</text>
+        <text y={halfD + 310} textAnchor="middle" fontSize="130" pointerEvents="none">{brace.height} mm</text>
+      </>}
     </g>;
   });
 }

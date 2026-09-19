@@ -44,6 +44,8 @@ export const placeholderSchema = z.strictObject({
   width: dimension, depth: dimension, height: dimension,
   supportingSurfaceId: z.uuid().optional(),
   assetId: z.uuid().optional(),
+  /** Optional seated person mark on a chair. Ignored for other kinds. */
+  seatedFigure: z.boolean().optional(),
 });
 export type Placeholder = z.infer<typeof placeholderSchema>;
 export const placeholdersSchema = z.array(placeholderSchema).max(250)
@@ -70,6 +72,7 @@ export type PlaceholderSolid = {
   size: { x: number; y: number; z: number };
   center: { x: number; y: number; z: number };
   rotationY: number;
+  seatedFigure?: boolean;
 };
 
 export function placeholderSolid(item: Placeholder, elevation = 0): PlaceholderSolid {
@@ -78,5 +81,6 @@ export function placeholderSolid(item: Placeholder, elevation = 0): PlaceholderS
     size: { x: item.width, y: item.height, z: item.depth },
     center: { x: item.x, y: elevation + item.height / 2, z: item.y },
     rotationY: -item.rotation * Math.PI / 180,
+    seatedFigure: item.kind === 'chair' ? item.seatedFigure : undefined,
   };
 }

@@ -1,34 +1,48 @@
 import { type Platform, type StairUnit, type SupportingSurface } from '../../shared/levels.js';
 import { platformCentroid } from '../../shared/levels.js';
+import type { PlanDisplayOptions } from '../../shared/planDisplay.js';
+import { defaultPlanDisplay } from '../../shared/planDisplay.js';
 import type { PointerEvent } from 'react';
 
 function path(outline: { x: number; y: number }[]) {
   return `${outline.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')} Z`;
 }
 
+function platformCaption(platform: Platform, display: PlanDisplayOptions) {
+  return [
+    display.showObjectNames ? platform.label : undefined,
+    display.showDimensions ? `${platform.elevation} mm` : undefined,
+  ].filter(Boolean).join(' · ');
+}
+
 export function PlatformLayer({
   venuePlatforms, layoutPlatforms, venueStairs, layoutStairs, selectedId, selectedPlatformIds, selectedMemberIds,
-  readOnly, onSelect, onPlatformPointerDown, onStairPointerDown,
+  readOnly, display = defaultPlanDisplay, onSelect, onPlatformPointerDown, onStairPointerDown,
 }: {
   venuePlatforms: Platform[]; layoutPlatforms: Platform[];
   venueStairs: StairUnit[]; layoutStairs: StairUnit[];
   selectedId?: string; selectedPlatformIds?: string[]; selectedMemberIds?: Set<string>;
   readOnly?: boolean;
+  display?: PlanDisplayOptions;
   onSelect: (kind: 'platform' | 'stair', id: string, additive?: boolean) => void;
   onPlatformPointerDown?: (event: PointerEvent<SVGGElement>, platform: Platform) => void;
   onStairPointerDown?: (event: PointerEvent<SVGGElement>, stair: StairUnit) => void;
 }) {
   const platforms = new Set(selectedPlatformIds ?? []);
   return <g aria-label="Ebenen">
-    {venuePlatforms.map(platform => <g key={platform.id} data-testid={`venue-platform-${platform.id}`}>
-      <path d={path(platform.outline)} fill="#c5d0b8" stroke="#5a6e52" strokeWidth="2" vectorEffect="non-scaling-stroke" pointerEvents="none" />
-      <text x={platform.outline.reduce((sum, point) => sum + point.x, 0) / platform.outline.length}
-        y={-platform.outline.reduce((sum, point) => sum + point.y, 0) / platform.outline.length}
-        textAnchor="middle" fontSize="160" pointerEvents="none">{platform.label} · {platform.elevation} mm</text>
-    </g>)}
+    {venuePlatforms.map(platform => {
+      const caption = platformCaption(platform, display);
+      return <g key={platform.id} data-testid={`venue-platform-${platform.id}`}>
+        <path d={path(platform.outline)} fill="#c5d0b8" stroke="#5a6e52" strokeWidth="2" vectorEffect="non-scaling-stroke" pointerEvents="none" />
+        {caption && <text x={platform.outline.reduce((sum, point) => sum + point.x, 0) / platform.outline.length}
+          y={-platform.outline.reduce((sum, point) => sum + point.y, 0) / platform.outline.length}
+          textAnchor="middle" fontSize="160" pointerEvents="none">{caption}</text>}
+      </g>;
+    })}
     {layoutPlatforms.map(platform => {
       const centre = platformCentroid(platform.outline);
       const chosen = selectedId === platform.id || platforms.has(platform.id);
+      const caption = platformCaption(platform, display);
       return <g key={platform.id} data-testid={`platform-${platform.id}`} className={readOnly ? undefined : 'draggable-wall'}
         onPointerDown={event => {
           if (onPlatformPointerDown) onPlatformPointerDown(event, platform);
@@ -36,7 +50,7 @@ export function PlatformLayer({
         }}>
         <path d={path(platform.outline)} fill={chosen ? '#b7c6a6' : '#c5d0b8'}
           stroke={chosen ? '#b67c35' : '#5a6e52'} strokeWidth="2" vectorEffect="non-scaling-stroke" />
-        <text x={centre.x} y={-centre.y} textAnchor="middle" fontSize="160" pointerEvents="none">{platform.label} · {platform.elevation} mm</text>
+        {caption && <text x={centre.x} y={-centre.y} textAnchor="middle" fontSize="160" pointerEvents="none">{caption}</text>}
       </g>;
     })}
     {[...venueStairs.map(stair => ({ stair, movable: false })), ...layoutStairs.map(stair => ({ stair, movable: true }))].map(({ stair, movable }) => {
@@ -50,8 +64,8 @@ export function PlatformLayer({
         <rect x={-stair.width / 2} y={-stair.run / 2} width={stair.width} height={stair.run}
           fill={chosen ? '#d5decc' : '#e8efe3'} stroke={chosen ? '#b67c35' : '#718469'}
           strokeWidth="2" vectorEffect="non-scaling-stroke" />
-        <text y="40" textAnchor="middle" fontSize="140" pointerEvents="none">{stair.label}</text>
-        <text y="200" textAnchor="middle" fontSize="120" pointerEvents="none">{stair.width} × {stair.run} mm</text>
+        {display.showObjectNames && <text y="40" textAnchor="middle" fontSize="140" pointerEvents="none">{stair.label}</text>}
+        {display.showDimensions && <text y="200" textAnchor="middle" fontSize="120" pointerEvents="none">{stair.width} × {stair.run} mm</text>}
       </g>;
     })}
   </g>;

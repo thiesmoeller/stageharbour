@@ -11,6 +11,7 @@ import { venueOutlineSchema, venueTraceSchema } from './venue.js';
 import { placeholdersSchema } from './placeholders.js';
 import { panelConnectionSchema } from './assembly.js';
 import { groupSchema, groupsReferenceLayout } from './groups.js';
+import { trussesSchema } from './truss.js';
 
 const name = z.string().trim().min(1).max(120);
 const dimension = z.number().finite().min(1).max(100000);
@@ -86,6 +87,7 @@ export const venueGeometrySchema = z.strictObject({
   placeholders: placeholdersSchema.optional(),
   ceilingHeight: ceilingHeightSchema.optional(),
   overheadBoxes: overheadBoxesSchema.optional(),
+  trusses: trussesSchema.optional(),
   keepClearZones: keepClearZonesSchema.optional(),
   stageCentreline: stageCentrelineSchema.optional(),
 }).refine(venue => uniqueLevelIds(venue.platforms ?? [], venue.stairs ?? []), 'Platform and stair IDs must be unique');

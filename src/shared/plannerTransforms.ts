@@ -19,6 +19,7 @@ function shapes(item: VenueObject, venue: VenueGeometry): SnapWall[] {
     case 'stair': return [{ ...item, thickness: item.run }];
     case 'placeholder': return [{ ...item, thickness: item.depth }];
     case 'overhead': return [{ ...item, width: item.length, thickness: item.width }];
+    case 'truss': return [{ ...item, width: item.length, thickness: item.sectionWidth }];
     case 'pin': return [{ ...base, width: 0, thickness: 0 }];
     default: {
       // Use actual polygon edges, not a bounding rectangle around an irregular platform.

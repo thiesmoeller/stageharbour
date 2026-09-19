@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { venueOutlineSchema } from './venue.js';
+import { venueOutlineSchema, OUTLINE_VERTEX_INSERT_MM, type PlanPoint } from './venue.js';
 import { AUDIENCE_FLOOR_ID } from './levels.js';
 
 const name = z.string().trim().min(1).max(120);
@@ -26,6 +26,18 @@ export function newKeepClearZone(id: string, supportingSurfaceId: string, x: num
   };
 }
 
+/** Commit a drawn polygon as a Notausgang keep-clear zone when it has at least three points. */
+export function commitDrawnKeepClear(id: string, polygon: PlanPoint[]): KeepClearZone | undefined {
+  if (polygon.length < 3) return undefined;
+  return { ...newKeepClearZone(id, AUDIENCE_FLOOR_ID, 0, 0), label: 'Notausgang', reason: 'Notausgang', polygon };
+}
+
+export function nearFirstVertex(points: PlanPoint[], point: PlanPoint, maxDistanceMm = OUTLINE_VERTEX_INSERT_MM) {
+  const first = points[0];
+  if (!first || points.length < 3) return false;
+  return Math.hypot(point.x - first.x, point.y - first.y) <= maxDistanceMm;
+}
+
 export const keepClearObjectKindSchema = z.enum(['wall', 'brace', 'platform', 'stair', 'placeholder']);
 export type KeepClearObjectKind = z.infer<typeof keepClearObjectKindSchema>;
 export const keepClearWarningSchema = z.strictObject({
@@ -35,7 +47,6 @@ export const keepClearWarningSchema = z.strictObject({
 });
 export type KeepClearWarning = z.infer<typeof keepClearWarningSchema>;
 
-type PlanPoint = { x: number; y: number };
 type LayoutObjects = {
   walls: { id: string; label: string; x: number; y: number; rotation: number; width: number; thickness: number; supportingSurfaceId?: string }[];
   braces: { id: string; label: string; x: number; y: number; rotation: number; footprintWidth: number; footprintDepth: number; supportingSurfaceId?: string }[];
