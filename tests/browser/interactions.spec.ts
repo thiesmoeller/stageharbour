@@ -1,4 +1,4 @@
-import { openInspector, placeWallAt } from '../helpers/inspector.js';
+import { openInspector, placeNamedObjectAt, placeWallAt } from '../helpers/inspector.js';
 import { test, expect, type Page } from '@playwright/test';
 import { testAdministrator } from '../helpers/database.js';
 
@@ -50,9 +50,9 @@ test('wall edge snapping, pointer rotation, clipboard, mixed marquee delete and 
   await page.getByRole('button', { name: 'Kopieren', exact: true }).click();
   await page.keyboard.press('Control+v');
   await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(3);
-  await page.getByRole('button', { name: 'Stütze hinzufügen', exact: true }).click();
+  await placeNamedObjectAt(page, 'Stütze hinzufügen');
   await openInspector(page, 'Platzhalter');
-  await page.getByRole('button', { name: 'Kiste hinzufügen', exact: true }).click();
+  await placeNamedObjectAt(page, 'Kiste hinzufügen');
   await drag(page, await point(page, 700, 800), await point(page, 6500, 5500));
   await expect(page.locator('.clipboard-panel')).toContainText('5 ausgewählt');
   await page.keyboard.press('Delete');
@@ -88,7 +88,9 @@ test('venue plan drag, rubberband clipboard and escape cancel keep one draft his
   await create(page);
   await page.getByRole('button', { name: 'Spielstätte', exact: true }).click();
   const svg = 'svg[aria-label="Umriss der Spielstätte"]';
-  await page.getByRole('button', { name: 'Feste Wand hinzufügen' }).click();
+  await page.getByRole('button', { name: 'Feste Wand setzen' }).click();
+  const at = await point(page, 4000, 3000, svg);
+  await page.mouse.click(at.x, at.y);
   const wallX = page.getByLabel('Feste Wand 1 x');
   await expect(wallX).toHaveValue('4000');
   await drag(page, await point(page, 4000, 3000, svg), await point(page, 4500, 3200, svg));
@@ -198,8 +200,7 @@ test('Shift-deselect removes the object from every command target', async ({ pag
 test('mixed wall-platform selection moves from either object and cancels atomically', async ({ page }) => {
   await create(page);
   await placeWallAt(page, 1500, 1000);
-  await page.getByRole('button', { name: 'Podest hinzufügen', exact: true }).click();
-  await page.keyboard.press('Escape');
+  await placeNamedObjectAt(page, 'Podest hinzufügen');
   await drag(page, await point(page, 500, 500), await point(page, 6500, 5500));
   await expect(page.locator('.clipboard-panel')).toContainText('2 ausgewählt');
   await expect(page.getByTestId('rotate-selection')).toBeVisible();
@@ -227,15 +228,17 @@ test('mixed wall-platform selection moves from either object and cancels atomica
 test('venue Shift toggles without dragging; mixed rotation and cancel preserve selection', async ({ page }) => {
   await create(page);
   await page.getByRole('button', { name: 'Spielstätte', exact: true }).click();
-  await page.getByRole('button', { name: 'Feste Wand hinzufügen' }).click();
   const svg = 'svg[aria-label="Umriss der Spielstätte"]';
+  await page.getByRole('button', { name: 'Feste Wand setzen' }).click();
   const a = await point(page, 4000, 3000, svg), b = await point(page, 4400, 3200, svg);
+  await page.mouse.click(a.x, a.y);
   await page.keyboard.down('Shift');
   await drag(page, a, b);
   await page.keyboard.up('Shift');
   await expect(page.locator('[data-testid^="venue-wall-"]')).toHaveAttribute('transform', 'translate(4000 -3000) rotate(0)');
   await expect(page.getByRole('button', { name: 'Kopieren', exact: true })).toBeDisabled();
-  await page.getByRole('button', { name: 'Publikumsstuhl hinzufügen' }).click();
+  await page.getByRole('button', { name: 'Stuhl setzen' }).click();
+  await page.mouse.click((await point(page, 5000, 4000, svg)).x, (await point(page, 5000, 4000, svg)).y);
   await drag(page, await point(page, 500, 500, svg), await point(page, 6500, 5500, svg));
   await expect(page.getByTestId('rotate-venue-selection')).toBeVisible();
   await expect(page.locator('.clipboard-panel')).toContainText('2 ausgewählt');
@@ -249,7 +252,7 @@ test('venue Shift toggles without dragging; mixed rotation and cancel preserve s
 test('scene face resizing previews, cancels, commits and undoes once', async ({ page }) => {
   await create(page);
   await openInspector(page, 'Platzhalter');
-  await page.getByRole('button', { name: 'Kiste hinzufügen', exact: true }).click();
+  await placeNamedObjectAt(page, 'Kiste hinzufügen');
   const solid = page.locator('[data-testid^="stage-placeholder-"]');
   const dimensions = () => solid.evaluate(element => ['data-width', 'data-depth', 'data-height'].map(key => element.getAttribute(key)).join('/'));
   const initial = await dimensions();

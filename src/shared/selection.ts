@@ -1,6 +1,7 @@
 import { braceCorners } from './braceTransforms.js';
 import type { Layout } from './layout.js';
 import { wallCorners } from './layout.js';
+import { stairCorners } from './levels.js';
 import { placeholderCorners } from './placeholders.js';
 import { resolveWall } from './wall-types.js';
 
@@ -45,8 +46,8 @@ export function membersInBounds(layout: Layout, bounds: PlanBounds): SelectableM
     if (box && overlaps(bounds, box)) members.push({ kind: 'brace', id: brace.id });
   }
   for (const stair of layout.stairs ?? []) {
-    const box = { minX: stair.x - 100, maxX: stair.x + 100, minY: stair.y - 100, maxY: stair.y + 100 };
-    if (overlaps(bounds, box)) members.push({ kind: 'stair', id: stair.id });
+    const box = pointsBounds(stairCorners(stair));
+    if (box && overlaps(bounds, box)) members.push({ kind: 'stair', id: stair.id });
   }
   for (const item of layout.placeholders ?? []) {
     const box = pointsBounds(placeholderCorners(item));

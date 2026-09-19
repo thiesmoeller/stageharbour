@@ -1,4 +1,4 @@
-import { openInspector, placeWallAt } from '../helpers/inspector.js';
+import { openInspector, placeNamedObjectAt, placeWallAt } from '../helpers/inspector.js';
 import { test, expect, type Page } from '@playwright/test';
 import { testAdministrator } from '../helpers/database.js';
 
@@ -67,7 +67,7 @@ test('edits in the plan update the linked 3D view, including front orientation a
   await expect(stageWall).toContainText('Vorderseite zeigt nach rechts');
   await waitUntilSaved(page);
 
-  await page.getByRole('button', { name: 'Stütze hinzufügen' }).click();
+  await placeNamedObjectAt(page, 'Stütze hinzufügen');
   const stageBrace = page.locator('[data-testid^="stage-brace-"]');
   await expect(page.locator('[data-testid^="brace-"]')).toHaveCount(1);
   await expect(stageBrace).toHaveCount(1);
@@ -93,7 +93,7 @@ test('edits in the plan update the linked 3D view, including front orientation a
   await waitUntilSaved(page);
 
   await openInspector(page, 'Platzhalter');
-  await page.getByRole('button', { name: 'Tisch hinzufügen' }).click();
+  await placeNamedObjectAt(page, 'Tisch hinzufügen');
   const stageTable = page.locator('[data-testid^="stage-placeholder-"]');
   await expect(page.locator('.plan-canvas [data-testid^="placeholder-"]')).toHaveCount(1);
   await expect(stageTable).toHaveCount(1);
@@ -122,10 +122,10 @@ test('edits in the plan update the linked 3D view, including front orientation a
   await expect(page.locator('[data-testid^="stage-overhead-"]')).toHaveAttribute('data-bottom', '2600');
   await expect(page.locator('[data-testid^="stage-overhead-"]')).toHaveAttribute('data-thickness', '400');
 
-  await page.getByRole('button', { name: 'Podest hinzufügen' }).click();
+  await placeNamedObjectAt(page, 'Podest hinzufügen');
   await expect(page.locator('[data-testid^="platform-"]')).toHaveCount(1);
   await expect(page.locator('[data-testid^="stage-platform-"]')).toHaveAttribute('data-elevation', '400');
-  await page.getByRole('button', { name: 'Treppe hinzufügen' }).click();
+  await placeNamedObjectAt(page, 'Treppe hinzufügen');
   await expect(page.locator('[data-testid^="stage-stair-"]')).toHaveAttribute('data-rise', '400');
   await waitUntilSaved(page);
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });

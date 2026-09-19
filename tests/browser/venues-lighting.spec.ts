@@ -16,7 +16,15 @@ test('design a venue independently, reuse it in a production, and save scene lig
   await page.getByRole('button', { name: 'Spielstätte anlegen', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Studiobühne', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Wand hinzufügen', exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: 'Feste Wand hinzufügen' }).click();
+  await page.getByRole('button', { name: 'Feste Wand setzen' }).click();
+  const svg = page.locator('svg[aria-label="Umriss der Spielstätte"]');
+  await svg.scrollIntoViewIfNeeded();
+  const centre = await svg.evaluate(element => {
+    const ctm = (element as SVGSVGElement).getScreenCTM();
+    if (!ctm) return { x: 0, y: 0 };
+    return new DOMPoint(4000, -3000).matrixTransform(ctm);
+  });
+  await page.mouse.click(centre.x, centre.y);
   await page.getByLabel('Feste Wand 1 width').fill('6000');
   await page.getByLabel('Feste Wand 1 y').fill('4500');
   await page.locator('.lighting-panel summary').click();

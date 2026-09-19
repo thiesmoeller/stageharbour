@@ -545,6 +545,11 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     if (phase === 'preview') setGroupPreview(result);
     else { stageGesture.current = undefined; setGroupPreview(undefined); if (JSON.stringify(result) !== JSON.stringify(held.layout)) commit(result); }
   };
+  function beginObjectPlacement(layout: Layout, member: ClipboardMember, origin = { x: venue.width / 2, y: venue.depth / 2 }) {
+    if (readOnly || busyGesture()) return;
+    objectPlacement.current = { start: layout, latest: layout, member, origin };
+    setGroupPreview(layout); setGuides([]); setSnapStatus('Klicken zum Platzieren · Escape abbricht');
+  }
   function placeAsset(asset: Asset) {
     if (readOnly || busyGesture()) return;
     setLibraryOpen(false);
@@ -563,8 +568,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
       const item = definition.kind === 'model' ? { ...newPlaceholder('box', id, x, y), label: asset.name, assetId: asset.id, width: definition.width, height: definition.height, depth: definition.depth } : undefined;
       const start = brace ? { ...current.current.present, braces: [...current.current.present.braces, brace] }
         : { ...current.current.present, placeholders: [...current.current.present.placeholders ?? [], item!] };
-      objectPlacement.current = { start, latest: start, member: { kind: brace ? 'brace' : 'placeholder', id }, origin: { x, y } };
-      setGroupPreview(start); setGuides([]); setSnapStatus('Klicken zum Platzieren · Escape abbricht');
+      beginObjectPlacement(start, { kind: brace ? 'brace' : 'placeholder', id }, { x, y });
     }
   }
   function downloadDraft() {
@@ -603,17 +607,17 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
         onAddPlain={() => beginPlacingWall()}
         onAddType={placeType} />
       <button disabled={!!groupPreview || !!placing || state.present.braces.length >= 250} onClick={() => {
-        const brace = newBrace(crypto.randomUUID(), venue.width / 2, venue.depth / 2);
-        commit({ ...state.present, braces: [...state.present.braces, brace] }); pick({ kind: 'brace', id: brace.id }, false);
+        const id = crypto.randomUUID(), brace = newBrace(id, venue.width / 2, venue.depth / 2);
+        beginObjectPlacement({ ...current.current.present, braces: [...current.current.present.braces, brace] }, { kind: 'brace', id });
       }} title="Stütze hinzufügen" aria-label="Stütze hinzufügen"><ToolIcon name="brace" /><span>Stütze</span></button>
       <button disabled={!!groupPreview || !!placing || (state.present.platforms ?? []).length >= 250} onClick={() => {
-        const platform = newPlatform(crypto.randomUUID(), venue.width / 2, venue.depth / 2);
-        commit({ ...state.present, platforms: [...state.present.platforms ?? [], platform] }); pick({ kind: 'platform', id: platform.id }, false);
+        const id = crypto.randomUUID(), platform = newPlatform(id, venue.width / 2, venue.depth / 2);
+        beginObjectPlacement({ ...current.current.present, platforms: [...current.current.present.platforms ?? [], platform] }, { kind: 'platform', id });
       }} title="Podest hinzufügen" aria-label="Podest hinzufügen"><ToolIcon name="platform" /><span>Podest</span></button>
       <button disabled={!!groupPreview || !!placing || !raised || (state.present.stairs ?? []).length >= 250} onClick={() => {
         if (!raised) return;
-        const stair = newStair(crypto.randomUUID(), AUDIENCE_FLOOR_ID, raised.id, venue.width / 2, venue.depth / 2);
-        commit({ ...state.present, stairs: [...state.present.stairs ?? [], stair] }); pick({ kind: 'stair', id: stair.id }, false);
+        const id = crypto.randomUUID(), stair = newStair(id, AUDIENCE_FLOOR_ID, raised.id, venue.width / 2, venue.depth / 2);
+        beginObjectPlacement({ ...current.current.present, stairs: [...current.current.present.stairs ?? [], stair] }, { kind: 'stair', id });
       }} title="Treppe hinzufügen" aria-label="Treppe hinzufügen"><ToolIcon name="stairs" /><span>Treppe</span></button>
       </>}
     </div>
@@ -869,8 +873,10 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
       <PlaceholderLibrary readOnly={readOnly} disabled={!!groupPreview || !!placing || (state.present.placeholders ?? []).length >= 250}
         onAdd={kind => {
           const item = addPlaceholder(kind, venue.width / 2, venue.depth / 2);
-          commit({ ...state.present, placeholders: [...state.present.placeholders ?? [], item] });
-          pick({ kind: 'placeholder', id: item.id }, false);
+          beginObjectPlacement(
+            { ...current.current.present, placeholders: [...current.current.present.placeholders ?? [], item] },
+            { kind: 'placeholder', id: item.id },
+          );
         }} />
       </div></details>
     </aside></div>}

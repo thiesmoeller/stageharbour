@@ -2,6 +2,24 @@
 
 Reviewed 2026-09-16 against `da71107`, using the current implementation rather than the historical branch review. Scope: venue and stage selection, movement, rotation, snapping, clipboard, cancellation, keyboard commands, navigation, resizing and asset storage. Findings below describe the original source-traced behavior. The implementation status and subsequent validation are recorded separately below; no user usability study was performed.
 
+## Implementation status — 2026-09-19 re-audit
+
+Re-checked after curtains, trusses, Bühnenelemente and underlay work. Core select / move / rotate / snap / cancel / commit / clipboard / navigate parity remains intact across venue and stage for walls, braces, platforms, stairs, placeholders, overhead, trusses and curtains.
+
+Fixed in this pass:
+- Stage tool-rail brace / platform / stair and placeholder library now use the same preview → click → Escape placement path as walls and asset-library models.
+- Single truss/curtain selections no longer show a second shared rotation handle beside the object handle.
+- Stage marquee hit-testing uses the real stair footprint (`stairCorners`), matching venue.
+- Shift-add prepends the new primary in both planners so the inspector primary stays predictable.
+
+Documented remaining differences (capabilities, not silent gesture meaning changes):
+- Venue placement is mode → click (or two-click segment draw for truss/curtain/keep-clear), without a cursor-following ghost; Escape exits the mode.
+- Truss and curtain dimensions are numeric in the inspector; 3D face-resize (`Größe ziehen`) covers wall, platform, overhead, placeholder and stair only.
+- Connection-pin / corridor inspector “hinzufügen” shortcuts still create at the venue centre; tool-rail place/draw modes remain the primary authoring path.
+- Fit-selection remains a 3D viewport control; 2D “Passend” / “Spielstätte einpassen” fit the full plan.
+- Bühnenelement size/height grid snap and typed inventory wall dimensions are intentional domain constraints.
+- Platforms stay outside formal groups; permanent venue geometry is read-only on the stage plan.
+
 ## Implementation status — 2026-09-16
 
 Implemented the ten findings: authoritative stage selection, mixed selection gestures, independent translation/rotation, transaction guards, shared snapping, warning-only overlaps, general selection rotation, matching shortcuts/cancellation, asset-library placement previews, and shared navigation plus scene face resizing. Fixed inventory dimensions remain protected. Uploaded models now follow their individual dimensions when resized.

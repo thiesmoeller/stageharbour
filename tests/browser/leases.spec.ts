@@ -57,10 +57,10 @@ test('venue editing shows the holder and becomes writable after release', async 
     await second.getByRole('button', { name: /Spielstätten & Bühnen/ }).click();
     await second.getByRole('button', { name: /Gemeinsamer Saal.*gestalten/ }).click();
     await expect(second.getByText('Wird bereits von Test Administration bearbeitet.')).toBeVisible();
-    await expect(second.getByRole('button', { name: 'Feste Wand hinzufügen' })).toHaveCount(0);
+    await expect(second.getByRole('button', { name: 'Feste Wand setzen' })).toHaveCount(0);
     await first.getByRole('button', { name: 'Zur Spielstättenübersicht' }).click();
     await second.getByRole('button', { name: 'Bearbeitung erneut anfordern' }).click();
-    await expect(second.getByRole('button', { name: 'Feste Wand hinzufügen' })).toBeVisible();
+    await expect(second.getByRole('button', { name: 'Feste Wand setzen' })).toBeVisible();
   } finally { await admin.close(); await editor.close(); }
 });
 

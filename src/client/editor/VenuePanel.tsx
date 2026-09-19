@@ -284,11 +284,13 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
     svg.current?.setPointerCapture(event.pointerId);
   }
   function beginObjectDrag(event: PointerEvent, id: string) {
+    // Placement and draw modes own the click; existing objects must not steal it.
+    if (click !== 'select') return;
     event.stopPropagation();
     if (event.button !== 0 || busyGesture()) return;
     gestureSelection.current = selectedIds;
     const ids = event.shiftKey
-      ? (selectedIds.includes(id) ? selectedIds.filter(value => value !== id) : [...selectedIds, id])
+      ? (selectedIds.includes(id) ? selectedIds.filter(value => value !== id) : [id, ...selectedIds])
       : (selectedIds.includes(id) ? selectedIds : [id]);
     setSelectedIds(ids);
     setClick('select');
@@ -301,6 +303,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
     svg.current?.setPointerCapture(event.pointerId);
   }
   function beginObjectRotate(event: PointerEvent, id: string, hinge: { x: number; y: number }, startRotation: number) {
+    if (click !== 'select') return;
     event.stopPropagation();
     if (event.button !== 0 || readOnly || busyGesture()) return;
     gestureSelection.current = selectedIds;
@@ -424,8 +427,8 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
       maxY: Math.max(...corners.map(c => c.y)),
     };
   })() : undefined;
-  const width = overlayBounds ? overlayBounds.maxX : Math.max(venue.width, ...vertices.map(point => point.x));
-  const height = overlayBounds ? overlayBounds.maxY : Math.max(venue.depth, ...vertices.map(point => point.y));
+  const width = Math.max(venue.width, ...vertices.map(point => point.x), overlayBounds?.maxX ?? 0);
+  const height = Math.max(venue.depth, ...vertices.map(point => point.y), overlayBounds?.maxY ?? 0);
   const hasMeasureSegment = Math.hypot(calibration.pointB.x - calibration.pointA.x, calibration.pointB.y - calibration.pointA.y) > 0;
   const measureA = overlay && hasMeasureSegment ? underlaySourceToPlan(calibration.pointA, overlay, unit, rotationDeg) : undefined;
   const measureB = overlay && hasMeasureSegment ? underlaySourceToPlan(calibration.pointB, overlay, unit, rotationDeg) : undefined;
@@ -702,10 +705,14 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
                 <path d="M 1000 0 L 0 0 0 1000" fill="none" stroke="#cfd6c6" strokeWidth="1.25" vectorEffect="non-scaling-stroke" />
               </pattern>
             </defs>
-            {planDisplay.showUnderlay && overlay && <g data-testid="venue-underlay" opacity="0.55"
+            {planDisplay.showUnderlay && overlay && <g data-testid="venue-underlay" opacity="0.55" pointerEvents="none"
               transform={`rotate(${rotationDeg} ${overlayW / 2} ${-overlayH / 2})`}>
               <image href={overlay.href} x="0" y={-overlayH} width={overlayW} height={overlayH} />
             </g>}
+            {/* Empty SVG regions ignore pointers; place/draw modes need a full-plan hit target. */}
+            {click !== 'select' && !readOnly && <rect data-testid="venue-place-target"
+              x={planLeft} y={planTop} width={planWidth} height={planHeight} fill="transparent"
+              onPointerDown={event => { event.stopPropagation(); onPlan(event); }} />}
             {(measureA || measureB) && <g data-testid="underlay-measure-line" pointerEvents="none">
               {measureA && measureB && <line x1={measureA.x} y1={-measureA.y} x2={measureB.x} y2={-measureB.y}
                 stroke="#b67c35" strokeWidth="4" strokeDasharray="60 40" vectorEffect="non-scaling-stroke" />}
@@ -714,8 +721,23 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
             </g>}
             <path data-testid="venue-outline" d={`${vertices.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')} Z`}
               fill="url(#venue-metre-grid)" stroke="#718469" strokeWidth="2" vectorEffect="non-scaling-stroke"
-              onPointerDown={startMarquee} />
-            {vertices.map((point, index) => <circle key={index} data-testid={`venue-vertex-${index}`} cx={point.x} cy={-point.y} r="65" fill="#b67c35" onPointerDown={event => { if (readOnly || busyGesture() || event.button !== 0) return; gestureSelection.current = selectedIds; event.stopPropagation(); vertexDrag.current = index; draft.begin(); svg.current?.setPointerCapture(event.pointerId); }} />)}
+              onPointerDown={event => {
+                if (click === 'select') { startMarquee(event); return; }
+                event.stopPropagation();
+                onPlan(event);
+              }} />
+            <CentrelineMark centreline={centreline} selected={selectedIds.includes(CENTRELINE_SELECTION)} showLabel={planDisplay.showTexts}
+              onPointerDown={readOnly ? undefined : event => {
+                if (click !== 'select' || busyGesture() || event.button !== 0) return;
+                event.stopPropagation(); gestureSelection.current = selectedIds; setSelectedIds([CENTRELINE_SELECTION]); setClick('select');
+                const point = planPoint(event);
+                centrelineDrag.current = { x: point.x, y: point.y, start: centreline }; draft.begin();
+                svg.current?.setPointerCapture(event.pointerId);
+              }} />
+            {vertices.map((point, index) => <circle key={index} data-testid={`venue-vertex-${index}`} cx={point.x} cy={-point.y} r="65" fill="#b67c35" onPointerDown={event => {
+              if (click !== 'select' || readOnly || busyGesture() || event.button !== 0) return;
+              gestureSelection.current = selectedIds; event.stopPropagation(); vertexDrag.current = index; draft.begin(); svg.current?.setPointerCapture(event.pointerId);
+            }} />)}
             {platforms.map(platform => {
               const chosen = selectedIds.includes(platform.id);
               const style = platform.style ?? 'floating';
@@ -756,7 +778,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
               onPointerDown={(event, item) => beginObjectDrag(event, item.id)} />
             <InfrastructureMarks pins={pins} corridors={corridors} selectedIds={selectedIds} display={planDisplay} onPointerDown={beginObjectDrag}
               onVertexPointerDown={(event, corridorId, index) => {
-                if (readOnly || busyGesture() || event.button !== 0) return;
+                if (click !== 'select' || readOnly || busyGesture() || event.button !== 0) return;
                 event.stopPropagation(); gestureSelection.current = selectedIds; setSelectedIds([corridorId]);
                 corridorVertexDrag.current = { corridorId, index }; draft.begin(); svg.current?.setPointerCapture(event.pointerId);
               }} />
@@ -767,20 +789,12 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
               drawing={curtainDrawStart ? { start: curtainDrawStart, end: curtainDrawHover } : undefined} />
             <KeepClearMarks zones={zones} selectedIds={selectedIds} drawing={drawingZone} display={planDisplay} onPointerDown={beginObjectDrag}
               onVertexPointerDown={(event, zoneId, index) => {
-                if (readOnly || busyGesture() || event.button !== 0) return;
+                if (click !== 'select' || readOnly || busyGesture() || event.button !== 0) return;
                 event.stopPropagation(); gestureSelection.current = selectedIds; setSelectedIds([zoneId]);
                 zoneVertexDrag.current = { zoneId, index }; draft.begin(); svg.current?.setPointerCapture(event.pointerId);
               }} />
-            <CentrelineMark centreline={centreline} selected={selectedIds.includes(CENTRELINE_SELECTION)} showLabel={planDisplay.showTexts}
-              onPointerDown={readOnly ? undefined : event => {
-                if (busyGesture() || event.button !== 0) return;
-                event.stopPropagation(); gestureSelection.current = selectedIds; setSelectedIds([CENTRELINE_SELECTION]); setClick('select');
-                const point = planPoint(event);
-                centrelineDrag.current = { x: point.x, y: point.y, start: centreline }; draft.begin();
-                svg.current?.setPointerCapture(event.pointerId);
-              }} />
             <AlignmentGuides guides={guides} />
-            {!readOnly && pivot && (selectedIds.length > 1 || ['zone', 'corridor', 'truss', 'curtain'].includes(selectedObject?.kind ?? '')) &&
+            {!readOnly && pivot && (selectedIds.length > 1 || ['zone', 'corridor'].includes(selectedObject?.kind ?? '')) &&
               <RotationHandle centre={pivot} rotation={0} width={1200} testId="rotate-venue-selection" label="Auswahl drehen"
                 onPointerDown={event => beginObjectRotate(event, selected!, pivot, 0)} />}
             {selectedIds.includes(CENTRELINE_SELECTION) && !readOnly &&
@@ -1054,7 +1068,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
                   Aus Zwischenablage
                 </button>
               </div>
-              <label htmlFor="venue-file">Oder Datei wählen</label>
+              <label htmlFor="venue-file">Vorlage hochladen</label>
               <input id="venue-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif,application/pdf"
                 onChange={event => void chooseFile(event.currentTarget.files?.[0])} />
             </div>
@@ -1181,15 +1195,15 @@ function InfrastructureFields({ venue, pins, corridors, click, pinKind, onClick,
     <p className="muted">Bekannte Strom- und Audioanschlüsse und mögliche Kabelwege. Keine Lastberechnung und keine Kabelstückliste.</p>
     <div className="form-actions">
       <button type="button" className="quiet" disabled={pins.length >= 250} onClick={() => {
-        onPinKind('power'); onClick('pin');
+        onPinKind('power'); onClick('select');
         onPins(current => [...current, newConnectionPoint(crypto.randomUUID(), 'power', centre.x, centre.y)]);
       }}>Stromanschluss hinzufügen</button>
       <button type="button" className="quiet" disabled={pins.length >= 250} onClick={() => {
-        onPinKind('audio'); onClick('pin');
+        onPinKind('audio'); onClick('select');
         onPins(current => [...current, newConnectionPoint(crypto.randomUUID(), 'audio', centre.x, centre.y)]);
       }}>Audioanschluss hinzufügen</button>
       <button type="button" className="quiet" disabled={corridors.length >= 250} onClick={() => {
-        onClick('corridor');
+        onClick('select');
         onCorridors(current => [...current, newCableRoutingCorridor(crypto.randomUUID(), [
           { x: 0, y: centre.y }, { x: venue.width, y: centre.y },
         ])]);

@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { newBrace, newWall, type Layout } from '../src/shared/layout.js';
 import { membersInBounds, normalizeBounds } from '../src/shared/selection.js';
 import { copySelection, pasteClipboard } from '../src/shared/clipboard.js';
+import { AUDIENCE_FLOOR_ID, newPlatform, newStair } from '../src/shared/levels.js';
 
 test('normalizeBounds orders rubber-band corners in plan millimetres', () => {
   assert.deepEqual(normalizeBounds({ x: 5000, y: 1000 }, { x: 1000, y: 4000 }), {
@@ -27,6 +28,16 @@ test('membersInBounds includes braces that intersect the rubber band', () => {
   const layout: Layout = { schemaVersion: 1, walls: [wall], braces: [brace] };
   const hit = membersInBounds(layout, { minX: 2800, maxX: 3200, minY: 2800, maxY: 3200 });
   assert.deepEqual(hit, [{ kind: 'brace', id: brace.id }]);
+});
+
+test('membersInBounds uses the stair footprint, not a fixed centre box', () => {
+  const platform = newPlatform(randomUUID(), 4000, 3000);
+  const stair = newStair(randomUUID(), AUDIENCE_FLOOR_ID, platform.id, 4000, 2000);
+  const layout: Layout = { schemaVersion: 1, walls: [], braces: [], platforms: [platform], stairs: [stair] };
+  const miss = membersInBounds(layout, { minX: 3990, maxX: 4010, minY: 1990, maxY: 2010 });
+  assert.equal(miss.some(item => item.kind === 'stair'), true);
+  const far = membersInBounds(layout, { minX: 9000, maxX: 9100, minY: 9000, maxY: 9100 });
+  assert.equal(far.some(item => item.kind === 'stair'), false);
 });
 
 test('copying every rubber-band hit duplicates the multi-selection with new ids', () => {

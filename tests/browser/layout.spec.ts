@@ -1,4 +1,4 @@
-import { openInspector, placeWallAt, commitWallPlacement } from '../helpers/inspector.js';
+import { openInspector, placeWallAt, commitWallPlacement, placeNamedObjectAt } from '../helpers/inspector.js';
 import { test, expect, type Page } from '@playwright/test';
 import { testAdministrator } from '../helpers/database.js';
 import { pngBytes } from '../helpers/references.js';
@@ -91,7 +91,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByRole('button', { name: 'Rückgängig' })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Wiederholen' })).toBeDisabled();
 
-  await page.getByRole('button', { name: 'Stütze hinzufügen' }).click();
+  await placeNamedObjectAt(page, 'Stütze hinzufügen');
   const brace = page.locator('[data-testid^="brace-"]');
   await expect(brace).toHaveCount(1);
   await expect(brace).toContainText('40 × 500 mm');
@@ -151,8 +151,8 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByLabel('Bekannte Strecke (mm)').fill('5000');
   await openInspector(page, 'Vorlage & Maßstab');
   await expect(page.getByText('Maßstab: 100 mm je Vorlagen-Einheit')).toBeVisible();
-  await page.getByRole('button', { name: 'Stromanschluss hinzufügen' }).click();
   await openInspector(page, 'Anschlüsse & Kabelwege');
+  await page.getByRole('button', { name: 'Stromanschluss hinzufügen' }).click();
   await page.getByLabel('Anschluss 1 Bezeichnung').fill('Lichtstrom');
   await page.getByLabel('Anschluss 1 X (mm)').fill('2500');
   await page.getByLabel('Anschluss 1 Y (mm)').fill('1800');
@@ -172,7 +172,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByLabel('Überbauung 1 X (mm)').fill('2500');
   await page.getByLabel('Überbauung 1 Y (mm)').fill('1800');
   await openInspector(page, 'Freihaltezonen');
-  await page.getByRole('button', { name: 'Freihaltezone zeichnen', exact: true }).click();
+  await page.locator('.venue-editor .tool-rail').getByRole('button', { name: 'Freihaltezone zeichnen' }).click();
   const venueSvg = page.locator('svg[aria-label="Umriss der Spielstätte"]');
   async function clickVenue(x: number, y: number) {
     const p = await venueSvg.evaluate((element, pt) => {
@@ -185,6 +185,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await clickVenue(5500, 2500);
   await clickVenue(5500, 4000);
   await clickVenue(3550, 2550);
+  await expect(page.getByLabel('Freihaltezone 1 Bezeichnung')).toBeVisible();
   await page.getByLabel('Freihaltezone 1 Bezeichnung').fill('Notausgang Ost');
   await page.getByLabel('Freihaltezone 1 Grund').fill('Notausgang');
   const saved = page.waitForResponse(response => /\/scenes\/[^/]+\/venue$/.test(new URL(response.url()).pathname) && response.request().method() === 'PUT');
@@ -195,8 +196,8 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByRole('button', { name: /Beispielproduktion · Erste Szene/ }).click();
   await expect(page.locator('.plan-canvas [data-testid^="connection-point-"]')).toHaveCount(1);
   await expect(page.locator('.plan-canvas [data-testid^="connection-point-"]')).toContainText('Lichtstrom');
-  await expect(page.locator('.plan-canvas [data-testid^="cable-corridor-"]')).toHaveCount(1);
-  await expect(page.locator('.plan-canvas [data-testid^="cable-corridor-"]')).toContainText('Seitenbühne');
+  await expect(page.locator('.plan-canvas g[data-testid^="cable-corridor-"]')).toHaveCount(1);
+  await expect(page.locator('.plan-canvas g[data-testid^="cable-corridor-"]')).toContainText('Seitenbühne');
   await expect(page.locator('.plan-canvas [data-testid^="overhead-box-"]')).toHaveCount(1);
   await expect(page.locator('.plan-canvas [data-testid^="overhead-box-"]')).toContainText('Lüftung');
   await page.getByRole('button', { name: 'Spielstätte' }).click();
@@ -229,7 +230,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.locator('.plan-canvas .warning').filter({ hasText: 'Notausgang Ost' }).filter({ hasText: 'Wand' })).toBeVisible();
   await expect(page.locator('.plan-canvas .warning').filter({ hasText: 'Notausgang Ost' }).filter({ hasText: 'Stütze' })).toBeVisible();
   await openInspector(page, 'Platzhalter');
-  await page.getByRole('button', { name: 'Tisch hinzufügen' }).click();
+  await placeNamedObjectAt(page, 'Tisch hinzufügen');
   await expect(page.locator('.plan-canvas [data-testid^="placeholder-"]')).toHaveCount(1);
   await expect(page.locator('#placeholder-depth')).toHaveValue('800');
   await expect(page.locator('#placeholder-height')).toHaveValue('750');
@@ -442,7 +443,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await waitUntilSaved(page);
   await page.getByRole('button', { name: 'Spielstätte' }).click();
   await openInspector(page, 'Freihaltezonen');
-  await page.getByRole('button', { name: 'Freihaltezone zeichnen', exact: true }).click();
+  await page.locator('.venue-editor .tool-rail').getByRole('button', { name: 'Freihaltezone zeichnen' }).click();
   {
     const venueSvg = page.locator('svg[aria-label="Umriss der Spielstätte"]');
     async function clickVenue(x: number, y: number) {

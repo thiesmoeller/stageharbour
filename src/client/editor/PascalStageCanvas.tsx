@@ -25,6 +25,8 @@ function ClearSelectionOnMiss({ onClear }: { onClear?: () => void }) {
   const raycaster = useThree(state => state.raycaster);
   useEffect(() => {
     if (!onClear) return;
+    const target = gl.domElement;
+    if (!target) return;
     const ndc = new Vector2();
     let origin: { x: number; y: number } | undefined;
     const onDown = (event: PointerEvent) => { origin = { x: event.clientX, y: event.clientY }; };
@@ -33,17 +35,17 @@ function ClearSelectionOnMiss({ onClear }: { onClear?: () => void }) {
       const dx = event.clientX - origin.x, dy = event.clientY - origin.y;
       origin = undefined;
       if (dx * dx + dy * dy > 36) return;
-      const rect = gl.domElement.getBoundingClientRect();
+      const rect = target.getBoundingClientRect();
       ndc.set((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1);
       raycaster.setFromCamera(ndc, camera);
       const hits = raycaster.intersectObjects(scene.children, true);
       if (!hits.some(hit => hit.object.name !== 'venue-floor' && hit.object.visible)) onClear();
     };
-    gl.domElement.addEventListener('pointerdown', onDown);
-    gl.domElement.addEventListener('pointerup', onUp);
+    target.addEventListener('pointerdown', onDown);
+    target.addEventListener('pointerup', onUp);
     return () => {
-      gl.domElement.removeEventListener('pointerdown', onDown);
-      gl.domElement.removeEventListener('pointerup', onUp);
+      target.removeEventListener('pointerdown', onDown);
+      target.removeEventListener('pointerup', onUp);
     };
   }, [camera, gl, onClear, raycaster, scene]);
   return null;

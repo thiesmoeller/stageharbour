@@ -66,12 +66,14 @@ export function PushPullControls({
       if (controls) controls.enabled = true;
       return;
     }
+    const target = gl.domElement;
+    if (!target) return;
     const publish = onPushPull;
     function setOrbit(enabledOrbit: boolean) {
       if (controls) controls.enabled = enabledOrbit;
     }
     function pick(clientX: number, clientY: number) {
-      const rect = gl.domElement.getBoundingClientRect();
+      const rect = target.getBoundingClientRect();
       ndc.set((clientX - rect.left) / rect.width * 2 - 1, -(clientY - rect.top) / rect.height * 2 + 1);
       raycaster.setFromCamera(ndc, camera);
       return raycaster.intersectObjects(scene.children, true).find(hit => {
@@ -96,7 +98,7 @@ export function PushPullControls({
         setHover(hit?.face ? handleFor({ object: hit.object, face: hit.face, point: hit.point }) : undefined);
         return;
       }
-      const rect = gl.domElement.getBoundingClientRect();
+      const rect = target.getBoundingClientRect();
       ndc.set((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1);
       raycaster.setFromCamera(ndc, camera);
       if (!raycaster.ray.intersectPlane(active.plane, hitPoint)) return;
@@ -130,7 +132,7 @@ export function PushPullControls({
       };
       setHover(picked);
       publish('begin', venue, drag.current.bypass);
-      gl.domElement.setPointerCapture(event.pointerId);
+      target.setPointerCapture(event.pointerId);
     }
     function endDrag(event: PointerEvent, cancel: boolean) {
       const active = drag.current;
@@ -140,7 +142,7 @@ export function PushPullControls({
       drag.current = undefined;
       setOrbit(true);
       publish(cancel ? 'cancel' : 'commit', latest, bypass);
-      if (gl.domElement.hasPointerCapture(event.pointerId)) gl.domElement.releasePointerCapture(event.pointerId);
+      if (target.hasPointerCapture(event.pointerId)) target.releasePointerCapture(event.pointerId);
     }
     function onUp(event: PointerEvent) { endDrag(event, false); }
     function onCancel(event: PointerEvent) { endDrag(event, true); }
@@ -151,17 +153,17 @@ export function PushPullControls({
       setOrbit(true);
       publish('cancel', venue, false);
     }
-    gl.domElement.addEventListener('pointermove', onMove);
-    gl.domElement.addEventListener('pointerdown', onDown);
-    gl.domElement.addEventListener('pointerup', onUp);
-    gl.domElement.addEventListener('pointercancel', onCancel);
+    target.addEventListener('pointermove', onMove);
+    target.addEventListener('pointerdown', onDown);
+    target.addEventListener('pointerup', onUp);
+    target.addEventListener('pointercancel', onCancel);
     window.addEventListener('keydown', onKey);
     return () => {
       if (!drag.current) setOrbit(true);
-      gl.domElement.removeEventListener('pointermove', onMove);
-      gl.domElement.removeEventListener('pointerdown', onDown);
-      gl.domElement.removeEventListener('pointerup', onUp);
-      gl.domElement.removeEventListener('pointercancel', onCancel);
+      target.removeEventListener('pointermove', onMove);
+      target.removeEventListener('pointerdown', onDown);
+      target.removeEventListener('pointerup', onUp);
+      target.removeEventListener('pointercancel', onCancel);
       window.removeEventListener('keydown', onKey);
     };
   }, [axis, camera, camDir, controls, enabled, gl, hitPoint, ndc, onPushPull, planeNormal, raycaster, scene, side, snapEnabled, venue, scope]);

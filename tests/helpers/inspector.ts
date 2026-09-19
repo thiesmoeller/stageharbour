@@ -28,3 +28,9 @@ export async function placeWallAt(page: Page, x = 4000, y = 3000) {
   await page.getByRole('button', { name: 'Wand hinzufügen', exact: true }).click();
   await commitWallPlacement(page, x, y);
 }
+
+/** Start a preview placement from a named button and commit at plan coordinates (mm). */
+export async function placeNamedObjectAt(page: Page, name: string, x = 4000, y = 3000) {
+  await page.getByRole('button', { name, exact: true }).click();
+  await commitObjectPlacement(page, x, y);
+}
