@@ -79,7 +79,7 @@ A known power outlet or audio connection at a venue.
 A part of a venue identified as suitable for routing the group's long cables.
 
 **Raised platform**:
-A stage floor area elevated above the venue's reference floor level. Platforms have a build style: floating (thin slab), solid (filled to the support), or Bühnenelement (catalog stage-deck modules 2×1 / 2×0,5 / 1×1 / 1×0,5 m with legs; size and height snap to that grid). A podium whose outline lies fully on another podium stacks on it (same Auflagefläche idea as walls/chairs, but full containment so it cannot overhang); its walking height becomes the lower surface plus its own rise.
+A stage floor area elevated above the venue's reference floor level. Platforms have a build style: floating (thin slab), solid (filled down to the next surface under the centroid), or Bühnenelement (catalog stage-deck modules 2×1 / 2×0,5 / 1×1 / 1×0,5 m with legs; size and height snap to that grid). Podiums may overlap in plan; Höhe über Fußboden stays absolute, and each Steckfuß lands on the next surface directly under that foot.
 
 **Performance area**:
 The space used for acting and set placement, which can span the audience floor, stairs, and raised stage surfaces.

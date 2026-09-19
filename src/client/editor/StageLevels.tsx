@@ -2,7 +2,7 @@ import { useLayoutEffect, useMemo } from 'react';
 import { ExtrudeGeometry, Shape } from 'three';
 import { createMaterialFromPresetRef } from '@pascal-app/viewer';
 import type { StageModel } from '../../shared/transforms.js';
-import { platformBounds, platformCentroid, outlineFullyOn, type Platform } from '../../shared/levels.js';
+import { platformBounds, platformCentroid, surfaceElevationUnderPoint, type Platform } from '../../shared/levels.js';
 import {
   STAGE_DECK_FRAME_PROFILE_MM, STAGE_DECK_LEG_SECTION_MM, STAGE_DECK_RUBBER_HEIGHT_MM,
   STAGE_DECK_RUBBER_SECTION_MM, STAGE_DECK_TOP_THICKNESS_MM, layoutStageDeckModules, stageDeckLegPositions,
@@ -58,30 +58,27 @@ function StageDeckModuleMesh({ module, elevation, lit }: {
   </group>;
 }
 
-function supportElevationFor(platform: Platform, peers: readonly Platform[]) {
-  if (platform.supportingSurfaceId) {
-    const support = peers.find(item => item.id === platform.supportingSurfaceId);
-    if (support) return support.elevation;
-  }
-  const under = peers.filter(other => other.id !== platform.id && outlineFullyOn(platform.outline, other.outline));
-  return [...under].sort((a, b) => b.elevation - a.elevation)[0]?.elevation ?? 0;
-}
-
 function PlatformMesh({ platform, peers, lit }: { platform: Platform; peers: readonly Platform[]; lit: boolean }) {
   const Surface = lit ? 'meshStandardMaterial' : 'meshBasicMaterial';
   const centre = platformCentroid(platform.outline);
   const rotation = outlinePlanRotation(platform.outline);
   const style = platform.style ?? 'floating';
   const bounds = platformBounds(platform.outline);
-  /** Walking height stays absolute (Höhe über Fußboden); feet only span down to the next surface. */
-  const baseElevation = supportElevationFor(platform, peers);
-  const rise = Math.max(1, platform.elevation - baseElevation);
+  const cos = Math.cos(rotation), sin = Math.sin(rotation);
+  const worldPoint = (localX: number, localY: number) => ({
+    x: centre.x + localX * cos - localY * sin,
+    y: centre.y + localX * sin + localY * cos,
+  });
+  /** Höhe über Fußboden stays absolute; each foot lands on the surface directly under it. */
   const finishMaterial = useMemo(() => createMaterialFromPresetRef(platform.finish), [platform.finish]);
   useLayoutEffect(() => () => { finishMaterial?.dispose(); }, [finishMaterial]);
+  const solidBase = style === 'solid'
+    ? surfaceElevationUnderPoint(centre, peers, platform.elevation, platform.id)
+    : 0;
+  const rise = Math.max(1, platform.elevation - solidBase);
   const deckThickness = style === 'solid' ? rise : style === 'stageDeck' ? STAGE_DECK_TOP_THICKNESS_MM : 40;
   const geometry = useMemo(() => {
     if (style === 'stageDeck' && !finishMaterial) return undefined;
-    const cos = Math.cos(rotation), sin = Math.sin(rotation);
     const shape = new Shape();
     platform.outline.forEach((point, index) => {
       const dx = point.x - centre.x, dy = point.y - centre.y;
@@ -94,13 +91,11 @@ function PlatformMesh({ platform, peers, lit }: { platform: Platform; peers: rea
     const extruded = new ExtrudeGeometry(shape, { depth: deckThickness, bevelEnabled: false, steps: 1 });
     extruded.rotateX(Math.PI / 2);
     return extruded;
-  }, [platform, centre.x, centre.y, rotation, deckThickness, style, finishMaterial]);
+  }, [platform, centre.x, centre.y, cos, sin, deckThickness, style, finishMaterial]);
   useLayoutEffect(() => () => { geometry?.dispose(); }, [geometry]);
   const deckY = platform.elevation;
   const legs = style === 'stageDeck' ? stageDeckLegPositions(bounds.width, bounds.depth) : [];
   const modules = style === 'stageDeck' ? layoutStageDeckModules(bounds.width, bounds.depth) : [];
-  const postTop = Math.max(baseElevation + STAGE_DECK_RUBBER_HEIGHT_MM + 1, platform.elevation - STAGE_DECK_TOP_THICKNESS_MM);
-  const postHeight = Math.max(1, postTop - baseElevation - STAGE_DECK_RUBBER_HEIGHT_MM);
   return <group position={[centre.x, 0, centre.y]} rotation={[0, -rotation, 0]}>
     {geometry && <mesh castShadow={lit} receiveShadow={lit} position={[0, deckY, 0]} geometry={geometry}>
       {finishMaterial ? <primitive object={finishMaterial} attach="material" dispose={null} /> : <Surface color="#c5d0b8" />}
@@ -112,8 +107,11 @@ function PlatformMesh({ platform, peers, lit }: { platform: Platform; peers: rea
         <planeGeometry args={[module.width - 20, module.depth - 20]} />
         <meshBasicMaterial color="#9aa890" transparent opacity={0.35} />
       </mesh>)}
-    {style === 'stageDeck' && legs.map((leg, index) =>
-      <group key={`leg-${index}`} position={[leg.x, baseElevation, leg.y]}>
+    {style === 'stageDeck' && legs.map((leg, index) => {
+      const baseElevation = surfaceElevationUnderPoint(worldPoint(leg.x, leg.y), peers, platform.elevation, platform.id);
+      const postTop = Math.max(baseElevation + STAGE_DECK_RUBBER_HEIGHT_MM + 1, platform.elevation - STAGE_DECK_TOP_THICKNESS_MM);
+      const postHeight = Math.max(1, postTop - baseElevation - STAGE_DECK_RUBBER_HEIGHT_MM);
+      return <group key={`leg-${index}`} position={[leg.x, baseElevation, leg.y]}>
         <mesh castShadow={lit} position={[0, STAGE_DECK_RUBBER_HEIGHT_MM / 2, 0]}>
           <boxGeometry args={[STAGE_DECK_RUBBER_SECTION_MM, STAGE_DECK_RUBBER_HEIGHT_MM, STAGE_DECK_RUBBER_SECTION_MM]} />
           <Surface color={RUBBER} />
@@ -122,7 +120,8 @@ function PlatformMesh({ platform, peers, lit }: { platform: Platform; peers: rea
           <boxGeometry args={[STAGE_DECK_LEG_SECTION_MM, postHeight, STAGE_DECK_LEG_SECTION_MM]} />
           <AluminumMaterial lit={lit} />
         </mesh>
-      </group>)}
+      </group>;
+    })}
   </group>;
 }
 

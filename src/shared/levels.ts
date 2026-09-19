@@ -176,63 +176,20 @@ export function outlineFullyOn(upper: readonly PlanPoint[], lower: readonly Plan
 }
 
 /**
- * Stack podiums that sit fully on another: assign supportingSurfaceId and raise absolute
- * elevation by the preserved rise (height above the previous support).
+ * Absolute elevation of the topmost podium (or floor) under a plan point that lies
+ * strictly below `belowElevation`. Used so Steckfüße land on the next surface down.
  */
-export function restackPlatforms(platforms: readonly Platform[]): Platform[] {
-  if (!platforms.length) return [];
-  const byId = new Map(platforms.map(platform => [platform.id, platform]));
-  const riseOf = (platform: Platform) => {
-    const supportId = platform.supportingSurfaceId;
-    const base = !supportId || supportId === AUDIENCE_FLOOR_ID ? 0 : (byId.get(supportId)?.elevation ?? 0);
-    return Math.max(1, platform.elevation - base);
-  };
-  const rises = new Map(platforms.map(platform => [platform.id, riseOf(platform)]));
-  const nextSupport = new Map<string, string | undefined>();
-
-  function wouldCycle(platformId: string, supportId: string) {
-    let current: string | undefined = supportId;
-    const seen = new Set<string>();
-    while (current && current !== AUDIENCE_FLOOR_ID) {
-      if (current === platformId) return true;
-      if (seen.has(current)) return true;
-      seen.add(current);
-      current = nextSupport.has(current) ? nextSupport.get(current) : byId.get(current)?.supportingSurfaceId;
-    }
-    return false;
-  }
-
-  for (const platform of platforms) {
-    const candidates = platforms.filter(other =>
-      other.id !== platform.id
-      && outlineFullyOn(platform.outline, other.outline)
-      && !wouldCycle(platform.id, other.id));
-    const best = [...candidates].sort((a, b) => b.elevation - a.elevation || a.id.localeCompare(b.id))[0];
-    nextSupport.set(platform.id, best?.id);
-  }
-
-  const result = platforms.map(platform => {
-    const supportId = nextSupport.get(platform.id);
-    const next: Platform = { ...platform };
-    if (supportId) next.supportingSurfaceId = supportId;
-    else delete next.supportingSurfaceId;
-    return next;
-  });
-  const resultById = new Map(result.map(platform => [platform.id, platform]));
-  for (let pass = 0; pass < result.length + 1; pass++) {
-    let changed = false;
-    for (const platform of result) {
-      const supportId = nextSupport.get(platform.id);
-      const base = supportId ? (resultById.get(supportId)?.elevation ?? 0) : 0;
-      const elevation = Math.min(100000, Math.max(1, base + (rises.get(platform.id) ?? platform.elevation)));
-      if (platform.elevation !== elevation) {
-        platform.elevation = elevation;
-        changed = true;
-      }
-    }
-    if (!changed) break;
-  }
-  return result;
+export function surfaceElevationUnderPoint(
+  point: PlanPoint,
+  peers: readonly Pick<Platform, 'id' | 'outline' | 'elevation'>[],
+  belowElevation: number,
+  excludeId?: string,
+): number {
+  const under = peers.filter(peer =>
+    peer.id !== excludeId
+    && peer.elevation < belowElevation
+    && contains(peer.outline, point));
+  return [...under].sort((a, b) => b.elevation - a.elevation || a.id.localeCompare(b.id))[0]?.elevation ?? 0;
 }
 
 function topmost(point: PlanPoint, surfaces: SupportingSurface[]) {
@@ -301,14 +258,9 @@ type SupportLayout = {
 
 /** Recompute Auflagefläche for walls, braces and placeholders from plan coverage. */
 export function reassignLayoutSupports<T extends SupportLayout>(layout: T, venue: VenueLevels): T {
-  const platforms = restackPlatforms([...(venue.platforms ?? []), ...(layout.platforms ?? [])]);
-  const venueIds = new Set((venue.platforms ?? []).map(item => item.id));
-  const layoutPlatforms = platforms.filter(item => !venueIds.has(item.id));
-  const stackedVenue = { ...venue, platforms: platforms.filter(item => venueIds.has(item.id)) };
-  const surfaces = supportingSurfaces(stackedVenue, { ...layout, platforms: layoutPlatforms });
+  const surfaces = supportingSurfaces(venue, layout);
   return {
     ...layout,
-    platforms: layout.platforms ? layoutPlatforms : layout.platforms,
     walls: layout.walls.map(wall => ({
       ...wall,
       supportingSurfaceId: resolveSupportingSurfaceId(
@@ -339,26 +291,24 @@ export function reassignVenueSupports<T extends VenueLevels & {
   placeholders?: SupportLayout['placeholders'];
   keepClearZones?: { id: string; supportingSurfaceId: string; polygon: { x: number; y: number }[] }[];
 }>(venue: T): T {
-  const platforms = venue.platforms ? restackPlatforms(venue.platforms) : venue.platforms;
-  const stacked = platforms ? { ...venue, platforms } : venue;
-  const surfaces = supportingSurfaces(stacked);
+  const surfaces = supportingSurfaces(venue);
   return {
-    ...stacked,
-    walls: stacked.walls?.map(wall => ({
+    ...venue,
+    walls: venue.walls?.map(wall => ({
       ...wall,
       supportingSurfaceId: resolveSupportingSurfaceId(
         stairCorners({ x: wall.x, y: wall.y, rotation: wall.rotation, width: wall.width, run: wall.thickness }),
         surfaces,
       ),
     })),
-    placeholders: stacked.placeholders?.map(item => ({
+    placeholders: venue.placeholders?.map(item => ({
       ...item,
       supportingSurfaceId: resolveSupportingSurfaceId(
         stairCorners({ x: item.x, y: item.y, rotation: item.rotation, width: item.width, run: item.depth }),
         surfaces,
       ),
     })),
-    keepClearZones: stacked.keepClearZones?.map(zone => ({
+    keepClearZones: venue.keepClearZones?.map(zone => ({
       ...zone,
       supportingSurfaceId: resolveSupportingSurfaceId(zone.polygon, surfaces),
     })),
