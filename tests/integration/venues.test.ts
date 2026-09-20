@@ -294,3 +294,26 @@ test('frozen exports keep the measured outline and can still fetch the reference
     payload: { venue: { schemaVersion: 1, width: 8000, depth: 6000, outline } },
   })).statusCode, 403);
 });
+
+test('renames a venue and shows the new name on the scene', async () => {
+  await fixture.db.update(membership).set({ role: 'administrator' }).where(eq(membership.workspaceId, fixture.config.WORKSPACE_ID));
+  const venues = `/api/workspaces/${fixture.config.WORKSPACE_ID}/venues`;
+  const listed = await app.inject({ url: venues, headers });
+  assert.equal(listed.statusCode, 200, listed.body);
+  const venueId = listed.json().find((item: { name: string }) => item.name === 'Beispielsaal')?.id
+    ?? listed.json()[0]?.id;
+  assert.ok(venueId);
+  const renamed = await app.inject({
+    method: 'PATCH', url: `${venues}/${venueId}`, headers,
+    payload: { name: 'Probesaal Ost' },
+  });
+  assert.equal(renamed.statusCode, 200, renamed.body);
+  assert.equal(renamed.json().name, 'Probesaal Ost');
+  assert.equal(renamed.json().venueVersionId, listed.json().find((item: { id: string }) => item.id === venueId)?.venueVersionId);
+  const again = (await app.inject({ url: `${scenes}/${scene.id}`, headers })).json<Scene>();
+  assert.equal(again.venueName, 'Probesaal Ost');
+  assert.equal((await app.inject({
+    method: 'PATCH', url: `${venues}/${venueId}`, headers,
+    payload: { name: '   ' },
+  })).statusCode, 400);
+});

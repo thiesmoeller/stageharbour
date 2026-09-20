@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { Me } from '../../shared/contracts.js';
-import { createVenueSchema, venueListSchema, venueRecordSchema, type VenueRecord } from '../../shared/venueLibrary.js';
+import { createVenueSchema, renameVenueSchema, venueListSchema, venueRecordSchema, type VenueRecord } from '../../shared/venueLibrary.js';
 import { ApiError, request } from '../api.js';
 import { ToolIcon } from './ToolIcon.js';
 import { VenuePanel } from './VenuePanel.js';
@@ -12,6 +12,7 @@ export function Venues({ me, onDirty }: { me: Me; onDirty: (dirty: boolean) => v
   const [venues, setVenues] = useState<ReturnType<typeof venueListSchema.parse>>([]);
   const [opened, setOpened] = useState<VenueRecord>();
   const [creating, setCreating] = useState(false);
+  const [renamingId, setRenamingId] = useState<string>();
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
@@ -45,6 +46,21 @@ export function Venues({ me, onDirty }: { me: Me; onDirty: (dirty: boolean) => v
     catch { setError('Die Spielstätte konnte nicht angelegt werden.'); }
     finally { setBusy(false); }
   }
+  async function rename(event: FormEvent<HTMLFormElement>, id: string) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const parsed = renameVenueSchema.safeParse({ name: data.get('name') });
+    if (!parsed.success) { setError('Bitte geben Sie einen gültigen Namen ein.'); return; }
+    setBusy(true); setError('');
+    try {
+      const result = venueRecordSchema.parse(await request(`${base}/${id}`, parsed.data, 'PATCH'));
+      setVenues(current => current.map(item => item.id === id ? { ...item, name: result.name } : item).sort((a, b) => a.name.localeCompare(b.name, 'de')));
+      setOpened(current => current?.id === id ? { ...current, name: result.name } : current);
+      setRenamingId(undefined);
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Die Spielstätte konnte nicht umbenannt werden.');
+    } finally { setBusy(false); }
+  }
   async function remove(id: string, name: string) {
     if (!window.confirm(`Spielstätte „${name}“ wirklich löschen? Nur möglich, wenn keine Produktion sie mehr verwendet.`)) return;
     setBusy(true); setError('');
@@ -56,7 +72,9 @@ export function Venues({ me, onDirty }: { me: Me; onDirty: (dirty: boolean) => v
       <div><p className="eyebrow">SPIELSTÄTTEN & BÜHNEN</p><h2>{opened.name}</h2></div><span className="document-kind">{readOnly ? 'Nur Ansicht' : 'Spielstätte bearbeiten'}</span></div>
     <p className="venue-independence">Raum einmal anlegen · Produktionen übernehmen Fassungen auf Wunsch.</p>
     {!readOnly && <p role="status">{lease.message || 'Bearbeitung wird angefordert …'} {!lease.holding && <button onClick={() => void lease.acquire()}>Bearbeitung erneut anfordern</button>}</p>}
-    <VenuePanel key={opened.id} workspaceId={me.workspace.id} venue={opened.venue} readOnly={readOnly || !lease.holding} onDirty={setDirty}
+    <VenuePanel key={opened.id} workspaceId={me.workspace.id} venue={opened.venue} venueId={opened.id} venueName={opened.name}
+      readOnly={readOnly || !lease.holding} onDirty={setDirty}
+      onVenueRenamed={name => setOpened(current => current ? { ...current, name } : current)}
       onPublish={async geometry => {
         const result = venueRecordSchema.parse(await request(`${base}/${opened.id}`, { venueVersionId: opened.venueVersionId, venue: geometry }, 'PUT'));
         setOpened(result);
@@ -83,7 +101,18 @@ export function Venues({ me, onDirty }: { me: Me; onDirty: (dirty: boolean) => v
         <span>{(item.width / 1000).toLocaleString('de-DE')} × {(item.depth / 1000).toLocaleString('de-DE')} m</span>
         <span className="venue-card-action">{readOnly ? 'Spielstätte ansehen' : 'Spielstätte gestalten'} →</span>
       </button>
-      {!readOnly && <button className="quiet" type="button" disabled={busy} onClick={() => void remove(item.id, item.name)}>Löschen</button>}
+      {!readOnly && renamingId === item.id && <form className="create-plan venue-rename" onSubmit={event => void rename(event, item.id)}>
+        <label htmlFor={`rename-venue-${item.id}`}>Neuer Name</label>
+        <input id={`rename-venue-${item.id}`} name="name" required maxLength={120} defaultValue={item.name} autoFocus />
+        <div className="form-actions">
+          <button type="submit" disabled={busy}>Umbenennen</button>
+          <button type="button" className="quiet" disabled={busy} onClick={() => setRenamingId(undefined)}>Abbrechen</button>
+        </div>
+      </form>}
+      {!readOnly && <div className="form-actions">
+        <button className="quiet" type="button" disabled={busy} onClick={() => setRenamingId(item.id)}>Umbenennen</button>
+        <button className="quiet" type="button" disabled={busy} onClick={() => void remove(item.id, item.name)}>Löschen</button>
+      </div>}
     </div>)}</div>
   </section>;
 }

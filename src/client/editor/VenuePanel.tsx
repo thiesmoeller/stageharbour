@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, lazy, Suspense, type DragEvent, type FormEvent, type PointerEvent } from 'react';
 import { newWall, applyVenueResultSchema, saveVenueResultSchema, venueGeometrySchema, type Layout, type VenueGeometry } from '../../shared/layout.js';
+import { renameVenueSchema, venueRecordSchema } from '../../shared/venueLibrary.js';
 import {
   newCableRoutingCorridor, newConnectionPoint, type CableRoutingCorridor, type ConnectionKind, type ConnectionPoint,
 } from '../../shared/infrastructure.js';
@@ -88,8 +89,9 @@ type VenuePersistence = {
   onPublish: (venue: VenueGeometry) => Promise<void>;
 };
 
-export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable = false, readOnly, onSaved, onDirty, onPublish }: {
+export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, venueUpdateAvailable = false, readOnly, onSaved, onDirty, onPublish, onVenueRenamed }: {
   workspaceId: string; venue: VenueGeometry; venueUpdateAvailable?: boolean; readOnly: boolean;
+  venueId?: string; venueName?: string; onVenueRenamed?: (name: string) => void;
   onDirty?: (dirty: boolean) => void;
 } & VenuePersistence) {
   const draft = useDocumentDraft({
@@ -124,6 +126,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
   const [zones, setZones] = draft.field('zones');
   const [centreline, setCentreline] = draft.field('centreline');
   const [floorFinish, setFloorFinish] = draft.field('floorFinish');
+  const [nameDraft, setNameDraft] = useState(venueName ?? '');
   const [click, setClick] = useState<ClickMode>('select');
   const [placeKind, setPlaceKind] = useState<PlaceKind>('wall');
   const [pinKind, setPinKind] = useState<ConnectionKind>('power');
@@ -157,6 +160,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
   const objectRotate = useRef<{
     ids: string[]; hinge: { x: number; y: number }; startAngle: number; startRotation: number; start: VenueDraft;
   } | undefined>(undefined);
+  useEffect(() => { setNameDraft(venueName ?? ''); }, [venueName]);
   useEffect(() => { onDirty?.(draft.dirty); }, [draft.dirty, onDirty]);
   const [meta, setMeta] = useState<VenueReference>();
   const [overlay, setOverlay] = useState<{ href: string; pixelWidth: number; pixelHeight: number }>();
@@ -378,6 +382,19 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
     window.addEventListener('paste', onPaste);
     return () => window.removeEventListener('paste', onPaste);
   }, [readOnly]);
+  async function renameVenue() {
+    if (!venueId || readOnly) return;
+    const parsedName = renameVenueSchema.safeParse({ name: nameDraft });
+    if (!parsedName.success) { setError('Bitte geben Sie einen gültigen Namen ein.'); return; }
+    setBusy(true); setError('');
+    try {
+      const result = venueRecordSchema.parse(await request(`/api/workspaces/${workspaceId}/venues/${venueId}`, parsedName.data, 'PATCH'));
+      onVenueRenamed?.(result.name);
+      setNameDraft(result.name);
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Die Spielstätte konnte nicht umbenannt werden.');
+    } finally { setBusy(false); }
+  }
   async function save(event?: FormEvent) {
     event?.preventDefault();
     const trace = fileId ? {
@@ -1051,6 +1068,16 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
         </div></details>
         <details className="inspector-section"><summary>Umriss</summary><div className="inspector-section-body">
           <fieldset disabled={readOnly || busy || busyGesture()}>
+            {venueId && <>
+              <label htmlFor="venue-display-name">Name der Spielstätte</label>
+              <input id="venue-display-name" value={nameDraft} maxLength={120} disabled={readOnly || busy}
+                onChange={event => setNameDraft(event.target.value)} />
+              {!readOnly && <div className="form-actions">
+                <button type="button" disabled={busy || !nameDraft.trim() || nameDraft.trim() === (venueName ?? '')}
+                  onClick={() => void renameVenue()}>Namen speichern</button>
+              </div>}
+              <p className="muted">Der Name gilt für alle Produktionen, die diese Spielstätte verwenden.</p>
+            </>}
             <Suspense fallback={<p>Materialbibliothek wird geladen …</p>}>
               <MaterialPicker id="venue-floor-finish" value={floorFinish} onChange={value => setFloorFinish(value || undefined)} />
             </Suspense>

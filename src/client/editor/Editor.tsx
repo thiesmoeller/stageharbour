@@ -104,6 +104,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
   const [venueOpen, setVenueOpen] = useState(false);
   const [venueDirty, setVenueDirty] = useState(false);
   const [venue, setVenue] = useState<VenueGeometry>(initial.venue);
+  const [venueName, setVenueName] = useState(initial.venueName);
   const [updateAvailable, setUpdateAvailable] = useState(!!initial.venueUpdateAvailable);
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [guides, setGuides] = useState<SnapGuide[]>([]);
@@ -577,7 +578,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   return <section ref={root} className="editor" aria-label="Bühnenbild bearbeiten">
-    <div className="editor-heading"><button className="quiet back-button" disabled={dirty} onClick={onClose} title="Zur Übersicht" aria-label="Zur Übersicht"><ToolIcon name="back" /></button><div><p className="eyebrow">{initial.productionName} · {initial.venueName}</p><h2>{initial.name}</h2></div>
+    <div className="editor-heading"><button className="quiet back-button" disabled={dirty} onClick={onClose} title="Zur Übersicht" aria-label="Zur Übersicht"><ToolIcon name="back" /></button><div><p className="eyebrow">{initial.productionName} · {venueName}</p><h2>{initial.name}</h2></div>
       <span className={`save-status ${saveState.status}`} role="status">{permissionReadOnly
         ? (initial.lease ? `Nur Ansicht · Bearbeitung durch ${initial.lease.holderName}` : 'Nur Ansicht')
         : saveState.status === 'conflict' && saveState.conflictKind === 'lease' ? 'Bearbeitung abgelaufen' : statusText[saveState.status]}</span><div className="document-history">{!readOnly && <>
@@ -624,7 +625,9 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     {assetError && <p className="error" role="alert">{assetError}</p>}
     {libraryOpen && !venueOpen && <AssetLibrary workspaceId={workspaceId} assets={assets} readOnly={readOnly || busyGesture()} selected={selectedWall ?? selectedBraceItem} onCreated={asset => setAssets(items => [...items, asset])} onArchive={id => setAssets(items => items.map(asset => asset.id === id ? { ...asset, archived: true } : asset))} onPlace={placeAsset} />}
     {venueOpen && !readOnly && <p role="status">{venueLease.message || 'Bearbeitung wird angefordert …'} {!venueLease.holding && <button onClick={() => void venueLease.acquire()}>Bearbeitung erneut anfordern</button>}</p>}
-    {venueOpen && <VenuePanel workspaceId={workspaceId} sceneId={initial.id} venue={venue} venueUpdateAvailable={updateAvailable} readOnly={readOnly || !venueLease.holding} onDirty={setVenueDirty} onSaved={adoptVenue} />}
+    {venueOpen && <VenuePanel workspaceId={workspaceId} sceneId={initial.id} venue={venue} venueId={initial.venueId} venueName={venueName}
+      venueUpdateAvailable={updateAvailable} readOnly={readOnly || !venueLease.holding} onDirty={setVenueDirty} onSaved={adoptVenue}
+      onVenueRenamed={setVenueName} />}
     {exportsOpen && <div className="export-drawer"><ExportPanel workspaceId={workspaceId} sceneId={initial.id} productionId={initial.productionId}
       readOnly={readOnly} freezeDisabled={dirty || saveState.status !== 'saved'} groups={state.present.groups ?? []} walls={state.present.walls} /></div>}
     {['failed', 'conflict'].includes(saveState.status) && <div className="error" role="alert">
