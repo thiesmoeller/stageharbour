@@ -1,4 +1,4 @@
-import { type Platform, type StairUnit, type SupportingSurface, platformBounds, platformCentroid } from '../../shared/levels.js';
+import { type Platform, type StairUnit, type SupportingSurface, orientedPlatformBox, platformCentroid } from '../../shared/levels.js';
 import type { PlanDisplayOptions } from '../../shared/planDisplay.js';
 import { defaultPlanDisplay } from '../../shared/planDisplay.js';
 import { layoutStageDeckModules } from '../../shared/stageDeck.js';
@@ -15,19 +15,11 @@ function platformCaption(platform: Platform, display: PlanDisplayOptions) {
   ].filter(Boolean).join(' · ');
 }
 
-function outlinePlanRotation(outline: Platform['outline']) {
-  const a = outline[0], b = outline[1];
-  if (!a || !b) return 0;
-  return Math.atan2(b.y - a.y, b.x - a.x);
-}
-
 function StageDeckSeams({ platform }: { platform: Platform }) {
   if ((platform.style ?? 'floating') !== 'stageDeck') return null;
-  const centre = platformCentroid(platform.outline);
-  const rotation = outlinePlanRotation(platform.outline);
-  const bounds = platformBounds(platform.outline);
-  const modules = layoutStageDeckModules(bounds.width, bounds.depth);
-  return <g transform={`translate(${centre.x} ${-centre.y}) rotate(${-rotation * 180 / Math.PI})`} pointerEvents="none">
+  const box = orientedPlatformBox(platform.outline);
+  const modules = layoutStageDeckModules(box.width, box.depth);
+  return <g transform={`translate(${box.x} ${-box.y}) rotate(${-box.rotation})`} pointerEvents="none">
     {modules.map((module, index) => <rect key={index}
       x={module.x - module.width / 2} y={-(module.y + module.depth / 2)}
       width={module.width} height={module.depth}

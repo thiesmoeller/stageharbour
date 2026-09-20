@@ -92,6 +92,8 @@ export const venueGeometrySchema = z.strictObject({
   curtains: curtainsSchema.optional(),
   keepClearZones: keepClearZonesSchema.optional(),
   stageCentreline: stageCentrelineSchema.optional(),
+  /** Pascal library material for the audience floor / venue footprint. */
+  floorFinish: z.string().regex(/^library:[a-zA-Z0-9_-]+$/).max(180).optional(),
 }).refine(venue => uniqueLevelIds(venue.platforms ?? [], venue.stairs ?? []), 'Platform and stair IDs must be unique');
 export type VenueGeometry = z.infer<typeof venueGeometrySchema>;
 export const saveVenueSchema = z.strictObject({ venue: venueGeometrySchema });

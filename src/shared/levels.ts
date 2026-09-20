@@ -91,6 +91,21 @@ export function platformBounds(outline: readonly PlanPoint[]) {
   };
 }
 
+/** Oriented width/depth/rotation from the first two edges of a rectangular podium outline. */
+export function orientedPlatformBox(outline: readonly PlanPoint[]) {
+  const a = outline[0], b = outline[1], c = outline[2];
+  const centre = platformCentroid(outline);
+  if (!a || !b || !c) {
+    return { x: centre.x, y: centre.y, width: 1, depth: 1, rotation: 0 };
+  }
+  return {
+    x: centre.x, y: centre.y,
+    width: Math.hypot(b.x - a.x, b.y - a.y),
+    depth: Math.hypot(c.x - b.x, c.y - b.y),
+    rotation: Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI,
+  };
+}
+
 export function axisAlignedPlatformOutline(x: number, y: number, width: number, depth: number, rotation = 0): PlanPoint[] {
   const base = [
     { x: x - width / 2, y: y - depth / 2 }, { x: x + width / 2, y: y - depth / 2 },
