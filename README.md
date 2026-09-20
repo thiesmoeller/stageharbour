@@ -29,7 +29,7 @@ Requires Node.js 24 LTS, npm and Docker Compose. Commands run from the repositor
 
 Bootstrap runs only as an explicit command. It atomically creates an identity, password account, workspace and administrator membership. Repeating the command for the existing administrator changes nothing, including the password. Once a workspace exists, bootstrap refuses to add or promote other users. There is no public registration or bootstrap HTTP endpoint.
 
-The Compose file is for local development only. Its database binds to loopback and persists in a named Docker volume. `docker compose stop` stops it without deleting data. Actual deployment and CapRover configuration remain later work.
+The Compose file is for local development only. Its database binds to loopback and persists in a named Docker volume. `docker compose stop` stops it without deleting data. CapRover production install and GitHub Actions auto-deploy from `main` are documented in [docs/caprover.md](docs/caprover.md).
 
 ## Verification
 
@@ -96,7 +96,7 @@ docker compose --profile app up -d
 
 Keep the workspace-relative directory structure and filenames intact: existing database keys point to them. No database blob migration is needed. Back up and restore `postgres-data` and `asset-data` together while writes are stopped. Container recreation preserves both volumes; `docker compose down -v` deletes them. External Pascal catalogue URLs remain external assets.
 
-Next: arch panel HITL measurements (slice 06), CapRover installation and crew validation (slices 29–30).
+Next: arch panel HITL measurements (slice 06), CapRover pilot restore checks and crew validation (slices 29–30). See [docs/caprover.md](docs/caprover.md) for CapRover setup.
 
 ## Permissions and concurrent work
 

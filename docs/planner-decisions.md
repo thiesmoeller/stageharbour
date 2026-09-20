@@ -10,7 +10,7 @@ CapRover is an installation/deployment target only; it does not determine the ba
 
 Invitation and password-reset emails use the user's existing Brevo service. Mail connection settings and credentials are deployment configuration.
 
-Version one will be deployed to the user's existing CapRover installation. This supersedes the earlier standalone Docker Compose deployment direction. CapRover supports container deployment using a `captain-definition` or a prebuilt image; database and uploaded-file persistence must be configured explicitly. See [deployment methods](https://caprover.com/docs/deployment-methods.html) and [persistent apps](https://caprover.com/docs/persistent-apps.html). Server-specific application configuration remains to be established.
+Version one will be deployed to the user's existing CapRover installation. This supersedes the earlier standalone Docker Compose deployment direction. CapRover supports container deployment using a `captain-definition` or a prebuilt image; database and uploaded-file persistence must be configured explicitly. See [deployment methods](https://caprover.com/docs/deployment-methods.html) and [persistent apps](https://caprover.com/docs/persistent-apps.html). Operator steps for GitHub Actions auto-deploy from `main` are in [caprover.md](./caprover.md).
 
 Version one serves a single theatre group in one shared workspace with individual logins. A future service for multiple independent groups is intended; multi-group operation and commercial service features are outside version one.
 
