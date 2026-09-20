@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState, type FormEvent } from 'react';
 import {
-  PLATFORM_STYLE_LABELS, axisAlignedPlatformOutline, platformBounds, platformSchema, stairSchema,
+  PLATFORM_STYLE_LABELS, axisAlignedPlatformOutline, orientedPlatformBox, platformSchema, stairSchema,
   type Platform, type PlatformStyle, type StairUnit, type SupportingSurface,
 } from '../../shared/levels.js';
 import { clipPlatformToStageDeck, snapStageDeckElevation, snapStageDeckSize } from '../../shared/stageDeck.js';
@@ -11,7 +11,7 @@ export function PlatformInspector({ platform, readOnly, onApply, onRemove }: {
   platform: Platform; readOnly: boolean; onApply: (platform: Platform) => void; onRemove: () => void;
 }) {
   const [error, setError] = useState('');
-  const box = platformBounds(platform.outline);
+  const box = orientedPlatformBox(platform.outline);
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -47,7 +47,7 @@ export function PlatformInspector({ platform, readOnly, onApply, onRemove }: {
       ['elevation', 'Höhe über Fußboden (mm)', 1, 100000, platform.elevation],
       ['width', 'Breite (mm)', 1, 100000, box.width], ['depth', 'Tiefe (mm)', 1, 100000, box.depth],
       ['x', 'X (mm)', -100000, 100000, box.x], ['y', 'Y (mm)', -100000, 100000, box.y],
-      ['rotation', 'Drehung (°)', -360, 360, 0],
+      ['rotation', 'Drehung (°)', -360, 360, box.rotation],
     ] as const).map(([key, label, min, max, value]) => <div key={key}><label htmlFor={`platform-${key}`}>{label}</label>
       <input id={`platform-${key}`} name={key} type="number" step="any" min={min} max={max} defaultValue={value} required /></div>)}</div>
     <Suspense fallback={<p>Materialbibliothek wird geladen …</p>}><MaterialPicker id="platform-finish" value={platform.finish} /></Suspense>

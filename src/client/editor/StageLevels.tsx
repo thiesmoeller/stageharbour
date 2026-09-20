@@ -2,7 +2,7 @@ import { useLayoutEffect, useMemo } from 'react';
 import { ExtrudeGeometry, Shape } from 'three';
 import { createMaterialFromPresetRef } from '@pascal-app/viewer';
 import type { StageModel } from '../../shared/transforms.js';
-import { platformBounds, platformCentroid, surfaceElevationUnderPoint, type Platform } from '../../shared/levels.js';
+import { platformCentroid, surfaceElevationUnderPoint, orientedPlatformBox, type Platform } from '../../shared/levels.js';
 import {
   STAGE_DECK_FRAME_PROFILE_MM, STAGE_DECK_LEG_SECTION_MM, STAGE_DECK_RUBBER_HEIGHT_MM,
   STAGE_DECK_RUBBER_SECTION_MM, STAGE_DECK_TOP_THICKNESS_MM, layoutStageDeckModules, stageDeckLegPositions,
@@ -63,7 +63,7 @@ function PlatformMesh({ platform, peers, lit }: { platform: Platform; peers: rea
   const centre = platformCentroid(platform.outline);
   const rotation = outlinePlanRotation(platform.outline);
   const style = platform.style ?? 'floating';
-  const bounds = platformBounds(platform.outline);
+  const box = orientedPlatformBox(platform.outline);
   const cos = Math.cos(rotation), sin = Math.sin(rotation);
   const worldPoint = (localX: number, localY: number) => ({
     x: centre.x + localX * cos - localY * sin,
@@ -94,8 +94,8 @@ function PlatformMesh({ platform, peers, lit }: { platform: Platform; peers: rea
   }, [platform, centre.x, centre.y, cos, sin, deckThickness, style, finishMaterial]);
   useLayoutEffect(() => () => { geometry?.dispose(); }, [geometry]);
   const deckY = platform.elevation;
-  const legs = style === 'stageDeck' ? stageDeckLegPositions(bounds.width, bounds.depth) : [];
-  const modules = style === 'stageDeck' ? layoutStageDeckModules(bounds.width, bounds.depth) : [];
+  const legs = style === 'stageDeck' ? stageDeckLegPositions(box.width, box.depth) : [];
+  const modules = style === 'stageDeck' ? layoutStageDeckModules(box.width, box.depth) : [];
   return <group position={[centre.x, 0, centre.y]} rotation={[0, -rotation, 0]}>
     {geometry && <mesh castShadow={lit} receiveShadow={lit} position={[0, deckY, 0]} geometry={geometry}>
       {finishMaterial ? <primitive object={finishMaterial} attach="material" dispose={null} /> : <Surface color="#c5d0b8" />}

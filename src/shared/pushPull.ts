@@ -1,6 +1,6 @@
 import { venueGeometrySchema, type VenueGeometry, type Wall } from './layout.js';
 import {
-  AUDIENCE_FLOOR_ID, axisAlignedPlatformOutline, DIN_STAIR_RISER_MM, platformCentroid, reassignVenueSupports, type Platform, type StairUnit,
+  AUDIENCE_FLOOR_ID, axisAlignedPlatformOutline, DIN_STAIR_RISER_MM, orientedPlatformBox, reassignVenueSupports, type Platform, type StairUnit,
 } from './levels.js';
 import type { OverheadBox } from './overhead.js';
 import type { Placeholder } from './placeholders.js';
@@ -57,19 +57,8 @@ function outlinePlanRotation(outline: readonly PlanPoint[]) {
   return Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
 }
 
-/** Oriented width/depth from the first two edges of a rectangular podium outline. */
-function orientedPlatformBox(platform: Platform) {
-  const a = platform.outline[0], b = platform.outline[1], c = platform.outline[2];
-  const centre = platformCentroid(platform.outline);
-  if (!a || !b || !c) {
-    return { x: centre.x, y: centre.y, width: 1, depth: 1, rotation: 0 };
-  }
-  return {
-    x: centre.x, y: centre.y,
-    width: Math.hypot(b.x - a.x, b.y - a.y),
-    depth: Math.hypot(c.x - b.x, c.y - b.y),
-    rotation: outlinePlanRotation(platform.outline),
-  };
+function orientedBox(platform: Platform) {
+  return orientedPlatformBox(platform.outline);
 }
 
 function clampDim(value: number) {
@@ -189,7 +178,7 @@ function resizePlatform(platform: Platform, face: LocalFace, delta: number, supp
     const elevation = clampDim(platform.elevation + delta);
     return elevation === platform.elevation ? platform : { ...platform, elevation };
   }
-  const box = orientedPlatformBox(platform);
+  const box = orientedBox(platform);
   const axes = planAxes(box.rotation);
   const stageDeck = platform.style === 'stageDeck';
   if (face === 'px' || face === 'nx') {

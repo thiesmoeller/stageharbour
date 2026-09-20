@@ -13,7 +13,7 @@ import { defaultPlanDisplay, type PlanDisplayOptions } from '../../shared/planDi
 import { PlanDisplayToggles } from './PlanDisplayToggles.js';
 import { VenueUnderlayDialog } from './VenueUnderlayDialog.js';
 import { prepareUnderlayFile, prepareUnderlayFromDataTransfer, prepareUnderlayFromClipboardRead } from './underlayImport.js';
-import { type Platform, type StairUnit, AUDIENCE_FLOOR_ID, PLATFORM_STYLE_LABELS, axisAlignedPlatformOutline, newPlatform, newStair, platformBounds, platformCentroid, reassignVenueSupports, stairCorners, type PlatformStyle } from '../../shared/levels.js';
+import { type Platform, type StairUnit, AUDIENCE_FLOOR_ID, PLATFORM_STYLE_LABELS, axisAlignedPlatformOutline, newPlatform, newStair, orientedPlatformBox, platformCentroid, reassignVenueSupports, stairCorners, type PlatformStyle } from '../../shared/levels.js';
 import { clipPlatformToStageDeck, layoutStageDeckModules, snapStageDeckElevation, snapStageDeckSize } from '../../shared/stageDeck.js';
 import { type OverheadBox, newOverheadBox, EXAMPLE_CEILING_HEIGHT } from '../../shared/overhead.js';
 import { objectOverlapWarnings } from '../../shared/overlap.js';
@@ -53,6 +53,7 @@ type VenueDraft = {
   ceilingHeight: number | ''; overheadBoxes: OverheadBox[]; trusses: Truss[]; curtains: Curtain[];
   fileId: string | undefined; page: number; rotationDeg: number; calibration: Calibration;
   pins: ConnectionPoint[]; corridors: CableRoutingCorridor[]; zones: KeepClearZone[]; centreline: StageCentreline;
+  floorFinish: string | undefined;
 };
 
 function draftFromVenue(venue: VenueGeometry, draft: VenueDraft): VenueDraft {
@@ -102,6 +103,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
     calibration: venue.trace?.calibration ?? { pointA: { x: 0, y: 0 }, pointB: { x: 0, y: 0 }, distanceMm: 1000 },
     pins: venue.connectionPoints ?? [], corridors: venue.cableRoutingCorridors ?? [], zones: venue.keepClearZones ?? [],
     centreline: venue.stageCentreline ?? defaultCentreline(venue),
+    floorFinish: venue.floorFinish,
   });
   const [lighting, setLighting] = draft.field('lighting');
   const [walls, setWalls] = draft.field('walls');
@@ -121,6 +123,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
   const [corridors, setCorridors] = draft.field('corridors');
   const [zones, setZones] = draft.field('zones');
   const [centreline, setCentreline] = draft.field('centreline');
+  const [floorFinish, setFloorFinish] = draft.field('floorFinish');
   const [click, setClick] = useState<ClickMode>('select');
   const [placeKind, setPlaceKind] = useState<PlaceKind>('wall');
   const [pinKind, setPinKind] = useState<ConnectionKind>('power');
@@ -362,15 +365,15 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
     if (event.currentTarget.contains(event.relatedTarget as Node)) return;
     setUnderlayDrag(false);
   }
-  const pasteObjectsRef = useRef<() => void>(() => {});
   useEffect(() => {
     if (readOnly) return;
+    // Block browser / Linux middle-click primary paste from dumping into the page.
+    // In-app Einfügen is only via keydown (Strg+V) or the Zwischenablage button — otherwise
+    // orbiting the 3D view with the middle button would stamp another copy.
     function onPaste(event: ClipboardEvent) {
       const target = event.target as HTMLElement | null;
       if (target?.closest('input, textarea, select, [contenteditable=true]')) return;
-      // Strg+V always pastes plan objects. Underlay screenshots use „Aus Zwischenablage“ only.
       event.preventDefault();
-      pasteObjectsRef.current();
     }
     window.addEventListener('paste', onPaste);
     return () => window.removeEventListener('paste', onPaste);
@@ -389,6 +392,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
       walls, wallTypes: venue.wallTypes, platforms, stairs, placeholders, lighting,
       ...(ceilingHeight === '' ? {} : { ceilingHeight }),
       overheadBoxes, trusses, curtains, keepClearZones: zones, stageCentreline: centreline,
+      ...(floorFinish ? { floorFinish } : {}),
     });
     if (!result.success) { setError('Bitte prüfen Sie den Umriss, die Kalibrierung, die Anschlüsse und die Überbauungen.'); return; }
     const toSave = reassignVenueSupports(result.data);
@@ -437,7 +441,9 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
   const planWidth = Math.max(width, ...vertices.map(p => p.x)) - planLeft + 400;
   const planHeight = Math.max(height, ...vertices.map(p => p.y)) + 1200;
   const candidate = venueGeometrySchema.safeParse({ ...venue, lighting, outline: vertices, walls, platforms, stairs, placeholders, overheadBoxes, trusses, curtains,
-    ceilingHeight: ceilingHeight === '' ? undefined : ceilingHeight, keepClearZones: zones, connectionPoints: pins, cableRoutingCorridors: corridors, stageCentreline: centreline });
+    ceilingHeight: ceilingHeight === '' ? undefined : ceilingHeight, keepClearZones: zones, connectionPoints: pins, cableRoutingCorridors: corridors, stageCentreline: centreline,
+    ...(floorFinish ? { floorFinish } : { floorFinish: undefined }),
+  });
   const previewVenue = candidate.success ? reassignVenueSupports(candidate.data) : venue;
   // Placeholders stay on the venue only; putting them on the layout too duplicates chairs in 3D.
   const liveLayout: Layout = { schemaVersion: 1, walls: [], braces: [] };
@@ -560,7 +566,6 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
     if (clipboard.cut) setClipboard(undefined);
     else setClipboard(copyVenueSelection(result.venue, result.ids));
   }
-  pasteObjectsRef.current = paste;
   function remove() {
     if (busyGesture()) return;
     const ids = selectedIds.filter(id => id !== CENTRELINE_SELECTION);
@@ -709,10 +714,13 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
               transform={`rotate(${rotationDeg} ${overlayW / 2} ${-overlayH / 2})`}>
               <image href={overlay.href} x="0" y={-overlayH} width={overlayW} height={overlayH} />
             </g>}
-            {/* Empty SVG regions ignore pointers; place/draw modes need a full-plan hit target. */}
+            {/* Empty SVG regions ignore pointers; place/draw modes and select marquee need a full-plan hit target. */}
             {click !== 'select' && !readOnly && <rect data-testid="venue-place-target"
               x={planLeft} y={planTop} width={planWidth} height={planHeight} fill="transparent"
               onPointerDown={event => { event.stopPropagation(); onPlan(event); }} />}
+            {click === 'select' && !readOnly && <rect data-testid="venue-marquee-target"
+              x={planLeft} y={planTop} width={planWidth} height={planHeight} fill="transparent"
+              onPointerDown={event => startMarquee(event)} />}
             {(measureA || measureB) && <g data-testid="underlay-measure-line" pointerEvents="none">
               {measureA && measureB && <line x1={measureA.x} y1={-measureA.y} x2={measureB.x} y2={-measureB.y}
                 stroke="#b67c35" strokeWidth="4" strokeDasharray="60 40" vectorEffect="non-scaling-stroke" />}
@@ -748,8 +756,8 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
                   : (chosen ? 'rgba(182,124,53,0.35)' : 'rgba(113,132,105,0.25)');
               const centre = platformCentroid(platform.outline);
               const rotation = outlineRotation(platform.outline);
-              const bounds = platformBounds(platform.outline);
-              const modules = style === 'stageDeck' ? layoutStageDeckModules(bounds.width, bounds.depth) : [];
+              const box = orientedPlatformBox(platform.outline);
+              const modules = style === 'stageDeck' ? layoutStageDeckModules(box.width, box.depth) : [];
               return <g key={platform.id}>
                 <path data-testid={`venue-platform-${platform.id}`}
                   d={`${platform.outline.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')} Z`}
@@ -816,7 +824,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
               const platform = platforms.find(item => item.id === selected);
               if (!platform) return null;
               const centre = platformCentroid(platform.outline);
-              return <RotationHandle centre={centre} rotation={outlineRotation(platform.outline)} width={platformBounds(platform.outline).width}
+              return <RotationHandle centre={centre} rotation={outlineRotation(platform.outline)} width={orientedPlatformBox(platform.outline).width}
                 testId={`rotate-venue-platform-${platform.id}`} label="Podest drehen"
                 onPointerDown={event => beginObjectRotate(event, platform.id, centre, outlineRotation(platform.outline))} />;
             })()}
@@ -898,11 +906,10 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
             <p className="muted">{selectedIds.length} Objekt{selectedIds.length === 1 ? '' : 'e'} ausgewählt. Ziehen zum Verschieben · Orange ↻ dreht · Entf löscht.</p>
             {selectedObject?.kind === 'platform' && (() => {
               const platform = platforms.find(item => item.id === selected)!;
-              const centre = platformCentroid(platform.outline);
-              const a = platform.outline[0], b = platform.outline[1], c = platform.outline[2];
-              const width = a && b ? Math.hypot(b.x - a.x, b.y - a.y) : platformBounds(platform.outline).width;
-              const depth = b && c ? Math.hypot(c.x - b.x, c.y - b.y) : platformBounds(platform.outline).depth;
-              const rotation = outlineRotation(platform.outline);
+              const box = orientedPlatformBox(platform.outline);
+              const centre = { x: box.x, y: box.y };
+              const width = box.width, depth = box.depth;
+              const rotation = box.rotation;
               function updatePlatform(patch: {
                 label?: string; elevation?: number; width?: number; depth?: number; x?: number; y?: number; rotation?: number;
                 finish?: string | null; style?: PlatformStyle;
@@ -1044,6 +1051,10 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueUpdateAvailable =
         </div></details>
         <details className="inspector-section"><summary>Umriss</summary><div className="inspector-section-body">
           <fieldset disabled={readOnly || busy || busyGesture()}>
+            <Suspense fallback={<p>Materialbibliothek wird geladen …</p>}>
+              <MaterialPicker id="venue-floor-finish" value={floorFinish} onChange={value => setFloorFinish(value || undefined)} />
+            </Suspense>
+            <p className="muted">Oberfläche des Zuschauerbodens in der Raumsicht.</p>
             {vertices.map((point, index) => <div className="numeric-fields" key={index}>
               <div><label htmlFor={`vertex-x-${index}`}>Eckpunkt {index + 1} X (mm)</label>
                 <input id={`vertex-x-${index}`} type="number" step="any" value={point.x} onChange={event => setVertices(current => current.map((item, i) => i === index ? { ...item, x: Number(event.target.value) } : item))} /></div>

@@ -1,4 +1,4 @@
-import { axisAlignedPlatformOutline, platformBounds, type Platform } from './levels.js';
+import { axisAlignedPlatformOutline, orientedPlatformBox, type Platform } from './levels.js';
 
 /** Catalog sizes from common BE-1 / GT Stage Deck Bühnenelemente (mm). */
 export const STAGE_DECK_MODULES_MM = [
@@ -110,15 +110,13 @@ export function stageDeckLegPositions(width: number, depth: number) {
 
 /** Apply Bühnenelement snapping to an existing platform outline and elevation. */
 export function clipPlatformToStageDeck(platform: Platform): Platform {
-  const bounds = platformBounds(platform.outline);
-  const size = snapStageDeckSize(bounds.width, bounds.depth);
+  const box = orientedPlatformBox(platform.outline);
+  const size = snapStageDeckSize(box.width, box.depth);
   const elevation = snapStageDeckElevation(platform.elevation);
-  const a = platform.outline[0], b = platform.outline[1];
-  const rotation = a && b ? Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI : 0;
   return {
     ...platform,
     style: 'stageDeck',
     elevation,
-    outline: axisAlignedPlatformOutline(bounds.x, bounds.y, size.width, size.depth, rotation),
+    outline: axisAlignedPlatformOutline(box.x, box.y, size.width, size.depth, box.rotation),
   };
 }

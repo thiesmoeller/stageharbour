@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { newPlatform } from '../src/shared/levels.js';
+import { newPlatform, orientedPlatformBox } from '../src/shared/levels.js';
 import {
   STAGE_DECK_LEG_EDGE_INSET_MM, STAGE_DECK_LEG_SECTION_MM, STAGE_DECK_MODULES_MM,
   clipPlatformToStageDeck, layoutStageDeckModules,
@@ -45,6 +45,41 @@ test('clipPlatformToStageDeck snaps size and elevation and sets stageDeck style'
   assert.equal(platform.elevation, 400);
   const legs = stageDeckLegPositions(4000, 2500);
   assert.ok(legs.length >= 4);
+});
+
+test('clipPlatformToStageDeck keeps oriented size after rotation', () => {
+  const rotated = {
+    ...newPlatform(randomUUID(), 4000, 3000),
+    style: 'stageDeck' as const,
+    elevation: 400,
+    outline: [
+      { x: 4000, y: 2000 }, { x: 4000, y: 4000 }, { x: 3000, y: 4000 }, { x: 3000, y: 2000 },
+    ],
+  };
+  // 90°: width along +Y (2000), depth along -X (1000)
+  const clipped = clipPlatformToStageDeck(rotated);
+  const box = orientedPlatformBox(clipped.outline);
+  assert.equal(Math.round(box.width), 2000);
+  assert.equal(Math.round(box.depth), 1000);
+  assert.equal(layoutStageDeckModules(box.width, box.depth).length, 1);
+});
+
+test('orientedPlatformBox reports edge lengths, not the axis-aligned bounding box', () => {
+  const outline = [
+    { x: 0, y: 0 }, { x: 2000, y: 0 }, { x: 2000, y: 1000 }, { x: 0, y: 1000 },
+  ];
+  const rotated = outline.map(point => {
+    const cx = 1000, cy = 500, angle = Math.PI / 4;
+    const dx = point.x - cx, dy = point.y - cy;
+    return {
+      x: cx + dx * Math.cos(angle) - dy * Math.sin(angle),
+      y: cy + dx * Math.sin(angle) + dy * Math.cos(angle),
+    };
+  });
+  const box = orientedPlatformBox(rotated);
+  assert.ok(Math.abs(box.width - 2000) < 1);
+  assert.ok(Math.abs(box.depth - 1000) < 1);
+  assert.ok(Math.abs(Math.abs(box.rotation) - 45) < 0.1);
 });
 
 test('each module keeps four feet inset under the panel', () => {
