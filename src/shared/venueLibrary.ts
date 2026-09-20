@@ -6,6 +6,9 @@ export const createVenueSchema = z.strictObject({
   width: z.number().finite().positive().max(100000),
   depth: z.number().finite().positive().max(100000),
 });
+export const renameVenueSchema = z.strictObject({
+  name: z.string().trim().min(1).max(120),
+});
 export const venueSummarySchema = z.object({
   id: z.uuid(), name: z.string(), venueVersionId: z.uuid(), width: z.number(), depth: z.number(),
 });

@@ -58,7 +58,7 @@ APP_ORIGIN=https://stageplanner.example.org
 BETTER_AUTH_SECRET=
 WORKSPACE_ID=
 WORKSPACE_NAME=Unsere Theatergruppe
-DATABASE_URL=postgresql://stage_planner:YOUR_DB_PASSWORD@srv-captain--stageplanner-db:5432/stage_planner
+DATABASE_URL=postgresql://stage_planner:replace-with-postgres-password@srv-captain--stageplanner-db:5432/stage_planner
 ```
 
 Generate secrets locally:
@@ -69,6 +69,20 @@ uuidgen                   # WORKSPACE_ID
 ```
 
 `APP_ORIGIN` must be the public HTTPS origin with **no** path or trailing slash. Production refuses non-HTTPS origins.
+
+**`DATABASE_URL` must match the Postgres CapRover app exactly.** Open the Postgres app → **App Configs** and copy:
+
+| CapRover env on the DB app | Goes into `DATABASE_URL` as |
+| --- | --- |
+| `POSTGRES_USER` | username after `postgresql://` |
+| `POSTGRES_PASSWORD` | password between `:` and `@` |
+| `POSTGRES_DB` | database name after the final `/` |
+
+Host is `srv-captain--` plus the **Postgres app name**, port `5432`. Example if the DB app is `stageplanner-db`, user and database are both `stage_planner`, password `s3cret`:
+
+`postgresql://stage_planner:s3cret@srv-captain--stageplanner-db:5432/stage_planner`
+
+Never leave placeholder words such as `USER`, `PASS`, `DB`, or `YOUR_DB_PASSWORD` in the URL. A log line `database "DB" does not exist` means the path after `/` is still a placeholder.
 
 Leave Pocket ID and Brevo variables unset until you configure them. Do **not** put `BOOTSTRAP_ADMIN_*` here permanently.
 

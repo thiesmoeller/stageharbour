@@ -8,7 +8,7 @@ import {
   applyVenueResultSchema, saveVenueResultSchema, saveVenueSchema, venueGeometrySchema, type Layout, type VenueGeometry,
 } from '../../shared/layout.js';
 import { applyVenueVersion } from '../../shared/scenes.js';
-import { createVenueSchema, publishVenueSchema, venueListSchema, venueRecordSchema } from '../../shared/venueLibrary.js';
+import { createVenueSchema, publishVenueSchema, renameVenueSchema, venueListSchema, venueRecordSchema } from '../../shared/venueLibrary.js';
 import { boundsFromOutline } from '../../shared/venue.js';
 import type { Database } from '../db/connection.js';
 import { adaptation, editingLease, production, scene, venue, venueReference, venueVersion } from '../db/schema.js';
@@ -205,6 +205,17 @@ export function registerVenueRoutes(
       await tx.insert(venueVersion).values({ id: versionId, workspaceId, venueId: id, geometry: { schemaVersion: 1, width, depth } });
     });
     return reply.code(201).send(await loadVenue(db, workspaceId, id));
+  });
+  api.patch(`${venuesPath}/:venueId`, {
+    schema: { params: venueParams, body: renameVenueSchema, response: { 200: venueRecordSchema, ...errors } },
+  }, async request => {
+    const { workspaceId, venueId } = request.params;
+    await requireEditor(request, workspaceId);
+    const [updated] = await db.update(venue).set({ name: request.body.name })
+      .where(and(eq(venue.workspaceId, workspaceId), eq(venue.id, venueId)))
+      .returning({ id: venue.id });
+    if (!updated) throw new AccessError(404, 'Spielstätte nicht verfügbar.');
+    return loadVenue(db, workspaceId, venueId);
   });
   api.put(`${venuesPath}/:venueId`, { schema: { params: venueParams, body: publishVenueSchema, response: { 200: venueRecordSchema, ...errors } } }, async request => {
     const { workspaceId, venueId } = request.params;
