@@ -2,7 +2,7 @@
 
 Deploy Bühnenplaner to CapRover from the private GitHub repository. GitHub Actions builds the Docker image on every push to `main` and tells CapRover to run that image. CapRover never needs GitHub repository access.
 
-Default names below use `buehnenplaner` (app) and `buehnenplaner-db` (Postgres). Change them if you prefer other CapRover app names; keep the GitHub `CAPROVER_APP` secret in sync.
+Default names below use `stageplanner` (app) and `stageplanner-db` (Postgres). Change them if you prefer other CapRover app names; keep the GitHub `CAPROVER_APP` secret in sync.
 
 ## What you will create
 
@@ -19,25 +19,25 @@ Default names below use `buehnenplaner` (app) and `buehnenplaner-db` (Postgres).
 
 1. Open <https://captain.project-park.de>.
 2. **Apps** → **One-Click Apps/Databases** → **PostgreSQL**.
-3. App name: `buehnenplaner-db`.
+3. App name: `stageplanner-db`.
 4. Use Postgres **17** (or another 17.x tag from Docker Hub).
 5. Set username, password, and database name (for example `stage_planner` for all three user/db fields, with a strong random password). Save the password somewhere safe.
 6. Deploy and wait until the app is running.
 
-Other apps reach it at `srv-captain--buehnenplaner-db:5432`.
+Other apps reach it at `srv-captain--stageplanner-db:5432`.
 
 ## 2. Create the web app shell
 
 1. **Apps** → **Create New App**.
-2. Name: `buehnenplaner`.
+2. Name: `stageplanner`.
 3. Enable **Has Persistent Data**.
 4. Create the app (do not deploy source yet).
 
 ### HTTP settings
 
-1. Open `buehnenplaner` → **HTTP Settings**.
+1. Open `stageplanner` → **HTTP Settings**.
 2. Container HTTP port: `3000`.
-3. Enable HTTPS for `buehnenplaner.project-park.de` (or attach your custom domain and enable HTTPS there).
+3. Enable HTTPS for `stageplanner.project-park.de` (or attach your custom domain and enable HTTPS there).
 4. Optional: enable websocket support (not required for the current app).
 
 ### Persistent data
@@ -54,11 +54,11 @@ NODE_ENV=production
 HOST=0.0.0.0
 PORT=3000
 STORAGE_DIR=/data/storage
-APP_ORIGIN=https://buehnenplaner.project-park.de
+APP_ORIGIN=https://stageplanner.project-park.de
 BETTER_AUTH_SECRET=
 WORKSPACE_ID=
 WORKSPACE_NAME=Unsere Theatergruppe
-DATABASE_URL=postgresql://stage_planner:YOUR_DB_PASSWORD@srv-captain--buehnenplaner-db:5432/stage_planner
+DATABASE_URL=postgresql://stage_planner:YOUR_DB_PASSWORD@srv-captain--stageplanner-db:5432/stage_planner
 ```
 
 Generate secrets locally:
@@ -76,13 +76,13 @@ Save and restart is fine; the first real container image arrives from GitHub Act
 
 ## 3. Enable CapRover app token
 
-1. Open `buehnenplaner` → **Deployment**.
+1. Open `stageplanner` → **Deployment**.
 2. **Enable App Token**.
 3. Copy the token. You will store it only in GitHub Actions secrets.
 
 ## 4. Allow CapRover to pull private GHCR images
 
-The deploy workflow pushes to `ghcr.io/thiesmoeller/stage_planner`. Private repos create private packages by default.
+The deploy workflow pushes multi-arch images (`linux/amd64` and `linux/arm64`) to `ghcr.io/thiesmoeller/stage_planner`. Private repos create private packages by default. CapRover hosts that are ARM (for example many Hetzner CAX VMs) need the `linux/arm64` manifest.
 
 GitHub Packages / GHCR only accepts a **classic** PAT for registry login. A fine-grained token scoped to the repo will **not** show `read:packages` — that scope is not a repository permission, and fine-grained PATs are not supported for GHCR pulls.
 
@@ -105,7 +105,7 @@ In <https://github.com/thiesmoeller/stage_planner> → **Settings** → **Secret
 | Name | Value |
 | --- | --- |
 | `CAPROVER_SERVER` | `https://captain.project-park.de` |
-| `CAPROVER_APP` | `buehnenplaner` |
+| `CAPROVER_APP` | `stageplanner` |
 | `CAPROVER_APP_TOKEN` | token from step 3 |
 
 `GITHUB_TOKEN` is provided automatically for pushing to GHCR.
@@ -121,8 +121,8 @@ Merge/push the repository files that enable CapRover:
 After push to `main`:
 
 1. GitHub → **Actions** → **Planner checks** must go green (tests, then deploy).
-2. CapRover → `buehnenplaner` → **Deployment** should show a new version from the image tag.
-3. Confirm <https://buehnenplaner.project-park.de/api/health> returns `{"status":"ok"}`.
+2. CapRover → `stageplanner` → **Deployment** should show a new version from the image tag.
+3. Confirm <https://stageplanner.project-park.de/api/health> returns `{"status":"ok"}`.
 
 Migrations run automatically on container start (`Dockerfile` CMD).
 
@@ -137,7 +137,7 @@ BOOTSTRAP_ADMIN_PASSWORD=choose-a-long-password
 ```
 
 2. Save and ensure the container is running with those variables.
-3. CapRover → `buehnenplaner` → **Deployment** (or App details) → open a one-off shell / exec into the container, then:
+3. CapRover → `stageplanner` → **Deployment** (or App details) → open a one-off shell / exec into the container, then:
 
 ```sh
 node dist/server/cli/bootstrap.js
@@ -157,7 +157,7 @@ Rollback: CapRover **Deployment** → revert to a previous image version. Env an
 
 ## Backup notes
 
-- **Database**: back up the CapRover Postgres volume / use `pg_dump` against `buehnenplaner-db`.
+- **Database**: back up the CapRover Postgres volume / use `pg_dump` against `stageplanner-db`.
 - **Files**: back up the persistent directory mapped to `/data/storage` (uploads and frozen PDFs).
 - Restore means restoring both; then run the app so migrations can apply to retained data.
 
