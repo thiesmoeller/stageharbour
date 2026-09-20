@@ -1,5 +1,7 @@
 FROM node:24-bookworm-slim AS build
 WORKDIR /app
+ARG APP_VERSION=dev
+ENV APP_VERSION=$APP_VERSION
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY tsconfig*.json vite.config.ts index.html ./
@@ -8,7 +10,8 @@ RUN npm run build
 
 FROM node:24-bookworm-slim AS runtime
 WORKDIR /app
-ENV NODE_ENV=production HOST=0.0.0.0 PORT=3000 STORAGE_DIR=/data/storage
+ARG APP_VERSION=dev
+ENV NODE_ENV=production HOST=0.0.0.0 PORT=3000 STORAGE_DIR=/data/storage APP_VERSION=$APP_VERSION
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force \
     && mkdir -p /data/storage && chown node:node /data/storage

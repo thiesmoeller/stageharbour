@@ -29,7 +29,7 @@ test('German login, failed credentials, workspace, reload, logout and mobile lay
 });
 
 test('Pocket ID sign-in is offered in German when OIDC is configured', async ({ page }) => {
-  await page.route('**/api/login-options', route => route.fulfill({ json: { oidc: true } }));
+  await page.route('**/api/login-options', route => route.fulfill({ json: { oidc: true, version: 'test' } }));
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Mit Pocket ID anmelden' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Anmelden', exact: true })).toBeVisible();

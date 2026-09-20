@@ -23,6 +23,11 @@ test('requires valid origins, private configuration and production HTTPS', () =>
   assert.throws(() => readConfig({ ...env, WORKSPACE_ID: 'bad-id' }), /WORKSPACE_ID/);
 });
 
+test('APP_VERSION uses APP_VERSION env or falls back via git describe', () => {
+  assert.equal(readConfig({ ...env, APP_VERSION: '1.2.3-test' }).APP_VERSION, '1.2.3-test');
+  assert.match(readConfig(env).APP_VERSION, /^[0-9a-f]{7,}|^v?\d|dev/);
+});
+
 test('OIDC is optional together and rejects incomplete or secret-leaking configuration', () => {
   const configured = readConfig({ ...env, ...oidc, OIDC_REDIRECT_URI: 'http://localhost:5173/api/auth/callback/pocket-id' });
   assert.equal(oidcEnabled(configured), true);

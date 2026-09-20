@@ -112,9 +112,15 @@ function Login({ onSuccess }: { onSuccess: () => Promise<void> }) {
   const [error, setError] = useState(() => new URLSearchParams(window.location.search).has('error')
     ? 'Anmeldung mit Pocket ID fehlgeschlagen. Bitte versuchen Sie es erneut.' : '');
   const [oidc, setOidc] = useState(false);
+  const [version, setVersion] = useState('');
   useEffect(() => {
     let cancelled = false;
-    request('/api/login-options').then(data => { if (!cancelled) setOidc(loginOptionsSchema.parse(data).oidc); }).catch(() => {});
+    request('/api/login-options').then(data => {
+      if (cancelled) return;
+      const options = loginOptionsSchema.parse(data);
+      setOidc(options.oidc);
+      setVersion(options.version);
+    }).catch(() => {});
     return () => { cancelled = true; };
   }, []);
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -156,6 +162,7 @@ function Login({ onSuccess }: { onSuccess: () => Promise<void> }) {
       </form>
       <p className="forgot"><a href="#/passwort-vergessen">Passwort vergessen?</a></p>
       <p className="access-note">Der Zugang wird von eurer Administration eingerichtet. Eine öffentliche Registrierung ist nicht möglich.</p>
+      {version && <p className="app-version" title="Git-Version dieser Installation">Version {version}</p>}
     </section>
   </main>;
 }

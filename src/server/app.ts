@@ -121,7 +121,9 @@ export async function createApp(db: Database, config: Config, options: {
 
   const errors = { 401: errorSchema, 403: errorSchema, 404: errorSchema };
   api.get('/api/health', { schema: { response: { 200: z.object({ status: z.literal('ok') }) } } }, async () => ({ status: 'ok' as const }));
-  api.get('/api/login-options', { schema: { response: { 200: loginOptionsSchema } } }, async () => ({ oidc }));
+  api.get('/api/login-options', { schema: { response: { 200: loginOptionsSchema } } }, async () => ({
+    oidc, version: config.APP_VERSION,
+  }));
   api.get('/api/me', { schema: { response: { 200: meSchema, ...errors } } }, async request => access(request, config.WORKSPACE_ID));
   api.get('/api/workspaces/:workspaceId', {
     schema: { params: workspaceParamsSchema, response: { 200: workspaceSchema, ...errors } },
