@@ -34,7 +34,10 @@ export const venueReferenceSchema = z.object({
   pixelWidth: z.number().int().nullable(), pixelHeight: z.number().int().nullable(),
 });
 export type VenueReference = z.infer<typeof venueReferenceSchema>;
-export const loginOptionsSchema = z.object({ oidc: z.boolean() });
+export const loginOptionsSchema = z.object({
+  oidc: z.boolean(),
+  version: z.string().min(1).max(120),
+});
 export const brandingSchema = z.object({
   productName: z.string().min(1).max(80),
   tagline: z.string().max(120),

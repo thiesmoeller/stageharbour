@@ -47,7 +47,7 @@ async function completeOidc(path = '/api/auth/sign-in/social') {
 }
 
 test('login options expose Pocket ID only when configured, and other auth routes stay closed', async () => {
-  assert.deepEqual((await app.inject('/api/login-options')).json(), { oidc: true });
+  assert.deepEqual((await app.inject('/api/login-options')).json(), { oidc: true, version: fixture.config.APP_VERSION });
   assert.equal((await app.inject({ method: 'POST', url: '/api/auth/sign-up/email', payload: testAdministrator })).statusCode, 404);
   assert.equal((await app.inject({ method: 'GET', url: '/api/auth/callback/other' })).statusCode, 404);
   const crossOrigin = await app.inject({

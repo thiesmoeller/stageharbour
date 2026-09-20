@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { resolveAppVersion } from '../shared/appVersion.js';
 
 const blank = (value: unknown) => value === '' ? undefined : value;
 const optionalUrl = z.preprocess(blank, z.url().optional());
@@ -23,6 +24,8 @@ const schema = z.object({
   MAIL_FROM: z.string().optional(),
   BREVO_API_KEY: z.string().optional(),
   STORAGE_DIR: z.string().min(1).default('data/storage'),
+  /** Build/release id from `git describe` (set in CI/Docker; otherwise resolved from git). */
+  APP_VERSION: z.string().trim().min(1).max(120),
 });
 export type Config = z.infer<typeof schema>;
 
@@ -33,7 +36,7 @@ export function oidcEnabled(config: Config): config is Config & {
 }
 
 export function readConfig(env: NodeJS.ProcessEnv = process.env): Config {
-  const parsed = schema.safeParse(env);
+  const parsed = schema.safeParse({ ...env, APP_VERSION: resolveAppVersion(env) });
   if (!parsed.success) {
     // Never print configuration values (database credentials and signing secret).
     throw new Error(`Invalid configuration: ${parsed.error.issues.map(issue => issue.path.join('.')).join(', ')}`);

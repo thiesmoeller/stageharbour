@@ -41,7 +41,7 @@ async function addIdentity(email: string) {
 
 test('public registration is closed, unauthenticated access is denied, and errors stay generic', async () => {
   assert.equal((await app.inject('/api/me')).statusCode, 401);
-  assert.deepEqual((await app.inject('/api/login-options')).json(), { oidc: false });
+  assert.deepEqual((await app.inject('/api/login-options')).json(), { oidc: false, version: fixture.config.APP_VERSION });
   const signUp = await app.inject({ method: 'POST', url: '/api/auth/sign-up/email', payload: { ...testAdministrator, email: 'uninvited@example.test' } });
   assert.equal(signUp.statusCode, 404);
   assert.equal((await app.inject({ method: 'POST', url: '/api/auth/sign-in/social', payload: { provider: 'pocket-id' } })).statusCode, 404);
