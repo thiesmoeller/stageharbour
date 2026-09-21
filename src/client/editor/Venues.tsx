@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { Me } from '../../shared/contracts.js';
 import { createVenueSchema, renameVenueSchema, venueListSchema, venueRecordSchema, type VenueRecord } from '../../shared/venueLibrary.js';
 import { ApiError, request } from '../api.js';
@@ -11,6 +11,8 @@ import { useEditingLease } from './useEditingLease.js';
 export function Venues({ me, onDirty }: { me: Me; onDirty: (dirty: boolean) => void }) {
   const [venues, setVenues] = useState<ReturnType<typeof venueListSchema.parse>>([]);
   const [opened, setOpened] = useState<VenueRecord>();
+  const openedRef = useRef(opened);
+  openedRef.current = opened;
   const [creating, setCreating] = useState(false);
   const [renamingId, setRenamingId] = useState<string>();
   const [dirty, setDirty] = useState(false);
@@ -54,8 +56,8 @@ export function Venues({ me, onDirty }: { me: Me; onDirty: (dirty: boolean) => v
     setBusy(true); setError('');
     try {
       const result = venueRecordSchema.parse(await request(`${base}/${id}`, parsed.data, 'PATCH'));
-      setVenues(current => current.map(item => item.id === id ? { ...item, name: result.name } : item).sort((a, b) => a.name.localeCompare(b.name, 'de')));
-      setOpened(current => current?.id === id ? { ...current, name: result.name } : current);
+      setVenues(current => current.map(item => item.id === id ? { ...item, name: result.name, venueVersionId: result.venueVersionId } : item).sort((a, b) => a.name.localeCompare(b.name, 'de')));
+      setOpened(current => current?.id === id ? { ...current, name: result.name, venueVersionId: result.venueVersionId } : current);
       setRenamingId(undefined);
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Die Spielstätte konnte nicht umbenannt werden.');
@@ -74,9 +76,11 @@ export function Venues({ me, onDirty }: { me: Me; onDirty: (dirty: boolean) => v
     {!readOnly && <p role="status">{lease.message || 'Bearbeitung wird angefordert …'} {!lease.holding && <button onClick={() => void lease.acquire()}>Bearbeitung erneut anfordern</button>}</p>}
     <VenuePanel key={opened.id} workspaceId={me.workspace.id} venue={opened.venue} venueId={opened.id} venueName={opened.name}
       readOnly={readOnly || !lease.holding} onDirty={setDirty}
-      onVenueRenamed={name => setOpened(current => current ? { ...current, name } : current)}
+      onVenueRenamed={({ name, venueVersionId }) => setOpened(current => current ? { ...current, name, venueVersionId } : current)}
       onPublish={async geometry => {
-        const result = venueRecordSchema.parse(await request(`${base}/${opened.id}`, { venueVersionId: opened.venueVersionId, venue: geometry }, 'PUT'));
+        const current = openedRef.current;
+        if (!current) return;
+        const result = venueRecordSchema.parse(await request(`${base}/${current.id}`, { venueVersionId: current.venueVersionId, venue: geometry }, 'PUT'));
         setOpened(result);
       }} />
   </section>;
