@@ -46,10 +46,11 @@ export function venueObjectsInBounds(venue: VenueGeometry, bounds: PlanBounds) {
 }
 
 const objectFields = ['walls', 'platforms', 'stairs', 'placeholders', 'overheadBoxes', 'trusses', 'curtains', 'connectionPoints', 'keepClearZones', 'cableRoutingCorridors'] as const;
-export type VenueClipboard = { source: VenueGeometry; ids: string[]; cut: boolean; offset: number };
+/** Offset is applied in paste; the editor supplies cursor delta so copies follow the pointer. */
+export type VenueClipboard = { source: VenueGeometry; ids: string[]; cut: boolean; offset: { x: number; y: number } };
 export function copyVenueSelection(venue: VenueGeometry, ids: readonly string[], cut = false): VenueClipboard | undefined {
   const selected = venueObjects(venue).filter(item => ids.includes(item.id)).map(item => item.id);
-  return selected.length ? { source: structuredClone(venue), ids: selected, cut, offset: cut ? 0 : 300 } : undefined;
+  return selected.length ? { source: structuredClone(venue), ids: selected, cut, offset: { x: 0, y: 0 } } : undefined;
 }
 /** Cut removes first; paste restores identities. Dependent platform references block the cut. */
 export function cutVenueSelection(venue: VenueGeometry, ids: readonly string[]) {
@@ -69,11 +70,16 @@ export function removeVenueSelection(venue: VenueGeometry, ids: readonly string[
   return { venue: next, blocked: false };
 }
 /** Clipboard stays within its venue draft; selected platform references are remapped together. */
-export function pasteVenueSelection(venue: VenueGeometry, clipboard: VenueClipboard, id: () => string) {
+export function pasteVenueSelection(
+  venue: VenueGeometry,
+  clipboard: VenueClipboard,
+  id: () => string,
+  offset = clipboard.offset,
+) {
   const ids = new Map(clipboard.ids.map(old => [old, clipboard.cut ? old : id()]));
-  const source = transformVenue(clipboard.source, clipboard.ids, { x: clipboard.offset, y: clipboard.offset, rotation: 0 });
-  // Never silently paste at the original location when an offset exceeded coordinate limits.
-  if (clipboard.offset && source === clipboard.source) return { venue, ids: [] as string[] };
+  const source = transformVenue(clipboard.source, clipboard.ids, { x: offset.x, y: offset.y, rotation: 0 });
+  // Never silently paste at the original location when a non-zero offset exceeded coordinate limits.
+  if ((offset.x || offset.y) && source === clipboard.source) return { venue, ids: [] as string[] };
   const next = { ...venue };
   for (const key of objectFields) {
     const added = source[key]?.filter(item => ids.has(item.id)).map(item => {

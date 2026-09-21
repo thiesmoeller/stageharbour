@@ -113,6 +113,9 @@ test('venue plan drag, rubberband clipboard and escape cancel keep one draft his
   await page.getByRole('button', { name: 'Kopieren' }).click();
   await page.getByRole('button', { name: 'Einfügen' }).click();
   await expect(page.locator('[data-testid^="venue-wall-"]')).toHaveCount(2);
+  // Paste follows the pointer until a click commits the copy.
+  await page.mouse.click(at.x, at.y);
+  await expect(page.locator('[data-testid^="venue-wall-"]')).toHaveCount(2);
   await expect(page.getByRole('heading', { name: 'Feste Wand 2' })).toBeVisible();
   // Linux middle-click orbit fires a native paste event; it must not stamp another copy.
   await page.evaluate(() => window.dispatchEvent(new ClipboardEvent('paste', { bubbles: true, cancelable: true })));

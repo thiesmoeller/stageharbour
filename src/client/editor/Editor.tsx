@@ -7,7 +7,10 @@ import { editorCommand } from './interactionKeys.js';
 import { layoutSelectionRotation, transformLayoutGesture, type TransformOperation } from '../../shared/plannerTransforms.js';
 import type { StageEditing } from './StageEditing.js';
 import { assemblyCaption } from '../../shared/assembly.js';
-import { copySelection, cutSelection, pasteClipboard, removeSelection, type ClipboardMember, type LayoutClipboard } from '../../shared/clipboard.js';
+import {
+  clipboardPivot, copySelection, cutSelection, pasteClipboard, removeSelection,
+  type ClipboardMember, type LayoutClipboard,
+} from '../../shared/clipboard.js';
 import { groupContaining, type GroupMember } from '../../shared/groups.js';
 import { execute, history, redo, undo, type History } from '../../shared/history.js';
 import { layoutSchema, newBrace, newWall, wallCorners, wallSchema, type Brace, type Layout, type Scene, type VenueGeometry, type Wall } from '../../shared/layout.js';
@@ -47,7 +50,9 @@ import { VenuePanel, InfrastructureMarks } from './VenuePanel.js';
 import { useEditingLease } from './useEditingLease.js';
 import { OverheadMarks, TrussMarks, CurtainMarks } from './VenueOverhead.js';
 import { KeepClearMarks } from './KeepClearZones.js';
-import { objectOverlapWarnings } from '../../shared/overlap.js';
+import {
+  objectOverlapWarnings, overlappingObjectIds, placementOverlaps, wallFootprint,
+} from '../../shared/overlap.js';
 import { keepClearWarnings } from '../../shared/keepClear.js';
 import { InventoryPanel } from './InventoryPanel.js';
 import { AssemblyPanel } from './AssemblyPanel.js';
@@ -97,13 +102,16 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
   const [clipboard, setClipboard] = useState<LayoutClipboard>();
   const [placing, setPlacing] = useState<{ wall: Wall; pendingType?: WallElementType }>();
   const placingRef = useRef<{ wall: Wall; pendingType?: WallElementType } | undefined>(undefined);
-  const objectPlacement = useRef<{ start: Layout; latest: Layout; member: ClipboardMember; origin: { x: number; y: number } } | undefined>(undefined);
+  const objectPlacement = useRef<{
+    start: Layout; latest: Layout; members: ClipboardMember[]; origin: { x: number; y: number }; consumed: boolean;
+  } | undefined>(undefined);
   const [groupPreview, setGroupPreview] = useState<Layout>();
   const [panelLabels, setPanelLabels] = useState<Record<string, string>>({});
   const [exportsOpen, setExportsOpen] = useState(false);
   const [venueOpen, setVenueOpen] = useState(false);
   const [venueDirty, setVenueDirty] = useState(false);
   const [venue, setVenue] = useState<VenueGeometry>(initial.venue);
+  const lastPlanPoint = useRef({ x: initial.venue.width / 2, y: initial.venue.depth / 2 });
   const [venueName, setVenueName] = useState(initial.venueName);
   const [updateAvailable, setUpdateAvailable] = useState(!!initial.venueUpdateAvailable);
   const [snapEnabled, setSnapEnabled] = useState(true);
@@ -248,7 +256,11 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     const object = objectPlacement.current;
     if (object) {
       objectPlacement.current = undefined; setGroupPreview(undefined);
-      commit(object.latest); pick(object.member, false); setGuides([]); setSnapStatus(undefined); return;
+      commit(object.latest);
+      setSelection(object.members);
+      if (object.consumed) setClipboard(undefined);
+      else if (object.members.length) setClipboard(copySelection(object.latest, object.members));
+      setGuides([]); setSnapStatus(undefined); return;
     }
     const draft = placingRef.current;
     if (!draft) return;
@@ -327,13 +339,17 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     clearSelection();
   }
   function paste() {
-    if (busyGesture()) return;
-    if (!clipboard) return;
-    const result = pasteClipboard(current.current.present, clipboard, () => crypto.randomUUID());
-    commit(result.layout);
-    if (result.consumed) setClipboard(undefined);
+    if (busyGesture() || !clipboard) return;
+    if (viewMode === 'stage') setViewMode('split');
+    const cursor = lastPlanPoint.current;
+    const pivot = clipboardPivot(clipboard) ?? cursor;
+    const result = pasteClipboard(current.current.present, clipboard, () => crypto.randomUUID(), {
+      x: cursor.x - pivot.x, y: cursor.y - pivot.y,
+    });
+    if (!result.pasted.length) return;
+    beginObjectPlacement(result.layout, result.pasted, cursor, result.consumed);
     setSelection(result.pasted);
-    if (!result.consumed && result.pasted.length) setClipboard(copySelection(result.layout, result.pasted));
+    if (result.consumed) setClipboard(undefined);
   }
   useEffect(() => {
     const shortcut = (event: KeyboardEvent) => {
@@ -430,10 +446,16 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     (event.currentTarget as Element).setPointerCapture(event.pointerId);
   }
   function updatePlacingAt(position: { x: number; y: number }, bypass: boolean) {
+    lastPlanPoint.current = position;
     const object = objectPlacement.current;
     if (object) {
-      const result = transformLayoutGesture(object.start, venue, [object.member], { x: position.x - object.origin.x, y: position.y - object.origin.y, rotation: 0 }, 'translate', bypass);
-      object.latest = result.layout; setGroupPreview(result.layout); setGuides(result.guides); return;
+      const result = transformLayoutGesture(object.start, venue, object.members, { x: position.x - object.origin.x, y: position.y - object.origin.y, rotation: 0 }, 'translate', bypass);
+      object.latest = result.layout; setGroupPreview(result.layout); setGuides(result.guides);
+      setSnapStatus(snapStatusText({ guides: result.guides })
+        ?? (overlappingObjectIds(result.layout).size
+          ? 'Überschneidung · Klicken zum Platzieren · Escape abbricht'
+          : 'Klicken zum Platzieren · Escape abbricht'));
+      return;
     }
     const draft = placingRef.current;
     if (!draft) return;
@@ -447,7 +469,11 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     placingRef.current = updated;
     setPlacing(updated);
     setGuides(snapped.guides);
-    setSnapStatus(snapStatusText({ guides: snapped.guides }) ?? 'Klicken zum Platzieren · Escape abbricht');
+    const colliding = placementOverlaps(current.current.present, wallFootprint(resolveWall(wall, types)));
+    setSnapStatus(snapStatusText({ guides: snapped.guides })
+      ?? (colliding
+        ? 'Überschneidung · Klicken zum Platzieren · Escape abbricht'
+        : 'Klicken zum Platzieren · Escape abbricht'));
   }
   function move(event: PointerEvent) {
     const panning = panDrag.current;
@@ -464,6 +490,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
       return;
     }
     const position = point(event);
+    lastPlanPoint.current = position;
     const bypass = event.altKey || !snapEnabled;
     if (placingRef.current || objectPlacement.current) { updatePlacingAt(position, bypass); return; }
     const marquee = marqueeDrag.current;
@@ -519,6 +546,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
   const viewCx = (minX + maxX) / 2 + viewPan.x, viewCy = (minY + maxY) / 2 + viewPan.y;
   const viewBox = `${viewCx - viewW / 2} ${-(viewCy + viewH / 2)} ${viewW} ${viewH}`;
   const objectOverlaps = objectOverlapWarnings(shown);
+  const overlapIds = overlappingObjectIds(shown);
   function onPlanWheel(event: WheelEvent) {
     if (busyGesture()) return;
     const next = navigatePlan(event, { zoom: viewZoom, pan: viewPan, centre: { x: (minX + maxX) / 2, y: (minY + maxY) / 2 } }, point(event));
@@ -551,9 +579,15 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     if (phase === 'preview') setGroupPreview(result);
     else { stageGesture.current = undefined; setGroupPreview(undefined); if (JSON.stringify(result) !== JSON.stringify(held.layout)) commit(result); }
   };
-  function beginObjectPlacement(layout: Layout, member: ClipboardMember, origin = { x: venue.width / 2, y: venue.depth / 2 }) {
+  function beginObjectPlacement(
+    layout: Layout,
+    members: ClipboardMember | ClipboardMember[],
+    origin = { x: venue.width / 2, y: venue.depth / 2 },
+    consumed = false,
+  ) {
     if (readOnly || busyGesture()) return;
-    objectPlacement.current = { start: layout, latest: layout, member, origin };
+    const list = Array.isArray(members) ? members : [members];
+    objectPlacement.current = { start: layout, latest: layout, members: list, origin, consumed };
     setGroupPreview(layout); setGuides([]); setSnapStatus('Klicken zum Platzieren · Escape abbricht');
   }
   function placeAsset(asset: Asset) {
@@ -629,7 +663,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     </div>
     {assetError && <p className="error" role="alert">{assetError}</p>}
     {libraryOpen && !venueOpen && <AssetLibrary workspaceId={workspaceId} assets={assets} readOnly={readOnly || busyGesture()} selected={selectedWall ?? selectedBraceItem} onCreated={asset => setAssets(items => [...items, asset])} onArchive={id => setAssets(items => items.map(asset => asset.id === id ? { ...asset, archived: true } : asset))} onPlace={placeAsset} />}
-    {venueOpen && !readOnly && <p role="status">{venueLease.message || 'Bearbeitung wird angefordert …'} {!venueLease.holding && <button onClick={() => void venueLease.acquire()}>Bearbeitung erneut anfordern</button>}</p>}
+    {venueOpen && !readOnly && !venueLease.holding && <p className="lease-banner" role="status">{venueLease.message || 'Bearbeitung wird angefordert …'} <button type="button" className="quiet" onClick={() => void venueLease.acquire()}>Bearbeitung erneut anfordern</button></p>}
     {venueOpen && <VenuePanel workspaceId={workspaceId} sceneId={initial.id} venue={venue} venueId={initial.venueId} venueName={venueName}
       venueUpdateAvailable={updateAvailable} readOnly={readOnly || !venueLease.holding} onDirty={setVenueDirty} onSaved={adoptVenue}
       onVenueRenamed={({ name }) => setVenueName(name)} />}
@@ -702,6 +736,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
           selectedId={selectedPlatform ?? selectedStair}
           selectedPlatformIds={pickedPlatforms}
           selectedMemberIds={groupedIds}
+          overlappingIds={overlapIds}
           readOnly={readOnly} display={planDisplay}
           onPlatformPointerDown={startPlatform}
           onStairPointerDown={startStair}
@@ -709,7 +744,10 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
         {shown.walls.map(wall => {
           const resolved = resolveWall(wall, wallTypes);
           const chosen = selected === wall.id || groupedIds.has(`wall:${wall.id}`);
-          return <g key={wall.id} data-testid={`wall-${wall.id}`} aria-label={wall.label} className={readOnly ? '' : 'draggable-wall'} transform={`translate(${wall.x} ${-wall.y}) rotate(${-wall.rotation})`} onPointerDown={event => start(event, wall)}>
+          const overlap = overlapIds.has(wall.id);
+          return <g key={wall.id} data-testid={`wall-${wall.id}`} aria-label={wall.label}
+            className={[readOnly ? '' : 'draggable-wall', overlap ? 'plan-overlap' : ''].filter(Boolean).join(' ') || undefined}
+            transform={`translate(${wall.x} ${-wall.y}) rotate(${-wall.rotation})`} onPointerDown={event => start(event, wall)}>
             <line x1={-resolved.width / 2} x2={resolved.width / 2} stroke="transparent" strokeWidth="18" vectorEffect="non-scaling-stroke" />
             <rect x={-resolved.width / 2} y={-resolved.thickness / 2} width={resolved.width} height={resolved.thickness} fill={selected === wall.id ? '#b67c35' : chosen ? '#8a6a3a' : '#315d49'} stroke={chosen ? '#986122' : '#315d49'} strokeWidth="2" vectorEffect="non-scaling-stroke" />
             {resolved.openings.map(opening => {
@@ -745,7 +783,8 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
         {placing && (() => {
           const types = placing.pendingType ? [...wallTypes, placing.pendingType] : wallTypes;
           const resolved = resolveWall(placing.wall, types);
-          return <g data-testid="placing-wall" className="placing-wall" pointerEvents="none"
+          const colliding = placementOverlaps(current.current.present, wallFootprint(resolved));
+          return <g data-testid="placing-wall" className={['placing-wall', colliding ? 'plan-overlap' : ''].filter(Boolean).join(' ')} pointerEvents="none"
             transform={`translate(${placing.wall.x} ${-placing.wall.y}) rotate(${-placing.wall.rotation})`}>
             <rect x={-resolved.width / 2} y={-resolved.thickness / 2} width={resolved.width} height={resolved.thickness}
               fill="#315d49" stroke="#986122" strokeWidth="2" vectorEffect="non-scaling-stroke" />
@@ -755,8 +794,10 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
             {planDisplay.showObjectNames && <text y={-resolved.thickness / 2 - 160} textAnchor="middle" fontSize="150">{placing.wall.label}</text>}
           </g>;
         })()}
-        <BraceLayer braces={shown.braces} selectedId={selectedBrace} groupedIds={groupedIds} readOnly={readOnly} display={planDisplay} onPointerDown={startBrace} />
+        <BraceLayer braces={shown.braces} selectedId={selectedBrace} groupedIds={groupedIds} overlappingIds={overlapIds}
+          readOnly={readOnly} display={planDisplay} onPointerDown={startBrace} />
         <PlaceholderLayer placeholders={shown.placeholders ?? []} selectedId={selectedPlaceholder}
+          overlappingIds={overlapIds}
           readOnly={readOnly} groupedIds={groupedIds} display={planDisplay} onPointerDown={startPlaceholder} />
         <InfrastructureMarks pins={venue.connectionPoints ?? []} corridors={venue.cableRoutingCorridors ?? []} display={planDisplay} />
         <OverheadMarks boxes={venue.overheadBoxes ?? []} display={planDisplay} />
@@ -815,7 +856,10 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
       {overheadWarnings.map(item => <p key={`${item.kind}-${item.objectId}-${item.obstructionId ?? ''}`}
         className="warning" role="status" data-testid="overhead-warning">{item.message}</p>)}
       {overlapWarnings.map(item => <p key={`${item.zoneId}-${item.objectId}`} className="warning" role="status">{item.message}</p>)}
-      {objectOverlaps.map(item => <p key={`${item.aId}-${item.bId}`} className="warning" role="status" data-testid="object-overlap">{item.message}</p>)}
+      {objectOverlaps.length === 1 && <p className="warning" role="status" data-testid="object-overlap">{objectOverlaps[0]!.message}</p>}
+      {objectOverlaps.length > 1 && <p className="warning" role="status" data-testid="object-overlap">
+        {objectOverlaps.length} Überschneidungen — betroffene Objekte sind rot markiert.
+      </p>}
     </div>
     {viewMode !== 'plan' && <StageView layout={placing ? {
       ...shown,
@@ -892,7 +936,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
       </div></details>
     </aside></div>}
     <div className="workspace-statusbar"><span><span className="status-dot" />{venueOpen ? 'Spielstättenentwurf' : 'Bühnenbild'} · {state.present.walls.length} Wände</span><span className="status-hint">Klicken zum Auswählen · Ziehen zum Verschieben · Strg+Z rückgängig</span><button className="quiet" aria-expanded={helpOpen} onClick={() => setHelpOpen(open => !open)}><ToolIcon name="help" /> Bedienung</button><span>Maße in mm</span></div>
-    {helpOpen && <div className="workspace-help"><h3>Arbeiten im Grundriss</h3>      <p className="muted viewport-hint">Raster: 1 m / 50 cm · Strg+Mausrad zoomen · Mittelklick oder Shift+Mausrad verschieben · Auf dem Boden ziehen: Mehrfachauswahl · Orange ↻ dreht · Stützen an Wänden · {SNAP_NOTICE}</p><p>Strg/Cmd+C kopiert die Auswahl, Strg/Cmd+V fügt sie ein. Entf löscht ausgewählte Objekte. Escape bricht Platzieren und Bewegungen ab oder hebt die Auswahl auf (auch in der Raumsicht · Klick in freien Raum).</p></div>}
+    {helpOpen && <div className="workspace-help"><h3>Arbeiten im Grundriss</h3>      <p className="muted viewport-hint">Raster: 1 m / 50 cm · Strg+Mausrad zoomen · Mittelklick oder Shift+Mausrad verschieben · Auf dem Boden ziehen: Mehrfachauswahl · Orange ↻ dreht · Stützen an Wänden · {SNAP_NOTICE}</p><p>Strg/Cmd+C kopiert die Auswahl, Strg/Cmd+V hängt die Kopie an den Zeiger — Klick setzt, Escape bricht ab. Entf löscht ausgewählte Objekte. Escape bricht Platzieren und Bewegungen ab oder hebt die Auswahl auf (auch in der Raumsicht · Klick in freien Raum). Überschneidungen erscheinen rot auf dem Grundriss.</p></div>}
   </section>;
 }
 
