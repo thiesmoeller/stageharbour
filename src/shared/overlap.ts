@@ -150,6 +150,16 @@ export function objectOverlapWarnings(layout: Layout, ignoreIds: ReadonlySet<str
   return found;
 }
 
+/** Ids of every object that participates in at least one interior overlap (for on-canvas tint). */
+export function overlappingObjectIds(layout: Layout, ignoreIds: ReadonlySet<string> = new Set()): Set<string> {
+  const ids = new Set<string>();
+  for (const item of objectOverlapWarnings(layout, ignoreIds)) {
+    ids.add(item.aId);
+    ids.add(item.bId);
+  }
+  return ids;
+}
+
 /** Whether placing `candidate` into `layout` (replacing same id if present) would interior-overlap anything else. */
 export function placementOverlaps(layout: Layout, candidate: Footprint): boolean {
   const others = layoutFootprints(layout).filter(item => item.id !== candidate.id);

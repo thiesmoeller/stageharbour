@@ -7,16 +7,19 @@ const fill: Record<Placeholder['kind'], string> = {
   table: '#7d8f6c', chair: '#8fa07a', person: '#c4a574', speaker: '#6a7d92', box: '#a09070',
 };
 
-export function PlaceholderLayer({ placeholders, selectedId, preview, readOnly, groupedIds, display = defaultPlanDisplay, onPointerDown }: {
+export function PlaceholderLayer({ placeholders, selectedId, preview, readOnly, groupedIds, overlappingIds, display = defaultPlanDisplay, onPointerDown }: {
   placeholders: Placeholder[]; selectedId?: string; preview?: Placeholder; readOnly: boolean; groupedIds: Set<string>;
+  overlappingIds?: ReadonlySet<string>;
   display?: PlanDisplayOptions;
   onPointerDown: (event: PointerEvent<SVGGElement>, item: Placeholder) => void;
 }) {
   return placeholders.map(saved => {
     const item = preview?.id === saved.id ? preview : saved;
     const chosen = selectedId === item.id || groupedIds.has(`placeholder:${item.id}`);
+    const overlap = overlappingIds?.has(item.id);
     const w = item.width, d = item.depth;
-    return <g key={item.id} data-testid={`placeholder-${item.id}`} aria-label={item.label} className={readOnly ? '' : 'draggable-wall'}
+    return <g key={item.id} data-testid={`placeholder-${item.id}`} aria-label={item.label}
+      className={[readOnly ? '' : 'draggable-wall', overlap ? 'plan-overlap' : ''].filter(Boolean).join(' ') || undefined}
       transform={`translate(${item.x} ${-item.y}) rotate(${-item.rotation})`} onPointerDown={event => onPointerDown(event, item)}>
       {item.kind === 'chair' ? <>
         <rect x={-w / 2} y={-d / 2} width={w} height={d * 0.55}

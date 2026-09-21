@@ -36,12 +36,13 @@ function platformFill(platform: Platform, chosen: boolean) {
 
 export function PlatformLayer({
   venuePlatforms, layoutPlatforms, venueStairs, layoutStairs, selectedId, selectedPlatformIds, selectedMemberIds,
-  readOnly, display = defaultPlanDisplay, onSelect, onPlatformPointerDown, onStairPointerDown,
+  readOnly, overlappingIds, display = defaultPlanDisplay, onSelect, onPlatformPointerDown, onStairPointerDown,
 }: {
   venuePlatforms: Platform[]; layoutPlatforms: Platform[];
   venueStairs: StairUnit[]; layoutStairs: StairUnit[];
   selectedId?: string; selectedPlatformIds?: string[]; selectedMemberIds?: Set<string>;
   readOnly?: boolean;
+  overlappingIds?: ReadonlySet<string>;
   display?: PlanDisplayOptions;
   onSelect: (kind: 'platform' | 'stair', id: string, additive?: boolean) => void;
   onPlatformPointerDown?: (event: PointerEvent<SVGGElement>, platform: Platform) => void;
@@ -62,8 +63,10 @@ export function PlatformLayer({
     {layoutPlatforms.map(platform => {
       const centre = platformCentroid(platform.outline);
       const chosen = selectedId === platform.id || platforms.has(platform.id);
+      const overlap = overlappingIds?.has(platform.id);
       const caption = platformCaption(platform, display);
-      return <g key={platform.id} data-testid={`platform-${platform.id}`} className={readOnly ? undefined : 'draggable-wall'}
+      return <g key={platform.id} data-testid={`platform-${platform.id}`}
+        className={[readOnly ? undefined : 'draggable-wall', overlap ? 'plan-overlap' : undefined].filter(Boolean).join(' ') || undefined}
         onPointerDown={event => {
           if (onPlatformPointerDown) onPlatformPointerDown(event, platform);
           else { event.stopPropagation(); onSelect('platform', platform.id, event.shiftKey); }
@@ -76,7 +79,9 @@ export function PlatformLayer({
     })}
     {[...venueStairs.map(stair => ({ stair, movable: false })), ...layoutStairs.map(stair => ({ stair, movable: true }))].map(({ stair, movable }) => {
       const chosen = selectedId === stair.id || !!selectedMemberIds?.has(`stair:${stair.id}`);
-      return <g key={stair.id} data-testid={`${movable ? 'stair' : 'venue-stair'}-${stair.id}`} className={movable ? 'draggable-wall' : undefined}
+      const overlap = overlappingIds?.has(stair.id);
+      return <g key={stair.id} data-testid={`${movable ? 'stair' : 'venue-stair'}-${stair.id}`}
+        className={[movable ? 'draggable-wall' : undefined, overlap ? 'plan-overlap' : undefined].filter(Boolean).join(' ') || undefined}
         transform={`translate(${stair.x} ${-stair.y}) rotate(${-stair.rotation})`}
         onPointerDown={movable ? event => {
           if (onStairPointerDown) onStairPointerDown(event, stair);

@@ -3,17 +3,20 @@ import type { Brace } from '../../shared/layout.js';
 import type { PlanDisplayOptions } from '../../shared/planDisplay.js';
 import { defaultPlanDisplay } from '../../shared/planDisplay.js';
 
-export function BraceLayer({ braces, selectedId, groupedIds, preview, readOnly, display = defaultPlanDisplay, onPointerDown }: {
+export function BraceLayer({ braces, selectedId, groupedIds, preview, readOnly, overlappingIds, display = defaultPlanDisplay, onPointerDown }: {
   braces: Brace[]; selectedId?: string; groupedIds?: Set<string>; preview?: Brace; readOnly: boolean;
+  overlappingIds?: ReadonlySet<string>;
   display?: PlanDisplayOptions;
   onPointerDown: (event: PointerEvent<SVGGElement>, brace: Brace) => void;
 }) {
   return braces.map(saved => {
     const brace = preview?.id === saved.id ? preview : saved;
     const chosen = selectedId === brace.id || !!groupedIds?.has(`brace:${brace.id}`);
+    const overlap = overlappingIds?.has(brace.id);
     const halfW = brace.footprintWidth / 2;
     const halfD = brace.footprintDepth / 2;
-    return <g key={brace.id} data-testid={`brace-${brace.id}`} aria-label={brace.label} className={readOnly ? '' : 'draggable-wall'}
+    return <g key={brace.id} data-testid={`brace-${brace.id}`} aria-label={brace.label}
+      className={[readOnly ? '' : 'draggable-wall', overlap ? 'plan-overlap' : ''].filter(Boolean).join(' ') || undefined}
       transform={`translate(${brace.x} ${-brace.y}) rotate(${-brace.rotation})`} onPointerDown={event => onPointerDown(event, brace)}>
       <rect x={-halfW} y={-halfD} width={brace.footprintWidth} height={brace.footprintDepth}
         fill={chosen ? '#e4d3b0' : '#eddcc0'} stroke={chosen ? '#8a6a3a' : '#a48454'}

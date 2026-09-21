@@ -4,9 +4,6 @@ import type { Brace, Layout, Wall } from './layout.js';
 import type { Placeholder } from './placeholders.js';
 import type { Platform, StairUnit } from './levels.js';
 
-/** Paste offset from clipboard geometry, millimetres, +x audience-right and +y away from the audience. */
-export const PASTE_OFFSET_MM = 300;
-
 export type ClipboardMember = { kind: 'wall' | 'brace' | 'platform' | 'stair' | 'placeholder'; id: string };
 export type LayoutClipboard = {
   keepIdentities: boolean;
@@ -18,6 +15,9 @@ export type LayoutClipboard = {
   connections: PanelConnection[];
   groups: Group[];
 };
+
+/** Plan translation applied when pasting; UI supplies cursor delta so copies follow the pointer. */
+export type PasteOffset = { x: number; y: number };
 
 function keysOf(selected: readonly ClipboardMember[]) {
   return new Set(selected.map(item => `${item.kind}:${item.id}`));
@@ -75,17 +75,45 @@ export function removeSelection(layout: Layout, selected: readonly ClipboardMemb
   return next;
 }
 
-function shift(value: number) {
-  return Math.max(-100000, Math.min(100000, value + PASTE_OFFSET_MM));
+function clampCoord(value: number) {
+  return Math.max(-100000, Math.min(100000, value));
 }
 
-function placementCopy(wall: Wall, id: string): Wall {
-  const moved = { ...wall, id, x: shift(wall.x), y: shift(wall.y) };
+function shift(value: number, delta: number) {
+  return clampCoord(value + delta);
+}
+
+function placementCopy(wall: Wall, id: string, offset: PasteOffset): Wall {
+  const moved = { ...wall, id, x: shift(wall.x, offset.x), y: shift(wall.y, offset.y) };
   const { panelId: _panelId, assemblyNumber: _assemblyNumber, ...rest } = moved;
   return rest;
 }
 
-export function pasteClipboard(layout: Layout, clipboard: LayoutClipboard, nextId: () => string): {
+/** Average of clipboard member centres — used so paste can land under the cursor. */
+export function clipboardPivot(clipboard: LayoutClipboard): { x: number; y: number } | undefined {
+  const points: { x: number; y: number }[] = [
+    ...clipboard.walls.map(wall => ({ x: wall.x, y: wall.y })),
+    ...clipboard.braces.map(brace => ({ x: brace.x, y: brace.y })),
+    ...clipboard.stairs.map(stair => ({ x: stair.x, y: stair.y })),
+    ...(clipboard.placeholders ?? []).map(item => ({ x: item.x, y: item.y })),
+    ...clipboard.platforms.map(platform => ({
+      x: platform.outline.reduce((sum, point) => sum + point.x, 0) / platform.outline.length,
+      y: platform.outline.reduce((sum, point) => sum + point.y, 0) / platform.outline.length,
+    })),
+  ];
+  if (!points.length) return;
+  return {
+    x: points.reduce((sum, point) => sum + point.x, 0) / points.length,
+    y: points.reduce((sum, point) => sum + point.y, 0) / points.length,
+  };
+}
+
+export function pasteClipboard(
+  layout: Layout,
+  clipboard: LayoutClipboard,
+  nextId: () => string,
+  offset: PasteOffset = { x: 0, y: 0 },
+): {
   layout: Layout; pasted: ClipboardMember[]; consumed: boolean;
 } {
   if (layout.walls.length + clipboard.walls.length > 250
@@ -115,16 +143,16 @@ export function pasteClipboard(layout: Layout, clipboard: LayoutClipboard, nextI
     return next;
   }
   const walls = clipboard.walls.map(wall => clipboard.keepIdentities
-    ? { ...wall, x: shift(wall.x), y: shift(wall.y) }
-    : placementCopy(wall, take('wall', wall.id)));
+    ? { ...wall, x: shift(wall.x, offset.x), y: shift(wall.y, offset.y) }
+    : placementCopy(wall, take('wall', wall.id), offset));
   if (clipboard.keepIdentities) for (const wall of clipboard.walls) take('wall', wall.id);
-  const braces = clipboard.braces.map(brace => ({ ...brace, id: take('brace', brace.id), x: shift(brace.x), y: shift(brace.y) }));
+  const braces = clipboard.braces.map(brace => ({ ...brace, id: take('brace', brace.id), x: shift(brace.x, offset.x), y: shift(brace.y, offset.y) }));
   const platforms = clipboard.platforms.map(platform => ({
     ...platform, id: take('platform', platform.id),
-    outline: platform.outline.map(point => ({ x: shift(point.x), y: shift(point.y) })),
+    outline: platform.outline.map(point => ({ x: shift(point.x, offset.x), y: shift(point.y, offset.y) })),
   }));
-  const stairs = clipboard.stairs.map(stair => ({ ...stair, id: take('stair', stair.id), x: shift(stair.x), y: shift(stair.y) }));
-  const placeholders = (clipboard.placeholders ?? []).map(item => ({ ...item, id: take('placeholder', item.id), x: shift(item.x), y: shift(item.y) }));
+  const stairs = clipboard.stairs.map(stair => ({ ...stair, id: take('stair', stair.id), x: shift(stair.x, offset.x), y: shift(stair.y, offset.y) }));
+  const placeholders = (clipboard.placeholders ?? []).map(item => ({ ...item, id: take('placeholder', item.id), x: shift(item.x, offset.x), y: shift(item.y, offset.y) }));
   const groups = clipboard.groups.map(group => ({
     ...group, id: clipboard.keepIdentities ? group.id : nextId(),
     members: group.members.map(member => ({ ...member, id: memberMap.get(`${member.kind}:${member.id}`) ?? member.id })),

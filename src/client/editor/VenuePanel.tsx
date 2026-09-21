@@ -17,7 +17,7 @@ import { prepareUnderlayFile, prepareUnderlayFromDataTransfer, prepareUnderlayFr
 import { type Platform, type StairUnit, AUDIENCE_FLOOR_ID, PLATFORM_STYLE_LABELS, axisAlignedPlatformOutline, newPlatform, newStair, orientedPlatformBox, platformCentroid, reassignVenueSupports, stairCorners, type PlatformStyle } from '../../shared/levels.js';
 import { clipPlatformToStageDeck, layoutStageDeckModules, snapStageDeckElevation, snapStageDeckSize } from '../../shared/stageDeck.js';
 import { type OverheadBox, newOverheadBox, EXAMPLE_CEILING_HEIGHT } from '../../shared/overhead.js';
-import { objectOverlapWarnings } from '../../shared/overlap.js';
+import { objectOverlapWarnings, overlappingObjectIds } from '../../shared/overlap.js';
 import { newPlaceholder, type Placeholder, type PlaceholderKind } from '../../shared/placeholders.js';
 import { trussFromSegment, type Truss } from '../../shared/truss.js';
 import { curtainFromSegment, type Curtain } from '../../shared/curtains.js';
@@ -146,6 +146,9 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
   const transformStart = useRef<{ draft: VenueDraft; ids: string[] } | undefined>(undefined);
   const gestureSelection = useRef<string[]>([]);
   const objectDrag = useRef<{ ids: string[]; x: number; y: number; start: VenueDraft } | undefined>(undefined);
+  const pastePlacement = useRef<{ ids: string[]; origin: PlanPoint; start: VenueDraft; cut: boolean } | undefined>(undefined);
+  const lastPlanPoint = useRef<PlanPoint>({ x: venue.width / 2, y: venue.depth / 2 });
+  const [pastePlacing, setPastePlacing] = useState(false);
   const marqueeDrag = useRef<{ x: number; y: number; endX: number; endY: number; additive: boolean } | undefined>(undefined);
   const panDrag = useRef<{ clientX: number; clientY: number; panX: number; panY: number } | undefined>(undefined);
   const [zoom, setZoom] = useState(1);
@@ -194,7 +197,50 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
     const value = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse());
     return { x: Math.round(value.x), y: Math.round(-value.y) };
   }
-  function busyGesture() { return draft.isActive() || !!panDrag.current || !!marqueeDrag.current; }
+  function busyGesture() {
+    return draft.isActive() || !!panDrag.current || !!marqueeDrag.current || !!pastePlacement.current;
+  }
+  function cancelPastePlacement() {
+    if (!pastePlacement.current) return;
+    pastePlacement.current = undefined;
+    setPastePlacing(false);
+    draft.finish(true);
+    setGuides([]);
+    setSnapStatus(undefined);
+    setSelectedIds([]);
+  }
+  function commitPastePlacement() {
+    const held = pastePlacement.current;
+    if (!held) return;
+    const placed = sourceFromDraft(draft.value);
+    pastePlacement.current = undefined;
+    setPastePlacing(false);
+    draft.finish();
+    setGuides([]);
+    setSnapStatus(undefined);
+    setSelectedIds(held.ids);
+    if (held.cut) setClipboard(undefined);
+    else setClipboard(copyVenueSelection(placed, held.ids));
+  }
+  function updatePasteAt(point: PlanPoint, bypass: boolean) {
+    const held = pastePlacement.current;
+    if (!held) return;
+    const moved = transformVenueGesture(
+      sourceFromDraft(held.start), held.ids,
+      { x: point.x - held.origin.x, y: point.y - held.origin.y, rotation: 0 },
+      'translate', bypass,
+    );
+    draft.preview(draftFromVenue(moved.venue, held.start));
+    setGuides(moved.guides);
+    const overlaps = objectOverlapWarnings({
+      schemaVersion: 1, walls: moved.venue.walls ?? [], braces: [],
+      platforms: moved.venue.platforms, stairs: moved.venue.stairs, placeholders: moved.venue.placeholders,
+    });
+    setSnapStatus(snapStatusText({ guides: moved.guides })
+      ?? (overlaps.length
+        ? 'Überschneidung · Klicken zum Platzieren · Escape abbricht'
+        : 'Klicken zum Platzieren · Escape abbricht'));
+  }
   function placeAt(point: PlanPoint) {
     if (placeKind === 'wall') {
       const wall = newWall(crypto.randomUUID(), point.x, point.y);
@@ -224,7 +270,6 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
     setClick('select');
   }
   function onPlan(event: PointerEvent) {
-    if (busyGesture()) return;
     if (event.button === 1) {
       event.preventDefault();
       panDrag.current = { clientX: event.clientX, clientY: event.clientY, panX: pan.x, panY: pan.y };
@@ -232,6 +277,16 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
       (event.currentTarget as Element).setPointerCapture(event.pointerId);
       return;
     }
+    if (pastePlacement.current) {
+      if (event.button === 0 && !readOnly) {
+        updatePasteAt(planPoint(event), event.altKey || !snapEnabled);
+        commitPastePlacement();
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      return;
+    }
+    if (busyGesture()) return;
     if (readOnly || event.button !== 0) return;
     // Letterboxed empty SVG chrome / select mode: start rubberband anywhere in the 2D view.
     if (click === 'select') {
@@ -473,6 +528,14 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
   // Placeholders stay on the venue only; putting them on the layout too duplicates chairs in 3D.
   const liveLayout: Layout = { schemaVersion: 1, walls: [], braces: [] };
   const pivot = venueSelectionPivot(previewVenue, selectedIds);
+  const objectOverlaps = objectOverlapWarnings({
+    schemaVersion: 1, walls: previewVenue.walls ?? [], braces: [],
+    platforms: previewVenue.platforms, stairs: previewVenue.stairs, placeholders: previewVenue.placeholders,
+  });
+  const overlapIds = overlappingObjectIds({
+    schemaVersion: 1, walls: previewVenue.walls ?? [], braces: [],
+    platforms: previewVenue.platforms, stairs: previewVenue.stairs, placeholders: previewVenue.placeholders,
+  });
   function sourceFromDraft(start: VenueDraft): VenueGeometry {
     return {
       ...previewVenue, walls: start.walls, platforms: start.platforms, stairs: start.stairs, placeholders: start.placeholders,
@@ -495,7 +558,9 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
       return;
     }
     const point = planPoint(event);
+    lastPlanPoint.current = point;
     const bypass = event.altKey || !snapEnabled;
+    if (pastePlacement.current) { updatePasteAt(point, bypass); return; }
     const turning = objectRotate.current;
     if (turning) {
       const delta = planRotationAt(turning.hinge, point) - turning.startAngle;
@@ -582,14 +647,24 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
     setSelectedIds([]);
   }
   function paste() {
-    if (busyGesture()) return;
-    if (!clipboard) return;
-    const result = pasteVenueSelection(previewVenue, clipboard, () => crypto.randomUUID());
+    if (busyGesture() || !clipboard) return;
+    if (viewMode === 'stage') setViewMode('split');
+    const cursor = lastPlanPoint.current;
+    const pivot = venueSelectionPivot(clipboard.source, clipboard.ids) ?? cursor;
+    const result = pasteVenueSelection(previewVenue, clipboard, () => crypto.randomUUID(), {
+      x: cursor.x - pivot.x, y: cursor.y - pivot.y,
+    });
     if (!result.ids.length) return;
-    draft.commit(draftFromVenue(result.venue, draft.value));
+    const start = draftFromVenue(result.venue, draft.value);
+    draft.begin();
+    draft.preview(start);
+    pastePlacement.current = { ids: result.ids, origin: cursor, start, cut: clipboard.cut };
+    setPastePlacing(true);
     setSelectedIds(result.ids);
+    setClick('select');
+    setGuides([]);
+    setSnapStatus('Klicken zum Platzieren · Escape abbricht');
     if (clipboard.cut) setClipboard(undefined);
-    else setClipboard(copyVenueSelection(result.venue, result.ids));
   }
   function remove() {
     if (busyGesture()) return;
@@ -607,6 +682,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
       if (!command) return;
       event.preventDefault();
       if (command === 'cancel') {
+        if (pastePlacement.current) { cancelPastePlacement(); return; }
         if (objectDrag.current || objectRotate.current || vertexDrag.current !== undefined || zoneVertexDrag.current || corridorVertexDrag.current || centrelineDrag.current || marqueeDrag.current || panDrag.current) endPlanGesture(true);
         else if (drawingZone.length || trussDrawStart || curtainDrawStart) {
           setDrawingZone([]); setTrussDrawStart(undefined); setTrussDrawHover(undefined);
@@ -720,6 +796,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
             <span className="muted">{Math.round(zoom * 100)} %</span>
           </div></div>
           <svg ref={svg} role="img" aria-label="Umriss der Spielstätte" viewBox={`${viewX} ${viewY} ${viewW} ${viewH}`}
+            className={pastePlacing ? 'placing-cursor' : undefined}
             onPointerDown={onPlan}
             onPointerMove={onPlanMove}
             onPointerUp={() => endPlanGesture()}
@@ -741,10 +818,10 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
             </g>}
             {/* Empty SVG regions ignore pointers; place/draw modes and select marquee need a full-view hit target.
                 fill=transparent is not hittable under SVG visiblePainted — use opacity 0 + pointer-events all. */}
-            {click !== 'select' && !readOnly && <rect data-testid="venue-place-target"
+            {(click !== 'select' || pastePlacing) && !readOnly && <rect data-testid="venue-place-target"
               x={viewX} y={viewY} width={viewW} height={viewH} fill="white" fillOpacity={0} pointerEvents="all"
               onPointerDown={event => { event.stopPropagation(); onPlan(event); }} />}
-            {click === 'select' && !readOnly && <rect data-testid="venue-marquee-target"
+            {click === 'select' && !pastePlacing && !readOnly && <rect data-testid="venue-marquee-target"
               x={viewX} y={viewY} width={viewW} height={viewH} fill="white" fillOpacity={0} pointerEvents="all"
               onPointerDown={event => startMarquee(event)} />}
             {(measureA || measureB) && <g data-testid="underlay-measure-line" pointerEvents="none">
@@ -774,6 +851,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
             }} />)}
             {platforms.map(platform => {
               const chosen = selectedIds.includes(platform.id);
+              const overlap = overlapIds.has(platform.id);
               const style = platform.style ?? 'floating';
               const fill = style === 'solid'
                 ? (chosen ? 'rgba(113,132,105,0.55)' : 'rgba(113,132,105,0.4)')
@@ -784,7 +862,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
               const rotation = outlineRotation(platform.outline);
               const box = orientedPlatformBox(platform.outline);
               const modules = style === 'stageDeck' ? layoutStageDeckModules(box.width, box.depth) : [];
-              return <g key={platform.id}>
+              return <g key={platform.id} className={overlap ? 'plan-overlap' : undefined}>
                 <path data-testid={`venue-platform-${platform.id}`}
                   d={`${platform.outline.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')} Z`}
                   fill={fill} stroke="#718469" strokeWidth="2" vectorEffect="non-scaling-stroke"
@@ -798,16 +876,22 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
             })}
             {stairs.map(stair => {
               const corners = stairCorners(stair);
-              return <path key={stair.id} data-testid={`venue-stair-${stair.id}`}
-                d={`${corners.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')} Z`}
-                fill={selectedIds.includes(stair.id) ? 'rgba(182,124,53,0.35)' : 'rgba(90,110,138,0.3)'} stroke="#5a6e8a" strokeWidth="2" vectorEffect="non-scaling-stroke"
-                onPointerDown={event => beginObjectDrag(event, stair.id)} />;
+              const overlap = overlapIds.has(stair.id);
+              return <g key={stair.id} className={overlap ? 'plan-overlap' : undefined}>
+                <path data-testid={`venue-stair-${stair.id}`}
+                  d={`${corners.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')} Z`}
+                  fill={selectedIds.includes(stair.id) ? 'rgba(182,124,53,0.35)' : 'rgba(90,110,138,0.3)'} stroke="#5a6e8a" strokeWidth="2" vectorEffect="non-scaling-stroke"
+                  onPointerDown={event => beginObjectDrag(event, stair.id)} />
+              </g>;
             })}
-            {walls.map(wall => <g key={wall.id} data-testid={`venue-wall-${wall.id}`} className={readOnly ? '' : 'draggable-wall'} transform={`translate(${wall.x} ${-wall.y}) rotate(${-wall.rotation})`} onPointerDown={event => beginObjectDrag(event, wall.id)}>
+            {walls.map(wall => <g key={wall.id} data-testid={`venue-wall-${wall.id}`}
+              className={[readOnly ? '' : 'draggable-wall', overlapIds.has(wall.id) ? 'plan-overlap' : ''].filter(Boolean).join(' ') || undefined}
+              transform={`translate(${wall.x} ${-wall.y}) rotate(${-wall.rotation})`} onPointerDown={event => beginObjectDrag(event, wall.id)}>
               <line x1={-wall.width / 2} x2={wall.width / 2} stroke="transparent" strokeWidth="18" vectorEffect="non-scaling-stroke" />
               <rect x={-wall.width / 2} y={-wall.thickness / 2} width={wall.width} height={wall.thickness} fill={selectedIds.includes(wall.id) ? '#b67c35' : '#315d49'} stroke="#315d49" strokeWidth="5" vectorEffect="non-scaling-stroke" />
             </g>)}
             <PlaceholderLayer placeholders={placeholders} selectedId={selectedIds.length === 1 ? selected : undefined} readOnly={readOnly}
+              overlappingIds={overlapIds}
               groupedIds={new Set(selectedIds.map(id => `placeholder:${id}`))} display={planDisplay}
               onPointerDown={(event, item) => beginObjectDrag(event, item.id)} />
             <InfrastructureMarks pins={pins} corridors={corridors} selectedIds={selectedIds} display={planDisplay} onPointerDown={beginObjectDrag}
@@ -892,8 +976,10 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
             {marqueeBox && <rect data-testid="venue-selection-marquee" className="selection-marquee"
               x={marqueeBox.minX} y={-marqueeBox.maxY} width={marqueeBox.maxX - marqueeBox.minX} height={marqueeBox.maxY - marqueeBox.minY} />}
           </svg>
-          {objectOverlapWarnings({ schemaVersion: 1, walls: previewVenue.walls ?? [], braces: [], platforms: previewVenue.platforms, stairs: previewVenue.stairs, placeholders: previewVenue.placeholders }).map(item =>
-            <p className="warning" role="status" data-testid="object-overlap" key={`${item.aId}-${item.bId}`}>{item.message}</p>)}
+          {objectOverlaps.length === 1 && <p className="warning" role="status" data-testid="object-overlap">{objectOverlaps[0]!.message}</p>}
+          {objectOverlaps.length > 1 && <p className="warning" role="status" data-testid="object-overlap">
+            {objectOverlaps.length} Überschneidungen — betroffene Objekte sind rot markiert.
+          </p>}
         </div>
         {viewMode !== 'plan' && <StageView onLightingChange={readOnly ? undefined : setLighting} layout={liveLayout} venue={previewVenue} venueEditable workspaceId={workspaceId} selectedIds={selectedIds} pivot={pivot} onSelect={(id, additive) => { if (!busyGesture()) setSelectedIds(ids => additive ? ids.includes(id) ? ids.filter(value => value !== id) : [id, ...ids] : [id]); }} onClearSelection={() => { if (!busyGesture()) setSelectedIds([]); }} onTransform={readOnly ? undefined : transform} onPushPull={readOnly ? undefined : pushPull} snapEnabled={snapEnabled} />}
       </div>

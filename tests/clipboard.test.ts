@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { recordConnection } from '../src/shared/assembly.js';
-import { PASTE_OFFSET_MM, copySelection, cutSelection, pasteClipboard, removeSelection } from '../src/shared/clipboard.js';
+import { clipboardPivot, copySelection, cutSelection, pasteClipboard, removeSelection } from '../src/shared/clipboard.js';
 import { formGroup } from '../src/shared/groups.js';
 import { execute, history, undo } from '../src/shared/history.js';
 import { newWall, type Layout } from '../src/shared/layout.js';
@@ -49,16 +49,24 @@ test('copying a grouped selection yields new ids, drops panel assignments and re
   assert.equal((pasted.connections ?? []).every(connection => ids.has(connection.a) && ids.has(connection.b)), true);
 });
 
-test('paste offset is 300 mm in +x and +y from the clipboard geometry', () => {
-  assert.equal(PASTE_OFFSET_MM, 300);
+test('paste defaults to the clipboard geometry; an explicit offset shifts to the cursor', () => {
   const wall = { ...newWall(randomUUID(), 1000, 2000), panelId };
   const layout: Layout = { schemaVersion: 1, walls: [wall], braces: [] };
   const clipboard = copySelection(layout, [{ kind: 'wall', id: wall.id }]);
   assert(clipboard);
-  const copyId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1';
-  const copy = pasteClipboard(layout, clipboard, () => copyId).layout.walls.find(item => item.id === copyId);
-  assert.equal(copy?.x, 1300);
-  assert.equal(copy?.y, 2300);
+  assert.deepEqual(clipboardPivot(clipboard), { x: 1000, y: 2000 });
+  const sameId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1';
+  const same = pasteClipboard(layout, clipboard, () => sameId).layout.walls.find(item => item.id === sameId);
+  assert.equal(same?.x, 1000);
+  assert.equal(same?.y, 2000);
+  const copyId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2';
+  const cursor = { x: 4000, y: 5000 };
+  const pivot = clipboardPivot(clipboard)!;
+  const copy = pasteClipboard(layout, clipboard, () => copyId, {
+    x: cursor.x - pivot.x, y: cursor.y - pivot.y,
+  }).layout.walls.find(item => item.id === copyId);
+  assert.equal(copy?.x, 4000);
+  assert.equal(copy?.y, 5000);
   assert.equal(copy?.panelId, undefined);
 });
 
@@ -78,8 +86,8 @@ test('cut removes originals; paste keeps identities and panel assignments', () =
   const pasted = pasteClipboard(cutLayout, clipboard, randomUUID).layout;
   assert.equal(pasted.walls.find(wall => wall.id === left.id)?.panelId, panelId);
   assert.equal(pasted.walls.find(wall => wall.id === left.id)?.assemblyNumber, 1);
-  assert.equal(pasted.walls.find(wall => wall.id === left.id)?.x, 1300);
-  assert.equal(pasted.walls.find(wall => wall.id === right.id)?.x, 5300);
+  assert.equal(pasted.walls.find(wall => wall.id === left.id)?.x, 1000);
+  assert.equal(pasted.walls.find(wall => wall.id === right.id)?.x, 5000);
   assert.equal(pasted.walls.find(wall => wall.id === outsider.id)?.x, 9000);
   assert.equal(pasted.groups?.[0]?.id, originalGroupId);
   assert.deepEqual(new Set(pasted.groups?.[0]?.members.map(member => member.id)), new Set([left.id, right.id]));
@@ -93,7 +101,7 @@ test('undo of paste and cut restores geometry and panel assignments', () => {
   assert(clipboard);
   const afterCut = execute(history(layout), cutLayout);
   const afterPaste = execute(afterCut, pasteClipboard(afterCut.present, clipboard, randomUUID).layout);
-  assert.equal(afterPaste.present.walls.find(wall => wall.id === left.id)?.x, 1300);
+  assert.equal(afterPaste.present.walls.find(wall => wall.id === left.id)?.x, 1000);
   assert.deepEqual(undo(afterPaste).present, cutLayout);
   const restored = undo(undo(afterPaste)).present;
   assert.deepEqual(restored, layout);

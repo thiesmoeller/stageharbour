@@ -17,8 +17,8 @@ fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
 .scene-open { flex: 1; display: flex; justify-content: space-between; gap: 20px; text-align: left; padding: 12px 18px; border: 0; }
 div.scene-open { cursor: default; }
 .scene-open span { font-size: .8rem; font-weight: 400; }
-.editor-heading { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
-.editor-heading .eyebrow { margin-bottom: 10px; }
+.editor-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.editor-heading .eyebrow { margin-bottom: 0; }
 .editor-heading h2 { margin-bottom: 0; }
 .editor-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 320px); gap: 22px; }
 .editor-views { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 12px; min-width: 0; }
@@ -36,6 +36,12 @@ div.scene-open { cursor: default; }
 .placing-wall { opacity: .55; }
 .placing-wall rect { stroke-dasharray: 12 8; }
 svg.placing-cursor { cursor: crosshair; }
+g.plan-overlap > rect, g.plan-overlap > path, g.plan-overlap > polygon {
+  fill: #c4573a !important;
+  stroke: #7a2a1c !important;
+}
+g.plan-overlap text { fill: #7a2a1c; }
+.placing-wall.plan-overlap { opacity: .8; }
 .selection-marquee { fill: rgba(182, 124, 53, 0.14); stroke: #b67c35; stroke-width: 2; stroke-dasharray: 80 50; vector-effect: non-scaling-stroke; }
 .wall-inspector h3 { margin-top: 0; }
 .wall-inspector h4 { margin: 16px 0 8px; font-size: .85rem; }

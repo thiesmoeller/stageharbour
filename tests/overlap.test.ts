@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { newWall, type Layout } from '../src/shared/layout.js';
 import { newPlatform } from '../src/shared/levels.js';
 import {
-  objectOverlapWarnings, placementOverlaps, polygonIntersectionArea, polygonPenetration,
+  objectOverlapWarnings, overlappingObjectIds, placementOverlaps, polygonIntersectionArea, polygonPenetration,
   polygonsInteriorOverlap, platformFootprint, wallFootprint,
 } from '../src/shared/overlap.js';
 
@@ -66,6 +66,15 @@ test('objectOverlapWarnings names both objects', () => {
   const warnings = objectOverlapWarnings({ schemaVersion: 1, walls: [a, b], braces: [] });
   assert.equal(warnings.length, 1);
   assert.match(warnings[0]!.message, /Kreuz/);
+});
+
+test('overlappingObjectIds lists every participant once', () => {
+  const a = newWall(randomUUID(), 0, 0);
+  const b = { ...newWall(randomUUID(), 0, 0), rotation: 90, label: 'Kreuz' };
+  const ids = overlappingObjectIds({ schemaVersion: 1, walls: [a, b], braces: [] });
+  assert.equal(ids.size, 2);
+  assert.equal(ids.has(a.id), true);
+  assert.equal(ids.has(b.id), true);
 });
 
 function placeTip(angleDeg: number, tipX: number, tipY: number) {

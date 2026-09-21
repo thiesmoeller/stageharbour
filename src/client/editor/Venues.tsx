@@ -71,9 +71,12 @@ export function Venues({ me, onDirty }: { me: Me; onDirty: (dirty: boolean) => v
   }
   if (opened) return <section className="editor venue-workspace" aria-label="Spielstätte unabhängig bearbeiten">
     <div className="editor-heading"><button className="quiet back-button" disabled={dirty} onClick={() => { setOpened(undefined); setAttempt(value => value + 1); }} aria-label="Zur Spielstättenübersicht" title={dirty ? 'Entwurf zuerst speichern oder verwerfen' : 'Zur Spielstättenübersicht'}><ToolIcon name="back" /></button>
-      <div><p className="eyebrow">SPIELSTÄTTEN & BÜHNEN</p><h2>{opened.name}</h2></div><span className="document-kind">{readOnly ? 'Nur Ansicht' : 'Spielstätte bearbeiten'}</span></div>
-    <p className="venue-independence">Raum einmal anlegen · Produktionen übernehmen Fassungen auf Wunsch.</p>
-    {!readOnly && <p role="status">{lease.message || 'Bearbeitung wird angefordert …'} {!lease.holding && <button onClick={() => void lease.acquire()}>Bearbeitung erneut anfordern</button>}</p>}
+      <div><p className="eyebrow">SPIELSTÄTTEN &amp; BÜHNEN · Raum einmal anlegen</p><h2>{opened.name}</h2></div>
+      <span className={`save-status ${lease.holding || readOnly ? '' : 'pending'}`} role="status">
+        {readOnly ? 'Nur Ansicht' : (lease.message || 'Bearbeitung wird angefordert …')}
+      </span>
+      {!readOnly && !lease.holding && <button type="button" className="quiet" onClick={() => void lease.acquire()}>Bearbeitung erneut anfordern</button>}
+      <span className="document-kind">Spielstätte</span></div>
     <VenuePanel key={opened.id} workspaceId={me.workspace.id} venue={opened.venue} venueId={opened.id} venueName={opened.name}
       readOnly={readOnly || !lease.holding} onDirty={setDirty}
       onVenueRenamed={({ name, venueVersionId }) => setOpened(current => current ? { ...current, name, venueVersionId } : current)}
