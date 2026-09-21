@@ -43,3 +43,18 @@ test('OIDC is optional together and rejects incomplete or secret-leaking configu
     return /OIDC_/.test(error.message);
   });
 });
+
+test('optional mail SMTP and Brevo API env blanks are accepted', () => {
+  const configured = readConfig({
+    ...env,
+    MAIL_HOST: 'smtp-relay.brevo.com',
+    MAIL_PORT: '587',
+    MAIL_USER: 'login@example.test',
+    MAIL_PASS: 'smtp-key',
+    MAIL_FROM: 'planer@example.test',
+  });
+  assert.equal(configured.MAIL_HOST, 'smtp-relay.brevo.com');
+  assert.equal(configured.MAIL_PORT, 587);
+  assert.equal(configured.MAIL_USER, 'login@example.test');
+  assert.equal(readConfig({ ...env, MAIL_HOST: '', MAIL_USER: '', MAIL_PASS: '', MAIL_FROM: '', BREVO_API_KEY: '' }).MAIL_HOST, undefined);
+});
