@@ -1,4 +1,4 @@
-import { openInspector, placeWallAt, commitWallPlacement, placeNamedObjectAt } from '../helpers/inspector.js';
+import { commitObjectPlacement, openInspector, placeWallAt, commitWallPlacement, placeNamedObjectAt } from '../helpers/inspector.js';
 import { test, expect, type Page } from '@playwright/test';
 import { testAdministrator } from '../helpers/database.js';
 import { pngBytes } from '../helpers/references.js';
@@ -345,6 +345,8 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByRole('heading', { name: '2 Wandelemente', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Kopieren' }).click();
   await page.getByRole('button', { name: 'Einfügen' }).click();
+  // Group pivot is (3650, 3000); place 300 mm audience-right so wall 3 lands at x=2100.
+  await commitObjectPlacement(page, 3950, 3000, { bypassSnap: true });
   await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(4);
   await waitUntilSaved(page);
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '3. Wand' });

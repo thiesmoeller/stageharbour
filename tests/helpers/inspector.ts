@@ -9,7 +9,13 @@ export async function openInspector(page: Page, title: string) {
 }
 
 /** Click the plan to commit an in-progress wall ghost at plan coordinates (mm). */
-export async function commitWallPlacement(page: Page, x = 4000, y = 3000, testId = 'placing-wall') {
+export async function commitWallPlacement(
+  page: Page,
+  x = 4000,
+  y = 3000,
+  testId = 'placing-wall',
+  { bypassSnap = false }: { bypassSnap?: boolean } = {},
+) {
   await expect(page.getByTestId(testId)).toBeAttached();
   await page.locator('.plan-canvas > svg').scrollIntoViewIfNeeded();
   const screen = await page.locator('.plan-canvas > svg').evaluate((svg, point) => {
@@ -18,11 +24,18 @@ export async function commitWallPlacement(page: Page, x = 4000, y = 3000, testId
     const mapped = new DOMPoint(point.x, -point.y).matrixTransform(ctm);
     return { x: mapped.x, y: mapped.y };
   }, { x, y });
+  if (bypassSnap) await page.keyboard.down('Alt');
   await page.mouse.click(screen.x, screen.y);
+  if (bypassSnap) await page.keyboard.up('Alt');
   await expect(page.getByTestId(testId)).toHaveCount(0);
 }
 
-export const commitObjectPlacement = (page: Page, x = 4000, y = 3000) => commitWallPlacement(page, x, y, 'placing-object');
+export const commitObjectPlacement = (
+  page: Page,
+  x = 4000,
+  y = 3000,
+  options?: { bypassSnap?: boolean },
+) => commitWallPlacement(page, x, y, 'placing-object', options);
 
 /** Start wall placement from the tool rail and commit at plan coordinates (mm). */
 export async function placeWallAt(page: Page, x = 4000, y = 3000) {

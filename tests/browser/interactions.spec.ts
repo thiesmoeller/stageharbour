@@ -1,4 +1,4 @@
-import { openInspector, placeNamedObjectAt, placeWallAt } from '../helpers/inspector.js';
+import { commitObjectPlacement, openInspector, placeNamedObjectAt, placeWallAt } from '../helpers/inspector.js';
 import { test, expect, type Page } from '@playwright/test';
 import { testAdministrator } from '../helpers/database.js';
 
@@ -49,6 +49,7 @@ test('wall edge snapping, pointer rotation, clipboard, mixed marquee delete and 
   await expect(page.locator('#wall-rotation')).toHaveValue('90');
   await page.getByRole('button', { name: 'Kopieren', exact: true }).click();
   await page.keyboard.press('Control+v');
+  await commitObjectPlacement(page);
   await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(3);
   await placeNamedObjectAt(page, 'Stütze hinzufügen');
   await openInspector(page, 'Platzhalter');
