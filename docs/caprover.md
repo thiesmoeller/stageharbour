@@ -84,7 +84,7 @@ Host is `srv-captain--` plus the **Postgres app name**, port `5432`. Example if 
 
 Never leave placeholder words such as `USER`, `PASS`, `DB`, or `YOUR_DB_PASSWORD` in the URL. A log line `database "DB" does not exist` means the path after `/` is still a placeholder.
 
-Leave Pocket ID and Brevo variables unset until you configure them. Do **not** put `BOOTSTRAP_ADMIN_*` here permanently.
+Leave Pocket ID and mail variables unset until you configure them. Do **not** put `BOOTSTRAP_ADMIN_*` here permanently.
 
 Save and restart is fine; the first real container image arrives from GitHub Actions.
 
@@ -178,4 +178,29 @@ Rollback: CapRover **Deployment** → revert to a previous image version. Env an
 ## Optional later
 
 - Custom domain: add it under HTTP Settings, set `APP_ORIGIN` to that HTTPS origin, enable HTTPS, redeploy/restart.
-- Pocket ID / Brevo: set the optional variables from `.env.example` after the base install works.
+- Pocket ID: set the optional OIDC variables from `.env.example` after the base install works.
+
+## Optional: Brevo mail (invites and password reset)
+
+Stageplanner sends invitation and password-reset mail through SMTP. Use the same Brevo SMTP credentials as other CapRover apps (WordPress, etc.) — **not** the Brevo HTTP API key.
+
+1. In Brevo → **SMTP & API** → **SMTP**, copy the SMTP login and generate/copy an SMTP key. Confirm a verified sender address.
+2. CapRover → `stageplanner` → **App Configs** → add:
+
+```env
+MAIL_HOST=smtp-relay.brevo.com
+MAIL_PORT=587
+MAIL_USER=<smtp-login-from-brevo>
+MAIL_PASS=<smtp-key-from-brevo>
+MAIL_FROM=<verified-sender@your-domain>
+```
+
+Port `587` uses STARTTLS (recommended). Port `465` uses SSL/TLS if you prefer.
+
+3. Save and **restart** the app.
+4. Sign in as **Administration**, open the workspace home, scroll to **Mitglieder**, and invite a test address.
+5. Open the link in the mail (`/#/einladung/…`), set a password (at least 12 characters), and sign in.
+
+If invite returns a mail error, check CapRover logs: wrong SMTP key (not API key), unverified `MAIL_FROM`, or incomplete `MAIL_HOST` / `MAIL_USER` / `MAIL_PASS`.
+
+`BREVO_API_KEY` remains supported as a fallback when SMTP is unset. Do not put an SMTP key in `BREVO_API_KEY`.
