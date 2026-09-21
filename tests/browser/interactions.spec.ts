@@ -66,6 +66,16 @@ test('wall edge snapping, pointer rotation, clipboard, mixed marquee delete and 
   await expect(page.locator('.save-status')).toHaveText('Gespeichert');
 });
 
+test('scene 2D marquee can start outside the venue outline', async ({ page }) => {
+  await create(page);
+  await placeWallAt(page, 2000, 2500);
+  await placeWallAt(page, 5000, 4000);
+  await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(2);
+  // Start in the padded margin outside the outline fill, then drag across both walls.
+  await drag(page, await point(page, -400, 1000), await point(page, 7000, 5500));
+  await expect(page.locator('.clipboard-panel')).toContainText('2 ausgewählt');
+});
+
 test('venue vertex gestures have preview, cancel, one undo and publish semantics', async ({ page }) => {
   await create(page);
   await page.getByRole('button', { name: 'Spielstätte', exact: true }).click();

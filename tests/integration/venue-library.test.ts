@@ -66,6 +66,35 @@ test('concurrent publishers cannot overwrite a newer venue version', async () =>
   assert.equal(latest.venueVersionId, responses.find(response => response.statusCode === 200)!.json().venueVersionId);
 });
 
+test('rename returns the current venueVersionId so a following publish can succeed', async () => {
+  const created = (await app.inject({
+    method: 'POST', url: `${base}/venues`, headers, payload: { name: 'Rename Pin', width: 5000, depth: 4000 },
+  })).json();
+  assert.equal((await app.inject({ method: 'POST', url: `${base}/venues/${created.id}/lease`, headers })).statusCode, 200);
+  const published = await app.inject({
+    method: 'PUT', url: `${base}/venues/${created.id}`, headers,
+    payload: { venueVersionId: created.venueVersionId, venue: { ...created.venue, ceilingHeight: 4200 } },
+  });
+  assert.equal(published.statusCode, 200, published.body);
+  const renamed = await app.inject({
+    method: 'PATCH', url: `${base}/venues/${created.id}`, headers, payload: { name: 'Rename Pin Neu' },
+  });
+  assert.equal(renamed.statusCode, 200, renamed.body);
+  assert.equal(renamed.json().name, 'Rename Pin Neu');
+  assert.equal(renamed.json().venueVersionId, published.json().venueVersionId);
+  assert.notEqual(renamed.json().venueVersionId, created.venueVersionId);
+  // Client must use the version id from the rename response (or a fresh GET), not the pre-publish pin.
+  assert.equal((await app.inject({
+    method: 'PUT', url: `${base}/venues/${created.id}`, headers,
+    payload: { venueVersionId: created.venueVersionId, venue: { ...created.venue, ceilingHeight: 4300 } },
+  })).statusCode, 409);
+  const again = await app.inject({
+    method: 'PUT', url: `${base}/venues/${created.id}`, headers,
+    payload: { venueVersionId: renamed.json().venueVersionId, venue: { ...created.venue, ceilingHeight: 4300 } },
+  });
+  assert.equal(again.statusCode, 200, again.body);
+});
+
 test('venue routes validate inputs and enforce origin, workspace and viewer permissions', async () => {
   const list = await app.inject({ url: `${base}/venues`, headers });
   const venue = list.json()[0];

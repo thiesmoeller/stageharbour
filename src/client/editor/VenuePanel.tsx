@@ -91,7 +91,7 @@ type VenuePersistence = {
 
 export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, venueUpdateAvailable = false, readOnly, onSaved, onDirty, onPublish, onVenueRenamed }: {
   workspaceId: string; venue: VenueGeometry; venueUpdateAvailable?: boolean; readOnly: boolean;
-  venueId?: string; venueName?: string; onVenueRenamed?: (name: string) => void;
+  venueId?: string; venueName?: string; onVenueRenamed?: (update: { name: string; venueVersionId: string }) => void;
   onDirty?: (dirty: boolean) => void;
 } & VenuePersistence) {
   const draft = useDocumentDraft({
@@ -233,7 +233,11 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
       return;
     }
     if (readOnly || event.button !== 0) return;
-    if (click === 'select') return; // Marquee starts on the outline fill only.
+    // Letterboxed empty SVG chrome / select mode: start rubberband anywhere in the 2D view.
+    if (click === 'select') {
+      if (event.target === event.currentTarget) startMarquee(event);
+      return;
+    }
     const point = planPoint(event);
     if (click === 'vertex') {
       const next = insertOutlineVertex(vertices, point);
@@ -389,7 +393,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
     setBusy(true); setError('');
     try {
       const result = venueRecordSchema.parse(await request(`/api/workspaces/${workspaceId}/venues/${venueId}`, parsedName.data, 'PATCH'));
-      onVenueRenamed?.(result.name);
+      onVenueRenamed?.({ name: result.name, venueVersionId: result.venueVersionId });
       setNameDraft(result.name);
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Die Spielstätte konnte nicht umbenannt werden.');
@@ -457,6 +461,10 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
   const planTop = -Math.max(height, ...vertices.map(p => p.y)) - 400;
   const planWidth = Math.max(width, ...vertices.map(p => p.x)) - planLeft + 400;
   const planHeight = Math.max(height, ...vertices.map(p => p.y)) + 1200;
+  const viewX = planLeft + planWidth * (1 - 1 / zoom) / 2 + pan.x;
+  const viewY = planTop + planHeight * (1 - 1 / zoom) / 2 - pan.y;
+  const viewW = planWidth / zoom;
+  const viewH = planHeight / zoom;
   const candidate = venueGeometrySchema.safeParse({ ...venue, lighting, outline: vertices, walls, platforms, stairs, placeholders, overheadBoxes, trusses, curtains,
     ceilingHeight: ceilingHeight === '' ? undefined : ceilingHeight, keepClearZones: zones, connectionPoints: pins, cableRoutingCorridors: corridors, stageCentreline: centreline,
     ...(floorFinish ? { floorFinish } : { floorFinish: undefined }),
@@ -711,7 +719,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
             <button type="button" className="quiet" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}>Spielstätte einpassen</button>
             <span className="muted">{Math.round(zoom * 100)} %</span>
           </div></div>
-          <svg ref={svg} role="img" aria-label="Umriss der Spielstätte" viewBox={`${planLeft + planWidth * (1 - 1 / zoom) / 2 + pan.x} ${planTop + planHeight * (1 - 1 / zoom) / 2 - pan.y} ${planWidth / zoom} ${planHeight / zoom}`}
+          <svg ref={svg} role="img" aria-label="Umriss der Spielstätte" viewBox={`${viewX} ${viewY} ${viewW} ${viewH}`}
             onPointerDown={onPlan}
             onPointerMove={onPlanMove}
             onPointerUp={() => endPlanGesture()}
@@ -731,12 +739,13 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
               transform={`rotate(${rotationDeg} ${overlayW / 2} ${-overlayH / 2})`}>
               <image href={overlay.href} x="0" y={-overlayH} width={overlayW} height={overlayH} />
             </g>}
-            {/* Empty SVG regions ignore pointers; place/draw modes and select marquee need a full-plan hit target. */}
+            {/* Empty SVG regions ignore pointers; place/draw modes and select marquee need a full-view hit target.
+                fill=transparent is not hittable under SVG visiblePainted — use opacity 0 + pointer-events all. */}
             {click !== 'select' && !readOnly && <rect data-testid="venue-place-target"
-              x={planLeft} y={planTop} width={planWidth} height={planHeight} fill="transparent"
+              x={viewX} y={viewY} width={viewW} height={viewH} fill="white" fillOpacity={0} pointerEvents="all"
               onPointerDown={event => { event.stopPropagation(); onPlan(event); }} />}
             {click === 'select' && !readOnly && <rect data-testid="venue-marquee-target"
-              x={planLeft} y={planTop} width={planWidth} height={planHeight} fill="transparent"
+              x={viewX} y={viewY} width={viewW} height={viewH} fill="white" fillOpacity={0} pointerEvents="all"
               onPointerDown={event => startMarquee(event)} />}
             {(measureA || measureB) && <g data-testid="underlay-measure-line" pointerEvents="none">
               {measureA && measureB && <line x1={measureA.x} y1={-measureA.y} x2={measureB.x} y2={-measureB.y}

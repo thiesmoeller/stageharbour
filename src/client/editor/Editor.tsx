@@ -385,11 +385,16 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     return !!(placingRef.current || objectPlacement.current || planGesture.current || stageGesture.current || marqueeDrag.current || panDrag.current);
   }
   function startPan(event: PointerEvent<SVGSVGElement>) {
-    if (event.button !== 1 || busyGesture()) return;
-    event.preventDefault(); event.stopPropagation();
-    panDrag.current = { clientX: event.clientX, clientY: event.clientY, panX: viewPan.x, panY: viewPan.y };
-    event.currentTarget.style.cursor = 'grabbing';
-    event.currentTarget.setPointerCapture(event.pointerId);
+    if (event.button === 1) {
+      if (busyGesture()) return;
+      event.preventDefault(); event.stopPropagation();
+      panDrag.current = { clientX: event.clientX, clientY: event.clientY, panX: viewPan.x, panY: viewPan.y };
+      event.currentTarget.style.cursor = 'grabbing';
+      event.currentTarget.setPointerCapture(event.pointerId);
+      return;
+    }
+    // Letterboxed empty SVG chrome has no painted children — start rubberband anywhere in the 2D view.
+    if (event.button === 0 && event.target === event.currentTarget) startMarquee(event);
   }
   function startObject(event: PointerEvent<SVGGElement>, member: ClipboardMember, operation: TransformOperation = 'translate') {
     if (event.button !== 0) return;
@@ -416,13 +421,13 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
   const startPlatformRotate = (event: PointerEvent<SVGGElement>, item: Platform) => startObject(event, { kind: 'platform', id: item.id }, 'rotate');
   const startRotateStair = (event: PointerEvent<SVGGElement>, item: StairUnit) => startObject(event, { kind: 'stair', id: item.id }, 'rotate');
   const startRotatePlaceholder = (event: PointerEvent<SVGGElement>, item: Placeholder) => startObject(event, { kind: 'placeholder', id: item.id }, 'rotate');
-  function startMarquee(event: PointerEvent<SVGPathElement>) {
+  function startMarquee(event: PointerEvent<Element>) {
     if (event.button !== 0 || readOnly || busyGesture()) return;
     const position = point(event);
     marqueeDrag.current = { ...position, additive: event.shiftKey, endX: position.x, endY: position.y, previousSelection: selection() };
     if (!event.shiftKey) clearSelection();
     setMarqueeBox(normalizeBounds(position, position));
-    event.currentTarget.setPointerCapture(event.pointerId);
+    (event.currentTarget as Element).setPointerCapture(event.pointerId);
   }
   function updatePlacingAt(position: { x: number; y: number }, bypass: boolean) {
     const object = objectPlacement.current;
@@ -627,7 +632,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     {venueOpen && !readOnly && <p role="status">{venueLease.message || 'Bearbeitung wird angefordert …'} {!venueLease.holding && <button onClick={() => void venueLease.acquire()}>Bearbeitung erneut anfordern</button>}</p>}
     {venueOpen && <VenuePanel workspaceId={workspaceId} sceneId={initial.id} venue={venue} venueId={initial.venueId} venueName={venueName}
       venueUpdateAvailable={updateAvailable} readOnly={readOnly || !venueLease.holding} onDirty={setVenueDirty} onSaved={adoptVenue}
-      onVenueRenamed={setVenueName} />}
+      onVenueRenamed={({ name }) => setVenueName(name)} />}
     {exportsOpen && <div className="export-drawer"><ExportPanel workspaceId={workspaceId} sceneId={initial.id} productionId={initial.productionId}
       readOnly={readOnly} freezeDisabled={dirty || saveState.status !== 'saved'} groups={state.present.groups ?? []} walls={state.present.walls} /></div>}
     {['failed', 'conflict'].includes(saveState.status) && <div className="error" role="alert">
@@ -672,8 +677,9 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
             <path d="M 1000 0 L 0 0 0 1000" fill="none" stroke="#cfd6c6" strokeWidth="1.25" vectorEffect="non-scaling-stroke" />
           </pattern>
         </defs>
-        <path data-testid="marquee-target" d={`M${minX} ${-maxY} H${maxX} V${-minY} H${minX} Z`}
-          fill="transparent" onPointerDown={startMarquee} />
+        <rect data-testid="marquee-target"
+          x={viewCx - viewW / 2} y={-(viewCy + viewH / 2)} width={viewW} height={viewH}
+          fill="white" fillOpacity={0} pointerEvents="all" onPointerDown={startMarquee} />
         <path data-testid="venue-floor" d={`${floor.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')} Z`}
           fill="url(#metre-grid)" stroke="#718469" strokeWidth="2" vectorEffect="non-scaling-stroke" onPointerDown={startMarquee} />
         {(venue.walls ?? []).map(wall => <polygon key={wall.id} data-testid={`venue-wall-${wall.id}`} points={wallCorners(resolveWall(wall, venue.wallTypes ?? [])).map(p => `${p.x},${-p.y}`).join(' ')} fill="#8b8478" stroke="#625b50" vectorEffect="non-scaling-stroke" pointerEvents="none"><title>{wall.label} · feste Spielstättenwand</title></polygon>)}
