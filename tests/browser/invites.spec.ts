@@ -17,7 +17,7 @@ test('administrator invites an editor who sets a password and opens the workspac
   await page.getByLabel('E-Mail-Adresse').fill(editor.email);
   await page.getByLabel('Berechtigung', { exact: true }).selectOption('editor');
   await page.getByRole('button', { name: 'Einladen', exact: true }).click();
-  await expect(page.getByRole('status')).toContainText(`Einladung wurde an ${editor.email} gesendet.`);
+  await expect(page.locator('.invite-form').getByRole('status')).toContainText(`Einladung wurde an ${editor.email} gesendet.`);
   const mailbox = JSON.parse(await readFile(mailboxPath, 'utf8')) as Array<{ text: string }>;
   const match = mailbox.at(-1)?.text.match(/https?:\/\/[^\s]+#\/einladung\/[A-Za-z0-9_-]+/);
   expect(match).toBeTruthy();
