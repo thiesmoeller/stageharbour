@@ -659,8 +659,28 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
       <button className="quiet" aria-expanded={exportsOpen} onClick={() => {
         setExportsOpen(open => {
           const next = !open;
-          if (next && !readOnly && !(current.current.present.reportTemplates ?? []).length) {
-            commit({ ...current.current.present, reportTemplates: [newReportTemplate(crypto.randomUUID(), 'Standardblatt')] });
+          if (next && !readOnly) {
+            const existing = current.current.present.reportTemplates ?? [];
+            if (!existing.length) {
+              commit({ ...current.current.present, reportTemplates: [newReportTemplate(crypto.randomUUID(), 'Standardblatt')] });
+            } else {
+              const needsScope = existing.some(template =>
+                template.pages.some(page => page.frames.some(frame => frame.kind === 'plan' && frame.planScope == null)));
+              if (needsScope) {
+                commit({
+                  ...current.current.present,
+                  reportTemplates: existing.map(template => ({
+                    ...template,
+                    pages: template.pages.map(page => ({
+                      ...page,
+                      frames: page.frames.map(frame => frame.kind === 'plan' && frame.planScope == null
+                        ? { ...frame, planScope: 'scenery' as const, label: frame.label === 'Grundriss' ? 'Grundriss Bühnenbild' : frame.label }
+                        : frame),
+                    })),
+                  })),
+                });
+              }
+            }
           }
           return next;
         });
@@ -714,6 +734,8 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
         readOnly={readOnly} freezeDisabled={dirty || saveState.status !== 'saved'} groups={state.present.groups ?? []} walls={state.present.walls} />
       <ReportComposer
         templates={state.present.reportTemplates ?? []}
+        layout={state.present}
+        venue={venue}
         readOnly={readOnly}
         onChange={reportTemplates => commit({ ...current.current.present, reportTemplates })}
       />
