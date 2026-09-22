@@ -3,7 +3,7 @@ import { platformCentroid, reassignVenueSupports, stairCorners } from './levels.
 import { placeholderCorners } from './placeholders.js';
 import { normalizeRotation, type PlanTransform } from './editing.js';
 import { resolveWall } from './wall-types.js';
-import type { PlanBounds } from './selection.js';
+import { boundsContain, type PlanBounds } from './selection.js';
 import { overheadBoxCorners } from './overhead.js';
 import { trussCorners } from './truss.js';
 import { curtainCorners } from './curtains.js';
@@ -40,8 +40,12 @@ export function venueObjectFootprint(item: VenueObject, venue: VenueGeometry) {
 export function venueObjectsInBounds(venue: VenueGeometry, bounds: PlanBounds) {
   return venueObjects(venue).filter(item => {
     const points = venueObjectFootprint(item, venue);
-    return Math.min(...points.map(p => p.x)) <= bounds.maxX && Math.max(...points.map(p => p.x)) >= bounds.minX
-      && Math.min(...points.map(p => p.y)) <= bounds.maxY && Math.max(...points.map(p => p.y)) >= bounds.minY;
+    if (!points.length) return false;
+    const box = {
+      minX: Math.min(...points.map(p => p.x)), maxX: Math.max(...points.map(p => p.x)),
+      minY: Math.min(...points.map(p => p.y)), maxY: Math.max(...points.map(p => p.y)),
+    };
+    return boundsContain(bounds, box);
   }).map(item => item.id);
 }
 

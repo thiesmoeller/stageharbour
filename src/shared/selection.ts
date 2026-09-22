@@ -26,36 +26,37 @@ function pointsBounds(points: readonly { x: number; y: number }[]): PlanBounds |
   };
 }
 
-function overlaps(a: PlanBounds, b: PlanBounds) {
-  return a.minX <= b.maxX && a.maxX >= b.minX && a.minY <= b.maxY && a.maxY >= b.minY;
+/** True when `inner` lies completely inside `outer` (edge-inclusive). */
+export function boundsContain(outer: PlanBounds, inner: PlanBounds) {
+  return outer.minX <= inner.minX && outer.maxX >= inner.maxX && outer.minY <= inner.minY && outer.maxY >= inner.maxY;
 }
 
 /**
- * Plan millimetre rubber-band hit test. An object is selected when its plan
- * footprint intersects the box (not only when the centre lies inside).
+ * Plan millimetre rubber-band hit test. An object is selected only when its
+ * entire plan footprint lies inside the box (grazing a corner does not count).
  */
 export function membersInBounds(layout: Layout, bounds: PlanBounds): SelectableMember[] {
   const types = layout.wallTypes ?? [];
   const members: SelectableMember[] = [];
   for (const wall of layout.walls) {
     const box = pointsBounds(wallCorners(resolveWall(wall, types)));
-    if (box && overlaps(bounds, box)) members.push({ kind: 'wall', id: wall.id });
+    if (box && boundsContain(bounds, box)) members.push({ kind: 'wall', id: wall.id });
   }
   for (const brace of layout.braces ?? []) {
     const box = pointsBounds(braceCorners(brace));
-    if (box && overlaps(bounds, box)) members.push({ kind: 'brace', id: brace.id });
+    if (box && boundsContain(bounds, box)) members.push({ kind: 'brace', id: brace.id });
   }
   for (const stair of layout.stairs ?? []) {
     const box = pointsBounds(stairCorners(stair));
-    if (box && overlaps(bounds, box)) members.push({ kind: 'stair', id: stair.id });
+    if (box && boundsContain(bounds, box)) members.push({ kind: 'stair', id: stair.id });
   }
   for (const item of layout.placeholders ?? []) {
     const box = pointsBounds(placeholderCorners(item));
-    if (box && overlaps(bounds, box)) members.push({ kind: 'placeholder', id: item.id });
+    if (box && boundsContain(bounds, box)) members.push({ kind: 'placeholder', id: item.id });
   }
   for (const platform of layout.platforms ?? []) {
     const box = pointsBounds(platform.outline);
-    if (box && overlaps(bounds, box)) members.push({ kind: 'platform', id: platform.id });
+    if (box && boundsContain(bounds, box)) members.push({ kind: 'platform', id: platform.id });
   }
   return members;
 }

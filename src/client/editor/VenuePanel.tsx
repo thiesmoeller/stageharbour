@@ -753,7 +753,6 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
         </>}
         {venueUpdateAvailable && !readOnly && <button type="button" disabled={busy} onClick={() => void applyUpdate()}>Spielstättenfassung übernehmen</button>}
         {!readOnly && <SnapToggle enabled={snapEnabled} onChange={setSnapEnabled} />}
-        {snapStatus && <span className="snap-status" role="status">{snapStatus}</span>}
         <span className={`save-status ${draft.dirty ? 'pending' : ''}`} role="status">{draft.dirty ? 'Unveröffentlichter Spielstättenentwurf' : 'Spielstättenfassung gespeichert'}</span>
       </div>
       <div className="workspace-viewbar" role="toolbar" aria-label="Ansichten">
@@ -762,6 +761,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
       <button type="button" className="quiet" aria-expanded={inspectorOpen} onClick={() => setInspectorOpen(open => !open)} title={inspectorOpen ? 'Eigenschaften ausblenden' : 'Eigenschaften einblenden'} aria-label="Eigenschaften"><ToolIcon name="tray" /></button>
       </div>
     </div>
+    <div className="workspace-feedback" role="status">{snapStatus ?? ''}</div>
     {!readOnly && <div className="tool-rail" role="toolbar" aria-label="Spielstättenwerkzeuge" inert={busyGesture()}>
       <button type="button" className="quiet" aria-pressed={click === 'select'} onClick={() => { setClick('select'); setDrawingZone([]); setTrussDrawStart(undefined); setCurtainDrawStart(undefined); }} title="Auswählen" aria-label="Auswählen"><ToolIcon name="settings" /><span>Auswahl</span></button>
       <button type="button" className="quiet" aria-pressed={click === 'vertex'} onClick={() => setClick('vertex')} title="Eckpunkt auf eine Umrisskante setzen" aria-label="Eckpunkt hinzufügen"><ToolIcon name="plus" /><span>Eckpunkt</span></button>
@@ -976,10 +976,12 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
             {marqueeBox && <rect data-testid="venue-selection-marquee" className="selection-marquee"
               x={marqueeBox.minX} y={-marqueeBox.maxY} width={marqueeBox.maxX - marqueeBox.minX} height={marqueeBox.maxY - marqueeBox.minY} />}
           </svg>
-          {objectOverlaps.length === 1 && <p className="warning" role="status" data-testid="object-overlap">{objectOverlaps[0]!.message}</p>}
-          {objectOverlaps.length > 1 && <p className="warning" role="status" data-testid="object-overlap">
-            {objectOverlaps.length} Überschneidungen — betroffene Objekte sind rot markiert.
-          </p>}
+          <div className="plan-status" aria-live="polite">
+            {objectOverlaps.length === 1 && <p className="warning" role="status" data-testid="object-overlap">{objectOverlaps[0]!.message}</p>}
+            {objectOverlaps.length > 1 && <p className="warning" role="status" data-testid="object-overlap">
+              {objectOverlaps.length} Überschneidungen — betroffene Objekte sind rot markiert.
+            </p>}
+          </div>
         </div>
         {viewMode !== 'plan' && <StageView onLightingChange={readOnly ? undefined : setLighting} layout={liveLayout} venue={previewVenue} venueEditable workspaceId={workspaceId} selectedIds={selectedIds} pivot={pivot} onSelect={(id, additive) => { if (!busyGesture()) setSelectedIds(ids => additive ? ids.includes(id) ? ids.filter(value => value !== id) : [id, ...ids] : [id]); }} onClearSelection={() => { if (!busyGesture()) setSelectedIds([]); }} onTransform={readOnly ? undefined : transform} onPushPull={readOnly ? undefined : pushPull} snapEnabled={snapEnabled} />}
       </div>

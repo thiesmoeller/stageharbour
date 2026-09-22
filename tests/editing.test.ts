@@ -94,7 +94,9 @@ test('venue rubberband, clipboard and dependent deletion keep platform reference
   const platform = newPlatform(randomUUID(), 5000, 4000);
   const supported = { ...newWall(randomUUID(), 5000, 4000), supportingSurfaceId: platform.id };
   const venue = { schemaVersion: 1 as const, width: 8000, depth: 6000, walls: [wall, supported], platforms: [platform] };
-  assert.deepEqual(venueObjectsInBounds(venue, { minX: 500, maxX: 1500, minY: 500, maxY: 1500 }), [wall.id]);
+  // Wall footprint spans ~400–1600; rubber band must enclose it fully.
+  assert.deepEqual(venueObjectsInBounds(venue, { minX: 300, maxX: 1700, minY: 500, maxY: 1500 }), [wall.id]);
+  assert.deepEqual(venueObjectsInBounds(venue, { minX: 500, maxX: 1500, minY: 500, maxY: 1500 }), []);
   assert.equal(removeVenueSelection(venue, [platform.id]).blocked, true);
   assert.equal(removeVenueSelection(venue, [platform.id, supported.id]).blocked, false);
   const copied = pasteVenueSelection(venue, copyVenueSelection(venue, [wall.id])!, randomUUID);
