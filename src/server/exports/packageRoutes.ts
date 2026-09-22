@@ -91,7 +91,7 @@ export function registerPackageRoutes(
     const issuedAt = new Date();
     const snapshot = freezePackage(scenes, {
       id, name: request.body.name, issuedAt, paper: request.body.paper, scale: request.body.scale,
-      elevationGroupIds: request.body.elevationGroupIds,
+      elevationGroupIds: request.body.elevationGroupIds, layers: request.body.layers,
     }, await loadInventory(request.params.workspaceId));
     await db.insert(constructionPackage).values({
       id, workspaceId: request.params.workspaceId, productionId: request.params.productionId, name: request.body.name,

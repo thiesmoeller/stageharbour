@@ -7,8 +7,9 @@ import { clipPlatformToStageDeck, snapStageDeckElevation, snapStageDeckSize } fr
 
 const MaterialPicker = lazy(() => import('./MaterialPicker.js'));
 
-export function PlatformInspector({ platform, readOnly, onApply, onRemove }: {
-  platform: Platform; readOnly: boolean; onApply: (platform: Platform) => void; onRemove: () => void;
+export function PlatformInspector({ platform, readOnly, bulkCount = 1, finishMixed = false, onApply, onRemove }: {
+  platform: Platform; readOnly: boolean; bulkCount?: number; finishMixed?: boolean;
+  onApply: (platform: Platform) => void; onRemove: () => void;
 }) {
   const [error, setError] = useState('');
   const box = orientedPlatformBox(platform.outline);
@@ -19,7 +20,10 @@ export function PlatformInspector({ platform, readOnly, onApply, onRemove }: {
     let width = Number(data.get('width')), depth = Number(data.get('depth'));
     let elevation = Number(data.get('elevation'));
     const rotation = Number(data.get('rotation'));
-    const finish = data.get('finish');
+    const finishRaw = String(data.get('finish') ?? '');
+    const finish = finishMixed && (!finishRaw || finishRaw === '__mixed__')
+      ? platform.finish
+      : (typeof finishRaw === 'string' && finishRaw && finishRaw !== '__mixed__' ? finishRaw : undefined);
     const style = String(data.get('style') || 'floating') as PlatformStyle;
     if (style === 'stageDeck') {
       const snapped = snapStageDeckSize(width, depth);
@@ -29,13 +33,14 @@ export function PlatformInspector({ platform, readOnly, onApply, onRemove }: {
     const result = platformSchema.safeParse({
       ...platform, label: data.get('label'), elevation, style,
       outline: axisAlignedPlatformOutline(x, y, width, depth, rotation),
-      finish: typeof finish === 'string' && finish ? finish : undefined,
+      finish,
     });
     if (!result.success) { setError('Bitte prüfen Sie die Maße und die Bezeichnung.'); return; }
     setError('');
     onApply(style === 'stageDeck' ? clipPlatformToStageDeck(result.data) : result.data);
   }
   return <form onSubmit={submit}><fieldset disabled={readOnly}>
+    {bulkCount > 1 && <p className="muted bulk-selection-hint">{bulkCount} Podeste ausgewählt. Die Oberfläche wird auf alle übernommen; übrige Felder gelten nur für das hervorgehobene Podest.</p>}
     <label htmlFor="platform-label">Bezeichnung</label><input id="platform-label" name="label" defaultValue={platform.label} maxLength={120} required />
     <label htmlFor="platform-style">Bauweise</label>
     <select id="platform-style" name="style" defaultValue={platform.style ?? 'floating'}>
@@ -50,7 +55,9 @@ export function PlatformInspector({ platform, readOnly, onApply, onRemove }: {
       ['rotation', 'Drehung (°)', -360, 360, box.rotation],
     ] as const).map(([key, label, min, max, value]) => <div key={key}><label htmlFor={`platform-${key}`}>{label}</label>
       <input id={`platform-${key}`} name={key} type="number" step="any" min={min} max={max} defaultValue={value} required /></div>)}</div>
-    <Suspense fallback={<p>Materialbibliothek wird geladen …</p>}><MaterialPicker id="platform-finish" value={platform.finish} /></Suspense>
+    <Suspense fallback={<p>Materialbibliothek wird geladen …</p>}>
+      <MaterialPicker id="platform-finish" value={platform.finish} mixed={finishMixed} />
+    </Suspense>
     {error && <p role="alert" className="error">{error}</p>}
     {!readOnly && <div className="form-actions"><button type="submit">Übernehmen</button><button className="quiet" type="button" onClick={onRemove}>Podest löschen</button></div>}
   </fieldset></form>;

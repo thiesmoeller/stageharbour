@@ -3,6 +3,7 @@ import { type Layout, type VenueGeometry, type Wall } from './layout.js';
 import { AUDIENCE_FLOOR_ID, stairRise, stairSteps, supportingSurfaces, surfaceElevation, type Platform, type StairUnit } from './levels.js';
 import { placeholderSolid, type PlaceholderSolid } from './placeholders.js';
 import { resolveWall, type Opening } from './wall-types.js';
+import { effectiveVenueDoorOpen } from './venueFixtures.js';
 
 export type Vec3 = { x: number; y: number; z: number };
 export type WallSolid = {
@@ -49,7 +50,10 @@ export function stageModel(layout: Layout, venue: Pick<VenueGeometry, 'width' | 
   const stairs: StairUnit[] = [...venue.stairs ?? [], ...layout.stairs ?? []];
   return {
     floor: { width: venue.width, depth: venue.depth },
-    walls: [...(venue.walls ?? []).map(wall => wallSolid(resolveWall(wall, venue.wallTypes ?? []), surfaceElevation(surfaces, wall.supportingSurfaceId))), ...layout.walls.map(wall => {
+    walls: [...(venue.walls ?? []).map(wall => {
+      const resolved = resolveWall(wall, venue.wallTypes ?? []);
+      return wallSolid({ ...resolved, doorOpenPercent: effectiveVenueDoorOpen(wall, layout) }, surfaceElevation(surfaces, wall.supportingSurfaceId));
+    }), ...layout.walls.map(wall => {
       const resolved = resolveWall(wall, types);
       return wallSolid({ ...resolved, doorOpenPercent: wall.doorOpenPercent }, surfaceElevation(surfaces, wall.supportingSurfaceId));
     })],

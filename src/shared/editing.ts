@@ -1,8 +1,12 @@
 import { layoutSchema, type Layout } from './layout.js';
-import { platformCentroid } from './levels.js';
+import { platformCentroid, type Platform } from './levels.js';
 import type { SelectableMember } from './selection.js';
 
 export type PlanTransform = { x: number; y: number; rotation: number };
+/** Sentinel for CAD-style multi-edit: selected objects disagree (Figma/Blender “—”). */
+export const MIXED_PROPERTY = '__mixed__' as const;
+export type MixedProperty = typeof MIXED_PROPERTY;
+
 export function normalizeRotation(value: number) { return ((value + 180) % 360 + 360) % 360 - 180; }
 export function selectionPivot(layout: Layout, selection: readonly SelectableMember[]) {
   const ids = new Set(selection.map(item => item.id));
@@ -10,6 +14,18 @@ export function selectionPivot(layout: Layout, selection: readonly SelectableMem
   const centres = [...points, ...(layout.platforms ?? []).filter(item => ids.has(item.id)).map(item => platformCentroid(item.outline))];
   if (!centres.length) return;
   return { x: centres.reduce((sum, p) => sum + p.x, 0) / centres.length, y: centres.reduce((sum, p) => sum + p.y, 0) / centres.length };
+}
+
+export function memberIdsByKind(selection: readonly SelectableMember[], kind: SelectableMember['kind']): string[] {
+  return selection.flatMap(item => item.kind === kind ? [item.id] : []);
+}
+
+/** Shared value, empty string, or MIXED_PROPERTY when selected values differ. */
+export function mixedPropertyValue(values: readonly (string | undefined)[]): string | MixedProperty {
+  const normalized = values.map(value => value ?? '');
+  if (!normalized.length) return '';
+  const first = normalized[0]!;
+  return normalized.every(value => value === first) ? first : MIXED_PROPERTY;
 }
 
 /** Paint the same Pascal library finish onto every listed wall id (or clear it). */
@@ -21,6 +37,57 @@ export function applyWallFinish(layout: Layout, wallIds: readonly string[], fini
     if (finish) return { ...wall, finish };
     const { finish: _removed, ...rest } = wall;
     return rest;
+  });
+  return { ...layout, walls };
+}
+
+/** Paint the same finish onto every listed platform id (or clear it). */
+export function applyPlatformFinish(layout: Layout, platformIds: readonly string[], finish: string | undefined): Layout {
+  const ids = new Set(platformIds);
+  if (!ids.size || !layout.platforms?.length) return layout;
+  const platforms = layout.platforms.map((platform: Platform) => {
+    if (!ids.has(platform.id)) return platform;
+    if (finish) return { ...platform, finish };
+    const { finish: _removed, ...rest } = platform;
+    return rest;
+  });
+  return { ...layout, platforms };
+}
+
+/** Apply finish to venue platforms by id (permanent Spielstätte podiums). */
+export function applyVenuePlatformFinish<T extends { id: string; finish?: string }>(
+  platforms: readonly T[], platformIds: readonly string[], finish: string | undefined,
+): T[] {
+  const ids = new Set(platformIds);
+  if (!ids.size) return [...platforms];
+  return platforms.map(platform => {
+    if (!ids.has(platform.id)) return platform;
+    if (finish) return { ...platform, finish };
+    const { finish: _removed, ...rest } = platform;
+    return rest as T;
+  });
+}
+
+/** Apply the same RAL paint codes to every listed wall (or clear). */
+export function applyWallRal(
+  layout: Layout,
+  wallIds: readonly string[],
+  paint: { frontRal?: string | undefined; backRal?: string | undefined },
+): Layout {
+  const ids = new Set(wallIds);
+  if (!ids.size) return layout;
+  const walls = layout.walls.map(wall => {
+    if (!ids.has(wall.id)) return wall;
+    let next = { ...wall };
+    if ('frontRal' in paint) {
+      if (paint.frontRal) next.frontRal = paint.frontRal;
+      else { const { frontRal: _f, ...rest } = next; next = rest; }
+    }
+    if ('backRal' in paint) {
+      if (paint.backRal) next.backRal = paint.backRal;
+      else { const { backRal: _b, ...rest } = next; next = rest; }
+    }
+    return next;
   });
   return { ...layout, walls };
 }

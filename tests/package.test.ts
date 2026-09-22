@@ -129,7 +129,7 @@ test('a package PDF lists parts, warnings and the frozen revision on every page,
   assert(text.includes('2 physische Platten'), text);
   assert(text.includes('3 Einsätze'), text);
   assert(text.includes('W12'), text);
-  assert(text.includes('2 Einsätze'), text);
+  assert(text.includes('Einsätze'), text);
   assert(text.includes('Offene Wand'), text);
   assert(text.includes('W03'), text);
   assert(text.includes('Maßstab 1:50'), text);

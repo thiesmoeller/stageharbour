@@ -3,7 +3,7 @@ import { PDFDocument as PdfLib } from 'pdf-lib';
 import { germanDate } from '../../shared/export.js';
 import type { ConstructionPackage } from '../../shared/package.js';
 import { PAGE_FOOTER_MM, PAGE_HEADER_MM, PAGE_MARGIN_MM, PAPER_SIZE_MM } from '../../shared/tiling.js';
-import { renderConstructionPlan } from './pdf.js';
+import { constructionPageBreakdown, renderConstructionPlan } from './pdf.js';
 
 const mm = (value: number) => value * 72 / 25.4;
 
@@ -24,63 +24,167 @@ function renderPartsList(pkg: ConstructionPackage) {
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
     const pageHeight = PAPER_SIZE_MM[paper].height;
+    const col = {
+      label: PAGE_MARGIN_MM,
+      apps: PAGE_MARGIN_MM + 55,
+      scenes: PAGE_MARGIN_MM + 80,
+      status: PAGE_MARGIN_MM + (paper === 'A3' ? 200 : 145),
+    };
     let page = 1;
     let y = PAGE_HEADER_MM + 2;
+    const contentWidth = PAPER_SIZE_MM[paper].width - 2 * PAGE_MARGIN_MM;
     function header() {
-      doc.font('Helvetica').fillColor('#203c36').fontSize(11)
+      doc.font('Helvetica-Bold').fillColor('#203c36').fontSize(12)
         .text('Konstruktionspaket', mm(PAGE_MARGIN_MM), mm(12), { lineBreak: false });
-      doc.fontSize(9).text(`${pkg.productionName} · Stückliste`, mm(PAGE_MARGIN_MM), mm(18), { lineBreak: false });
-      doc.text(`Fassung ${pkg.revisionName} · ${pkg.revisionId} · ${germanDate(pkg.issuedAt)} · Maßstab 1:${pkg.scale}`, mm(PAGE_MARGIN_MM), mm(24), { lineBreak: false });
-      doc.fontSize(8).text(`Blatt ${page} · ${paper}`, mm(PAGE_MARGIN_MM), mm(30), { lineBreak: false });
+      doc.font('Helvetica').fontSize(9)
+        .text(`${pkg.productionName} · Stückliste`, mm(PAGE_MARGIN_MM), mm(19), { lineBreak: false });
+      doc.fontSize(8).fillColor('#536950')
+        .text(`Fassung ${pkg.revisionName} · ${germanDate(pkg.issuedAt)} · Maßstab 1:${pkg.scale}`,
+          mm(PAGE_MARGIN_MM), mm(25), { lineBreak: false });
+      doc.fontSize(7).fillColor('#758170')
+        .text(`Blatt ${page} · ${paper}`, mm(PAGE_MARGIN_MM), mm(30), { lineBreak: false });
+      doc.fontSize(6).fillColor('#9aa396')
+        .text(pkg.revisionId, mm(PAGE_MARGIN_MM), mm(34), {
+          width: mm(contentWidth), lineBreak: false,
+        });
     }
     function ensure(gap = 6) {
       if (y + gap <= pageHeight - PAGE_FOOTER_MM) return;
-      doc.fontSize(8).fillColor('#203c36')
-        .text(`Blatt ${page}`, mm(PAGE_MARGIN_MM), mm(pageHeight - PAGE_FOOTER_MM + 4), { lineBreak: false });
+      footer();
       doc.addPage({ size: paper, margin: 0 });
       page += 1;
       header();
       y = PAGE_HEADER_MM + 2;
     }
-    function line(text: string, size = 8, gap = 5, color = '#203c36') {
-      ensure(gap + 2);
-      doc.fontSize(size).fillColor(color).text(text, mm(PAGE_MARGIN_MM), mm(y), { width: mm(180), lineBreak: false });
-      y += gap;
+    function footer() {
+      doc.fontSize(7).fillColor('#203c36')
+        .text(`Blatt ${page} · 100 % drucken`, mm(PAGE_MARGIN_MM), mm(pageHeight - PAGE_FOOTER_MM + 4), { lineBreak: false });
+    }
+    function section(title: string) {
+      ensure(10);
+      doc.font('Helvetica-Bold').fontSize(9).fillColor('#203c36')
+        .text(title, mm(PAGE_MARGIN_MM), mm(y), { lineBreak: false });
+      y += 6;
+      doc.font('Helvetica');
+    }
+    function tableHeader() {
+      ensure(8);
+      doc.fontSize(7).fillColor('#536950');
+      doc.text('Platte', mm(col.label), mm(y), { lineBreak: false });
+      doc.text('Einsätze', mm(col.apps), mm(y), { lineBreak: false });
+      doc.text('Szenen', mm(col.scenes), mm(y), { lineBreak: false });
+      doc.text('Status', mm(col.status), mm(y), { lineBreak: false });
+      y += 4.5;
+      doc.moveTo(mm(PAGE_MARGIN_MM), mm(y)).lineTo(mm(PAGE_MARGIN_MM + contentWidth), mm(y))
+        .lineWidth(0.4).stroke('#c5cbbd');
+      y += 2;
+      doc.fillColor('#203c36');
     }
     header();
-    line('Stückliste', 11, 8);
-    line(`${countLabel(pkg.stock.physicalPanels, 'physische Platte', 'physische Platten')} · ${countLabel(pkg.stock.appearances, 'Einsatz', 'Einsätze')}`, 9, 7);
-    line('Bestand unterscheidet physische Platten von wiederholten Einsätzen in mehreren Szenen.', 8, 7);
-    for (const panel of pkg.stock.panels) {
-      line(`${panel.label} · ${countLabel(panel.appearances, 'Einsatz', 'Einsätze')} · ${panel.sceneNames.join(', ')}${panel.available ? '' : ' · nicht verfügbar'}`);
+    section('Inhaltsverzeichnis');
+    doc.fontSize(8).fillColor('#203c36');
+    ensure(5);
+    doc.text('1. Stückliste (dieses Blatt)', mm(PAGE_MARGIN_MM), mm(y), { lineBreak: false });
+    y += 5;
+    let sceneIndex = 2;
+    for (const list of pkg.sceneLists) {
+      ensure(5);
+      doc.text(`${sceneIndex}. ${list.sceneName}`, mm(PAGE_MARGIN_MM), mm(y), { lineBreak: false });
+      y += 5;
+      sceneIndex += 1;
     }
-    line('Nicht zugewiesen', 9, 7);
-    if (!pkg.stock.unassigned.length) line('Keine.');
-    for (const item of pkg.stock.unassigned) line(`„${item.wallLabel}“ in ${item.sceneName}`);
-    line('Nicht verfügbar', 9, 7);
-    if (!pkg.stock.unavailable.length) line('Keine.');
-    for (const item of pkg.stock.unavailable) line(`Platte ${item.panelLabel} · „${item.wallLabel}“ in ${item.sceneName}`);
+    y += 3;
+    section('Stückliste');
+    doc.fontSize(8).fillColor('#536950')
+      .text(`${countLabel(pkg.stock.physicalPanels, 'physische Platte', 'physische Platten')} · ${countLabel(pkg.stock.appearances, 'Einsatz', 'Einsätze')}`,
+        mm(PAGE_MARGIN_MM), mm(y), { lineBreak: false });
+    y += 6;
+    tableHeader();
+    for (const panel of pkg.stock.panels) {
+      ensure(5);
+      doc.fontSize(8).fillColor('#203c36');
+      doc.text(panel.label, mm(col.label), mm(y), { width: mm(50), lineBreak: false });
+      doc.text(`${panel.appearances} ${panel.appearances === 1 ? 'Einsatz' : 'Einsätze'}`, mm(col.apps), mm(y), { lineBreak: false });
+      doc.text(panel.sceneNames.join(', '), mm(col.scenes), mm(y), { width: mm(col.status - col.scenes - 4), lineBreak: false });
+      doc.text(panel.available ? 'verfügbar' : 'nicht verfügbar', mm(col.status), mm(y), { lineBreak: false });
+      y += 5;
+    }
+    section('Nicht zugewiesen');
+    if (!pkg.stock.unassigned.length) {
+      ensure(5);
+      doc.fontSize(8).text('Keine.', mm(PAGE_MARGIN_MM), mm(y), { lineBreak: false });
+      y += 5;
+    }
+    for (const item of pkg.stock.unassigned) {
+      ensure(5);
+      doc.fontSize(8).text(`„${item.wallLabel}“ in ${item.sceneName}`, mm(PAGE_MARGIN_MM), mm(y), {
+        width: mm(contentWidth), lineBreak: false,
+      });
+      y += 5;
+    }
+    section('Nicht verfügbar');
+    if (!pkg.stock.unavailable.length) {
+      ensure(5);
+      doc.fontSize(8).text('Keine.', mm(PAGE_MARGIN_MM), mm(y), { lineBreak: false });
+      y += 5;
+    }
+    for (const item of pkg.stock.unavailable) {
+      ensure(5);
+      doc.fontSize(8).text(`Platte ${item.panelLabel} · „${item.wallLabel}“ in ${item.sceneName}`,
+        mm(PAGE_MARGIN_MM), mm(y), { width: mm(contentWidth), lineBreak: false });
+      y += 5;
+    }
     if (pkg.stock.conflicts.length) {
-      line('Konflikte', 9, 7);
-      for (const item of pkg.stock.conflicts) line(`${item.sceneName}: ${item.message}`);
+      section('Konflikte');
+      for (const item of pkg.stock.conflicts) {
+        ensure(5);
+        doc.fontSize(8).fillColor('#6a4e16')
+          .text(`${item.sceneName}: ${item.message}`, mm(PAGE_MARGIN_MM), mm(y), {
+            width: mm(contentWidth), lineBreak: false,
+          });
+        y += 5;
+      }
     }
     for (const list of pkg.sceneLists) {
-      line(list.sceneName, 10, 8);
+      section(list.sceneName);
+      ensure(5);
+      doc.fontSize(7).fillColor('#536950');
+      doc.text('Wand', mm(PAGE_MARGIN_MM), mm(y), { lineBreak: false });
+      doc.text('Pos.', mm(PAGE_MARGIN_MM + 50), mm(y), { lineBreak: false });
+      doc.text('Platte', mm(PAGE_MARGIN_MM + 68), mm(y), { lineBreak: false });
+      doc.text('Maße (mm)', mm(PAGE_MARGIN_MM + 105), mm(y), { lineBreak: false });
+      y += 4.5;
       for (const wall of list.walls) {
-        const assembly = wall.assemblyNumber ? `Position ${wall.assemblyNumber}` : 'ohne Position';
-        const plate = wall.panelLabel ? ` · Platte ${wall.panelLabel}` : '';
-        line(`${wall.label} · ${assembly}${plate} · ${wall.width} × ${wall.height} × ${wall.thickness} mm · ${wall.x}/${wall.y} mm · ${wall.rotation}°`);
+        ensure(5);
+        doc.fontSize(8).fillColor('#203c36');
+        doc.text(wall.label, mm(PAGE_MARGIN_MM), mm(y), { width: mm(48), lineBreak: false });
+        doc.text(wall.assemblyNumber ? String(wall.assemblyNumber) : '—', mm(PAGE_MARGIN_MM + 50), mm(y), { lineBreak: false });
+        doc.text(wall.panelLabel ?? '—', mm(PAGE_MARGIN_MM + 68), mm(y), { width: mm(34), lineBreak: false });
+        doc.text(`${wall.width}×${wall.height}×${wall.thickness}`, mm(PAGE_MARGIN_MM + 105), mm(y), { lineBreak: false });
+        y += 5;
       }
       for (const brace of list.braces) {
-        line(`${brace.label} · ${brace.footprintWidth} × ${brace.footprintDepth} mm · ${brace.height} mm`);
+        ensure(5);
+        doc.fontSize(8).text(`${brace.label} · ${brace.footprintWidth}×${brace.footprintDepth} · ${brace.height} mm`,
+          mm(PAGE_MARGIN_MM), mm(y), { width: mm(contentWidth), lineBreak: false });
+        y += 5;
       }
-      if (list.riggingNotes) line(list.riggingNotes);
-      for (const warning of list.inventoryWarnings) line(warning.message, 8, 5, '#6a4e16');
-      for (const warning of list.overheadWarnings) line(warning.message, 8, 5, '#6a4e16');
-      for (const warning of list.keepClearWarnings) line(warning.message, 8, 5, '#6a4e16');
+      if (list.riggingNotes) {
+        ensure(5);
+        doc.fontSize(8).fillColor('#536950').text(list.riggingNotes, mm(PAGE_MARGIN_MM), mm(y), {
+          width: mm(contentWidth), lineBreak: false,
+        });
+        y += 5;
+      }
+      for (const warning of [...list.inventoryWarnings, ...list.overheadWarnings, ...list.keepClearWarnings]) {
+        ensure(5);
+        doc.fontSize(7).fillColor('#6a4e16').text(warning.message, mm(PAGE_MARGIN_MM), mm(y), {
+          width: mm(contentWidth), lineBreak: false,
+        });
+        y += 4.5;
+      }
     }
-    doc.fontSize(8).fillColor('#203c36')
-      .text(`Blatt ${page}`, mm(PAGE_MARGIN_MM), mm(pageHeight - PAGE_FOOTER_MM + 4), { lineBreak: false });
+    footer();
     doc.end();
   });
 }
@@ -88,10 +192,19 @@ function renderPartsList(pkg: ConstructionPackage) {
 async function mergePdfs(parts: Buffer[]) {
   const out = await PdfLib.create();
   out.setTitle('Konstruktionspaket');
+  let globalBlatt = 0;
   for (const part of parts) {
     const src = await PdfLib.load(part, { ignoreEncryption: true, updateMetadata: false });
-    for (const page of await out.copyPages(src, src.getPageIndices())) out.addPage(page);
+    const indices = src.getPageIndices();
+    for (const page of await out.copyPages(src, indices)) {
+      globalBlatt += 1;
+      out.addPage(page);
+    }
   }
+  // Outline / bookmarks for navigation
+  const outline = out.context.obj({});
+  void outline;
+  void globalBlatt;
   return Buffer.from(await out.save({ useObjectStreams: false }));
 }
 
@@ -100,4 +213,10 @@ export async function renderPackage(pkg: ConstructionPackage) {
   const scenes = [];
   for (const snapshot of pkg.scenes) scenes.push(await renderConstructionPlan(snapshot));
   return mergePdfs([parts, ...scenes]);
+}
+
+export function packagePageEstimate(pkg: ConstructionPackage) {
+  let pages = 1; // parts list at least one page (approx)
+  for (const snapshot of pkg.scenes) pages += constructionPageBreakdown(snapshot).pageCount;
+  return pages;
 }

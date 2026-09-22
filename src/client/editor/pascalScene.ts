@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { braceSchema, wallSchema, type Layout, type VenueGeometry } from '../../shared/layout.js';
 import { placeholderSchema } from '../../shared/placeholders.js';
 import { platformSchema, stairSchema } from '../../shared/levels.js';
+import { effectiveCurtains, effectiveVenueDoorOpen } from '../../shared/venueFixtures.js';
 
 export const stageNodeSchema = z.object({
   object: z.literal('node'), id: z.string(), type: z.literal('stage-object'),
@@ -40,13 +41,16 @@ export function pascalScene(layout: Layout, venue?: VenueGeometry) {
     ...(layout.stairs ?? []).map(value => ({ kind: 'stair' as const, value })),
   ];
   const permanent: StageNode['element'][] = venue ? [
-    ...(venue.walls ?? []).map(value => ({ kind: 'wall' as const, value })),
+    ...(venue.walls ?? []).map(value => ({
+      kind: 'wall' as const,
+      value: { ...value, doorOpenPercent: effectiveVenueDoorOpen(value, layout) },
+    })),
     ...(venue.platforms ?? []).map(value => ({ kind: 'platform' as const, value })),
     ...(venue.stairs ?? []).map(value => ({ kind: 'stair' as const, value })),
     ...(venue.placeholders ?? []).map(value => ({ kind: 'placeholder' as const, value })),
     ...(venue.overheadBoxes ?? []).map(value => ({ kind: 'overhead' as const, value })),
     ...(venue.trusses ?? []).map(value => ({ kind: 'truss' as const, value })),
-    ...(venue.curtains ?? []).map(value => ({ kind: 'curtain' as const, value })),
+    ...effectiveCurtains(venue, layout).map(value => ({ kind: 'curtain' as const, value })),
     ...(venue.keepClearZones ?? []).map(value => ({ kind: 'zone' as const, value })),
     ...(venue.connectionPoints ?? []).map(value => ({ kind: 'pin' as const, value })),
     ...(venue.cableRoutingCorridors ?? []).map(value => ({ kind: 'corridor' as const, value })),
