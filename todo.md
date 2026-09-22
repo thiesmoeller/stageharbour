@@ -2,7 +2,7 @@
 
 ## Visual report / package editor
 
-**Shipped:** `ReportComposer` — A4 frames from real editor views; plan crop defaults to **Bühnenbild** (no audience hall); 3D/elevation pick Kamerablick presets; live plan preview; rotate 90°. **Report templates live on the venue** (shared by every play), not on the scene layout.
+**Shipped:** `ReportComposer` lives on the **Spielstätte** (edit under Spielstätte → Blatt-Layout, then Speichern). Plan crop defaults to Bühnenbild; Kamerablick presets for 3D/elevation. Scene Konstruktionsplan links there. Venue PUT body limit raised; templates-only PATCH available.
 
 **Still open:** drive PDF freeze from the sheet layout; rasterise real 3D frames into the pack.
 

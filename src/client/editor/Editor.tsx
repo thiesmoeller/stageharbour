@@ -13,7 +13,7 @@ import {
 } from '../../shared/clipboard.js';
 import { groupContaining, type GroupMember } from '../../shared/groups.js';
 import { execute, history, redo, undo, type History } from '../../shared/history.js';
-import { layoutSchema, newBrace, newWall, saveVenueResultSchema, wallCorners, wallSchema, type Brace, type Layout, type Scene, type VenueGeometry, type Wall } from '../../shared/layout.js';
+import { layoutSchema, newBrace, newWall, wallCorners, wallSchema, type Brace, type Layout, type Scene, type VenueGeometry, type Wall } from '../../shared/layout.js';
 import {
   SNAP_NOTICE, alignBraceToNearestWall, planRotationAt,
   snapStatusText, snapWallPose, type SnapGuide,
@@ -39,9 +39,8 @@ import { BraceInspector } from './BraceInspector.js';
 import { BraceLayer } from './BraceLayer.js';
 import { PlatformInspector, StairInspector } from './PlatformInspector.js';
 import { RalPicker } from './RalPicker.js';
-import { ReportComposer } from './ReportComposer.js';
 import {
-  liftReportTemplatesToVenue, newReportTemplate, stripLayoutReportTemplates,
+  liftReportTemplatesToVenue, stripLayoutReportTemplates,
 } from '../../shared/reportTemplate.js';
 import { MeasureLayer } from './MeasureLayer.js';
 import { PlatformLayer, SurfaceField } from './PlatformLayer.js';
@@ -123,12 +122,6 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
   const [venueOpen, setVenueOpen] = useState(false);
   const [venueDirty, setVenueDirty] = useState(false);
   const [venue, setVenue] = useState<VenueGeometry>(boot.venue);
-  const [reportTemplateError, setReportTemplateError] = useState('');
-  const [reportTemplateSaving, setReportTemplateSaving] = useState(false);
-  const migratedReportTemplates = useRef(
-    (initial.layout.reportTemplates?.length ?? 0) > 0 && !(initial.venue.reportTemplates?.length),
-  );
-  const reportTemplateSaveTimer = useRef<number | undefined>(undefined);
   const lastPlanPoint = useRef({ x: initial.venue.width / 2, y: initial.venue.depth / 2 });
   const [venueName, setVenueName] = useState(initial.venueName);
   const [updateAvailable, setUpdateAvailable] = useState(!!initial.venueUpdateAvailable);
@@ -221,33 +214,6 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     saver.adopt(next.present, result.revision);
     setUpdateAvailable(!!result.venueUpdateAvailable);
   }
-  async function persistVenueReportTemplates(reportTemplates: NonNullable<VenueGeometry['reportTemplates']>) {
-    const nextVenue = { ...venue, reportTemplates };
-    setVenue(nextVenue);
-    setReportTemplateError('');
-    setReportTemplateSaving(true);
-    try {
-      const body = saveVenueResultSchema.parse(
-        await request(`/api/workspaces/${workspaceId}/scenes/${initial.id}/venue`, { venue: nextVenue }, 'PUT'),
-      );
-      adoptVenue({ ...body, venueUpdateAvailable: false });
-      migratedReportTemplates.current = false;
-    } catch (error) {
-      setReportTemplateError(error instanceof ApiError
-        ? error.message
-        : 'Die Berichtsvorlagen der Spielstätte konnten nicht gespeichert werden.');
-    } finally {
-      setReportTemplateSaving(false);
-    }
-  }
-  function queueVenueReportTemplates(reportTemplates: NonNullable<VenueGeometry['reportTemplates']>) {
-    setVenue(current => ({ ...current, reportTemplates }));
-    window.clearTimeout(reportTemplateSaveTimer.current);
-    reportTemplateSaveTimer.current = window.setTimeout(() => {
-      void persistVenueReportTemplates(reportTemplates);
-    }, 500);
-  }
-  useEffect(() => () => window.clearTimeout(reportTemplateSaveTimer.current), []);
   function replace(wall: Wall) { commit({ ...current.current.present, walls: current.current.present.walls.map(item => item.id === wall.id ? wall : item) }); }
   function applyWall(wall: Wall) {
     const present = current.current.present;
@@ -695,32 +661,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     <div className="editor-toolbar">
       <button className="quiet" aria-expanded={venueOpen} disabled={venueOpen ? venueDirty : dirty} onClick={() => { setVenueOpen(open => !open); setExportsOpen(false); }}>{venueOpen ? 'Spielstätte schließen' : 'Spielstätte'}</button>
       <button className="quiet" aria-expanded={exportsOpen} onClick={() => {
-        setExportsOpen(open => {
-          const next = !open;
-          if (next && !readOnly) {
-            const existing = venue.reportTemplates ?? [];
-            if (!existing.length) {
-              void persistVenueReportTemplates([newReportTemplate(crypto.randomUUID(), 'Standardblatt')]);
-            } else if (migratedReportTemplates.current) {
-              void persistVenueReportTemplates(existing);
-            } else {
-              const needsScope = existing.some(template =>
-                template.pages.some(page => page.frames.some(frame => frame.kind === 'plan' && frame.planScope == null)));
-              if (needsScope) {
-                void persistVenueReportTemplates(existing.map(template => ({
-                  ...template,
-                  pages: template.pages.map(page => ({
-                    ...page,
-                    frames: page.frames.map(frame => frame.kind === 'plan' && frame.planScope == null
-                      ? { ...frame, planScope: 'scenery' as const, label: frame.label === 'Grundriss' ? 'Grundriss Bühnenbild' : frame.label }
-                      : frame),
-                  })),
-                })));
-              }
-            }
-          }
-          return next;
-        });
+        setExportsOpen(open => !open);
         setLibraryOpen(false);
       }}>{exportsOpen ? 'Export schließen' : 'Konstruktionsplan'}</button>
       {!readOnly && <SnapToggle enabled={snapEnabled} onChange={setSnapEnabled} />}
@@ -769,14 +710,18 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     {exportsOpen && <div className="export-drawer">
       <ExportPanel workspaceId={workspaceId} sceneId={initial.id} productionId={initial.productionId}
         readOnly={readOnly} freezeDisabled={dirty || saveState.status !== 'saved'} groups={state.present.groups ?? []} walls={state.present.walls} />
-      <ReportComposer
-        templates={venue.reportTemplates ?? []}
-        layout={state.present}
-        venue={venue}
-        readOnly={readOnly || reportTemplateSaving}
-        onChange={reportTemplates => { queueVenueReportTemplates(reportTemplates); }}
-      />
-      {reportTemplateError && <p className="error" role="alert">{reportTemplateError}</p>}
+      <section className="report-composer" data-testid="report-composer-venue-hint">
+        <header className="report-composer-header">
+          <h3>Blatt-Layout</h3>
+          <p className="muted">Berichtsvorlagen gehören zur Spielstätte und gelten für jedes Stück dort.</p>
+        </header>
+        {(venue.reportTemplates?.length ?? 0) > 0
+          ? <p>{venue.reportTemplates!.length} Vorlage{venue.reportTemplates!.length === 1 ? '' : 'n'}: {venue.reportTemplates!.map(item => item.name).join(', ')}</p>
+          : <p className="muted">Noch keine Vorlage — in der Spielstätte anlegen und speichern.</p>}
+        {!readOnly && <div className="form-actions">
+          <button type="button" onClick={() => { setExportsOpen(false); setVenueOpen(true); }}>In Spielstätte bearbeiten</button>
+        </div>}
+      </section>
     </div>}
     {['failed', 'conflict'].includes(saveState.status) && <div className="error" role="alert">
       <p>{saveState.status === 'conflict'

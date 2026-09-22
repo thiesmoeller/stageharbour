@@ -59,6 +59,11 @@ export type ReportTemplate = z.infer<typeof reportTemplateSchema>;
 export const reportTemplatesSchema = z.array(reportTemplateSchema).max(50)
   .refine(items => new Set(items.map(item => item.id)).size === items.length, 'Report template IDs must be unique');
 
+/** Lightweight update: report templates only (avoids shipping the full venue geometry). */
+export const saveReportTemplatesSchema = z.strictObject({
+  reportTemplates: reportTemplatesSchema,
+});
+
 /** A4 portrait drawing area inside typical title/footer margins (mm). */
 export const REPORT_A4_DRAWING_MM = { width: 180, height: 220 } as const;
 

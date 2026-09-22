@@ -40,6 +40,8 @@ import { ClipboardPanel } from './ClipboardPanel.js';
 import type { StageEditing } from './StageEditing.js';
 import { useViewportWheel } from './viewportWheel.js';
 import { ApiError, request, upload } from '../api.js';
+import { ReportComposer } from './ReportComposer.js';
+import { type ReportTemplate } from '../../shared/reportTemplate.js';
 import { ToolIcon } from './ToolIcon.js';
 import { defaultLighting, type StageLightingSettings } from '../../shared/lighting.js';
 
@@ -56,6 +58,7 @@ type VenueDraft = {
   fileId: string | undefined; page: number; rotationDeg: number; calibration: Calibration;
   pins: ConnectionPoint[]; corridors: CableRoutingCorridor[]; zones: KeepClearZone[]; centreline: StageCentreline;
   floorFinish: string | undefined;
+  reportTemplates: ReportTemplate[];
 };
 
 function draftFromVenue(venue: VenueGeometry, draft: VenueDraft): VenueDraft {
@@ -66,6 +69,7 @@ function draftFromVenue(venue: VenueGeometry, draft: VenueDraft): VenueDraft {
     overheadBoxes: venue.overheadBoxes ?? [], trusses: venue.trusses ?? [], curtains: venue.curtains ?? [],
     pins: venue.connectionPoints ?? [],
     corridors: venue.cableRoutingCorridors ?? [], zones: venue.keepClearZones ?? [],
+    reportTemplates: venue.reportTemplates ?? draft.reportTemplates,
   };
 }
 
@@ -107,6 +111,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
     pins: venue.connectionPoints ?? [], corridors: venue.cableRoutingCorridors ?? [], zones: venue.keepClearZones ?? [],
     centreline: venue.stageCentreline ?? defaultCentreline(venue),
     floorFinish: venue.floorFinish,
+    reportTemplates: venue.reportTemplates ?? [],
   });
   const [lighting, setLighting] = draft.field('lighting');
   const [walls, setWalls] = draft.field('walls');
@@ -127,6 +132,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
   const [zones, setZones] = draft.field('zones');
   const [centreline, setCentreline] = draft.field('centreline');
   const [floorFinish, setFloorFinish] = draft.field('floorFinish');
+  const [reportTemplates, setReportTemplates] = draft.field('reportTemplates');
   const [nameDraft, setNameDraft] = useState(venueName ?? '');
   const [click, setClick] = useState<ClickMode>('select');
   const [placeKind, setPlaceKind] = useState<PlaceKind>('wall');
@@ -471,7 +477,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
       ...(ceilingHeight === '' ? {} : { ceilingHeight }),
       overheadBoxes, trusses, curtains, keepClearZones: zones, stageCentreline: centreline,
       ...(floorFinish ? { floorFinish } : {}),
-      ...(venue.reportTemplates?.length ? { reportTemplates: venue.reportTemplates } : {}),
+      reportTemplates,
     });
     if (!result.success) { setError('Bitte prüfen Sie den Umriss, die Kalibrierung, die Anschlüsse und die Überbauungen.'); return; }
     const toSave = reassignVenueSupports(result.data);
@@ -485,7 +491,10 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
       }
       draft.markSaved(acknowledged);
     } catch (caught) {
-      setError(caught instanceof ApiError && caught.status === 409 ? 'Eine neuere Spielstättenfassung ist vorhanden. Ihr Entwurf bleibt erhalten. Sichern Sie ihn vor dem Neuladen.' : caught instanceof ApiError && caught.status === 400 ? 'Ungültiger Umriss oder ungültige Vorlage.' : 'Die Spielstätte konnte nicht gespeichert werden.');
+      setError(caught instanceof ApiError && caught.status === 409 ? 'Eine neuere Spielstättenfassung ist vorhanden. Ihr Entwurf bleibt erhalten. Sichern Sie ihn vor dem Neuladen.'
+        : caught instanceof ApiError && caught.status === 413 ? 'Die Spielstätte ist zu groß zum Speichern. Bitte prüfen Sie Vorlagen und Grundrissdaten.'
+        : caught instanceof ApiError && caught.status === 400 ? 'Ungültiger Umriss oder ungültige Vorlage.'
+        : 'Die Spielstätte konnte nicht gespeichert werden.');
     } finally { setBusy(false); }
   }
   async function applyUpdate() {
@@ -526,7 +535,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
   const candidate = venueGeometrySchema.safeParse({ ...venue, lighting, outline: vertices, walls, platforms, stairs, placeholders, overheadBoxes, trusses, curtains,
     ceilingHeight: ceilingHeight === '' ? undefined : ceilingHeight, keepClearZones: zones, connectionPoints: pins, cableRoutingCorridors: corridors, stageCentreline: centreline,
     ...(floorFinish ? { floorFinish } : { floorFinish: undefined }),
-    ...(venue.reportTemplates?.length ? { reportTemplates: venue.reportTemplates } : { reportTemplates: undefined }),
+    reportTemplates,
   });
   const previewVenue = candidate.success ? reassignVenueSupports(candidate.data) : venue;
   // Placeholders stay on the venue only; putting them on the layout too duplicates chairs in 3D.
@@ -545,6 +554,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
       ...previewVenue, walls: start.walls, platforms: start.platforms, stairs: start.stairs, placeholders: start.placeholders,
       overheadBoxes: start.overheadBoxes, trusses: start.trusses, curtains: start.curtains, connectionPoints: start.pins,
       cableRoutingCorridors: start.corridors, keepClearZones: start.zones, stageCentreline: start.centreline,
+      reportTemplates: start.reportTemplates,
     };
   }
   function onPlanMove(event: PointerEvent) {
@@ -1287,6 +1297,13 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
       <p className="muted">Werkzeuge links setzen Objekte per Klick. Freihaltezonen und Traversen werden gezeichnet (Eckpunkte bzw. Start/Ende). Zoneneckpunkte ziehen. Einrasten wie im Bühnenbild (Alt umgeht). Zwei-Finger-Scroll oder Mittelklick verschieben · Pinch / Strg+Scroll zoomen.</p>
       <p>Entf entfernt die Auswahl. Traversen modellieren Hängehöhen für spätere Lichtplanung. Speichern schreibt eine neue Spielstättenfassung.</p>
     </div>}
+    <ReportComposer
+      templates={reportTemplates}
+      layout={liveLayout}
+      venue={previewVenue}
+      readOnly={readOnly}
+      onChange={setReportTemplates}
+    />
   </section>;
 }
 
