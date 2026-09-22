@@ -127,5 +127,3 @@ export function liftReportTemplatesToVenue<L extends { reportTemplates?: ReportT
   }
   return { layout: nextLayout, venue: { ...venue, reportTemplates: lifted } };
 }
-
-export { planReportExtent, type PlanReportExtent, type PlanReportScope } from './planReportExtent.js';
