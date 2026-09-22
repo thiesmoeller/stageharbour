@@ -109,7 +109,8 @@ test('venue plan drag, rubberband clipboard and escape cancel keep one draft his
   await expect(page.getByLabel('Feste Wand 1 y')).toHaveValue('3200');
   await page.getByRole('button', { name: 'Spielstätte rückgängig' }).click();
   await expect(wallX).toHaveValue('4000');
-  await drag(page, await point(page, 3500, 2500, svg), await point(page, 4500, 3500, svg));
+  // Rubber band selects only fully enclosed footprints (wall ~3400–4600 × 2986–3014).
+  await drag(page, await point(page, 3200, 2800, svg), await point(page, 4800, 3200, svg));
   await expect(page.locator('.clipboard-panel')).toContainText('1 ausgewählt');
   await page.getByRole('button', { name: 'Kopieren' }).click();
   await page.getByRole('button', { name: 'Einfügen' }).click();

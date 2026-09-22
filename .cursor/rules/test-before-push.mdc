@@ -1,0 +1,19 @@
+---
+description: Always run the full local CI test suite before any push to remote
+alwaysApply: true
+---
+
+# Test before push
+
+CapRover deploys only after GitHub Actions goes green. Pushing untested main commits has already blocked deploy twice.
+
+**Before `git push` (or any commit the user asked to push):**
+
+1. Run the same suite CI runs, in order:
+   - `npm test`
+   - `npm run test:integration`
+   - `npm run test:e2e`
+2. Fix failures locally. Do not push hoping CI will catch them.
+3. Only push after all three succeed.
+
+`npm test` alone is not enough — e2e is what usually fails after plan/editor UX changes. Rebuild before e2e when client code changed (`npm run test:e2e` already builds).
