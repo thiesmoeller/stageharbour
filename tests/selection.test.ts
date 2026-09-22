@@ -12,30 +12,36 @@ test('normalizeBounds orders rubber-band corners in plan millimetres', () => {
   });
 });
 
-test('membersInBounds selects walls whose footprints meet the rubber band', () => {
+test('membersInBounds selects only walls whose footprints lie fully inside the rubber band', () => {
   const left = newWall(randomUUID(), 1000, 2000);
   const right = newWall(randomUUID(), 6000, 2000);
   const far = newWall(randomUUID(), 9000, 4500);
   const layout: Layout = { schemaVersion: 1, walls: [left, right, far], braces: [] };
-  const hit = membersInBounds(layout, { minX: 500, maxX: 6500, minY: 1500, maxY: 2500 });
-  assert.deepEqual(hit.map(item => item.id).sort(), [left.id, right.id].sort());
-  assert.equal(hit.every(item => item.kind === 'wall'), true);
+  // Left wall spans ~400–1600 × 1986–2014; right wall ~5400–6600 is only grazed.
+  const enclosed = membersInBounds(layout, { minX: 300, maxX: 1700, minY: 1500, maxY: 2500 });
+  assert.deepEqual(enclosed, [{ kind: 'wall', id: left.id }]);
+  const grazed = membersInBounds(layout, { minX: 5500, maxX: 6200, minY: 1500, maxY: 2500 });
+  assert.deepEqual(grazed, []);
 });
 
-test('membersInBounds includes braces that intersect the rubber band', () => {
+test('membersInBounds includes braces fully inside the rubber band', () => {
   const wall = newWall(randomUUID(), 1000, 1000);
   const brace = newBrace(randomUUID(), 3000, 3000);
   const layout: Layout = { schemaVersion: 1, walls: [wall], braces: [brace] };
-  const hit = membersInBounds(layout, { minX: 2800, maxX: 3200, minY: 2800, maxY: 3200 });
+  const hit = membersInBounds(layout, { minX: 2700, maxX: 3300, minY: 2700, maxY: 3300 });
   assert.deepEqual(hit, [{ kind: 'brace', id: brace.id }]);
+  const grazed = membersInBounds(layout, { minX: 2980, maxX: 3020, minY: 2980, maxY: 3020 });
+  assert.deepEqual(grazed, []);
 });
 
-test('membersInBounds uses the stair footprint, not a fixed centre box', () => {
+test('membersInBounds requires the stair footprint to lie fully inside the rubber band', () => {
   const platform = newPlatform(randomUUID(), 4000, 3000);
   const stair = newStair(randomUUID(), AUDIENCE_FLOOR_ID, platform.id, 4000, 2000);
   const layout: Layout = { schemaVersion: 1, walls: [], braces: [], platforms: [platform], stairs: [stair] };
-  const miss = membersInBounds(layout, { minX: 3990, maxX: 4010, minY: 1990, maxY: 2010 });
-  assert.equal(miss.some(item => item.kind === 'stair'), true);
+  const grazed = membersInBounds(layout, { minX: 3990, maxX: 4010, minY: 1990, maxY: 2010 });
+  assert.equal(grazed.some(item => item.kind === 'stair'), false);
+  const enclosed = membersInBounds(layout, { minX: 3000, maxX: 5000, minY: 500, maxY: 3500 });
+  assert.equal(enclosed.some(item => item.kind === 'stair'), true);
   const far = membersInBounds(layout, { minX: 9000, maxX: 9100, minY: 9000, maxY: 9100 });
   assert.equal(far.some(item => item.kind === 'stair'), false);
 });

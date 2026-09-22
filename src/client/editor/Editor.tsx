@@ -629,8 +629,6 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
       <button className="quiet" aria-expanded={exportsOpen} onClick={() => { setExportsOpen(open => !open); setLibraryOpen(false); }}>{exportsOpen ? 'Export schließen' : 'Konstruktionsplan'}</button>
       {!readOnly && <SnapToggle enabled={snapEnabled} onChange={setSnapEnabled} />}
 
-      {snapStatus && <span className="snap-status" role="status">{snapStatus}</span>}
-
     </div>
     <div className="workspace-viewbar" hidden={venueOpen} role="toolbar" aria-label="Ansichten">
       <div className="view-modes">{(['split', 'plan', 'stage'] as const).map(mode => <button key={mode} type="button" className="quiet" aria-pressed={viewMode === mode} onClick={() => setViewMode(mode)}>{mode === 'split' ? '2D + 3D' : mode === 'plan' ? 'Grundriss' : 'Raumansicht'}</button>)}</div>
@@ -639,6 +637,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
       <button type="button" className="quiet" onClick={() => { if (document.fullscreenElement) void document.exitFullscreen(); else void root.current?.requestFullscreen(); }} title="Vollbild" aria-label="Vollbild"><ToolIcon name="expand" /></button>
     </div>
     </div>
+    <div className="workspace-feedback" role="status" hidden={venueOpen}>{snapStatus ?? ''}</div>
     <div className="tool-rail" hidden={venueOpen} role="toolbar" aria-label="Objekte hinzufügen">
       <button className="quiet" onClick={() => { setLibraryOpen(open => !open); setExportsOpen(false); }} aria-expanded={libraryOpen} title="Objektbibliothek" aria-label="Objektbibliothek"><ToolIcon name="library" /><span>Bibliothek</span></button>
       {!readOnly && <><WallToolButton
@@ -852,14 +851,16 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
         })()}
       </svg>
 
-      {diagnostics.map(item => <p key={`${item.kind}-${item.objectId}`} className="warning" role="status">{item.message}</p>)}
-      {overheadWarnings.map(item => <p key={`${item.kind}-${item.objectId}-${item.obstructionId ?? ''}`}
-        className="warning" role="status" data-testid="overhead-warning">{item.message}</p>)}
-      {overlapWarnings.map(item => <p key={`${item.zoneId}-${item.objectId}`} className="warning" role="status">{item.message}</p>)}
-      {objectOverlaps.length === 1 && <p className="warning" role="status" data-testid="object-overlap">{objectOverlaps[0]!.message}</p>}
-      {objectOverlaps.length > 1 && <p className="warning" role="status" data-testid="object-overlap">
-        {objectOverlaps.length} Überschneidungen — betroffene Objekte sind rot markiert.
-      </p>}
+      <div className="plan-status" aria-live="polite">
+        {diagnostics.map(item => <p key={`${item.kind}-${item.objectId}`} className="warning" role="status">{item.message}</p>)}
+        {overheadWarnings.map(item => <p key={`${item.kind}-${item.objectId}-${item.obstructionId ?? ''}`}
+          className="warning" role="status" data-testid="overhead-warning">{item.message}</p>)}
+        {overlapWarnings.map(item => <p key={`${item.zoneId}-${item.objectId}`} className="warning" role="status">{item.message}</p>)}
+        {objectOverlaps.length === 1 && <p className="warning" role="status" data-testid="object-overlap">{objectOverlaps[0]!.message}</p>}
+        {objectOverlaps.length > 1 && <p className="warning" role="status" data-testid="object-overlap">
+          {objectOverlaps.length} Überschneidungen — betroffene Objekte sind rot markiert.
+        </p>}
+      </div>
     </div>
     {viewMode !== 'plan' && <StageView layout={placing ? {
       ...shown,
@@ -936,7 +937,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
       </div></details>
     </aside></div>}
     <div className="workspace-statusbar"><span><span className="status-dot" />{venueOpen ? 'Spielstättenentwurf' : 'Bühnenbild'} · {state.present.walls.length} Wände</span><span className="status-hint">Klicken zum Auswählen · Ziehen zum Verschieben · Strg+Z rückgängig</span><button className="quiet" aria-expanded={helpOpen} onClick={() => setHelpOpen(open => !open)}><ToolIcon name="help" /> Bedienung</button><span>Maße in mm</span></div>
-    {helpOpen && <div className="workspace-help"><h3>Arbeiten im Grundriss</h3>      <p className="muted viewport-hint">Raster: 1 m / 50 cm · Strg+Mausrad zoomen · Mittelklick oder Shift+Mausrad verschieben · Auf dem Boden ziehen: Mehrfachauswahl · Orange ↻ dreht · Stützen an Wänden · {SNAP_NOTICE}</p><p>Strg/Cmd+C kopiert die Auswahl, Strg/Cmd+V hängt die Kopie an den Zeiger — Klick setzt, Escape bricht ab. Entf löscht ausgewählte Objekte. Escape bricht Platzieren und Bewegungen ab oder hebt die Auswahl auf (auch in der Raumsicht · Klick in freien Raum). Überschneidungen erscheinen rot auf dem Grundriss.</p></div>}
+    {helpOpen && <div className="workspace-help"><h3>Arbeiten im Grundriss</h3>      <p className="muted viewport-hint">Raster: 1 m / 50 cm · Strg+Mausrad zoomen · Mittelklick oder Shift+Mausrad verschieben · Auf dem Boden ziehen: Mehrfachauswahl (nur vollständig umschlossene Objekte) · Orange ↻ dreht · Stützen an Wänden · {SNAP_NOTICE}</p><p>Strg/Cmd+C kopiert die Auswahl, Strg/Cmd+V hängt die Kopie an den Zeiger — Klick setzt, Escape bricht ab. Entf löscht ausgewählte Objekte. Escape bricht Platzieren und Bewegungen ab oder hebt die Auswahl auf (auch in der Raumsicht · Klick in freien Raum). Überschneidungen erscheinen rot auf dem Grundriss.</p></div>}
   </section>;
 }
 

@@ -77,7 +77,6 @@ select { font: inherit; width: 100%; padding: 8px; border: 1px solid #cbd3c8; bo
 .venue-centreline h4 { margin: 0 0 8px; font-size: .85rem; }
 .snap-toggle { display: flex; align-items: center; gap: 8px; font-size: .73rem; font-weight: 600; margin: 0; }
 .snap-toggle input { width: auto; }
-.snap-status { font-size: .78rem; font-weight: 600; color: #6a4e16; background: #fff8e6; border: 1px solid #e0c98a; border-radius: 6px; padding: 6px 10px; }
 .rotation-handle { cursor: grab; }
 .rotation-handle:active { cursor: grabbing; }
 .export-panel .venue-overhead, .export-panel .venue-levels, .export-panel .keep-clear, .export-panel .venue-centreline { flex: 1 1 100%; }
