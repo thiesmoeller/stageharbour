@@ -14,6 +14,8 @@ import { parseRalCode, ralHex, RAL_PAINT_SWATCHES } from '../src/shared/ral.js';
 import { measureLineCaption, measureLineLength, newMeasureLine } from '../src/shared/measurements.js';
 import { newWallPicture } from '../src/shared/wallPictures.js';
 import { newReportTemplate, rotateReportFrame } from '../src/shared/reportTemplate.js';
+import { planReportExtent } from '../src/shared/planReportExtent.js';
+import { newPlaceholder } from '../src/shared/placeholders.js';
 import { layoutSchema } from '../src/shared/layout.js';
 
 test('mixedPropertyValue mirrors Figma mixed / shared / empty semantics', () => {
@@ -113,6 +115,27 @@ test('layout accepts measure lines, wall pictures, report templates and RAL', ()
   assert.equal(layout.measureLines?.length, 1);
   assert.equal(layout.wallPictures?.[0]!.note, 'Auf Angelschnur');
   assert.equal(layout.reportTemplates?.[0]!.pages[0]!.frames[0]!.kind, 'plan');
+  assert.equal(layout.reportTemplates?.[0]!.pages[0]!.frames[0]!.planScope, 'scenery');
+});
+
+test('construction plan extent fits scenery and ignores audience chairs', () => {
+  const wall = newWall(randomUUID(), 4000, 4500);
+  const chair = newPlaceholder('chair', randomUUID(), 2000, 800);
+  const venue = {
+    schemaVersion: 1 as const,
+    width: 12000,
+    depth: 9000,
+    placeholders: [chair],
+  };
+  const layout: Layout = { schemaVersion: 1, walls: [wall], braces: [] };
+  const scenery = planReportExtent(venue, layout, 'scenery', 0);
+  assert.ok(scenery.maxX - scenery.minX < 3000, 'scenery crop is tighter than the full hall');
+  assert.ok(scenery.minY > 2000, 'audience chairs below the set are outside the crop');
+  const full = planReportExtent(venue, layout, 'venue', 0);
+  assert.equal(full.minX, 0);
+  assert.equal(full.maxX, 12000);
+  assert.equal(full.minY, 0);
+  assert.equal(full.maxY, 9000);
 });
 
 test('applyWallFinish still bulk-paints walls', () => {

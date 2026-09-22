@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import type { Layout, VenueGeometry } from '../../shared/layout.js';
 import {
-  REPORT_A4_DRAWING_MM, newReportFrame, newReportTemplate, rotateReportFrame,
-  type ReportFrame, type ReportTemplate,
+  REPORT_A4_DRAWING_MM, REPORT_VIEW_LABELS, newReportFrame, newReportTemplate, rotateReportFrame,
+  type ReportFrame, type ReportTemplate, type ReportView,
 } from '../../shared/reportTemplate.js';
+import { PlanPreview, planPreviewFromScene } from './PlanPreview.js';
 
 const KIND_LABEL: Record<ReportFrame['kind'], string> = {
   plan: 'Grundriss',
@@ -11,14 +13,19 @@ const KIND_LABEL: Record<ReportFrame['kind'], string> = {
   notes: 'Hinweise',
 };
 
+const CONSTRUCTION_VIEWS: ReportView[] = ['orbit', 'top', 'front', 'side'];
+
 /**
- * First-slice visual sheet composer (InDesign / Affinity Publisher–style frames on A4).
- * Place plan / 3D / elevation frames, rotate 90°, delete, save as report template.
+ * Visual sheet composer: place real editor views on A4.
+ * Plan frames crop to Bühnenbild by default (not the audience hall).
+ * 3D / elevation frames use the same Kamerablick presets as Raumsicht.
  */
 export function ReportComposer({
-  templates, readOnly, onChange,
+  templates, layout, venue, readOnly, onChange,
 }: {
   templates: ReportTemplate[];
+  layout: Layout;
+  venue: VenueGeometry;
   readOnly: boolean;
   onChange: (templates: ReportTemplate[]) => void;
 }) {
@@ -39,10 +46,15 @@ export function ReportComposer({
     }));
   }
 
+  function patchSelected(patch: Partial<ReportFrame>) {
+    if (!selected || !page) return;
+    updateFrames(page.frames.map(frame => frame.id === selected.id ? { ...frame, ...patch } : frame));
+  }
+
   return <section className="report-composer" data-testid="report-composer">
     <header className="report-composer-header">
       <h3>Blatt-Layout</h3>
-      <p className="muted">Rahmen auf A4 platzieren — wie in einem Layoutprogramm. 90°-Drehung für dichtere Packung.</p>
+      <p className="muted">Rahmen aus den Editor-Ansichten — Grundriss standardmäßig ohne Publikum, 3D wie Kamerablick.</p>
     </header>
     {!active ? <div className="form-actions">
       <button type="button" disabled={readOnly} onClick={() => onChange([newReportTemplate(crypto.randomUUID(), 'Standardblatt')])}>
@@ -54,8 +66,11 @@ export function ReportComposer({
         onChange={event => updateActive(template => ({ ...template, name: event.target.value }))} />
       <div className="report-sheet" style={{ aspectRatio: `${REPORT_A4_DRAWING_MM.width} / ${REPORT_A4_DRAWING_MM.height}` }}
         role="application" aria-label="A4-Zeichenfläche">
-        {(page?.frames ?? []).map(frame =>
-          <button
+        {(page?.frames ?? []).map(frame => {
+          const scope = frame.planScope ?? 'scenery';
+          const preview = frame.kind === 'plan' ? planPreviewFromScene(venue, layout, scope) : undefined;
+          const viewLabel = frame.view ? REPORT_VIEW_LABELS[frame.view] : undefined;
+          return <button
             key={frame.id}
             type="button"
             className={`report-frame report-frame-${frame.kind}${selectedFrameId === frame.id ? ' is-selected' : ''}`}
@@ -67,22 +82,54 @@ export function ReportComposer({
             }}
             onClick={() => setSelectedFrameId(frame.id)}
           >
-            <span>{frame.label ?? KIND_LABEL[frame.kind]}</span>
+            {preview
+              ? <PlanPreview preview={preview} label={frame.label ?? KIND_LABEL.plan} />
+              : <span className="report-frame-caption">{frame.label ?? viewLabel ?? KIND_LABEL[frame.kind]}</span>}
+            {frame.kind === 'plan' && <span className="report-frame-badge">{scope === 'scenery' ? 'Bühnenbild' : 'Spielstätte'}</span>}
+            {frame.kind !== 'plan' && viewLabel && <span className="report-frame-badge">{viewLabel}</span>}
             {frame.rotation === 90 && <span className="report-frame-rot">90°</span>}
-          </button>)}
+          </button>;
+        })}
       </div>
+      {selected && !readOnly && <div className="report-frame-inspector" data-testid="report-frame-inspector">
+        {selected.kind === 'plan' && <>
+          <span className="muted">Ausschnitt</span>
+          <div className="form-actions" role="group" aria-label="Grundriss-Ausschnitt">
+            <button type="button" className="quiet" aria-pressed={(selected.planScope ?? 'scenery') === 'scenery'}
+              onClick={() => patchSelected({ planScope: 'scenery', label: 'Grundriss Bühnenbild' })}>Bühnenbild</button>
+            <button type="button" className="quiet" aria-pressed={selected.planScope === 'venue'}
+              onClick={() => patchSelected({ planScope: 'venue', label: 'Grundriss Spielstätte' })}>Ganze Spielstätte</button>
+          </div>
+        </>}
+        {(selected.kind === 'view3d' || selected.kind === 'elevation') && <>
+          <span className="muted">Ansicht (wie Raumsicht)</span>
+          <div className="form-actions" role="group" aria-label="Kamerablick">
+            {CONSTRUCTION_VIEWS.map(view =>
+              <button key={view} type="button" className="quiet" aria-pressed={selected.view === view}
+                onClick={() => patchSelected({ view, label: REPORT_VIEW_LABELS[view] })}>
+                {REPORT_VIEW_LABELS[view]}
+              </button>)}
+          </div>
+        </>}
+      </div>}
       <div className="form-actions report-composer-tools">
         <button type="button" disabled={readOnly} onClick={() => updateFrames([
           ...(page?.frames ?? []),
-          newReportFrame(crypto.randomUUID(), 'plan', { x: 10, y: 10, width: 80, height: 90, label: 'Grundriss' }),
+          newReportFrame(crypto.randomUUID(), 'plan', {
+            x: 10, y: 10, width: 80, height: 90, planScope: 'scenery', label: 'Grundriss Bühnenbild',
+          }),
         ])}>+ Grundriss</button>
         <button type="button" disabled={readOnly} onClick={() => updateFrames([
           ...(page?.frames ?? []),
-          newReportFrame(crypto.randomUUID(), 'view3d', { x: 100, y: 10, width: 70, height: 90, view: 'orbit', label: '3D' }),
+          newReportFrame(crypto.randomUUID(), 'view3d', {
+            x: 100, y: 10, width: 70, height: 90, view: 'orbit', label: REPORT_VIEW_LABELS.orbit,
+          }),
         ])}>+ 3D</button>
         <button type="button" disabled={readOnly} onClick={() => updateFrames([
           ...(page?.frames ?? []),
-          newReportFrame(crypto.randomUUID(), 'elevation', { x: 10, y: 110, width: 160, height: 60, view: 'front', label: 'Ansicht' }),
+          newReportFrame(crypto.randomUUID(), 'elevation', {
+            x: 10, y: 110, width: 160, height: 60, view: 'front', label: REPORT_VIEW_LABELS.front,
+          }),
         ])}>+ Ansicht</button>
         <button type="button" disabled={readOnly || !selected} onClick={() => {
           if (!selected || !page) return;

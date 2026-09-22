@@ -7,6 +7,22 @@ import { z } from 'zod';
 export const reportFrameKindSchema = z.enum(['plan', 'elevation', 'view3d', 'notes']);
 export type ReportFrameKind = z.infer<typeof reportFrameKindSchema>;
 
+/** Same presets as the editor Kamerablick / orthogonal elevations. */
+export const reportViewSchema = z.enum(['orbit', 'audience', 'top', 'front', 'side']);
+export type ReportView = z.infer<typeof reportViewSchema>;
+
+export const REPORT_VIEW_LABELS: Record<ReportView, string> = {
+  orbit: 'Umlaufansicht',
+  audience: 'Publikumssicht',
+  top: 'Von oben',
+  front: 'Von vorne',
+  side: 'Von der Seite',
+};
+
+/** Construction sheets default to scenery crop (no audience hall). */
+export const reportPlanScopeSchema = z.enum(['scenery', 'venue']);
+export type ReportPlanScope = z.infer<typeof reportPlanScopeSchema>;
+
 export const reportFrameSchema = z.strictObject({
   id: z.uuid(),
   kind: reportFrameKindSchema,
@@ -17,8 +33,10 @@ export const reportFrameSchema = z.strictObject({
   height: z.number().finite().min(10).max(1000),
   /** 0 or 90 — rotate frame to pack more on A4. */
   rotation: z.union([z.literal(0), z.literal(90)]).default(0),
-  /** Optional camera / elevation preset for view3d / elevation frames. */
-  view: z.enum(['orbit', 'audience', 'top', 'front', 'side', 'north', 'south', 'east', 'west']).optional(),
+  /** Camera / elevation preset matching StageView Kamerablick. */
+  view: reportViewSchema.optional(),
+  /** Plan crop: scenery = set pieces only; venue = full hall including audience. */
+  planScope: reportPlanScopeSchema.optional(),
   label: z.string().trim().max(80).optional(),
 });
 export type ReportFrame = z.infer<typeof reportFrameSchema>;
@@ -47,7 +65,13 @@ export const REPORT_A4_DRAWING_MM = { width: 180, height: 220 } as const;
 export function newReportFrame(id: string, kind: ReportFrameKind, extras?: Partial<ReportFrame>): ReportFrame {
   const defaults = kind === 'notes'
     ? { width: 180, height: 40, x: 0, y: 180 }
-    : { width: 90, height: 100, x: 0, y: 0 };
+    : kind === 'plan'
+      ? { width: 90, height: 100, x: 0, y: 0, planScope: 'scenery' as const, label: 'Grundriss Bühnenbild' }
+      : kind === 'view3d'
+        ? { width: 90, height: 100, x: 0, y: 0, view: 'orbit' as const }
+        : kind === 'elevation'
+          ? { width: 90, height: 100, x: 0, y: 0, view: 'front' as const }
+          : { width: 90, height: 100, x: 0, y: 0 };
   return {
     id, kind, rotation: 0, ...defaults, ...extras,
   };
@@ -61,9 +85,16 @@ export function newReportTemplate(id: string, name = 'Standardblatt'): ReportTem
     pages: [{
       id: globalThis.crypto.randomUUID(), name: 'Blatt 1', paper: 'a4',
       frames: [
-        newReportFrame(planId, 'plan', { x: 0, y: 0, width: 110, height: 160, label: 'Grundriss' }),
-        newReportFrame(viewId, 'view3d', { x: 115, y: 0, width: 65, height: 100, view: 'orbit', label: '3D' }),
-        newReportFrame(globalThis.crypto.randomUUID(), 'elevation', { x: 0, y: 165, width: 180, height: 50, view: 'front', label: 'Ansicht vorne' }),
+        newReportFrame(planId, 'plan', {
+          x: 0, y: 0, width: 110, height: 160,
+          planScope: 'scenery', label: 'Grundriss Bühnenbild',
+        }),
+        newReportFrame(viewId, 'view3d', {
+          x: 115, y: 0, width: 65, height: 100, view: 'orbit', label: 'Umlaufansicht',
+        }),
+        newReportFrame(globalThis.crypto.randomUUID(), 'elevation', {
+          x: 0, y: 165, width: 180, height: 50, view: 'front', label: 'Von vorne',
+        }),
       ],
     }],
   };
@@ -74,3 +105,5 @@ export function rotateReportFrame(frame: ReportFrame): ReportFrame {
   const next = frame.rotation === 0 ? 90 : 0;
   return { ...frame, rotation: next as 0 | 90, width: frame.height, height: frame.width };
 }
+
+export { planReportExtent, type PlanReportExtent, type PlanReportScope } from './planReportExtent.js';

@@ -2,9 +2,9 @@
 
 ## Visual report / package editor
 
-**Shipped (first slice):** `ReportComposer` in the Konstruktionsplan drawer — place plan / 3D / elevation frames on an A4 sheet, rotate 90°, delete frames, save/delete templates on the scene layout (`reportTemplates`).
+**Shipped:** `ReportComposer` — A4 frames from real editor views; plan crop defaults to **Bühnenbild** (no audience hall); 3D/elevation pick Kamerablick presets (Umlauf / oben / vorne / Seite); live plan preview in frames; rotate 90°; template save/reset.
 
-**Still open:** drive PDF freeze from the sheet layout; crop 2D content visually; rasterise real 3D frames into the pack.
+**Still open:** drive PDF freeze from the sheet layout; rasterise real 3D frames into the pack.
 
 ## Montagenummern GUI
 
