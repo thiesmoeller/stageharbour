@@ -2,7 +2,7 @@
 
 ## Visual report / package editor
 
-**Shipped:** `ReportComposer` lives on the **Spielstätte** (edit under Spielstätte → Blatt-Layout, then Speichern). Plan crop defaults to Bühnenbild; Kamerablick presets for 3D/elevation. Scene Konstruktionsplan links there. Venue PUT body limit raised; templates-only PATCH available.
+**Shipped:** Dedicated **Blatt-Layout** page (TechDraw-style) opened from Spielstätte → Blatt-Layout. Live readonly Grundriss + Raumsicht sources; insert frames onto A4; templates saved with the venue. Not embedded under the venue canvas.
 
 **Still open:** drive PDF freeze from the sheet layout; rasterise real 3D frames into the pack.
 

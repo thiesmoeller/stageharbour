@@ -193,10 +193,11 @@ select { font: inherit; width: 100%; padding: 8px; border: 1px solid #cbd3c8; bo
 .measure-caption { fill: #5a4630; font-weight: 600; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
 
-/* Report sheet composer */
+/* Report sheet composer (TechDraw-style dedicated page) */
 .report-composer { margin-top: 28px; padding-top: 22px; border-top: 1px solid #e0e5d8; }
 .report-composer-header h3 { margin-bottom: 6px; }
 .report-sheet { position: relative; width: min(100%, 360px); margin: 16px 0; background: #fff; border: 1px solid #c5cec4; box-shadow: 0 8px 24px #213d350a; }
+.report-sheet-large { width: min(100%, 520px); margin: 0 auto; }
 .report-frame { position: absolute; display: grid; place-items: center; margin: 0; padding: 0; overflow: hidden; border: 1px dashed #758170; background: #f8faf5; color: #214b40; font-size: .7rem; font-weight: 600; border-radius: 4px; }
 .report-frame .plan-preview { width: 100%; height: 100%; pointer-events: none; }
 .report-frame-caption { padding: 4px; text-align: center; }
@@ -210,3 +211,53 @@ select { font: inherit; width: 100%; padding: 8px; border: 1px solid #cbd3c8; bo
 .plan-preview-floor { fill: #eef2e8; stroke: #c5cebb; stroke-width: 20; }
 .plan-preview-platform { fill: #d5decc; stroke: #8a9480; stroke-width: 16; }
 .plan-preview-wall { fill: #315d49; stroke: #214b40; stroke-width: 8; }
+
+.report-sheet-editor {
+  display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: 0; flex: 1;
+  background: linear-gradient(180deg, #eef2ea 0%, #e4eae0 100%);
+  border-top: 1px solid #d0d8c8;
+}
+.report-sheet-editor-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px;
+  padding: 10px 16px; background: #f7f9f4; border-bottom: 1px solid #d5ddd0;
+}
+.report-sheet-editor-title h2 { margin: 0; font-size: 1.15rem; }
+.report-sheet-editor-title .eyebrow { margin: 0; }
+.report-sheet-name { display: grid; gap: 2px; font-size: .75rem; color: #5a6758; }
+.report-sheet-name input { min-width: 160px; }
+.report-sheet-hint { margin: 0; flex: 1 1 200px; }
+.report-sheet-workspace {
+  display: grid; grid-template-columns: minmax(280px, 38%) minmax(0, 1fr); gap: 0; min-height: 0; overflow: hidden;
+}
+.report-source-rail {
+  display: flex; flex-direction: column; gap: 12px; padding: 14px; overflow: auto;
+  border-right: 1px solid #d0d8c8; background: #f4f7f1;
+}
+.report-source-rail h3 { margin: 0; font-size: .95rem; }
+.report-source-card {
+  display: grid; gap: 8px; padding: 10px; border: 1px solid #cfd8c6; border-radius: 6px; background: #fff;
+}
+.report-source-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.report-source-card-head h4 { margin: 0; font-size: .85rem; }
+.report-source-plan { height: 180px; background: #eef2e8; border-radius: 4px; overflow: hidden; }
+.report-source-plan .plan-preview { width: 100%; height: 100%; }
+.report-source-stage {
+  height: 260px; border-radius: 4px; overflow: hidden; border: 1px solid #d0d8c8; background: #1a1f1c;
+}
+.report-source-stage .stage-view { height: 100%; min-height: 0; }
+.report-source-stage .stage-toolbar h3 { font-size: .75rem; }
+.report-source-stage .lighting-panel,
+.report-source-stage .stage-measurements,
+.report-source-stage > .muted { display: none; }
+.report-source-inserts { flex-wrap: wrap; gap: 6px; }
+.report-sheet-main {
+  display: flex; flex-direction: column; align-items: stretch; gap: 12px;
+  padding: 16px; overflow: auto; background: #e8ece4;
+}
+@media (max-width: 960px) {
+  .report-sheet-workspace { grid-template-columns: 1fr; }
+  .report-source-rail { border-right: 0; border-bottom: 1px solid #d0d8c8; max-height: 42vh; }
+}
+
+.venue-editor { display: flex; flex-direction: column; min-height: min(78vh, 920px); }
+.venue-editor .report-sheet-editor { flex: 1; min-height: 0; }

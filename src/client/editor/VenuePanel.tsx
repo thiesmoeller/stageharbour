@@ -40,8 +40,8 @@ import { ClipboardPanel } from './ClipboardPanel.js';
 import type { StageEditing } from './StageEditing.js';
 import { useViewportWheel } from './viewportWheel.js';
 import { ApiError, request, upload } from '../api.js';
-import { ReportComposer } from './ReportComposer.js';
-import { type ReportTemplate } from '../../shared/reportTemplate.js';
+import { ReportSheetEditor } from './ReportSheetEditor.js';
+import { newReportTemplate, type ReportTemplate } from '../../shared/reportTemplate.js';
 import { ToolIcon } from './ToolIcon.js';
 import { defaultLighting, type StageLightingSettings } from '../../shared/lighting.js';
 
@@ -94,10 +94,14 @@ type VenuePersistence = {
   onPublish: (venue: VenueGeometry) => Promise<void>;
 };
 
-export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, venueUpdateAvailable = false, readOnly, onSaved, onDirty, onPublish, onVenueRenamed }: {
+export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, venueUpdateAvailable = false, readOnly, onSaved, onDirty, onPublish, onVenueRenamed, sceneLayout, openSheetEditor = false }: {
   workspaceId: string; venue: VenueGeometry; venueUpdateAvailable?: boolean; readOnly: boolean;
   venueId?: string; venueName?: string; onVenueRenamed?: (update: { name: string; venueVersionId: string }) => void;
   onDirty?: (dirty: boolean) => void;
+  /** Current scene Bühnenbild — used as live source for Blatt-Layout views. */
+  sceneLayout?: Layout;
+  /** Open the TechDraw-style sheet editor immediately (e.g. from Konstruktionsplan). */
+  openSheetEditor?: boolean;
 } & VenuePersistence) {
   const draft = useDocumentDraft({
     lighting: venue.lighting ?? defaultLighting,
@@ -133,6 +137,8 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
   const [centreline, setCentreline] = draft.field('centreline');
   const [floorFinish, setFloorFinish] = draft.field('floorFinish');
   const [reportTemplates, setReportTemplates] = draft.field('reportTemplates');
+  const [sheetEditorOpen, setSheetEditorOpen] = useState(openSheetEditor);
+  useEffect(() => { if (openSheetEditor) setSheetEditorOpen(true); }, [openSheetEditor]);
   const [nameDraft, setNameDraft] = useState(venueName ?? '');
   const [click, setClick] = useState<ClickMode>('select');
   const [placeKind, setPlaceKind] = useState<PlaceKind>('wall');
@@ -767,16 +773,25 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
         </>}
         {venueUpdateAvailable && !readOnly && <button type="button" disabled={busy} onClick={() => void applyUpdate()}>Spielstättenfassung übernehmen</button>}
         {!readOnly && <SnapToggle enabled={snapEnabled} onChange={setSnapEnabled} />}
+        <button type="button" className="quiet" aria-pressed={sheetEditorOpen}
+          onClick={() => {
+            if (!sheetEditorOpen && !reportTemplates.length && !readOnly) {
+              setReportTemplates([newReportTemplate(crypto.randomUUID(), 'Standardblatt')]);
+            }
+            setSheetEditorOpen(open => !open);
+          }}>
+          {sheetEditorOpen ? 'Blatt-Layout schließen' : 'Blatt-Layout'}
+        </button>
         <span className={`save-status ${draft.dirty ? 'pending' : ''}`} role="status">{draft.dirty ? 'Unveröffentlichter Spielstättenentwurf' : 'Spielstättenfassung gespeichert'}</span>
       </div>
-      <div className="workspace-viewbar" role="toolbar" aria-label="Ansichten">
+      {!sheetEditorOpen && <div className="workspace-viewbar" role="toolbar" aria-label="Ansichten">
         <div className="view-modes">{(['split', 'plan', 'stage'] as const).map(mode => <button key={mode} type="button" className="quiet" aria-pressed={viewMode === mode} onClick={() => setViewMode(mode)}>{mode === 'split' ? '2D + 3D' : mode === 'plan' ? 'Grundriss' : 'Raumansicht'}</button>)}</div>
         <label className="split-control" hidden={viewMode !== 'split'}>Aufteilung<input aria-label="Ansichten aufteilen" type="range" min="30" max="70" value={viewShare} onChange={event => setViewShare(Number(event.target.value))} /></label>
       <button type="button" className="quiet" aria-expanded={inspectorOpen} onClick={() => setInspectorOpen(open => !open)} title={inspectorOpen ? 'Eigenschaften ausblenden' : 'Eigenschaften einblenden'} aria-label="Eigenschaften"><ToolIcon name="tray" /></button>
-      </div>
+      </div>}
     </div>
-    <div className="workspace-feedback" role="status">{snapStatus ?? ''}</div>
-    {!readOnly && <div className="tool-rail" role="toolbar" aria-label="Spielstättenwerkzeuge" inert={busyGesture()}>
+    {sheetEditorOpen ? null : <div className="workspace-feedback" role="status">{snapStatus ?? ''}</div>}
+    {!sheetEditorOpen && !readOnly && <div className="tool-rail" role="toolbar" aria-label="Spielstättenwerkzeuge" inert={busyGesture()}>
       <button type="button" className="quiet" aria-pressed={click === 'select'} onClick={() => { setClick('select'); setDrawingZone([]); setTrussDrawStart(undefined); setCurtainDrawStart(undefined); }} title="Auswählen" aria-label="Auswählen"><ToolIcon name="settings" /><span>Auswahl</span></button>
       <button type="button" className="quiet" aria-pressed={click === 'vertex'} onClick={() => setClick('vertex')} title="Eckpunkt auf eine Umrisskante setzen" aria-label="Eckpunkt hinzufügen"><ToolIcon name="plus" /><span>Eckpunkt</span></button>
       <button type="button" className="quiet" aria-pressed={click === 'place' && placeKind === 'wall'} disabled={walls.length >= 250} onClick={() => { setPlaceKind('wall'); setClick('place'); }} title="Feste Wand setzen" aria-label="Feste Wand setzen"><ToolIcon name="wall" /><span>Wand</span></button>
@@ -795,7 +810,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
       <button type="button" className="quiet" aria-pressed={click === 'draw-curtain'} disabled={curtains.length >= 250} onClick={() => { setCurtainDrawStart(undefined); setCurtainDrawHover(undefined); setTrussDrawStart(undefined); setClick('draw-curtain'); }} title="Molton zeichnen (Start und Ende)" aria-label="Molton zeichnen"><ToolIcon name="wall" /><span>Molton</span></button>
       <button type="button" className="quiet" aria-pressed={selectedIds.includes(CENTRELINE_SELECTION)} onClick={() => setSelectedIds([CENTRELINE_SELECTION])} title="Mittellinie wählen" aria-label="Mittellinie wählen"><ToolIcon name="settings" /><span>Mitte</span></button>
     </div>}
-    <div className="editor-grid" data-inspector-open={inspectorOpen}>
+    {!sheetEditorOpen && <div className="editor-grid" data-inspector-open={inspectorOpen}>
       <div className="editor-views venue-editor-views" data-mode={viewMode} style={viewMode === 'split' ? { gridTemplateColumns: `minmax(0, ${viewShare}fr) minmax(0, ${100 - viewShare}fr)` } : { gridTemplateColumns: 'minmax(0, 1fr)' }}>
         <div className="plan-canvas venue-plan" hidden={viewMode === 'stage'}
           data-underlay-drag={underlayDrag || undefined}
@@ -1278,7 +1293,15 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
           <fieldset disabled={readOnly || busy || busyGesture()}><CentrelineFields centreline={centreline} onChange={setCentreline} /></fieldset>
         </div></details>
       </aside>
-    </div>
+    </div>}
+    {sheetEditorOpen && <ReportSheetEditor
+      templates={reportTemplates}
+      layout={sceneLayout ?? liveLayout}
+      venue={previewVenue}
+      readOnly={readOnly}
+      onChange={setReportTemplates}
+      onClose={() => setSheetEditorOpen(false)}
+    />}
     <VenueUnderlayDialog
       open={underlayDialogOpen} overlay={overlay} page={page} pageCount={meta?.pageCount ?? null}
       rotationDeg={rotationDeg} calibration={calibration} busy={busy}
@@ -1287,23 +1310,16 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
       onConfirm={() => { setUnderlayDialogOpen(false); setZoom(1); setPan({ x: 0, y: 0 }); }}
     />
     {error && <p className="error" role="alert">{error}</p>}
-    <div className="workspace-statusbar">
+    {!sheetEditorOpen && <div className="workspace-statusbar">
       <span><span className="status-dot" />Spielstättenentwurf · {walls.length} feste Wände</span>
       <span className="status-hint">Ziehen zum Verschieben · Orange ↻ dreht · Entf löscht · {SNAP_NOTICE}</span>
       <button type="button" className="quiet" aria-expanded={helpOpen} onClick={() => setHelpOpen(open => !open)}><ToolIcon name="help" /> Bedienung</button>
       <span>Maße in mm</span>
-    </div>
-    {helpOpen && <div className="workspace-help"><h3>Spielstätte gestalten</h3>
+    </div>}
+    {helpOpen && !sheetEditorOpen && <div className="workspace-help"><h3>Spielstätte gestalten</h3>
       <p className="muted">Werkzeuge links setzen Objekte per Klick. Freihaltezonen und Traversen werden gezeichnet (Eckpunkte bzw. Start/Ende). Zoneneckpunkte ziehen. Einrasten wie im Bühnenbild (Alt umgeht). Zwei-Finger-Scroll oder Mittelklick verschieben · Pinch / Strg+Scroll zoomen.</p>
       <p>Entf entfernt die Auswahl. Traversen modellieren Hängehöhen für spätere Lichtplanung. Speichern schreibt eine neue Spielstättenfassung.</p>
     </div>}
-    <ReportComposer
-      templates={reportTemplates}
-      layout={liveLayout}
-      venue={previewVenue}
-      readOnly={readOnly}
-      onChange={setReportTemplates}
-    />
   </section>;
 }
 
