@@ -78,6 +78,10 @@ export const layoutSchema = z.strictObject({
   placeholders: placeholdersSchema.optional(),
   measureLines: measureLinesSchema.optional(),
   wallPictures: wallPicturesSchema.optional(),
+  /**
+   * @deprecated Prefer `venue.reportTemplates`. Kept optional so older scene layouts still parse;
+   * lift to the venue and strip on save.
+   */
   reportTemplates: reportTemplatesSchema.optional(),
   riggingNotes: z.string().max(2000).optional(),
   riggingSetupId: z.uuid().optional(),
@@ -121,6 +125,11 @@ export const venueGeometrySchema = z.strictObject({
   stageCentreline: stageCentrelineSchema.optional(),
   /** Pascal library material for the audience floor / venue footprint. */
   floorFinish: z.string().regex(/^library:[a-zA-Z0-9_-]+$/).max(180).optional(),
+  /**
+   * Construction-report sheet templates for this venue (views / crops).
+   * Shared by every play adapted to the venue — not per scene layout.
+   */
+  reportTemplates: reportTemplatesSchema.optional(),
 }).refine(venue => uniqueLevelIds(venue.platforms ?? [], venue.stairs ?? []), 'Platform and stair IDs must be unique');
 export type VenueGeometry = z.infer<typeof venueGeometrySchema>;
 export const saveVenueSchema = z.strictObject({ venue: venueGeometrySchema });

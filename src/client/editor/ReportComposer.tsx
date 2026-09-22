@@ -54,7 +54,7 @@ export function ReportComposer({
   return <section className="report-composer" data-testid="report-composer">
     <header className="report-composer-header">
       <h3>Blatt-Layout</h3>
-      <p className="muted">Rahmen aus den Editor-Ansichten — Grundriss standardmäßig ohne Publikum, 3D wie Kamerablick.</p>
+      <p className="muted">Vorlagen gehören zur Spielstätte — für jedes Stück dieselben Ansichten. Grundriss standardmäßig ohne Publikum.</p>
     </header>
     {!active ? <div className="form-actions">
       <button type="button" disabled={readOnly} onClick={() => onChange([newReportTemplate(crypto.randomUUID(), 'Standardblatt')])}>

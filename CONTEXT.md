@@ -31,6 +31,10 @@ A named, frozen record of a design and its venue information corresponding to an
 A location where the group stages a performance, with its own physical layout and constraints.
 _Avoid_: Location
 
+**Report template**:
+A reusable construction-sheet layout (plan crops and camera views on paper) that belongs to a **venue**. Every play adapted to that venue shares the same templates; only the stage design content changes per scene.
+_Avoid_: Scene template (that is a set-design starting point)
+
 **Venue version**:
 A saved record of a venue's layout and constraints that an adaptation uses until explicitly updated to a newer version.
 

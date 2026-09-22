@@ -13,10 +13,10 @@ import { EXAMPLE_CEILING_HEIGHT } from '../src/shared/overhead.js';
 import { parseRalCode, ralHex, RAL_PAINT_SWATCHES } from '../src/shared/ral.js';
 import { measureLineCaption, measureLineLength, newMeasureLine } from '../src/shared/measurements.js';
 import { newWallPicture } from '../src/shared/wallPictures.js';
-import { newReportTemplate, rotateReportFrame } from '../src/shared/reportTemplate.js';
+import { newReportTemplate, rotateReportFrame, liftReportTemplatesToVenue } from '../src/shared/reportTemplate.js';
 import { planReportExtent } from '../src/shared/planReportExtent.js';
 import { newPlaceholder } from '../src/shared/placeholders.js';
-import { layoutSchema } from '../src/shared/layout.js';
+import { layoutSchema, venueGeometrySchema } from '../src/shared/layout.js';
 
 test('mixedPropertyValue mirrors Figma mixed / shared / empty semantics', () => {
   assert.equal(mixedPropertyValue([]), '');
@@ -116,6 +116,22 @@ test('layout accepts measure lines, wall pictures, report templates and RAL', ()
   assert.equal(layout.wallPictures?.[0]!.note, 'Auf Angelschnur');
   assert.equal(layout.reportTemplates?.[0]!.pages[0]!.frames[0]!.kind, 'plan');
   assert.equal(layout.reportTemplates?.[0]!.pages[0]!.frames[0]!.planScope, 'scenery');
+});
+
+test('report templates lift from scene layout onto the venue', () => {
+  const template = newReportTemplate(randomUUID());
+  const layout: Layout = {
+    schemaVersion: 1, walls: [], braces: [], reportTemplates: [template],
+  };
+  const venue = { schemaVersion: 1 as const, width: 8000, depth: 6000 };
+  const lifted = liftReportTemplatesToVenue(layout, venue);
+  assert.equal(lifted.venue.reportTemplates?.[0]!.id, template.id);
+  assert.equal('reportTemplates' in lifted.layout, false);
+  const alreadyOnVenue = liftReportTemplatesToVenue(layout, { ...venue, reportTemplates: [newReportTemplate(randomUUID())] });
+  assert.notEqual(alreadyOnVenue.venue.reportTemplates?.[0]!.id, template.id);
+  assert.equal(venueGeometrySchema.parse({
+    schemaVersion: 1, width: 8000, depth: 6000, reportTemplates: [template],
+  }).reportTemplates?.[0]!.name, 'Standardblatt');
 });
 
 test('construction plan extent fits scenery and ignores audience chairs', () => {
