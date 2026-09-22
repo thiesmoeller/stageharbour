@@ -13,10 +13,25 @@ import { panelConnectionSchema } from './assembly.js';
 import { groupSchema, groupsReferenceLayout } from './groups.js';
 import { trussesSchema } from './truss.js';
 import { curtainsSchema } from './curtains.js';
+import { measureLinesSchema } from './measurements.js';
+import { wallPicturesSchema } from './wallPictures.js';
+import { reportTemplatesSchema } from './reportTemplate.js';
+import { RAL_CODE_PATTERN } from './ral.js';
 
 const name = z.string().trim().min(1).max(120);
 const dimension = z.number().finite().min(1).max(100000);
 const coordinate = z.number().finite().min(-100000).max(100000);
+const openPercent = z.number().finite().min(0).max(100);
+const ralCode = z.string().regex(RAL_CODE_PATTERN);
+
+/** Per-scene opening overrides for fixed venue soft goods and permanent doors. */
+export const venueFixtureStateSchema = z.strictObject({
+  curtains: z.array(z.strictObject({ id: z.uuid(), openPercent })).max(250).optional()
+    .refine(items => !items || new Set(items.map(item => item.id)).size === items.length, 'Curtain fixture IDs must be unique'),
+  doors: z.array(z.strictObject({ wallId: z.uuid(), doorOpenPercent: openPercent })).max(250).optional()
+    .refine(items => !items || new Set(items.map(item => item.wallId)).size === items.length, 'Door fixture wall IDs must be unique'),
+});
+export type VenueFixtureState = z.infer<typeof venueFixtureStateSchema>;
 export const wallSchema = z.strictObject({
   id: z.uuid(), label: name,
   x: coordinate, y: coordinate,
@@ -27,6 +42,10 @@ export const wallSchema = z.strictObject({
   supportingSurfaceId: z.uuid().optional(),
   assemblyNumber: z.number().int().positive().max(250).optional(),
   finish: z.string().regex(/^library:[a-zA-Z0-9_-]+$/).max(180).optional(),
+  /** Matte RAL wall paint on the audience-facing side. */
+  frontRal: ralCode.optional(),
+  /** Matte RAL wall paint on the back / Rahmen side. */
+  backRal: ralCode.optional(),
   /** Door leaf open amount for hinged openings on this wall (0 closed … 100 fully open). */
   doorOpenPercent: z.number().finite().min(0).max(100).optional(),
 });
@@ -57,8 +76,13 @@ export const layoutSchema = z.strictObject({
   connections: z.array(panelConnectionSchema).max(250).optional(),
   groups: z.array(groupSchema).max(250).optional(),
   placeholders: placeholdersSchema.optional(),
+  measureLines: measureLinesSchema.optional(),
+  wallPictures: wallPicturesSchema.optional(),
+  reportTemplates: reportTemplatesSchema.optional(),
   riggingNotes: z.string().max(2000).optional(),
   riggingSetupId: z.uuid().optional(),
+  /** Scene-only opening state for fixed venue curtains and permanent doors. */
+  venueFixtureState: venueFixtureStateSchema.optional(),
 }).refine(layout => {
   const ids = new Set((layout.wallTypes ?? []).map(type => type.id));
   return layout.walls.every(wall => !wall.typeId || ids.has(wall.typeId));
@@ -68,6 +92,9 @@ export const layoutSchema = z.strictObject({
   const ids = new Set(layout.walls.map(wall => wall.id));
   return (layout.connections ?? []).every(connection => ids.has(connection.a) && ids.has(connection.b));
 }, 'Connections must reference walls in the layout').refine(layout => {
+  const ids = new Set(layout.walls.map(wall => wall.id));
+  return (layout.wallPictures ?? []).every(picture => ids.has(picture.wallId));
+}, 'Wall pictures must reference walls in the layout').refine(layout => {
   const numbers = layout.walls.flatMap(wall => wall.assemblyNumber == null ? [] : [wall.assemblyNumber]);
   return new Set(numbers).size === numbers.length;
 }, 'Assembly numbers must be unique').refine(layout => {

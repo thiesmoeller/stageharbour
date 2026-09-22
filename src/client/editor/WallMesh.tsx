@@ -71,8 +71,27 @@ function DoorFittings({ wall, lit }: { wall: WallSolid; lit: boolean }) {
   </>;
 }
 
-export function WallMesh({ wall, lit = false, frontMaterial }: { wall: WallSolid; lit?: boolean; frontMaterial?: Material }) {
+export function WallMesh({ wall, lit = false, frontMaterial, frontColor, backColor }: {
+  wall: WallSolid; lit?: boolean; frontMaterial?: Material; frontColor?: string; backColor?: string;
+}) {
   const Surface = lit ? 'meshStandardMaterial' : 'meshBasicMaterial';
+  const paintProps = lit ? { roughness: 0.72, metalness: 0.02 } : {};
+  const front = frontColor
+    ? <Surface attach="material-5" color={frontColor} {...paintProps} />
+    : frontMaterial
+      ? <primitive object={frontMaterial} attach="material-5" dispose={null} />
+      : <Surface attach="material-5" color={plywood} {...(lit ? paintProps : {})} />;
+  const frontExtrude = frontColor
+    ? <Surface attach="material-1" color={frontColor} {...paintProps} />
+    : frontMaterial
+      ? <primitive object={frontMaterial} attach="material-1" dispose={null} />
+      : <Surface attach="material-1" color={plywood} {...(lit ? paintProps : {})} />;
+  const back = backColor
+    ? <Surface attach="material-4" color={backColor} {...paintProps} />
+    : <Surface attach="material-4" color={timber} />;
+  const backExtrude = backColor
+    ? <Surface attach="material-2" color={backColor} {...paintProps} />
+    : <Surface attach="material-2" color={timber} />;
   const geometry = useMemo(() => wall.openings.length ? wallGeometry(wall) : null, [wall.size.x, wall.size.y, wall.size.z, JSON.stringify(wall.openings)]);
   useLayoutEffect(() => () => { geometry?.dispose(); }, [geometry]);
   const body = !geometry
@@ -82,13 +101,13 @@ export function WallMesh({ wall, lit = false, frontMaterial }: { wall: WallSolid
       <Surface attach="material-1" color={edge} />
       <Surface attach="material-2" color={edge} />
       <Surface attach="material-3" color={edge} />
-      <Surface attach="material-4" color={timber} />
-      {frontMaterial ? <primitive object={frontMaterial} attach="material-5" dispose={null} /> : <Surface attach="material-5" color={plywood} />}
+      {back}
+      {front}
     </mesh>
     : <mesh castShadow={lit} receiveShadow={lit} geometry={geometry} position={[wall.center.x, wall.center.y, wall.center.z]} rotation={[0, wall.rotationY, 0]}>
       <Surface attach="material-0" color={edge} />
-      {frontMaterial ? <primitive object={frontMaterial} attach="material-1" dispose={null} /> : <Surface attach="material-1" color={plywood} />}
-      <Surface attach="material-2" color={timber} />
+      {frontExtrude}
+      {backExtrude}
     </mesh>;
   return <group>
     {body}

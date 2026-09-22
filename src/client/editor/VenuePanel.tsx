@@ -20,7 +20,8 @@ import { type OverheadBox, newOverheadBox, EXAMPLE_CEILING_HEIGHT } from '../../
 import { objectOverlapWarnings, overlappingObjectIds } from '../../shared/overlap.js';
 import { newPlaceholder, type Placeholder, type PlaceholderKind } from '../../shared/placeholders.js';
 import { trussFromSegment, type Truss } from '../../shared/truss.js';
-import { curtainFromSegment, type Curtain } from '../../shared/curtains.js';
+import { clampCurtainDrop, curtainFromSegment, type Curtain } from '../../shared/curtains.js';
+import { applyVenuePlatformFinish } from '../../shared/editing.js';
 import { defaultCentreline, planRotationAt, SNAP_NOTICE, snapStatusText, type SnapGuide, type StageCentreline } from '../../shared/snapping.js';
 import { CentrelineMark, AlignmentGuides, SnapToggle } from './SnapGuides.js';
 import { RotationHandle } from './RotationHandle.js';
@@ -335,7 +336,8 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
       const curtain = curtainFromSegment(crypto.randomUUID(), curtainDrawStart, point);
       setCurtainDrawStart(undefined); setCurtainDrawHover(undefined);
       if (!curtain || curtains.length >= 250) return;
-      setCurtains(current => [...current, curtain]); setSelectedIds([curtain.id]); setClick('select');
+      const clamped = clampCurtainDrop(curtain, { ceilingHeight: Number(ceilingHeight) || undefined, platforms, trusses });
+      setCurtains(current => [...current, clamped]); setSelectedIds([clamped.id]); setClick('select');
     }
 
   }
@@ -1077,8 +1079,15 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
                       onChange={event => updatePlatform({ [key]: Number(event.target.value) })} /></label>)}
                 </div>
                 <Suspense fallback={<p>Materialbibliothek wird geladen …</p>}>
-                  <MaterialPicker id="venue-platform-finish" value={platform.finish} onChange={value => updatePlatform({ finish: value || null })} />
+                  <MaterialPicker id="venue-platform-finish" value={platform.finish} onChange={value => {
+                    const finish = value || undefined;
+                    const ids = selectedIds.filter(id => platforms.some(item => item.id === id));
+                    const targets = ids.length > 1 ? ids : [platform.id];
+                    setPlatforms(items => applyVenuePlatformFinish(items, targets, finish));
+                  }} />
                 </Suspense>
+                {selectedIds.filter(id => platforms.some(item => item.id === id)).length > 1
+                  && <p className="muted">Oberfläche gilt für alle ausgewählten Podeste.</p>}
               </>;
             })()}
             {selectedObject?.kind === 'stair' && (() => {
@@ -1140,7 +1149,16 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
                 <label>Bezeichnung<input value={curtain.label} onChange={event => setCurtains(items => items.map(item => item.id === curtain.id ? { ...item, label: event.target.value } : item))} /></label>
                 {([['x', 'X'], ['y', 'Y'], ['rotation', 'Drehung'], ['length', 'Länge'], ['height', 'Fallhöhe'], ['bottomClearance', 'Bodenfreiheit']] as const).map(([key, label]) =>
                   <label key={key}>{label}<input aria-label={`${curtain.label} ${label}`} type="number" value={curtain[key]}
-                    onChange={event => setCurtains(items => items.map(item => item.id === curtain.id ? { ...item, [key]: Number(event.target.value) } : item))} /></label>)}
+                    onChange={event => {
+                      const value = Number(event.target.value);
+                      setCurtains(items => items.map(item => {
+                        if (item.id !== curtain.id) return item;
+                        return clampCurtainDrop({ ...item, [key]: value }, {
+                          ceilingHeight: Number(ceilingHeight) || undefined, platforms, trusses,
+                        });
+                      }));
+                    }} /></label>)}
+                <p className="muted">Fallhöhe hängt an Traverse/Decke und endet auf dem höchsten berührten Podest.</p>
                 <label>Öffnung %
                   <input aria-label={`${curtain.label} Öffnung`} type="number" min={0} max={100} value={curtain.openPercent}
                     onChange={event => setCurtains(items => items.map(item => item.id === curtain.id ? { ...item, openPercent: Number(event.target.value) } : item))} />
@@ -1264,7 +1282,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
       <span>Maße in mm</span>
     </div>
     {helpOpen && <div className="workspace-help"><h3>Spielstätte gestalten</h3>
-      <p className="muted">Werkzeuge links setzen Objekte per Klick. Freihaltezonen und Traversen werden gezeichnet (Eckpunkte bzw. Start/Ende). Zoneneckpunkte ziehen. Einrasten wie im Bühnenbild (Alt umgeht).</p>
+      <p className="muted">Werkzeuge links setzen Objekte per Klick. Freihaltezonen und Traversen werden gezeichnet (Eckpunkte bzw. Start/Ende). Zoneneckpunkte ziehen. Einrasten wie im Bühnenbild (Alt umgeht). Zwei-Finger-Scroll oder Mittelklick verschieben · Pinch / Strg+Scroll zoomen.</p>
       <p>Entf entfernt die Auswahl. Traversen modellieren Hängehöhen für spätere Lichtplanung. Speichern schreibt eine neue Spielstättenfassung.</p>
     </div>}
   </section>;

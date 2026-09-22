@@ -1,12 +1,30 @@
+import type { Plugin } from 'vite';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+
+/**
+ * Belt-and-suspenders with scripts/patch-pascal-webgl.mjs: if the viewer
+ * constructor is loaded as source, inject forceWebGL so native WebGPU
+ * createBuffer failures do not spam the console every frame.
+ */
+function pascalForceWebGlBackend(): Plugin {
+  const needle = 'new THREE.WebGPURenderer({ ...props, alpha: true })';
+  const replacement = 'new THREE.WebGPURenderer({ ...props, alpha: true, forceWebGL: true })';
+  return {
+    name: 'pascal-force-webgl-backend',
+    transform(code, id) {
+      if (!id.includes('@pascal-app/viewer') || !code.includes(needle)) return;
+      return { code: code.replaceAll(needle, replacement), map: null };
+    },
+  };
+}
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const webPort = Number(env.WEB_PORT || 5173);
   const apiPort = Number(env.PORT || 3000);
   return {
-    plugins: [react()],
+    plugins: [pascalForceWebGlBackend(), react()],
     // Pascal's published viewer uses this Next-style constant even outside Next.
     define: { 'process.env.NEXT_PUBLIC_ASSETS_CDN_URL': JSON.stringify('https://editor.pascal.app') },
     build: { outDir: 'dist/web', emptyOutDir: true },

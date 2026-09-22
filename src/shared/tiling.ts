@@ -6,15 +6,20 @@ export const DRAWING_SCALES = [25, 50, 100] as const;
 export type DrawingScale = (typeof DRAWING_SCALES)[number];
 export const PAGE_MARGIN_MM = 15;
 /** Drawing origin matches the original A4 1:50 header band. */
-export const PAGE_HEADER_MM = 48;
-export const PAGE_FOOTER_MM = 16;
+export const PAGE_HEADER_MM = 42;
+/** Reserved band below the drawing for legends and warnings (outside the clip). */
+export const PAGE_NOTES_MM = 38;
+export const PAGE_FOOTER_MM = 14;
 /** Shared printed band between adjacent tiles, in page millimetres. */
 export const PAGE_OVERLAP_MM = 20;
 export const REGISTRATION_MARK_MM = 5;
 
 export function drawingAreaMm(paper: PaperSize) {
   const size = PAPER_SIZE_MM[paper];
-  return { width: size.width - 2 * PAGE_MARGIN_MM, height: size.height - PAGE_HEADER_MM - PAGE_FOOTER_MM };
+  return {
+    width: size.width - 2 * PAGE_MARGIN_MM,
+    height: size.height - PAGE_HEADER_MM - PAGE_NOTES_MM - PAGE_FOOTER_MM,
+  };
 }
 
 export type PlanTile = {

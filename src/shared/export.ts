@@ -5,10 +5,14 @@ import { overheadClearance, overheadWarningsSchema } from './overhead.js';
 import { keepClearWarningSchema, keepClearWarnings } from './keepClear.js';
 import { placeholderCorners, placeholderKindSchema } from './placeholders.js';
 import { resolveWall } from './wall-types.js';
+import { withVenueFixtureOpenings } from './venueFixtures.js';
+import { defaultExportLayers, exportLayersSchema, resolveExportLayers, type ExportLayers } from './exportLayers.js';
 import type { DrawingScale, PaperSize } from './tiling.js';
 
 export { planTiles, PAGE_OVERLAP_MM, REGISTRATION_MARK_MM, drawingAreaMm } from './tiling.js';
 export type { DrawingScale, PaperSize, PlanTile } from './tiling.js';
+export { defaultExportLayers, exportLayersSchema, resolveExportLayers, EXPORT_LAYER_OPTIONS } from './exportLayers.js';
+export type { ExportLayers } from './exportLayers.js';
 
 const name = z.string().trim().min(1).max(120);
 const point = z.strictObject({ x: z.number().finite(), y: z.number().finite() });
@@ -20,6 +24,7 @@ export const exportStatusSchema = z.enum(['pending', 'ready', 'failed']);
 export const freezeExportSchema = z.strictObject({
   name, paper: paperSizeSchema.optional().default('A4'), scale: drawingScaleSchema.optional().default(DRAWING_SCALE),
   elevationGroupIds: z.array(z.uuid()).max(250).optional().default([]),
+  layers: exportLayersSchema.partial().optional(),
 });
 export const constructionSnapshotSchema = z.strictObject({
   schemaVersion: z.literal(1),
@@ -33,6 +38,7 @@ export const constructionSnapshotSchema = z.strictObject({
   venue: venueGeometrySchema,
   layout: layoutSchema,
   elevationGroupIds: z.array(z.uuid()).max(250).default([]),
+  layers: exportLayersSchema.default(defaultExportLayers),
   resolvedWalls: z.array(z.strictObject({
     id: z.uuid(), label: name,
     assemblyNumber: z.number().int().positive().max(250).optional(),
@@ -65,13 +71,30 @@ export const exportRevisionSchema = z.object({
 export type ExportRevision = z.infer<typeof exportRevisionSchema>;
 export const exportListSchema = z.array(exportRevisionSchema);
 
+export const exportPreviewSchema = z.strictObject({
+  paper: paperSizeSchema.optional().default('A4'),
+  scale: drawingScaleSchema.optional().default(DRAWING_SCALE),
+  elevationGroupIds: z.array(z.uuid()).max(250).optional().default([]),
+  layers: exportLayersSchema.partial().optional(),
+});
+export const exportPreviewResultSchema = z.strictObject({
+  pageCount: z.number().int().positive(),
+  planPages: z.number().int().nonnegative(),
+  elevationPages: z.number().int().nonnegative(),
+  notesPages: z.number().int().nonnegative(),
+  tiles: z.number().int().nonnegative(),
+});
+
 export function freezeSnapshot(
   scene: Scene,
-  revision: { id: string; name: string; issuedAt: Date; paper?: PaperSize; scale?: DrawingScale; elevationGroupIds?: string[] },
+  revision: {
+    id: string; name: string; issuedAt: Date; paper?: PaperSize; scale?: DrawingScale;
+    elevationGroupIds?: string[]; layers?: Partial<ExportLayers>;
+  },
   panelLabels: Readonly<Record<string, string>> = {},
 ): ConstructionSnapshot {
-  const venue = structuredClone(scene.venue);
   const layout = structuredClone(scene.layout);
+  const venue = withVenueFixtureOpenings(structuredClone(scene.venue), layout);
   const knownGroups = new Set((layout.groups ?? []).map(group => group.id));
   const elevationGroupIds = [...new Set(revision.elevationGroupIds ?? [])].filter(id => knownGroups.has(id));
   return {
@@ -79,6 +102,7 @@ export function freezeSnapshot(
     revisionId: revision.id, revisionName: revision.name, issuedAt: revision.issuedAt.toISOString(),
     productionName: scene.productionName, venueName: scene.venueName, sceneName: scene.name,
     venueVersionId: scene.venueVersionId, venue, layout, elevationGroupIds,
+    layers: resolveExportLayers(revision.layers),
     warnings: overheadClearance(layout, venue),
     resolvedWalls: scene.layout.walls.map(wall => {
       const resolved = resolveWall(wall, scene.layout.wallTypes ?? []);

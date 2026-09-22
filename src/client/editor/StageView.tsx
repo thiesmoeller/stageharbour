@@ -8,6 +8,7 @@ import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
 import { WallMesh } from './WallMesh.js';
 import type { Layout, VenueGeometry } from '../../shared/layout.js';
 import { stageModel, type Vec3, type WallSolid } from '../../shared/transforms.js';
+import { effectiveCurtains } from '../../shared/venueFixtures.js';
 import { StageBraceList, StageBraces } from './StageBraces.js';
 import { StageLevelList, StageLevels } from './StageLevels.js';
 import { StageOverhead, StageOverheadList } from './StageOverhead.js';
@@ -42,6 +43,7 @@ function LookFromAudience({ position, target }: { position: Vec3; target: Vec3 }
 
 export function StageView({ layout, venue, assets = [], workspaceId = '', onLightingChange, ...editing }: { layout: Layout; venue: VenueGeometry; assets?: Asset[]; workspaceId?: string; onLightingChange?: (value: StageLightingSettings) => void } & StageEditing) {
   const model = stageModel(layout, venue);
+  const curtains = effectiveCurtains(venue, layout);
   const lighting = layout.lighting ?? venue.lighting ?? defaultLighting;
   const [view, setView] = useState<StageCameraView>('orbit');
   const audience = view === 'audience';
@@ -76,7 +78,7 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
             </mesh>
             <StageLevels model={model} lit={lighting.enabled} />
             <StageOverhead boxes={venue.overheadBoxes ?? []} trusses={venue.trusses ?? []} />
-            <StageCurtains curtains={venue.curtains ?? []} />
+            <StageCurtains curtains={curtains} />
             {model.walls.map(wall => <WallMesh key={wall.id} wall={wall} lit={lighting.enabled} />)}
             <StageBraces braces={model.braces} lit={lighting.enabled} />
             <StagePlaceholders placeholders={model.placeholders} lit={lighting.enabled} />
@@ -98,7 +100,7 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
     <StagePlaceholderList placeholders={model.placeholders} />
     <StageLevelList model={model} />
     <StageOverheadList boxes={venue.overheadBoxes ?? []} trusses={venue.trusses ?? []} />
-    <StageCurtainList curtains={venue.curtains ?? []} />
+    <StageCurtainList curtains={curtains} />
     </details>
   </div>;
 }

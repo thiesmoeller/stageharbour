@@ -4,12 +4,13 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { errorSchema, workspaceParamsSchema } from '../../shared/contracts.js';
-import { constructionSnapshotSchema, exportListSchema, exportRevisionSchema, freezeExportSchema, freezeSnapshot, type ConstructionSnapshot, type ExportRevision } from '../../shared/export.js';
+import { constructionSnapshotSchema, exportListSchema, exportPreviewResultSchema, exportPreviewSchema, exportRevisionSchema, freezeExportSchema, freezeSnapshot, type ConstructionSnapshot, type ExportRevision } from '../../shared/export.js';
 import { sceneSchema } from '../../shared/layout.js';
 import type { Database } from '../db/connection.js';
 import { adaptation, constructionPlanRevision, inventoryPanel, production, scene, venue, venueVersion } from '../db/schema.js';
 import { AccessError, type createAccess } from '../identity/access.js';
 import type { FileStorage } from './storage.js';
+import { constructionPageBreakdown } from './pdf.js';
 
 export function registerExportRoutes(
   app: FastifyInstance, db: Database, access: ReturnType<typeof createAccess>, origin: string,
@@ -77,7 +78,7 @@ export function registerExportRoutes(
     const issuedAt = new Date();
     const snapshot = freezeSnapshot(loaded, {
       id, name: request.body.name, issuedAt, paper: request.body.paper, scale: request.body.scale,
-      elevationGroupIds: request.body.elevationGroupIds,
+      elevationGroupIds: request.body.elevationGroupIds, layers: request.body.layers,
     }, await panelLabels(
       request.params.workspaceId, loaded.layout.walls.flatMap(wall => wall.panelId ? [wall.panelId] : []),
     ));
@@ -88,6 +89,18 @@ export function registerExportRoutes(
     await produce({ id, workspaceId: request.params.workspaceId, sceneId: request.params.sceneId, name: request.body.name,
       scale: snapshot.scale, status: 'pending', snapshot, storageKey: null, createdAt: issuedAt });
     return reply.code(201).send(asRevision(await loadRevision(request.params.workspaceId, request.params.sceneId, id)));
+  });
+  api.post(`${path}/preview`, { schema: { params, body: exportPreviewSchema, response: { 200: exportPreviewResultSchema, ...errors } } }, async request => {
+    await access(request, request.params.workspaceId);
+    const loaded = await loadScene(request.params.workspaceId, request.params.sceneId);
+    const snapshot = freezeSnapshot(loaded, {
+      id: randomUUID(), name: 'Vorschau', issuedAt: new Date(),
+      paper: request.body.paper, scale: request.body.scale,
+      elevationGroupIds: request.body.elevationGroupIds, layers: request.body.layers,
+    }, await panelLabels(
+      request.params.workspaceId, loaded.layout.walls.flatMap(wall => wall.panelId ? [wall.panelId] : []),
+    ));
+    return constructionPageBreakdown(snapshot);
   });
   api.post(`${path}/:exportId/retry`, { schema: { params: item, response: { 200: exportRevisionSchema, ...errors } } }, async (request, reply) => {
     if (request.headers.origin !== origin) throw new AccessError(403, 'Ungültiger Ursprung.');
@@ -102,7 +115,12 @@ export function registerExportRoutes(
     const row = await loadRevision(request.params.workspaceId, request.params.sceneId, request.params.exportId);
     if (row.status !== 'ready' || !row.storageKey) return reply.code(409).send({ message: 'Diese Fassung ist noch nicht als PDF verfügbar.' });
     return reply.type('application/pdf')
-      .header('Content-Disposition', `attachment; filename="konstruktionsplan-${row.id}.pdf"`)
+      .header('Content-Disposition', `attachment; filename="${safeDownloadName(row.name, row.id)}.pdf"`)
       .send(await storage.get(row.storageKey));
   });
+}
+
+function safeDownloadName(name: string, id: string) {
+  const base = name.replace(/[^\wÄÖÜäöüß\-]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 60);
+  return `konstruktionsplan-${base || id.slice(0, 8)}`;
 }

@@ -3,6 +3,7 @@ import type { GroupMemberKind } from './groups.js';
 import { keepClearWarnings, type KeepClearWarning } from './keepClear.js';
 import type { Layout, VenueGeometry } from './layout.js';
 import { overheadClearance, type OverheadWarning } from './overhead.js';
+import { pruneVenueFixtureState } from './venueFixtures.js';
 
 /**
  * Whole-scene clone for another scene in the same production. Placement records
@@ -124,7 +125,7 @@ export function copyLayoutIntoVenue(
     riggingSetupId: nextId(),
   };
   return {
-    layout: adapted,
+    layout: pruneVenueFixtureState(adapted, destination),
     unresolvedSupport: layoutDiagnostics(adapted, destination),
     warnings: overheadClearance(adapted, destination),
     unresolvedWarnings: keepClearWarnings(destination, adapted),
@@ -163,7 +164,7 @@ export function applyVenueVersion(layout: Layout, destination: VenueGeometry): A
     placeholders: layout.placeholders?.map(item => ({ ...item, supportingSurfaceId: mappedSupport(item.supportingSurfaceId) })),
   };
   return {
-    layout: adapted,
+    layout: pruneVenueFixtureState(adapted, destination),
     unresolvedSupport: layoutDiagnostics(adapted, destination),
     warnings: overheadClearance(adapted, destination),
     unresolvedWarnings: keepClearWarnings(destination, adapted),

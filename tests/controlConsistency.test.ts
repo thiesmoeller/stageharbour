@@ -68,10 +68,14 @@ test('scene resizing changes the selected placeholder and preserves permanent pl
   assert.deepEqual(permanent.platforms, [platform]);
 });
 
-test('zoom keeps the pointer anchored and Shift-wheel pans in plan units', () => {
+test('zoom keeps the pointer anchored and wheel pans in plan units', () => {
   const view = { zoom: 1, pan: { x: 50, y: 100 }, centre: { x: 4000, y: 3000 } };
   const cursor = { x: 2000, y: 1500 };
   const zoomed = navigatePlan({ ctrlKey: true, metaKey: false, shiftKey: false, deltaX: 0, deltaY: -100 }, view, cursor)!;
   for (const key of ['x', 'y'] as const) assert(Math.abs((cursor[key] - view.centre[key] - zoomed.pan[key]) * zoomed.zoom - (cursor[key] - view.centre[key] - view.pan[key])) < 1e-8);
   assert.deepEqual(navigatePlan({ ctrlKey: false, metaKey: false, shiftKey: true, deltaX: 10, deltaY: 20 }, view, cursor), { zoom: 1, pan: { x: 70, y: 60 } });
+  assert.deepEqual(navigatePlan({ ctrlKey: false, metaKey: false, shiftKey: false, deltaX: 10, deltaY: 20 }, view, cursor), { zoom: 1, pan: { x: 70, y: 60 } });
+  const bare = navigatePlan({ ctrlKey: false, metaKey: false, shiftKey: false, deltaX: 0, deltaY: -40 }, view, cursor)!;
+  assert.equal(bare.zoom, 1);
+  assert.notEqual(bare.pan.y, view.pan.y);
 });

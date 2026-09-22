@@ -10,7 +10,7 @@ export const SNAP_DISTANCE_MM = 100;
 /** Degrees. Rotation closer than this to a common layout angle snaps onto that angle. */
 export const SNAP_ANGLE_DEG = 2.5;
 /** Padding beyond participating edges when drawing a wall-edge alignment guide. */
-export const GUIDE_PADDING_MM = 2000;
+export const GUIDE_PADDING_MM = 500;
 /** Fractions along the front edge for point snaps (1:3, 1:2, 2:3 plus ends). Short sides use ends only. */
 export const SNAP_EDGE_FRACTIONS = [0, 1 / 3, 1 / 2, 2 / 3, 1] as const;
 /** Common layout-design angles in degrees. Mirroring is out of scope. */
@@ -322,8 +322,10 @@ export function wallFaceAnchors(wall: SnapWall): PlanPoint[] {
   return points;
 }
 
+const ANCHOR_MARK_MM = 35;
+
 function anchorGuide(point: PlanPoint): SnapGuide {
-  return { kind: 'wall-anchor', a: { x: point.x - 120, y: point.y }, b: { x: point.x + 120, y: point.y } };
+  return { kind: 'wall-anchor', a: { x: point.x - ANCHOR_MARK_MM, y: point.y }, b: { x: point.x + ANCHOR_MARK_MM, y: point.y } };
 }
 
 export function translationFor(moving: SnapWall[], others: SnapWall[], centreline: StageCentreline | undefined, extraPoint?: PlanPoint) {
@@ -381,7 +383,7 @@ function alignmentGuides(moving: SnapWall[], others: SnapWall[], centreline: Sta
         for (const target of wallFaceAnchors(other)) {
           if (Math.hypot(target.x - movingPoint.x, target.y - movingPoint.y) <= SNAP_DISTANCE_MM) {
             add(anchorGuide(target));
-            add({ kind: 'wall-anchor', a: { x: target.x, y: target.y - 120 }, b: { x: target.x, y: target.y + 120 } });
+            add({ kind: 'wall-anchor', a: { x: target.x, y: target.y - ANCHOR_MARK_MM }, b: { x: target.x, y: target.y + ANCHOR_MARK_MM } });
           }
         }
       }

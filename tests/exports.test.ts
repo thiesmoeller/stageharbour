@@ -489,3 +489,31 @@ test('a 90° group elevation at 1:50 draws 24 mm widths and 48 mm heights on ext
   assert((elevations[0]?.lengths ?? []).some(length => Math.abs(length - 16) < 0.05), '800 mm opening is 16 mm');
   assert((elevations[0]?.lengths ?? []).some(length => Math.abs(length - 40) < 0.05), '2000 mm opening is 40 mm');
 });
+
+test('export layers omit soft goods and still report matching page counts', async () => {
+  const { constructionPageBreakdown, renderConstructionPlan } = await import('../src/server/exports/pdf.js');
+  const curtainId = randomUUID();
+  const wall = newWall(randomUUID(), 2000, 3000);
+  const snapshot = freezeSnapshot({
+    id: randomUUID(), name: 'Ebenenprobe', productionName: 'Beispielproduktion', venueName: 'Beispielsaal',
+    revision: 1, productionId: randomUUID(), venueId: randomUUID(), venueVersionId: randomUUID(),
+    venue: {
+      schemaVersion: 1, width: 8000, depth: 6000,
+      curtains: [{
+        id: curtainId, label: 'Hauptvorhang', x: 4000, y: 5000, rotation: 0,
+        length: 6000, height: 4000, bottomClearance: 0, openPercent: 0, opening: 'traveler',
+      }],
+    },
+    lease: null, layout: { schemaVersion: 1, walls: [wall], braces: [] },
+  }, {
+    id: randomUUID(), name: 'Ohne Softgoods', issuedAt: new Date('2026-09-07T12:00:00.000Z'),
+    layers: { softGoods: false, dimensions: false },
+  });
+  assert.equal(snapshot.layers.softGoods, false);
+  const breakdown = constructionPageBreakdown(snapshot);
+  assert.equal(breakdown.planPages, 1);
+  assert.equal(breakdown.pageCount, breakdown.planPages + breakdown.elevationPages + breakdown.notesPages);
+  const text = shownText(await renderConstructionPlan(snapshot));
+  assert(!text.includes('Hauptvorhang'), text);
+  assert(text.includes('Hinweise'), text);
+});

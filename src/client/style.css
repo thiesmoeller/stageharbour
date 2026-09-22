@@ -42,7 +42,7 @@ g.plan-overlap > rect, g.plan-overlap > path, g.plan-overlap > polygon {
 }
 g.plan-overlap text { fill: #7a2a1c; }
 .placing-wall.plan-overlap { opacity: .8; }
-.selection-marquee { fill: rgba(182, 124, 53, 0.14); stroke: #b67c35; stroke-width: 2; stroke-dasharray: 80 50; vector-effect: non-scaling-stroke; }
+.selection-marquee { fill: rgba(182, 124, 53, 0.08); stroke: #b67c35; stroke-width: 1.5; stroke-dasharray: 12 8; vector-effect: non-scaling-stroke; }
 .wall-inspector h3 { margin-top: 0; }
 .wall-inspector h4 { margin: 16px 0 8px; font-size: .85rem; }
 .wall-types { margin-bottom: 22px; padding-bottom: 18px; border-bottom: 1px solid #e0e5d8; }
@@ -91,6 +91,11 @@ select { font: inherit; width: 100%; padding: 8px; border: 1px solid #cbd3c8; bo
 .export-panel .elevation-groups p { margin: 4px 0 0; font-size: .8rem; font-weight: 600; }
 .export-panel .elevation-groups label { display: flex; align-items: center; gap: 8px; font-size: .8rem; }
 .export-panel .elevation-groups input { width: auto; }
+.export-layers { flex: 1 1 100%; display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 6px 12px; margin: 4px 0 0; padding: 10px 12px; border: 1px dashed #d0d7c8; border-radius: 8px; background: #f3f6ef; }
+.export-layers-title { grid-column: 1 / -1; margin: 0; font-size: .8rem; font-weight: 600; }
+.export-layers label { display: flex; align-items: center; gap: 8px; font-size: .78rem; font-weight: 500; margin: 0; }
+.export-layers input { width: auto; }
+.export-preview { flex: 1 1 100%; margin: 4px 0 0; padding: 8px 10px; border-radius: 6px; background: #eef3e8; color: #395640; font-size: .8rem; font-weight: 600; }
 .export-list { list-style: none; padding: 0; margin: 12px 0 0; }
 .export-list li { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid #e0e5d8; font-size: .85rem; }
 .export-list span { color: #526c4a; }
@@ -172,3 +177,29 @@ select { font: inherit; width: 100%; padding: 8px; border: 1px solid #cbd3c8; bo
 }
 .stage-toolbar button, .render-toolbar button { padding: .35rem .5rem; font-size: .8rem; }
 .stage-toolbar, .render-toolbar { gap: .35rem; }
+
+/* RAL paint chips (scenic catalogue) */
+.ral-picker { margin: 14px 0; }
+.ral-picker-label { display: block; font-size: .83rem; font-weight: 600; margin-bottom: 8px; }
+.ral-swatches { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.ral-swatch { width: 28px; height: 28px; padding: 0; border-radius: 6px; border: 1px solid #c5cec4; box-shadow: inset 0 0 0 1px #0001; }
+.ral-swatch.is-selected { outline: 2px solid #214b40; outline-offset: 2px; }
+.ral-swatch-none { background: #f8faf5; color: #758170; font-size: .75rem; }
+.ral-mixed { font-size: .75rem; color: #758170; margin-right: 4px; }
+.bulk-selection-hint { background: #eef3ea; border: 1px solid #d5decc; border-radius: 6px; padding: 10px 12px; }
+.assembly-number { fill: #214b40; }
+.measure-line { stroke: #986122; stroke-width: 3; vector-effect: non-scaling-stroke; }
+.measure-end { fill: #986122; }
+.measure-caption { fill: #5a4630; font-weight: 600; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+
+/* Report sheet composer */
+.report-composer { margin-top: 28px; padding-top: 22px; border-top: 1px solid #e0e5d8; }
+.report-composer-header h3 { margin-bottom: 6px; }
+.report-sheet { position: relative; width: min(100%, 360px); margin: 16px 0; background: #fff; border: 1px solid #c5cec4; box-shadow: 0 8px 24px #213d350a; }
+.report-frame { position: absolute; display: grid; place-items: center; margin: 0; padding: 4px; border: 1px dashed #758170; background: #f8faf5cc; color: #214b40; font-size: .7rem; font-weight: 600; border-radius: 4px; }
+.report-frame.is-selected { border-style: solid; border-color: #214b40; background: #e9f0e4; }
+.report-frame-view3d { background: #e8eef8cc; }
+.report-frame-elevation { background: #f5efe6cc; }
+.report-frame-rot { position: absolute; top: 2px; right: 4px; font-size: .6rem; opacity: .7; }
+.report-composer-tools { margin-top: 8px; }

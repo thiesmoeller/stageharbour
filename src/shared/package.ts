@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { freezeExportSchema, freezeSnapshot, constructionSnapshotSchema, DRAWING_SCALE, type ConstructionSnapshot } from './export.js';
+import type { ExportLayers } from './exportLayers.js';
 import { inventoryPanelSchema, inventoryWarnings, type InventoryPanel } from './inventory.js';
 import { keepClearWarningSchema } from './keepClear.js';
 import type { Scene } from './layout.js';
@@ -146,7 +147,10 @@ function stockFrom(lists: readonly ScenePartsList[], panels: readonly InventoryP
 
 export function freezePackage(
   scenes: readonly Scene[],
-  revision: { id: string; name: string; issuedAt: Date; paper?: PaperSize; scale?: DrawingScale; elevationGroupIds?: string[] },
+  revision: {
+    id: string; name: string; issuedAt: Date; paper?: PaperSize; scale?: DrawingScale;
+    elevationGroupIds?: string[]; layers?: Partial<ExportLayers>;
+  },
   panels: readonly InventoryPanel[] = [],
 ): ConstructionPackage {
   if (!scenes.length) throw new Error('A package needs at least one scene.');
