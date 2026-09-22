@@ -7,6 +7,7 @@ import { errorSchema, okSchema, venueReferenceSchema, workspaceParamsSchema } fr
 import {
   applyVenueResultSchema, saveVenueResultSchema, saveVenueSchema, venueGeometrySchema, type Layout, type VenueGeometry,
 } from '../../shared/layout.js';
+import { saveReportTemplatesSchema } from '../../shared/reportTemplate.js';
 import { applyVenueVersion } from '../../shared/scenes.js';
 import { createVenueSchema, publishVenueSchema, renameVenueSchema, venueListSchema, venueRecordSchema } from '../../shared/venueLibrary.js';
 import { boundsFromOutline } from '../../shared/venue.js';
@@ -217,7 +218,10 @@ export function registerVenueRoutes(
     if (!updated) throw new AccessError(404, 'Spielstätte nicht verfügbar.');
     return loadVenue(db, workspaceId, venueId);
   });
-  api.put(`${venuesPath}/:venueId`, { schema: { params: venueParams, body: publishVenueSchema, response: { 200: venueRecordSchema, ...errors } } }, async request => {
+  api.put(`${venuesPath}/:venueId`, {
+    bodyLimit: 256 * 1024,
+    schema: { params: venueParams, body: publishVenueSchema, response: { 200: venueRecordSchema, ...errors } },
+  }, async request => {
     const { workspaceId, venueId } = request.params;
     const { user } = await requireEditor(request, workspaceId);
     await validateReference(workspaceId, request.body.venue);
@@ -234,6 +238,7 @@ export function registerVenueRoutes(
     });
   });
   api.put('/api/workspaces/:workspaceId/scenes/:sceneId/venue', {
+    bodyLimit: 256 * 1024,
     schema: { params: sceneParams, body: saveVenueSchema, response: { 200: saveVenueResultSchema, ...errors } },
   }, async request => {
     const { workspaceId, sceneId } = request.params;
@@ -249,6 +254,31 @@ export function registerVenueRoutes(
       const nextId = randomUUID();
       // Auto-apply the issuing adaptation so VenuePanel reload after save shows
       // the new version. Sibling adaptations remain on the previous pin.
+      await tx.insert(venueVersion).values({ id: nextId, workspaceId, venueId: pinned.venueId, geometry, createdAt: sql`clock_timestamp()` });
+      const applied = await retargetAdaptation(tx, workspaceId, pinned.adaptationId, nextId, geometry, user.id);
+      const state = applied.get(sceneId)!;
+      return { venue: geometry, venueVersionId: nextId, layout: state.layout, revision: state.revision };
+    });
+  });
+  api.patch('/api/workspaces/:workspaceId/scenes/:sceneId/venue/report-templates', {
+    schema: {
+      params: sceneParams,
+      body: saveReportTemplatesSchema,
+      response: { 200: saveVenueResultSchema, ...errors },
+    },
+  }, async request => {
+    const { workspaceId, sceneId } = request.params;
+    const { user } = await requireEditor(request, workspaceId);
+    return db.transaction(async tx => {
+      const pinned = await loadPinned(tx, workspaceId, sceneId);
+      await leases.requireAvailable(tx, workspaceId, 'venue', pinned.venueId, user.id);
+      await leases.requireHeld(tx, workspaceId, 'scene', sceneId, user.id);
+      await tx.select({ id: venue.id }).from(venue).where(eq(venue.id, pinned.venueId)).for('update');
+      const geometry: VenueGeometry = {
+        ...venueGeometrySchema.parse(pinned.geometry),
+        reportTemplates: request.body.reportTemplates,
+      };
+      const nextId = randomUUID();
       await tx.insert(venueVersion).values({ id: nextId, workspaceId, venueId: pinned.venueId, geometry, createdAt: sql`clock_timestamp()` });
       const applied = await retargetAdaptation(tx, workspaceId, pinned.adaptationId, nextId, geometry, user.id);
       const state = applied.get(sceneId)!;
