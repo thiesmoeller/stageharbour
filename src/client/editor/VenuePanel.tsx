@@ -471,6 +471,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
       ...(ceilingHeight === '' ? {} : { ceilingHeight }),
       overheadBoxes, trusses, curtains, keepClearZones: zones, stageCentreline: centreline,
       ...(floorFinish ? { floorFinish } : {}),
+      ...(venue.reportTemplates?.length ? { reportTemplates: venue.reportTemplates } : {}),
     });
     if (!result.success) { setError('Bitte prüfen Sie den Umriss, die Kalibrierung, die Anschlüsse und die Überbauungen.'); return; }
     const toSave = reassignVenueSupports(result.data);
@@ -525,6 +526,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
   const candidate = venueGeometrySchema.safeParse({ ...venue, lighting, outline: vertices, walls, platforms, stairs, placeholders, overheadBoxes, trusses, curtains,
     ceilingHeight: ceilingHeight === '' ? undefined : ceilingHeight, keepClearZones: zones, connectionPoints: pins, cableRoutingCorridors: corridors, stageCentreline: centreline,
     ...(floorFinish ? { floorFinish } : { floorFinish: undefined }),
+    ...(venue.reportTemplates?.length ? { reportTemplates: venue.reportTemplates } : { reportTemplates: undefined }),
   });
   const previewVenue = candidate.success ? reassignVenueSupports(candidate.data) : venue;
   // Placeholders stay on the venue only; putting them on the layout too duplicates chairs in 3D.

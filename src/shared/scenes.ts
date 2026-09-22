@@ -4,6 +4,7 @@ import { keepClearWarnings, type KeepClearWarning } from './keepClear.js';
 import type { Layout, VenueGeometry } from './layout.js';
 import { overheadClearance, type OverheadWarning } from './overhead.js';
 import { pruneVenueFixtureState } from './venueFixtures.js';
+import { stripLayoutReportTemplates } from './reportTemplate.js';
 
 /**
  * Whole-scene clone for another scene in the same production. Placement records
@@ -32,7 +33,7 @@ export function duplicateLayout(layout: Layout, nextId: () => string): Layout {
     if (id === AUDIENCE_FLOOR_ID) return id;
     return platformMap.get(id) ?? id;
   }
-  return {
+  return stripLayoutReportTemplates({
     ...source,
     walls: source.walls.map(wall => ({
       ...wall,
@@ -71,7 +72,7 @@ export function duplicateLayout(layout: Layout, nextId: () => string): Layout {
       members: group.members.map(member => ({ ...member, id: memberId(member.kind, member.id) })),
     })),
     riggingSetupId: source.riggingSetupId ?? nextId(),
-  };
+  });
 }
 
 export type AdaptedLayout = {
@@ -139,7 +140,7 @@ export function copyLayoutIntoVenue(
  * `panelId`, destination surfaces and conflicts). The source is only read.
  */
 export function captureTemplateLayout(layout: Layout): Layout {
-  return structuredClone(layout);
+  return stripLayoutReportTemplates(structuredClone(layout));
 }
 
 /**
@@ -157,7 +158,7 @@ export function applyVenueVersion(layout: Layout, destination: VenueGeometry): A
     return undefined;
   }
   const adapted: Layout = {
-    ...layout,
+    ...stripLayoutReportTemplates(layout),
     walls: layout.walls.map(wall => ({ ...wall, supportingSurfaceId: mappedSupport(wall.supportingSurfaceId) })),
     braces: layout.braces.map(brace => ({ ...brace, supportingSurfaceId: mappedSupport(brace.supportingSurfaceId) })),
     platforms: layout.platforms?.map(platform => ({ ...platform, supportingSurfaceId: mappedSupport(platform.supportingSurfaceId) })),
