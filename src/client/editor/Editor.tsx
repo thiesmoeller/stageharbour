@@ -120,6 +120,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
   const [panelLabels, setPanelLabels] = useState<Record<string, string>>({});
   const [exportsOpen, setExportsOpen] = useState(false);
   const [venueOpen, setVenueOpen] = useState(false);
+  const [openVenueSheet, setOpenVenueSheet] = useState(false);
   const [venueDirty, setVenueDirty] = useState(false);
   const [venue, setVenue] = useState<VenueGeometry>(boot.venue);
   const lastPlanPoint = useRef({ x: initial.venue.width / 2, y: initial.venue.depth / 2 });
@@ -659,7 +660,14 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
       <button className="quiet" disabled={!!groupPreview || !!placing || !state.future.length} onClick={() => apply(redo(current.current))} hidden={venueOpen} title="Wiederholen (Strg+Shift+Z)" aria-label="Wiederholen"><ToolIcon name="redo" /></button></>}</div><span className="document-kind">{venueOpen ? 'Spielstätte bearbeiten' : 'Bühnenbild'}</span></div>
     <div className="workspace-commandbar">
     <div className="editor-toolbar">
-      <button className="quiet" aria-expanded={venueOpen} disabled={venueOpen ? venueDirty : dirty} onClick={() => { setVenueOpen(open => !open); setExportsOpen(false); }}>{venueOpen ? 'Spielstätte schließen' : 'Spielstätte'}</button>
+      <button className="quiet" aria-expanded={venueOpen} disabled={venueOpen ? venueDirty : dirty} onClick={() => {
+        setVenueOpen(open => {
+          const next = !open;
+          if (!next) setOpenVenueSheet(false);
+          return next;
+        });
+        setExportsOpen(false);
+      }}>{venueOpen ? 'Spielstätte schließen' : 'Spielstätte'}</button>
       <button className="quiet" aria-expanded={exportsOpen} onClick={() => {
         setExportsOpen(open => !open);
         setLibraryOpen(false);
@@ -706,20 +714,24 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     {venueOpen && !readOnly && !venueLease.holding && <p className="lease-banner" role="status">{venueLease.message || 'Bearbeitung wird angefordert …'} <button type="button" className="quiet" onClick={() => void venueLease.acquire()}>Bearbeitung erneut anfordern</button></p>}
     {venueOpen && <VenuePanel workspaceId={workspaceId} sceneId={initial.id} venue={venue} venueId={initial.venueId} venueName={venueName}
       venueUpdateAvailable={updateAvailable} readOnly={readOnly || !venueLease.holding} onDirty={setVenueDirty} onSaved={adoptVenue}
-      onVenueRenamed={({ name }) => setVenueName(name)} />}
+      onVenueRenamed={({ name }) => setVenueName(name)} sceneLayout={state.present} openSheetEditor={openVenueSheet} />}
     {exportsOpen && <div className="export-drawer">
       <ExportPanel workspaceId={workspaceId} sceneId={initial.id} productionId={initial.productionId}
         readOnly={readOnly} freezeDisabled={dirty || saveState.status !== 'saved'} groups={state.present.groups ?? []} walls={state.present.walls} />
       <section className="report-composer" data-testid="report-composer-venue-hint">
         <header className="report-composer-header">
           <h3>Blatt-Layout</h3>
-          <p className="muted">Berichtsvorlagen gehören zur Spielstätte und gelten für jedes Stück dort.</p>
+          <p className="muted">Berichtsvorlagen gehören zur Spielstätte. Eigener Blatt-Editor mit Live-2D/3D-Quellen.</p>
         </header>
         {(venue.reportTemplates?.length ?? 0) > 0
           ? <p>{venue.reportTemplates!.length} Vorlage{venue.reportTemplates!.length === 1 ? '' : 'n'}: {venue.reportTemplates!.map(item => item.name).join(', ')}</p>
-          : <p className="muted">Noch keine Vorlage — in der Spielstätte anlegen und speichern.</p>}
+          : <p className="muted">Noch keine Vorlage — im Blatt-Layout der Spielstätte anlegen und speichern.</p>}
         {!readOnly && <div className="form-actions">
-          <button type="button" onClick={() => { setExportsOpen(false); setVenueOpen(true); }}>In Spielstätte bearbeiten</button>
+          <button type="button" onClick={() => {
+            setExportsOpen(false);
+            setOpenVenueSheet(true);
+            setVenueOpen(true);
+          }}>Blatt-Layout öffnen</button>
         </div>}
       </section>
     </div>}
