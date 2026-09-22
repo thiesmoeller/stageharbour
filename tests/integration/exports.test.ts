@@ -303,3 +303,16 @@ test('workspace substitution is denied and viewers cannot freeze or retry', asyn
   assert.equal((await app.inject({ method: 'POST', url: `${base}/${scene.id}/exports/${readyId}/retry`, headers, payload: {} })).statusCode, 403);
   assert.equal((await app.inject({ url: `${base}/${scene.id}/exports` })).statusCode, 401);
 });
+
+test('editors can delete a frozen construction plan', async () => {
+  await fixture.db.update(membership).set({ role: 'editor' }).where(eq(membership.workspaceId, fixture.config.WORKSPACE_ID));
+  const frozen = await app.inject({ method: 'POST', url: `${base}/${scene.id}/exports`, headers, payload: { name: 'Zu löschen' } });
+  assert.equal(frozen.statusCode, 201, frozen.body);
+  const id = frozen.json().id as string;
+  assert.equal((await app.inject({ url: `${base}/${scene.id}/exports/${id}/file`, headers })).statusCode, 200);
+  const deleted = await app.inject({ method: 'DELETE', url: `${base}/${scene.id}/exports/${id}`, headers });
+  assert.equal(deleted.statusCode, 204);
+  assert.equal((await app.inject({ url: `${base}/${scene.id}/exports/${id}/file`, headers })).statusCode, 404);
+  const listing = await app.inject({ url: `${base}/${scene.id}/exports`, headers });
+  assert.equal(listing.json().some((item: { id: string }) => item.id === id), false);
+});

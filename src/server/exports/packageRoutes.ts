@@ -117,4 +117,13 @@ export function registerPackageRoutes(
       .header('Content-Disposition', `attachment; filename="konstruktionspaket-${row.id}.pdf"`)
       .send(await storage.get(row.storageKey));
   });
+  api.delete(`${path}/:packageId`, { schema: { params: item, response: { 204: z.undefined(), ...errors } } }, async (request, reply) => {
+    if (request.headers.origin !== origin) throw new AccessError(403, 'Ungültiger Ursprung.');
+    await access(request, request.params.workspaceId, 'exports');
+    const row = await loadRevision(request.params.workspaceId, request.params.productionId, request.params.packageId);
+    if (row.storageKey) await storage.remove?.(row.storageKey);
+    await db.delete(constructionPackage)
+      .where(and(eq(constructionPackage.workspaceId, request.params.workspaceId), eq(constructionPackage.id, row.id)));
+    return reply.code(204).send();
+  });
 }
