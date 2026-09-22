@@ -118,6 +118,15 @@ export function registerExportRoutes(
       .header('Content-Disposition', `attachment; filename="${safeDownloadName(row.name, row.id)}.pdf"`)
       .send(await storage.get(row.storageKey));
   });
+  api.delete(`${path}/:exportId`, { schema: { params: item, response: { 204: z.undefined(), ...errors } } }, async (request, reply) => {
+    if (request.headers.origin !== origin) throw new AccessError(403, 'Ungültiger Ursprung.');
+    await access(request, request.params.workspaceId, 'exports');
+    const row = await loadRevision(request.params.workspaceId, request.params.sceneId, request.params.exportId);
+    if (row.storageKey) await storage.remove?.(row.storageKey);
+    await db.delete(constructionPlanRevision)
+      .where(and(eq(constructionPlanRevision.workspaceId, request.params.workspaceId), eq(constructionPlanRevision.id, row.id)));
+    return reply.code(204).send();
+  });
 }
 
 function safeDownloadName(name: string, id: string) {

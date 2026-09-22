@@ -40,6 +40,7 @@ import { BraceLayer } from './BraceLayer.js';
 import { PlatformInspector, StairInspector } from './PlatformInspector.js';
 import { RalPicker } from './RalPicker.js';
 import { ReportComposer } from './ReportComposer.js';
+import { newReportTemplate } from '../../shared/reportTemplate.js';
 import { MeasureLayer } from './MeasureLayer.js';
 import { PlatformLayer, SurfaceField } from './PlatformLayer.js';
 import { RotationHandle } from './RotationHandle.js';
@@ -655,7 +656,16 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     <div className="workspace-commandbar">
     <div className="editor-toolbar">
       <button className="quiet" aria-expanded={venueOpen} disabled={venueOpen ? venueDirty : dirty} onClick={() => { setVenueOpen(open => !open); setExportsOpen(false); }}>{venueOpen ? 'Spielstätte schließen' : 'Spielstätte'}</button>
-      <button className="quiet" aria-expanded={exportsOpen} onClick={() => { setExportsOpen(open => !open); setLibraryOpen(false); }}>{exportsOpen ? 'Export schließen' : 'Konstruktionsplan'}</button>
+      <button className="quiet" aria-expanded={exportsOpen} onClick={() => {
+        setExportsOpen(open => {
+          const next = !open;
+          if (next && !readOnly && !(current.current.present.reportTemplates ?? []).length) {
+            commit({ ...current.current.present, reportTemplates: [newReportTemplate(crypto.randomUUID(), 'Standardblatt')] });
+          }
+          return next;
+        });
+        setLibraryOpen(false);
+      }}>{exportsOpen ? 'Export schließen' : 'Konstruktionsplan'}</button>
       {!readOnly && <SnapToggle enabled={snapEnabled} onChange={setSnapEnabled} />}
 
     </div>

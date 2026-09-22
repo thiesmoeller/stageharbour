@@ -53,12 +53,18 @@ export function newReportFrame(id: string, kind: ReportFrameKind, extras?: Parti
   };
 }
 
-export function newReportTemplate(id: string, name = 'Konstruktionsblatt'): ReportTemplate {
+export function newReportTemplate(id: string, name = 'Standardblatt'): ReportTemplate {
+  const planId = globalThis.crypto.randomUUID();
+  const viewId = globalThis.crypto.randomUUID();
   return {
     id, name,
     pages: [{
       id: globalThis.crypto.randomUUID(), name: 'Blatt 1', paper: 'a4',
-      frames: [newReportFrame(globalThis.crypto.randomUUID(), 'plan', { width: 180, height: 160, label: 'Grundriss' })],
+      frames: [
+        newReportFrame(planId, 'plan', { x: 0, y: 0, width: 110, height: 160, label: 'Grundriss' }),
+        newReportFrame(viewId, 'view3d', { x: 115, y: 0, width: 65, height: 100, view: 'orbit', label: '3D' }),
+        newReportFrame(globalThis.crypto.randomUUID(), 'elevation', { x: 0, y: 165, width: 180, height: 50, view: 'front', label: 'Ansicht vorne' }),
+      ],
     }],
   };
 }

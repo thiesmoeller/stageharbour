@@ -80,6 +80,15 @@ export function PackageExport({ workspaceId, productionId, sceneId, scenes, read
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch { setError('Das Konstruktionspaket konnte nicht heruntergeladen werden.'); }
   }
+  async function remove(id: string) {
+    if (!window.confirm('Dieses Konstruktionspaket endgültig löschen?')) return;
+    setGenerating(true); setError('');
+    try {
+      await request(`${base}/${id}`, undefined, 'DELETE');
+      load();
+    } catch { setError('Das Konstruktionspaket konnte nicht gelöscht werden.'); }
+    finally { setGenerating(false); }
+  }
   const prefix = `package-${productionId}`;
   const busy = loading || generating;
   return <section className="export-panel" aria-label="Konstruktionspaket">
@@ -117,6 +126,7 @@ export function PackageExport({ workspaceId, productionId, sceneId, scenes, read
       <span>{germanDate(item.createdAt)} · {item.paper} · 1:{item.scale} · {statusText[item.status]}</span>
       {item.status === 'ready' && <button className="quiet" type="button" onClick={() => void download(item)}>Herunterladen</button>}
       {item.status === 'failed' && !readOnly && <button className="quiet" type="button" onClick={() => void retry(item.id)}>Erneut versuchen</button>}
+      {!readOnly && <button className="quiet" type="button" onClick={() => void remove(item.id)}>Löschen</button>}
     </li>)}</ul>
     {!loading && !items.length && <p className="muted">Noch keine Konstruktionspakete.</p>}
   </section>;
@@ -195,6 +205,15 @@ export function ExportPanel({ workspaceId, sceneId, productionId, readOnly, free
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch { setError('Der Konstruktionsplan konnte nicht heruntergeladen werden.'); }
   }
+  async function remove(id: string) {
+    if (!window.confirm('Diese Konstruktionsplan-Fassung endgültig löschen?')) return;
+    setGenerating(true); setError('');
+    try {
+      await request(`${base}/${id}`, undefined, 'DELETE');
+      load();
+    } catch { setError('Die Fassung konnte nicht gelöscht werden.'); }
+    finally { setGenerating(false); }
+  }
   const busy = loading || generating;
   return <>
     <section className="export-panel" aria-label="Konstruktionsplan">
@@ -245,6 +264,7 @@ export function ExportPanel({ workspaceId, sceneId, productionId, readOnly, free
         <span>{germanDate(item.createdAt)} · {item.paper} · 1:{item.scale} · {statusText[item.status]}</span>
         {item.status === 'ready' && <button className="quiet" type="button" onClick={() => void download(item)}>Herunterladen</button>}
         {item.status === 'failed' && !readOnly && <button className="quiet" type="button" onClick={() => void retry(item.id)}>Erneut versuchen</button>}
+        {!readOnly && <button className="quiet" type="button" onClick={() => void remove(item.id)}>Löschen</button>}
       </li>)}</ul>
       {!loading && !items.length && <p className="muted">Noch keine exportierten Fassungen.</p>}
     </section>

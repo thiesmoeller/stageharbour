@@ -1,9 +1,10 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { dirname, resolve, sep } from 'node:path';
 
 export type FileStorage = {
   put(key: string, bytes: Buffer): Promise<void>;
   get(key: string): Promise<Buffer>;
+  remove?(key: string): Promise<void>;
 };
 
 export function localFilesystem(root: string): FileStorage {
@@ -21,5 +22,11 @@ export function localFilesystem(root: string): FileStorage {
       await writeFile(path, bytes);
     },
     get(key) { return readFile(locate(key)); },
+    async remove(key) {
+      try { await unlink(locate(key)); } catch (error) {
+        if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') return;
+        throw error;
+      }
+    },
   };
 }

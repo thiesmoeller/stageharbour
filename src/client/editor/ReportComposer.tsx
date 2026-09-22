@@ -45,8 +45,8 @@ export function ReportComposer({
       <p className="muted">Rahmen auf A4 platzieren — wie in einem Layoutprogramm. 90°-Drehung für dichtere Packung.</p>
     </header>
     {!active ? <div className="form-actions">
-      <button type="button" disabled={readOnly} onClick={() => onChange([...templates, newReportTemplate(crypto.randomUUID())])}>
-        Neues Berichtslayout
+      <button type="button" disabled={readOnly} onClick={() => onChange([newReportTemplate(crypto.randomUUID(), 'Standardblatt')])}>
+        Standardblatt anlegen
       </button>
     </div> : <>
       <label htmlFor="report-template-name">Vorlagenname</label>
@@ -93,9 +93,10 @@ export function ReportComposer({
           updateFrames(page.frames.filter(frame => frame.id !== selected.id));
           setSelectedFrameId(undefined);
         }}>Rahmen löschen</button>
-        <button type="button" className="quiet" disabled={readOnly} onClick={() => onChange(templates.filter(item => item.id !== active.id))}>
-          Vorlage löschen
-        </button>
+        <button type="button" className="quiet" disabled={readOnly} onClick={() => {
+          onChange([newReportTemplate(crypto.randomUUID(), 'Standardblatt')]);
+          setSelectedFrameId(undefined);
+        }}>Vorlage zurücksetzen</button>
       </div>
     </>}
   </section>;
