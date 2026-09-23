@@ -10,6 +10,7 @@ import { renderConstructionPlan } from '../../src/server/exports/pdf.js';
 import { millimetresPerUnit } from '../../src/shared/venue.js';
 import { newCableRoutingCorridor, newConnectionPoint } from '../../src/shared/infrastructure.js';
 import { type Scene } from '../../src/shared/layout.js';
+import { newReportTemplate } from '../../src/shared/reportTemplate.js';
 import { AUDIENCE_FLOOR_ID, newPlatform, newStair } from '../../src/shared/levels.js';
 import { newOverheadBox } from '../../src/shared/overhead.js';
 import { newKeepClearZone } from '../../src/shared/keepClear.js';
@@ -316,4 +317,45 @@ test('renames a venue and shows the new name on the scene', async () => {
     method: 'PATCH', url: `${venues}/${venueId}`, headers,
     payload: { name: '   ' },
   })).statusCode, 400);
+});
+
+test('PATCH report-templates updates only templates and scene PUT venue round-trips them', async () => {
+  await fixture.db.update(membership).set({ role: 'administrator' }).where(eq(membership.workspaceId, fixture.config.WORKSPACE_ID));
+  const template = newReportTemplate(randomUUID(), 'Saalblatt');
+  template.pages[0]!.frames = template.pages[0]!.frames.map(frame =>
+    frame.kind === 'plan' ? { ...frame, planScope: 'scenery' as const } : frame.kind === 'view3d' ? { ...frame, view: 'front' as const } : frame);
+  assert.equal((await app.inject({ method: 'POST', url: `${scenes}/${scene.id}/lease`, headers, payload: {} })).statusCode, 200);
+  const before = (await app.inject({ url: `${scenes}/${scene.id}`, headers })).json<Scene>();
+  const patched = await app.inject({
+    method: 'PATCH', url: `${scenes}/${scene.id}/venue/report-templates`, headers,
+    payload: { reportTemplates: [template] },
+  });
+  assert.equal(patched.statusCode, 200, patched.body);
+  const body = patched.json();
+  assert.equal(body.venue.reportTemplates?.[0]!.name, 'Saalblatt');
+  assert.equal(body.venue.reportTemplates?.[0]!.pages[0]!.frames.find((frame: { kind: string }) => frame.kind === 'plan')?.planScope, 'scenery');
+  assert.equal(body.venue.reportTemplates?.[0]!.pages[0]!.frames.find((frame: { kind: string }) => frame.kind === 'view3d')?.view, 'front');
+  assert.equal(body.venue.width, before.venue.width);
+  assert.equal(body.venue.depth, before.venue.depth);
+  assert.deepEqual(body.venue.outline, before.venue.outline);
+  const loaded = (await app.inject({ url: `${scenes}/${scene.id}`, headers })).json<Scene>();
+  assert.equal(loaded.venue.reportTemplates?.[0]!.id, template.id);
+  const nextTemplate = { ...template, name: 'Saalblatt v2' };
+  const saved = await app.inject({
+    method: 'PUT', url: `${scenes}/${scene.id}/venue`, headers,
+    payload: { venue: { ...loaded.venue, reportTemplates: [nextTemplate] } },
+  });
+  assert.equal(saved.statusCode, 200, saved.body);
+  assert.equal(saved.json().venue.reportTemplates?.[0]!.name, 'Saalblatt v2');
+  const afterLayout = await app.inject({
+    method: 'PUT', url: `${scenes}/${scene.id}/layout`, headers,
+    payload: {
+      revision: saved.json().revision,
+      layout: { ...loaded.layout, reportTemplates: [newReportTemplate(randomUUID(), 'should-strip')] },
+    },
+  });
+  assert.equal(afterLayout.statusCode, 200, afterLayout.body);
+  const final = (await app.inject({ url: `${scenes}/${scene.id}`, headers })).json<Scene>();
+  assert.equal(final.layout.reportTemplates, undefined);
+  assert.equal(final.venue.reportTemplates?.[0]!.name, 'Saalblatt v2');
 });

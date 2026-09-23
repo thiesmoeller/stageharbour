@@ -39,9 +39,8 @@ import { BraceInspector } from './BraceInspector.js';
 import { BraceLayer } from './BraceLayer.js';
 import { PlatformInspector, StairInspector } from './PlatformInspector.js';
 import { RalPicker } from './RalPicker.js';
-import {
-  liftReportTemplatesToVenue, stripLayoutReportTemplates,
-} from '../../shared/reportTemplate.js';
+import { liftReportTemplatesToVenue, stripLayoutReportTemplates } from '../../shared/reportTemplate.js';
+import { saveVenueResultSchema } from '../../shared/layout.js';
 import { MeasureLayer } from './MeasureLayer.js';
 import { PlatformLayer, SurfaceField } from './PlatformLayer.js';
 import { RotationHandle } from './RotationHandle.js';
@@ -93,6 +92,11 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
   const [assetError, setAssetError] = useState('');
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const persistLiftedTemplates = useRef(
+    (initial.layout.reportTemplates?.length ?? 0) > 0
+    && !(initial.venue.reportTemplates?.length)
+    && (boot.venue.reportTemplates?.length ?? 0) > 0,
+  );
   useEffect(() => {
     let active = true;
     request(`/api/workspaces/${workspaceId}/assets`).then(data => { if (active) setAssets(assetListSchema.parse(data)); }).catch(() => { if (active) setAssetError('Die Objektbibliothek konnte nicht geladen werden.'); });
@@ -123,6 +127,21 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
   const [openVenueSheet, setOpenVenueSheet] = useState(false);
   const [venueDirty, setVenueDirty] = useState(false);
   const [venue, setVenue] = useState<VenueGeometry>(boot.venue);
+  useEffect(() => {
+    if (!persistLiftedTemplates.current || permissionReadOnly) return;
+    const templates = boot.venue.reportTemplates;
+    if (!templates?.length) return;
+    persistLiftedTemplates.current = false;
+    let cancelled = false;
+    void request(`/api/workspaces/${workspaceId}/scenes/${initial.id}/venue/report-templates`, { reportTemplates: templates }, 'PATCH')
+      .then(data => {
+        if (cancelled) return;
+        const result = saveVenueResultSchema.parse(data);
+        setVenue(result.venue);
+      })
+      .catch(() => { /* stay in-memory until the next venue save */ });
+    return () => { cancelled = true; };
+  }, [workspaceId, initial.id, permissionReadOnly]);
   const lastPlanPoint = useRef({ x: initial.venue.width / 2, y: initial.venue.depth / 2 });
   const [venueName, setVenueName] = useState(initial.venueName);
   const [updateAvailable, setUpdateAvailable] = useState(!!initial.venueUpdateAvailable);
