@@ -60,7 +60,6 @@ test('export a named frozen construction plan and download it from history', asy
   await waitUntilSaved(page);
   await page.getByLabel('Auswahl').selectOption({ label: '1. Wand' });
   await page.locator('[data-testid^="wall-"]').nth(1).click({ modifiers: ['Shift'] });
-  await openInspector(page, 'Gruppieren');
   await page.getByRole('button', { name: 'Gruppieren' }).click();
   await waitUntilSaved(page);
   await page.getByRole('button', { name: 'Konstruktionsplan', exact: true }).click();

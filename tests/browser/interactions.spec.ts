@@ -47,10 +47,9 @@ test('wall edge snapping, pointer rotation, clipboard, mixed marquee delete and 
   await commitObjectPlacement(page);
   await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(3);
   await placeNamedObjectAt(page, 'Stütze hinzufügen');
-  await openInspector(page, 'Platzhalter');
   await placeNamedObjectAt(page, 'Kiste hinzufügen');
   await drag(page, await point(page, 700, 800), await point(page, 6500, 5500));
-  await expect(page.locator('.clipboard-panel')).toContainText('5 ausgewählt');
+  await expect(page.getByTestId('selection-count')).toContainText('5 ausgewählt');
   await page.keyboard.press('Delete');
   await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(0);
   await expect(page.locator('[data-testid^="brace-"]')).toHaveCount(0);
@@ -69,7 +68,7 @@ test('scene 2D marquee can start outside the venue outline', async ({ page }) =>
   await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(2);
   // Start in the padded margin outside the outline fill, then drag across both walls.
   await drag(page, await point(page, -400, 1000), await point(page, 7000, 5500));
-  await expect(page.locator('.clipboard-panel')).toContainText('2 ausgewählt');
+  await expect(page.getByTestId('selection-count')).toContainText('2 ausgewählt');
 });
 
 test('venue vertex gestures have preview, cancel, one undo and publish semantics', async ({ page }) => {
@@ -93,6 +92,7 @@ test('venue vertex gestures have preview, cancel, one undo and publish semantics
 test('venue plan drag, rubberband clipboard and escape cancel keep one draft history', async ({ page }) => {
   await create(page);
   await page.getByRole('button', { name: 'Spielstätte', exact: true }).click();
+  await openInspector(page, 'Zwischenablage');
   const svg = 'svg[aria-label="Umriss der Spielstätte"]';
   await page.getByRole('button', { name: 'Feste Wand setzen' }).click();
   const at = await point(page, 4000, 3000, svg);
@@ -106,7 +106,7 @@ test('venue plan drag, rubberband clipboard and escape cancel keep one draft his
   await expect(wallX).toHaveValue('4000');
   // Rubber band selects only fully enclosed footprints (wall ~3400–4600 × 2986–3014).
   await drag(page, await point(page, 3200, 2800, svg), await point(page, 4800, 3200, svg));
-  await expect(page.locator('.clipboard-panel')).toContainText('1 ausgewählt');
+  await expect(page.locator('.venue-editor .clipboard-panel')).toContainText('1 ausgewählt');
   await page.getByRole('button', { name: 'Kopieren' }).click();
   await page.getByRole('button', { name: 'Einfügen' }).click();
   await expect(page.locator('[data-testid^="venue-wall-"]')).toHaveCount(2);
@@ -215,7 +215,7 @@ test('mixed wall-platform selection moves from either object and cancels atomica
   await placeWallAt(page, 1500, 1000);
   await placeNamedObjectAt(page, 'Podest hinzufügen');
   await drag(page, await point(page, 500, 500), await point(page, 6500, 5500));
-  await expect(page.locator('.clipboard-panel')).toContainText('2 ausgewählt');
+  await expect(page.getByTestId('selection-count')).toContainText('2 ausgewählt');
   await expect(page.getByTestId('rotate-selection')).toBeVisible();
   const wall = page.locator('[data-testid^="wall-"]');
   const platform = page.locator('[data-testid^="platform-"] path');
@@ -225,7 +225,7 @@ test('mixed wall-platform selection moves from either object and cancels atomica
   await page.keyboard.up('Alt');
   await expect(wall).toHaveAttribute('transform', 'translate(1800 -1200) rotate(0)');
   await expect(platform).not.toHaveAttribute('d', before!);
-  await expect(page.locator('.clipboard-panel')).toContainText('2 ausgewählt');
+  await expect(page.getByTestId('selection-count')).toContainText('2 ausgewählt');
   await page.keyboard.press('Control+z');
   await expect(wall).toHaveAttribute('transform', 'translate(1500 -1000) rotate(0)');
   await expect(platform).toHaveAttribute('d', before!);
@@ -235,12 +235,13 @@ test('mixed wall-platform selection moves from either object and cancels atomica
   await page.keyboard.press('Escape'); await page.mouse.up();
   await expect(wall).toHaveAttribute('transform', 'translate(1500 -1000) rotate(0)');
   await expect(platform).toHaveAttribute('d', before!);
-  await expect(page.locator('.clipboard-panel')).toContainText('2 ausgewählt');
+  await expect(page.getByTestId('selection-count')).toContainText('2 ausgewählt');
 });
 
 test('venue Shift toggles without dragging; mixed rotation and cancel preserve selection', async ({ page }) => {
   await create(page);
   await page.getByRole('button', { name: 'Spielstätte', exact: true }).click();
+  await openInspector(page, 'Zwischenablage');
   const svg = 'svg[aria-label="Umriss der Spielstätte"]';
   await page.getByRole('button', { name: 'Feste Wand setzen' }).click();
   const a = await point(page, 4000, 3000, svg), b = await point(page, 4400, 3200, svg);
@@ -254,17 +255,16 @@ test('venue Shift toggles without dragging; mixed rotation and cancel preserve s
   await page.mouse.click((await point(page, 5000, 4000, svg)).x, (await point(page, 5000, 4000, svg)).y);
   await drag(page, await point(page, 500, 500, svg), await point(page, 6500, 5500, svg));
   await expect(page.getByTestId('rotate-venue-selection')).toBeVisible();
-  await expect(page.locator('.clipboard-panel')).toContainText('2 ausgewählt');
+  await expect(page.locator('.venue-editor .clipboard-panel')).toContainText('2 ausgewählt');
   await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(b.x, b.y, { steps: 5 });
   await page.keyboard.press('Backspace'); await page.keyboard.press('Control+z');
   await page.keyboard.press('Escape'); await page.mouse.up();
-  await expect(page.locator('.clipboard-panel')).toContainText('2 ausgewählt');
+  await expect(page.locator('.venue-editor .clipboard-panel')).toContainText('2 ausgewählt');
   await expect(page.locator('[data-testid^="venue-wall-"]')).toHaveAttribute('transform', 'translate(4000 -3000) rotate(0)');
 });
 
 test('scene face resizing previews, cancels, commits and undoes once', async ({ page }) => {
   await create(page);
-  await openInspector(page, 'Platzhalter');
   await placeNamedObjectAt(page, 'Kiste hinzufügen');
   const solid = page.locator('[data-testid^="stage-placeholder-"]');
   const dimensions = () => solid.evaluate(element => ['data-width', 'data-depth', 'data-height'].map(key => element.getAttribute(key)).join('/'));
@@ -282,7 +282,7 @@ test('scene face resizing previews, cancels, commits and undoes once', async ({ 
   await page.keyboard.press('Delete');
   await page.keyboard.press('Escape'); await page.mouse.up();
   await expect.poll(dimensions).toBe(initial);
-  await expect(page.locator('.clipboard-panel')).toContainText('1 ausgewählt');
+  await expect(page.getByTestId('selection-count')).toContainText('1 ausgewählt');
   await drag(page, centre, { x: centre.x, y: centre.y - 55 });
   await expect.poll(dimensions).not.toBe(initial);
   await page.keyboard.press('Control+z');

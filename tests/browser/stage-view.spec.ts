@@ -82,7 +82,6 @@ test('edits in the plan update the linked 3D view, including front orientation a
   await expect(stageBrace).toHaveAttribute('data-x', '2200');
   await waitUntilSaved(page);
 
-  await openInspector(page, 'Platzhalter');
   await placeNamedObjectAt(page, 'Tisch hinzufügen');
   const stageTable = page.locator('[data-testid^="stage-placeholder-"]');
   await expect(page.locator('.plan-canvas [data-testid^="placeholder-"]')).toHaveCount(1);
@@ -170,7 +169,6 @@ test('edits in the plan update the linked 3D view, including front orientation a
   await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(2);
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await page.locator('[data-testid^="wall-"]').nth(1).click({ modifiers: ['Shift'] });
-  await openInspector(page, 'Gruppieren');
   await page.getByRole('button', { name: 'Gruppieren' }).click();
   await page.getByLabel('Drehpunkt X (mm)').fill('4250');
   await page.locator('.group-panel').getByRole('button', { name: 'Übernehmen' }).click();

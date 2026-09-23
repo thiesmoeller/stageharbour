@@ -8,6 +8,17 @@ export async function openInspector(page: Page, title: string) {
   await panel.evaluate(element => { (element as HTMLDetailsElement).open = true; });
 }
 
+/** Open the Objektbibliothek overlay (and optionally switch to a named tab). */
+export async function openLibrary(page: Page, tab?: string) {
+  const library = page.getByRole('region', { name: 'Objektbibliothek' });
+  if (!(await library.isVisible().catch(() => false))) {
+    await page.getByRole('button', { name: 'Objektbibliothek', exact: true }).click();
+  }
+  await expect(library).toBeVisible();
+  if (tab) await library.getByRole('button', { name: tab, exact: true }).click();
+  return library;
+}
+
 /** Click the plan to commit an in-progress wall ghost at plan coordinates (mm). */
 export async function commitWallPlacement(
   page: Page,

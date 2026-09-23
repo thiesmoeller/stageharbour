@@ -1,4 +1,4 @@
-import { commitObjectPlacement, openInspector, placeWallAt, commitWallPlacement, placeNamedObjectAt } from '../helpers/inspector.js';
+import { commitObjectPlacement, openInspector, openLibrary, placeWallAt, commitWallPlacement, placeNamedObjectAt } from '../helpers/inspector.js';
 import { test, expect, type Page } from '@playwright/test';
 import { pngBytes } from '../helpers/references.js';
 import { createProduction, signInToPlans } from '../helpers/plans.js';
@@ -235,7 +235,6 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.locator('.plan-canvas .warning').filter({ hasText: 'Notausgang Ost' })).toHaveCount(2);
   await expect(page.locator('.plan-canvas .warning').filter({ hasText: 'Notausgang Ost' }).filter({ hasText: 'Wand' })).toBeVisible();
   await expect(page.locator('.plan-canvas .warning').filter({ hasText: 'Notausgang Ost' }).filter({ hasText: 'Stütze' })).toBeVisible();
-  await openInspector(page, 'Platzhalter');
   await placeNamedObjectAt(page, 'Tisch hinzufügen');
   await expect(page.locator('.plan-canvas [data-testid^="placeholder-"]')).toHaveCount(1);
   await expect(page.locator('#placeholder-depth')).toHaveValue('800');
@@ -251,13 +250,14 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
 
   await placeWallAt(page, 5000, 3000);
   await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(2);
-  await openInspector(page, 'Platteninventar');
-  await page.getByRole('button', { name: 'Bestand bearbeiten' }).click();
-  await page.getByLabel('Plattenetikett').fill('Beispiel-P01');
-  await page.getByRole('button', { name: 'Platte anlegen' }).click();
-  await expect(page.getByText('Beispiel-P01 · Glattwand')).toBeVisible();
+  const library = await openLibrary(page, 'Plattenbestand');
+  await library.getByRole('button', { name: 'Bestand bearbeiten' }).click();
+  await library.getByLabel('Plattenetikett').fill('Beispiel-P01');
+  await library.getByRole('button', { name: 'Platte anlegen' }).click();
+  await expect(library.getByText('Beispiel-P01 · Glattwand')).toBeVisible();
+  await expect(page.getByTestId('inventory-panel-count')).toHaveText('1');
+  await page.getByRole('button', { name: 'Objektbibliothek', exact: true }).click();
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
-  await openInspector(page, 'Platteninventar');
   await page.getByLabel('Platte zuweisen').selectOption({ label: 'Beispiel-P01' });
   await expect(page.getByTestId('inventory-warnings')).toContainText('keine Platte zugewiesen');
   await expect(page.getByTestId('inventory-warnings')).toContainText('Bestand reicht nicht');
@@ -268,7 +268,6 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.locator('.plan-canvas [data-testid^="placeholder-"]').click();
   await expect(page.locator('#placeholder-depth')).toHaveValue('900');
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
-  await openInspector(page, 'Platteninventar');
   await expect(page.getByText('Zugewiesen: Beispiel-P01')).toBeVisible();
   await expect(page.getByTestId('inventory-warnings')).toContainText('keine Platte zugewiesen');
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
@@ -280,6 +279,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByRole('button', { name: 'Übernehmen' }).click();
   await waitUntilSaved(page);
   await expect(page.getByText('V Vorderseite · R Rückseite')).toBeVisible();
+  await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await openInspector(page, 'Aufbau & Verbindungen');
   await expect(page.getByText('Verbindungskompatibilität prüft die Crew manuell')).toBeVisible();
   await page.getByRole('button', { name: 'Montagenummern vergeben' }).click();
@@ -298,18 +298,15 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await waitUntilSaved(page);
   await reopenScene(page, 'Erste Szene', /Beispielproduktion · Erste Szene/);
   await expect(page.getByText('Position 1 · Platte Beispiel-P01')).toBeVisible();
-  await expect(page.getByTestId('assembly-connections')).toContainText('Position 1 – Position 2');
+  await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await openInspector(page, 'Aufbau & Verbindungen');
+  await expect(page.getByTestId('assembly-connections')).toContainText('Position 1 – Position 2');
   await expect(page.getByLabel('Rigginghinweise')).toHaveValue('Stifte belassen.');
-  await openInspector(page, 'Gruppieren');
   await expect(page.getByRole('button', { name: 'Gruppieren' })).toBeDisabled();
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await page.locator('[data-testid^="wall-"]').nth(1).click({ modifiers: ['Shift'] });
-  await openInspector(page, 'Gruppieren');
   await expect(page.getByRole('button', { name: 'Gruppieren' })).toBeEnabled();
-  await openInspector(page, 'Gruppieren');
   await page.getByRole('button', { name: 'Gruppieren' }).click();
-  await openInspector(page, 'Gruppieren');
   await expect(page.getByLabel('Drehpunkt X (mm)')).toHaveValue('3500');
   await expect(page.getByLabel('Gruppendrehung (°)')).toHaveValue('0');
   await waitUntilSaved(page);
@@ -328,16 +325,13 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByLabel('Drehung (°)', { exact: true })).toHaveValue('0');
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '2. Wand' });
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('5500');
-  await openInspector(page, 'Gruppieren');
   await expect(page.getByLabel('Drehpunkt X (mm)')).toHaveValue('3500');
   await waitUntilSaved(page);
   await reopenScene(page, 'Erste Szene', /Beispielproduktion · Erste Szene/);
   await expect(page.getByRole('heading', { name: 'Erste Szene' })).toBeVisible();
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
-  await openInspector(page, 'Gruppieren');
   await expect(page.getByLabel('Drehpunkt X (mm)')).toHaveValue('3500');
-  await openInspector(page, 'Gruppieren');
-  await expect(page.getByRole('button', { name: 'Gruppe auflösen' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Gruppe auflösen' }).first()).toBeVisible();
   await page.getByLabel('X (mm)', { exact: true }).fill('1800');
   await page.locator('#wall-x').locator('xpath=ancestor::form').getByRole('button', { name: 'Übernehmen' }).click();
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('1800');
@@ -354,13 +348,11 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await waitUntilSaved(page);
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '3. Wand' });
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('2100');
-  await openInspector(page, 'Platteninventar');
   await expect(page.getByLabel('Platte zuweisen')).toHaveValue('');
   await expect(page.getByText('Zugewiesen: Beispiel-P01')).toHaveCount(0);
   await page.getByRole('button', { name: 'Rückgängig' }).click();
   await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(2);
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
-  await openInspector(page, 'Platteninventar');
   await expect(page.getByText('Zugewiesen: Beispiel-P01')).toBeVisible();
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('1800');
   await page.getByLabel('X (mm)', { exact: true }).focus();
@@ -381,7 +373,6 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByRole('button', { name: /Erste Szene \(Kopie\)/ }).click();
   await expect(page.getByRole('heading', { name: 'Erste Szene (Kopie)' })).toBeVisible();
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
-  await openInspector(page, 'Platteninventar');
   await expect(page.getByText('Zugewiesen: Beispiel-P01')).toBeVisible();
   await page.getByLabel('X (mm)', { exact: true }).fill('2200');
   await page.locator('#wall-x').locator('xpath=ancestor::form').getByRole('button', { name: 'Übernehmen' }).click();
@@ -392,11 +383,9 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByRole('heading', { name: 'Erste Szene', exact: true })).toBeVisible();
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('1800');
-  await openInspector(page, 'Platteninventar');
   await expect(page.getByText('Zugewiesen: Beispiel-P01')).toBeVisible();
 
-  await openInspector(page, 'Gruppieren');
-  await page.getByRole('button', { name: 'Gruppe auflösen' }).click();
+  await page.getByRole('button', { name: 'Gruppe auflösen' }).first().click();
   await waitUntilSaved(page);
   await page.getByRole('button', { name: 'Spielstätte' }).click();
   await openInspector(page, 'Bühnenmittellinie');
@@ -495,7 +484,6 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByText('Gastspiel · Stadthalle')).toBeVisible();
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await expect(page.getByText('Zugewiesen: Beispiel-P01')).toHaveCount(0);
-  await openInspector(page, 'Platteninventar');
   await expect(page.getByLabel('Platte zuweisen')).toHaveValue('');
   await expect(page.getByTestId('overhead-warning').first()).toContainText('Deckenhöhe');
   await expect(page.getByLabel('Freihaltezonen')).toBeVisible();
@@ -524,7 +512,6 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByText('Gastspiel · Stadthalle')).toBeVisible();
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await expect(page.getByText('Zugewiesen: Beispiel-P01')).toHaveCount(0);
-  await openInspector(page, 'Platteninventar');
   await expect(page.getByLabel('Platte zuweisen')).toHaveValue('');
 
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();
@@ -576,7 +563,7 @@ test('create a wall type with a rectangular opening, place it, and export the pl
   await expect(page.getByRole('heading', { name: 'Türszene' })).toBeVisible();
   await waitUntilSaved(page);
 
-  await openInspector(page, 'Wandtypen');
+  await openLibrary(page, 'Wandtypen');
   await page.getByRole('button', { name: 'Wandtyp anlegen' }).click();
   await page.getByLabel('Wandtyp-Bezeichnung').fill('Türwand');
   await page.getByRole('button', { name: 'Öffnung hinzufügen', exact: true }).click();
@@ -589,6 +576,9 @@ test('create a wall type with a rectangular opening, place it, and export the pl
   await waitUntilSaved(page);
 
   await page.getByRole('button', { name: 'Wandtyp platzieren' }).click();
+  if (await page.getByRole('region', { name: 'Objektbibliothek' }).isVisible()) {
+    await page.getByRole('button', { name: 'Objektbibliothek', exact: true }).click();
+  }
   await commitWallPlacement(page);
   await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(1);
   const opening = page.locator('[data-testid^="plan-opening-"]');
