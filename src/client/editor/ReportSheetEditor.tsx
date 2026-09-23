@@ -78,6 +78,7 @@ export function ReportSheetEditor({
         <button type="button" className="quiet" onClick={onClose}><ToolIcon name="back" /> Spielstätte</button>
         <h2>Blatt-Layout</h2>
       </header>
+      <p className="muted">Entwurf — legt noch keine herausgegebenen Konstruktionspläne fest. Erst „Standardblatt anlegen“ speichert eine Vorlage an der Spielstätte.</p>
       <div className="form-actions">
         <button type="button" disabled={readOnly} onClick={() => onChange([newReportTemplate(crypto.randomUUID(), 'Standardblatt')])}>
           Standardblatt anlegen
@@ -92,7 +93,7 @@ export function ReportSheetEditor({
         <ToolIcon name="back" /> Spielstätte
       </button>
       <div className="report-sheet-editor-title">
-        <p className="eyebrow">Konstruktionsblatt</p>
+        <p className="eyebrow">Konstruktionsblatt · Entwurf</p>
         <h2>Blatt-Layout</h2>
       </div>
       <label className="report-sheet-name">
@@ -100,7 +101,7 @@ export function ReportSheetEditor({
         <input value={active.name} disabled={readOnly}
           onChange={event => updateActive(template => ({ ...template, name: event.target.value }))} />
       </label>
-      <p className="muted report-sheet-hint">Ansichten aus dem aktuellen Bühnenbild einfügen — wie TechDraw.</p>
+      <p className="muted report-sheet-hint">Entwurf — Rahmenplatzierung steuert herausgegebene PDFs noch nicht. Ansichten kommen live aus Szene und Spielstätte.</p>
     </header>
 
     <div className="report-sheet-workspace">

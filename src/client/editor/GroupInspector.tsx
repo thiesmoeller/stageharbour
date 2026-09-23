@@ -4,13 +4,17 @@ import {
   type GroupMember,
 } from '../../shared/groups.js';
 import type { Layout } from '../../shared/layout.js';
+import { usePendingApplyForm } from './usePendingApplyForm.js';
 
-export function GroupInspector({ layout, picked, readOnly, onChange }: {
-  layout: Layout; picked: GroupMember[]; readOnly: boolean; onChange: (layout: Layout) => void;
+export function GroupInspector({ layout, picked, readOnly, onPendingChange, onChange }: {
+  layout: Layout; picked: GroupMember[]; readOnly: boolean;
+  onPendingChange?: (pending: boolean) => void;
+  onChange: (layout: Layout) => void;
 }) {
   const group = picked.map(member => groupContaining(layout, member)).find(item => item);
   const pivot = group ? groupPivot(layout, group.id) : undefined;
   const [error, setError] = useState('');
+  const { pending, resetKey, clearPending, discard, formProps } = usePendingApplyForm(onPendingChange);
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!group || !pivot) return;
@@ -18,6 +22,7 @@ export function GroupInspector({ layout, picked, readOnly, onChange }: {
     const x = Number(data.get('x')), y = Number(data.get('y')), rotation = Number(data.get('rotation'));
     if (![x, y, rotation].every(Number.isFinite)) { setError('Bitte prüfen Sie die Gruppenmaße.'); return; }
     setError('');
+    clearPending();
     onChange(transformGroup(layout, group.id, { x, y, rotation }));
   }
   return <div className="group-panel" data-testid={group ? `group-${group.id}` : 'group-picker'}>
@@ -28,7 +33,7 @@ export function GroupInspector({ layout, picked, readOnly, onChange }: {
       <button type="button" disabled={!canFormGroup(layout, picked)}
         onClick={() => onChange(formGroup(layout, picked, crypto.randomUUID()))}>Gruppieren</button>
     </div>}
-    {group && pivot && <form key={`${group.id}:${pivot.x}:${pivot.y}:${group.rotation}`} onSubmit={submit}><fieldset disabled={readOnly}>
+    {group && pivot && <form key={`${group.id}:${pivot.x}:${pivot.y}:${group.rotation}:${resetKey}`} onSubmit={submit} {...formProps}><fieldset disabled={readOnly}>
       <div className="numeric-fields">
         <div><label htmlFor="group-x">Drehpunkt X (mm)</label>
           <input id="group-x" name="x" type="number" step="any" min={-100000} max={100000} defaultValue={pivot.x} required /></div>
@@ -40,6 +45,7 @@ export function GroupInspector({ layout, picked, readOnly, onChange }: {
       {error && <p role="alert" className="error">{error}</p>}
       {!readOnly && <div className="form-actions">
         <button type="submit">Übernehmen</button>
+        {pending && <button className="quiet" type="button" onClick={discard}>Verwerfen</button>}
         <button className="quiet" type="button" onClick={() => onChange(ungroup(layout, group.id))}>Gruppe auflösen</button>
       </div>}
     </fieldset></form>}
