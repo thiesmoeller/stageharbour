@@ -7,6 +7,7 @@ import { Venues } from './editor/Venues.js';
 import { Plans } from './editor/Plans.js';
 import { can } from '../shared/permissions.js';
 import { AuditLog } from './AuditLog.js';
+import { parseWorkspaceLocation, writeWorkspaceLocation, type WorkspaceLocation } from './workspaceRoutes.js';
 import './style.css';
 import './workspace.css';
 
@@ -14,7 +15,11 @@ const roleNames: Record<Role, string> = { administrator: 'Administration', edito
 const linkedSchema = z.array(z.object({ id: z.string(), providerId: z.string() }));
 const roles: Role[] = ['administrator', 'editor', 'viewer'];
 type Screen = { kind: 'loading' } | { kind: 'login' } | { kind: 'workspace'; me: Me } | { kind: 'error'; message: string; denied: boolean };
-type HashRoute = { kind: 'app' } | { kind: 'invite'; token: string } | { kind: 'reset'; token: string } | { kind: 'forgot' };
+type HashRoute =
+  | { kind: 'app'; location: WorkspaceLocation }
+  | { kind: 'invite'; token: string }
+  | { kind: 'reset'; token: string }
+  | { kind: 'forgot' };
 
 function readHash(): HashRoute {
   const raw = location.hash.replace(/^#/, '');
@@ -23,7 +28,7 @@ function readHash(): HashRoute {
   const reset = /^\/passwort\/([^/]+)$/.exec(raw);
   if (reset) return { kind: 'reset', token: reset[1]! };
   if (raw === '/passwort-vergessen') return { kind: 'forgot' };
-  return { kind: 'app' };
+  return { kind: 'app', location: parseWorkspaceLocation(raw) ?? { section: 'plans' } };
 }
 
 async function startPocketId(path: '/api/auth/sign-in/social' | '/api/auth/link-social') {
@@ -101,7 +106,7 @@ function App() {
     {route.kind === 'forgot' && <ForgotPassword />}
     {route.kind === 'app' && screen.kind === 'loading' && <main className="loading" role="status">Arbeitsbereich wird geladen …</main>}
     {route.kind === 'app' && screen.kind === 'login' && <Login onSuccess={load} />}
-    {route.kind === 'app' && screen.kind === 'workspace' && <Workspace me={screen.me} branding={branding} onBranding={applyBranding} onDirty={setDirty} />}
+    {route.kind === 'app' && screen.kind === 'workspace' && <Workspace me={screen.me} branding={branding} onBranding={applyBranding} onDirty={setDirty} location={route.location} />}
     {route.kind === 'app' && screen.kind === 'error' && <main className="error-page"><p className="eyebrow">ARBEITSBEREICH</p><h1>{screen.denied ? 'Zugang erforderlich' : 'Verbindung unterbrochen'}</h1><p role="alert">{screen.message}</p><button onClick={() => void load()}>Erneut versuchen</button></main>}
     <footer>{branding.footerText}</footer>
   </div>;
@@ -269,18 +274,21 @@ function CompleteReset({ token }: { token: string }) {
   </TokenCard>;
 }
 
-function Workspace({ me, branding, onBranding, onDirty }: {
-  me: Me; branding: Branding; onBranding: (value: Branding) => void; onDirty: (value: boolean) => void;
+function Workspace({ me, branding, onBranding, onDirty, location }: {
+  me: Me; branding: Branding; onBranding: (value: Branding) => void; onDirty: (value: boolean) => void; location: WorkspaceLocation;
 }) {
-  const [section, setSection] = useState<'plans' | 'venues'>('plans');
+  const section = location.section;
+  const editing = ('sceneId' in location && !!location.sceneId) || ('venueId' in location && !!location.venueId);
   return <main className="workspace">
-    <div className="workspace-heading"><div><p className="eyebrow">EUER ARBEITSBEREICH</p><h1>{me.workspace.name}</h1><p>Angemeldet als {me.user.name}</p></div><span className="role-badge">{roleNames[me.workspace.role]}</span></div>
-    <nav className="workspace-navigation" aria-label="Arbeitsbereiche">
-      <button className="quiet" aria-current={section === 'plans' ? 'page' : undefined} onClick={() => setSection('plans')}>Produktionen & Szenen<span>Bühnenbilder entwerfen und planen</span></button>
-      <button className="quiet" aria-current={section === 'venues' ? 'page' : undefined} onClick={() => setSection('venues')}>Spielstätten & Bühnen<span>Räume, Grundrisse und feste Einrichtungen</span></button>
+    <div className="workspace-heading" hidden={editing}><div><p className="eyebrow">EUER ARBEITSBEREICH</p><h1>{me.workspace.name}</h1><p>Angemeldet als {me.user.name}</p></div><span className="role-badge">{roleNames[me.workspace.role]}</span></div>
+    <nav className="workspace-navigation" aria-label="Arbeitsbereiche" hidden={editing}>
+      <button className="quiet" aria-current={section === 'plans' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'plans' })}>Produktionen & Szenen<span>Bühnenbilder entwerfen und planen</span></button>
+      <button className="quiet" aria-current={section === 'venues' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'venues' })}>Spielstätten & Bühnen<span>Räume, Grundrisse und feste Einrichtungen</span></button>
     </nav>
-    {section === 'plans' ? <Plans me={me} onDirty={onDirty} /> : <Venues me={me} onDirty={onDirty} />}
-    <div className="workspace-management"><LinkedAccounts />
+    {section === 'plans'
+      ? <Plans me={me} onDirty={onDirty} sceneId={'sceneId' in location ? location.sceneId : undefined} />
+      : <Venues me={me} onDirty={onDirty} venueId={'venueId' in location ? location.venueId : undefined} />}
+    <div className="workspace-management" hidden={editing}><LinkedAccounts />
     {can(me.workspace.role, 'members') && <><SiteBranding workspaceId={me.workspace.id} branding={branding} onBranding={onBranding} /><Members me={me} /><AuditLog workspaceId={me.workspace.id} /></>}</div>
   </main>;
 }
