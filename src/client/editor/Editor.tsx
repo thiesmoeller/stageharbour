@@ -26,6 +26,7 @@ import {
 import { placeholderCorners, type Placeholder } from '../../shared/placeholders.js';
 import { overheadBoxCorners, overheadClearance } from '../../shared/overhead.js';
 import { braceCorners } from '../../shared/braceTransforms.js';
+import { assemblyCaption } from '../../shared/assembly.js';
 import { doorOpenAngleDegrees, isDoorOpening, resolveWall, typesOf, type Opening, type WallElementType } from '../../shared/wall-types.js';
 import { measuredOutline } from '../../shared/venue.js';
 import { defaultPlanDisplay, type PlanDisplayOptions } from '../../shared/planDisplay.js';
@@ -202,7 +203,9 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     finally { setRecovering(false); }
   }
   const dirty = venueDirty || saveState.dirty || !!groupPreview || !!placing || inspectorPending;
-  useEffect(() => { onDirty(dirty); }, [dirty, onDirty]);
+  const onDirtyRef = useRef(onDirty);
+  onDirtyRef.current = onDirty;
+  useEffect(() => { onDirtyRef.current(dirty); }, [dirty]);
   useEffect(() => {
     if (readOnly) return;
     const tick = window.setInterval(() => {
@@ -217,8 +220,10 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
       if (saver.getSnapshot().dirty || busyGesture() || inspectorPendingRef.current) { event.preventDefault(); event.returnValue = ''; }
     };
     window.addEventListener('beforeunload', warn);
-    return () => { window.removeEventListener('beforeunload', warn); saver.dispose(); onDirty(false); };
-  }, [saver, onDirty]);
+    // Dispose only on unmount — onDirty identity changes whenever Plans
+    // re-renders from dirty, and clearing the debounce timer left status stuck on pending.
+    return () => { window.removeEventListener('beforeunload', warn); saver.dispose(); onDirtyRef.current(false); };
+  }, [saver]);
   function apply(next: History) {
     if (readOnly || busyGesture() || next === current.current) return;
     current.current = next;
@@ -307,7 +312,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     if (object) {
       objectPlacement.current = undefined; setGroupPreview(undefined);
       commit(object.latest);
-      setSelection(object.members);
+      setSelection(object.members, true);
       if (object.consumed) setClipboard(undefined);
       else if (object.members.length) setClipboard(copySelection(object.latest, object.members));
       setGuides([]); setSnapStatus(undefined); return;
@@ -327,7 +332,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     setPlacing(undefined);
     setGuides([]);
     setSnapStatus(undefined);
-    pick({ kind: 'wall', id: draft.wall.id }, false);
+    pick({ kind: 'wall', id: draft.wall.id }, false, true);
   }
   function placeType(type: WallElementType) {
     beginPlacingWall(type);
@@ -351,12 +356,12 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
   function replaceStair(stair: StairUnit) {
     commit({ ...current.current.present, stairs: (current.current.present.stairs ?? []).map(item => item.id === stair.id ? stair : item) });
   }
-  function clearSelection() {
-    if (!confirmDiscardPending(inspectorPendingRef.current)) return;
+  function clearSelection(force = false) {
+    if (!force && !confirmDiscardPending(inspectorPendingRef.current)) return;
     pickedRef.current = []; setPicked([]); setFixtureSelection(undefined);
   }
-  function setSelection(members: ClipboardMember[]) {
-    if (!confirmDiscardPending(inspectorPendingRef.current)) return;
+  function setSelection(members: ClipboardMember[], force = false) {
+    if (!force && !confirmDiscardPending(inspectorPendingRef.current)) return;
     pickedRef.current = members; setPicked(members); setFixtureSelection(undefined);
   }
   function selection(): ClipboardMember[] {
@@ -367,13 +372,13 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
   function applyHits(hit: ClipboardMember[], additive: boolean) {
     setSelection(additive ? [...selection(), ...hit.filter(item => !selection().some(old => old.id === item.id))] : hit);
   }
-  function pick(member: ClipboardMember, additive: boolean) {
-    if (busyGesture()) return;
+  function pick(member: ClipboardMember, additive: boolean, force = false) {
+    if (busyGesture() && !force) return;
     const old = selection();
-    if (additive) setSelection(old.some(item => item.id === member.id) ? old.filter(item => item.id !== member.id) : [member, ...old]);
+    if (additive) setSelection(old.some(item => item.id === member.id) ? old.filter(item => item.id !== member.id) : [member, ...old], force);
     else {
       const group = member.kind === 'platform' ? undefined : groupContaining(current.current.present, { kind: member.kind, id: member.id });
-      setSelection(group ? [member, ...group.members.filter(item => item.id !== member.id)] : [member]);
+      setSelection(group ? [member, ...group.members.filter(item => item.id !== member.id)] : [member], force);
     }
   }
   function pickVenueFixture(fixture: VenueFixtureSelection) {
@@ -411,7 +416,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     });
     if (!result.pasted.length) return;
     beginObjectPlacement(result.layout, result.pasted, cursor, result.consumed);
-    setSelection(result.pasted);
+    setSelection(result.pasted, true);
     if (result.consumed) setClipboard(undefined);
   }
   useEffect(() => {
@@ -909,12 +914,11 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
               </g>;
             })}
             {planDisplay.showObjectNames && <g pointerEvents="none" data-testid={`assembly-label-${wall.id}`}>
-              {wall.assemblyNumber != null
-                ? <>
-                  <text y={-resolved.thickness / 2 - 280} textAnchor="middle" fontSize="420" fontWeight="700" className="assembly-number">{wall.assemblyNumber}</text>
-                  <text y={-resolved.thickness / 2 - 80} textAnchor="middle" fontSize="120">{wall.panelId ? panelLabels[wall.panelId] ?? '' : wall.label}</text>
-                </>
-                : <text y={-resolved.thickness / 2 - 160} textAnchor="middle" fontSize="150">{wall.label}</text>}
+              <text y={-resolved.thickness / 2 - 160} textAnchor="middle" fontSize="150">
+                {wall.assemblyNumber != null
+                  ? assemblyCaption(wall.assemblyNumber, wall.panelId ? panelLabels[wall.panelId] : undefined)
+                  : wall.label}
+              </text>
             </g>}
             {planDisplay.showTexts && <>
               <text y={resolved.thickness / 2 + 90} textAnchor="middle" fontSize="110" pointerEvents="none">V</text>

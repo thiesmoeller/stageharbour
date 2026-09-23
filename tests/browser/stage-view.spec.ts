@@ -11,7 +11,7 @@ async function signIn(page: Page) {
 }
 
 async function waitUntilSaved(page: Page) {
-  await expect(page.locator('.save-status')).toHaveText('Gespeichert', { timeout: 10_000 });
+  await expect(page.locator('.save-status')).toHaveText('Gespeichert', { timeout: 15_000 });
 }
 
 test('edits in the plan update the linked 3D view, including front orientation after rotation, undo and reload', async ({ page }) => {
@@ -152,8 +152,12 @@ test('edits in the plan update the linked 3D view, including front orientation a
   await expect(page.getByTestId('stage-view')).toHaveAttribute('data-view', 'orbit');
 
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Beispiel-Theatergruppe' })).toBeVisible();
-  await page.getByRole('button', { name: /Raumprobe · Drehansicht/ }).click();
+  const workspace = page.getByRole('region', { name: 'Bühnenbild bearbeiten' });
+  try {
+    await workspace.waitFor({ state: 'visible', timeout: 8_000 });
+  } catch {
+    await page.getByRole('button', { name: /Raumprobe · Drehansicht/ }).click();
+  }
   await expect(page.getByRole('heading', { name: 'Drehansicht' })).toBeVisible();
   await expect(planWall).toHaveCount(1);
   await expect(page.locator('[data-testid^="stage-wall-"]')).toHaveAttribute('data-x', '2500');

@@ -27,7 +27,6 @@ export function usePendingApplyForm(onPendingChange?: (pending: boolean) => void
     discard,
     formProps: {
       onInput: markPending,
-      onChange: markPending,
     },
   };
 }

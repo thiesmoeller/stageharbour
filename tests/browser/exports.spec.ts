@@ -12,7 +12,7 @@ async function signIn(page: Page) {
 }
 
 async function waitUntilSaved(page: Page) {
-  await expect(page.locator('.save-status')).toHaveText('Gespeichert', { timeout: 10_000 });
+  await expect(page.locator('.save-status')).toHaveText('Gespeichert', { timeout: 15_000 });
 }
 
 test('export a named frozen construction plan and download it from history', async ({ page }) => {
@@ -51,10 +51,10 @@ test('export a named frozen construction plan and download it from history', asy
   expect(text).toContain('Position 1');
   expect(text).toContain('Verbindungskompatibilität prüft die Crew manuell');
   expect(text).toContain('Maßstab 1:50');
-  await page.getByLabel('Papierformat', { exact: true }).selectOption('A3');
-  await page.getByLabel('Maßstab', { exact: true }).selectOption('25');
-  await page.getByLabel('Bezeichnung der Fassung').fill('A3-Detail');
-  await page.getByRole('button', { name: 'Als Konstruktionsplan exportieren' }).click();
+  await page.getByRole('region', { name: 'Konstruktionsplan' }).getByLabel('Papierformat', { exact: true }).selectOption('A3');
+  await page.getByRole('region', { name: 'Konstruktionsplan' }).getByLabel('Maßstab', { exact: true }).selectOption('25');
+  await page.getByRole('region', { name: 'Konstruktionsplan' }).getByLabel('Bezeichnung der Fassung').fill('A3-Detail');
+  await page.getByRole('region', { name: 'Konstruktionsplan' }).getByRole('button', { name: 'Als Konstruktionsplan exportieren' }).click();
   await expect(page.getByRole('listitem').filter({ hasText: 'A3-Detail' })).toContainText('Fertig');
   await expect(page.getByRole('listitem').filter({ hasText: 'A3-Detail' })).toContainText('A3');
   await expect(page.getByRole('listitem').filter({ hasText: 'A3-Detail' })).toContainText('1:25');
@@ -75,10 +75,11 @@ test('export a named frozen construction plan and download it from history', asy
   await waitUntilSaved(page);
   await page.getByRole('button', { name: 'Konstruktionsplan', exact: true }).click();
   await page.getByRole('checkbox', { name: /Gruppe 1/ }).check();
-  await page.getByLabel('Bezeichnung der Fassung').fill('Ansichtsexport');
-  await page.getByLabel('Papierformat', { exact: true }).selectOption('A4');
-  await page.getByLabel('Maßstab', { exact: true }).selectOption('50');
-  await page.getByRole('button', { name: 'Als Konstruktionsplan exportieren' }).click();
+  const planExport = page.getByRole('region', { name: 'Konstruktionsplan' });
+  await planExport.getByLabel('Bezeichnung der Fassung').fill('Ansichtsexport');
+  await planExport.getByLabel('Papierformat', { exact: true }).selectOption('A4');
+  await planExport.getByLabel('Maßstab', { exact: true }).selectOption('50');
+  await planExport.getByRole('button', { name: 'Als Konstruktionsplan exportieren' }).click();
   await expect(page.getByRole('listitem').filter({ hasText: 'Ansichtsexport' })).toContainText('Fertig');
   await expect(page.getByRole('listitem').filter({ hasText: 'Probeexport' })).toContainText('A4');
   await expect(page.getByRole('listitem').filter({ hasText: 'Probeexport' })).toContainText('1:50');

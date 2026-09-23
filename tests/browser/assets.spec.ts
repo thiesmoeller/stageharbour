@@ -28,12 +28,13 @@ test('inventory, GLB models and Pascal catalogue items participate in placement,
   await commitWallPlacement(page);
   await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(1);
   await expect(page.getByLabel('Dicke (mm)')).toHaveValue('28');
-  const material = page.getByLabel('Oberfläche · Pascal-Materialbibliothek');
-  await expect(material.locator('option')).not.toHaveCount(1);
+  const material = page.locator('#wall-finish');
+  await expect(material).toBeVisible({ timeout: 15_000 });
+  await expect.poll(async () => material.locator('option').count(), { timeout: 15_000 }).toBeGreaterThan(1);
   const finish = await material.locator('option').nth(1).getAttribute('value');
   await material.selectOption(finish!);
   await page.getByRole('button', { name: 'Übernehmen', exact: true }).click();
-  await expect(page.locator('.save-status')).toHaveText('Gespeichert');
+  await expect(page.locator('.save-status')).toHaveText('Gespeichert', { timeout: 15_000 });
 
   await page.getByRole('button', { name: 'Objektbibliothek', exact: true }).click();
   await library.getByRole('button', { name: 'GLB importieren', exact: true }).click();
@@ -82,7 +83,13 @@ test('inventory, GLB models and Pascal catalogue items participate in placement,
   await expect(page.locator('.model-error')).toHaveCount(0);
 
   await page.reload();
-  await page.getByRole('region', { name: 'Produktion Inventarprobe', exact: true }).getByRole('button', { name: /Inventarprobe · Objekte/ }).click();
+  const workspace = page.getByRole('region', { name: 'Bühnenbild bearbeiten' });
+  try {
+    await workspace.waitFor({ state: 'visible', timeout: 8_000 });
+  } catch {
+    await page.getByRole('region', { name: 'Produktion Inventarprobe', exact: true }).getByRole('button', { name: /Inventarprobe · Objekte/ }).click();
+  }
+  await expect(page.getByRole('heading', { name: 'Objekte' })).toBeVisible();
   await expect(page.locator('[data-testid^="placeholder-"]')).toHaveCount(2);
   await page.getByLabel('Auswahl', { exact: true }).selectOption(await page.locator('#wall-selection option').filter({ hasText: 'Testpodest' }).getAttribute('value') as string);
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('2200');

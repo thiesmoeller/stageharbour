@@ -7,7 +7,7 @@ export function RalPicker({
   id: string; name: string; label: string; value?: string; mixed?: boolean;
   onChange?: (code: string | undefined) => void;
 }) {
-  return <div className="ral-picker" data-testid={id}>
+  return <div className="ral-picker" data-testid={`ral-${id}`}>
     <span className="ral-picker-label" id={`${id}-label`}>{label}</span>
     {mixed && <span className="ral-mixed" title="Unterschiedliche Werte in der Auswahl">— gemischt —</span>}
     <div className="ral-swatches" role="listbox" aria-labelledby={`${id}-label`}>

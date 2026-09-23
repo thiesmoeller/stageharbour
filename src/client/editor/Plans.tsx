@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { captureTemplateSchema, copySceneSchema, createSceneSchema, instantiateTemplateSchema, sceneListSchema, sceneSchema, sceneTemplateListSchema, sceneTemplateSchema, type Scene, type SceneTemplate, type VenueGeometry } from '../../shared/layout.js';
 import { venueListSchema, venueRecordSchema } from '../../shared/venueLibrary.js';
 import { leaseHolderSchema } from '../../shared/leases.js';
@@ -31,6 +31,11 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
   const [documentDirty, setDocumentDirty] = useState(false);
+  const openedIdRef = useRef<string | undefined>(undefined);
+  const openingRef = useRef<string | undefined>(undefined);
+  const documentDirtyRef = useRef(false);
+  openedIdRef.current = opened?.scene.id;
+  documentDirtyRef.current = documentDirty;
   const readOnly = !can(me.workspace.role, 'scenes');
   const base = `/api/workspaces/${me.workspace.id}/scenes`;
   const templatesBase = `/api/workspaces/${me.workspace.id}/scene-templates`;
@@ -52,9 +57,12 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
     return () => { cancelled = true; };
   }, [base, templatesBase, attempt]);
   async function enter(scene: Scene) {
+    openingRef.current = scene.id;
+    openedIdRef.current = scene.id;
     if (readOnly) {
       setOpened({ scene, holdsLease: false });
       writeWorkspaceLocation({ section: 'plans', sceneId: scene.id });
+      openingRef.current = undefined;
       return;
     }
     try {
@@ -66,11 +74,18 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
       if (error instanceof ApiError && error.status === 423) {
         setOpened({ scene, holdsLease: false });
         writeWorkspaceLocation({ section: 'plans', sceneId: scene.id });
+      } else {
+        openedIdRef.current = undefined;
+        throw error;
       }
-      else throw error;
+    } finally {
+      openingRef.current = undefined;
     }
   }
   async function open(id: string) {
+    if (openingRef.current === id) return;
+    // Same scene already writable — skip. Read-only viewers must fall through to re-acquire.
+    if (openedIdRef.current === id && opened?.holdsLease) return;
     setBusy(true); setError('');
     try { await enter(sceneSchema.parse(await request(`${base}/${id}`))); }
     catch { setError('Die Szene konnte nicht geladen werden.'); writeWorkspaceLocation({ section: 'plans' }); }
@@ -78,21 +93,19 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
   }
   useEffect(() => {
     if (!sceneId) {
-      if (!opened) return;
-      if (documentDirty) {
-        writeWorkspaceLocation({ section: 'plans', sceneId: opened.scene.id });
+      if (!openedIdRef.current) return;
+      if (documentDirtyRef.current) {
+        writeWorkspaceLocation({ section: 'plans', sceneId: openedIdRef.current });
         return;
       }
-      if (opened.holdsLease) void request(`${base}/${opened.scene.id}/lease/release`, {}).catch(() => {});
-      setOpened(undefined); setDocumentDirty(false); onDirty(false); setAttempt(value => value + 1);
+      leave();
       return;
     }
-    if (opened?.scene.id === sceneId) return;
-    if (opened && documentDirty) {
-      writeWorkspaceLocation({ section: 'plans', sceneId: opened.scene.id });
+    if (openedIdRef.current === sceneId || openingRef.current === sceneId) return;
+    if (openedIdRef.current && documentDirtyRef.current) {
+      writeWorkspaceLocation({ section: 'plans', sceneId: openedIdRef.current });
       return;
     }
-    if (opened?.holdsLease) void request(`${base}/${opened.scene.id}/lease/release`, {}).catch(() => {});
     void open(sceneId);
   }, [sceneId]);
   async function create(event: FormEvent<HTMLFormElement>) {
@@ -220,10 +233,15 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
     try { await request(`${templatesBase}/${id}`, undefined, 'DELETE'); setAttempt(value => value + 1); }
     catch (caught) { setError(caught instanceof ApiError ? caught.message : 'Die Szenenvorlage konnte nicht gelöscht werden.'); setBusy(false); }
   }
-  function leave() {
-    if (opened?.holdsLease) void request(`${base}/${opened.scene.id}/lease/release`, {}).catch(() => {});
+  async function leave() {
+    const held = opened;
+    openedIdRef.current = undefined;
+    openingRef.current = undefined;
     setOpened(undefined); setDocumentDirty(false); onDirty(false); setAttempt(value => value + 1);
     writeWorkspaceLocation({ section: 'plans' });
+    if (held?.holdsLease) {
+      await request(`${base}/${held.scene.id}/lease/release`, {}).catch(() => {});
+    }
   }
   const productions = uniqueBy(scenes, scene => scene.productionId);
   const destVenue = copying?.destVenue ?? instantiating?.destVenue;
