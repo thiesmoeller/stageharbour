@@ -1,24 +1,19 @@
 import { test, expect } from '@playwright/test';
-import { testAdministrator } from '../helpers/database.js';
 import { commitWallPlacement, commitObjectPlacement } from '../helpers/inspector.js';
 import { cubeGlb } from '../helpers/model.js';
+import { createProduction, signInToPlans } from '../helpers/plans.js';
 
 test('inventory, GLB models and Pascal catalogue items participate in placement, undo and saved layouts', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.route('https://byrpxoiotywskoojsrzd.supabase.co/**', route => route.request().url().endsWith('.glb')
     ? route.fulfill({ contentType: 'model/gltf-binary', body: cubeGlb() }) : route.fulfill({ status: 204 }));
-  await page.goto('/');
-  await page.getByLabel('E-Mail-Adresse').fill(testAdministrator.email);
-  await page.getByLabel('Passwort', { exact: true }).fill(testAdministrator.password);
-  await page.getByRole('button', { name: 'Anmelden', exact: true }).click();
-  await page.getByRole('button', { name: 'Neues Bühnenbild' }).click();
-  await page.getByRole('textbox', { name: 'Produktion' }).fill('Inventarprobe');
-  await page.getByRole('textbox', { name: 'Spielstätte' }).fill('Probebühne');
-  await page.getByRole('textbox', { name: 'Szene' }).fill('Objekte');
-  await page.getByRole('spinbutton', { name: 'Spielstättenbreite (mm)' }).fill('8000');
-  await page.getByRole('spinbutton', { name: 'Spielstättentiefe (mm)' }).fill('6000');
-  await page.getByRole('button', { name: 'Bühnenbild anlegen' }).click();
+  await signInToPlans(page);
+  await createProduction(page, {
+    productionName: 'Inventarprobe',
+    venueName: 'Probebühne',
+    sceneName: 'Objekte',
+  });
   await page.getByRole('button', { name: 'Objektbibliothek', exact: true }).click();
   const library = page.getByRole('region', { name: 'Objektbibliothek' });
   await library.getByLabel('Name der Inventarvorlage').fill('Standardkulisse');

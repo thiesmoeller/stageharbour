@@ -124,6 +124,34 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
     const input = request.body;
     const ids: Record<'venue' | 'version' | 'production' | 'adaptation' | 'scene', string> = { venue: randomUUID(), version: randomUUID(), production: randomUUID(), adaptation: randomUUID(), scene: randomUUID() };
     await db.transaction(async tx => {
+      if ('productionId' in input) {
+        const [destProduction] = await tx.select({ id: production.id }).from(production)
+          .where(and(eq(production.workspaceId, workspaceId), eq(production.id, input.productionId)));
+        if (!destProduction) throw new AccessError(404, 'Produktion nicht verfügbar.');
+        const [destVersion] = await tx.select({
+          id: venueVersion.id, venueId: venueVersion.venueId,
+        }).from(venueVersion)
+          .where(and(eq(venueVersion.workspaceId, workspaceId), eq(venueVersion.id, input.venueVersionId)));
+        if (!destVersion) throw new AccessError(404, 'Spielstätte nicht verfügbar.');
+        const [existingAdaptation] = await tx.select({ id: adaptation.id }).from(adaptation)
+          .innerJoin(venueVersion, eq(adaptation.venueVersionId, venueVersion.id))
+          .where(and(
+            eq(adaptation.workspaceId, workspaceId),
+            eq(adaptation.productionId, destProduction.id),
+            eq(venueVersion.venueId, destVersion.venueId),
+          ));
+        const adaptationId = existingAdaptation?.id ?? randomUUID();
+        if (!existingAdaptation) {
+          await tx.insert(adaptation).values({
+            id: adaptationId, workspaceId, productionId: destProduction.id, venueVersionId: destVersion.id,
+          });
+        }
+        await tx.insert(scene).values({
+          id: ids.scene, workspaceId, adaptationId, name: input.sceneName,
+          layout: { schemaVersion: 1, walls: [], braces: [] },
+        });
+        return;
+      }
       if ('venueVersionId' in input) {
         const [selected] = await tx.select({ id: venueVersion.id }).from(venueVersion)
           .where(and(eq(venueVersion.workspaceId, workspaceId), eq(venueVersion.id, input.venueVersionId)));

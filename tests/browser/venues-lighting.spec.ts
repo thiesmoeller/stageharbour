@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { testAdministrator } from '../helpers/database.js';
+import { createProduction } from '../helpers/plans.js';
 
 test('design a venue independently, reuse it in a production, and save scene lighting separately', async ({ page }) => {
   test.setTimeout(90_000);
@@ -37,11 +38,10 @@ test('design a venue independently, reuse it in a production, and save scene lig
   await page.screenshot({ path: 'test-results/venue-library.png', fullPage: true });
   await page.getByRole('button', { name: /Produktionen & Szenen/ }).click();
   await expect(page.getByRole('button', { name: /Studiobühne/ })).toHaveCount(0);
-  await page.getByRole('button', { name: 'Neues Bühnenbild' }).click();
-  await page.getByRole('textbox', { name: 'Produktion', exact: true }).fill('Lichtprobe');
-  await page.getByLabel('Vorhandene Spielstätte').selectOption({ label: 'Studiobühne' });
-  await expect(page.getByLabel('Spielstättenbreite (mm)')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Bühnenbild anlegen' }).click();
+  await createProduction(page, {
+    productionName: 'Lichtprobe',
+    existingVenue: 'Studiobühne',
+  });
   await expect(page.locator('[data-testid^="venue-wall-"]')).toHaveCount(1);
   await page.getByRole('button', { name: 'Raumansicht', exact: true }).click();
   await page.locator('.lighting-panel summary').click();
@@ -103,8 +103,9 @@ test('design a venue independently, reuse it in a production, and save scene lig
   await page.getByRole('button', { name: 'Spielstätte anlegen', exact: true }).click();
   await page.getByRole('button', { name: 'Zur Spielstättenübersicht' }).click();
   await page.getByRole('button', { name: /Produktionen & Szenen/ }).click();
-  await page.locator('.scene-card').filter({ has: page.getByRole('button', { name: /Lichtprobe · Szene 1/ }) })
-    .getByRole('button', { name: 'In andere Spielstätte kopieren' }).click();
+  const lightingCard = page.locator('.scene-card').filter({ has: page.getByRole('button', { name: /Lichtprobe · Szene 1/ }) });
+  await lightingCard.locator('summary', { hasText: 'Weitere Aktionen' }).click();
+  await lightingCard.getByRole('button', { name: 'In andere Spielstätte kopieren' }).click();
   await page.getByLabel('Zielspielstätte').selectOption({ label: 'Gastbühne' });
   await page.getByRole('textbox', { name: 'Szene', exact: true }).fill('Gastszene');
   await page.getByRole('button', { name: 'Als Spielstättenanpassung anlegen' }).click();

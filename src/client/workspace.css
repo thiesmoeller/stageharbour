@@ -294,6 +294,13 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
 .production-export > summary { cursor: pointer; padding: 14px 0; font-weight: 600; }
 .production-export[open] > summary { border-bottom: 1px solid var(--ui-line); margin-bottom: 12px; }
 .production-export .export-panel { border: 0; padding: 0; background: transparent; }
+.venue-block-heading { margin-bottom: 8px; }
+.venue-block-heading .venue-block-title { margin: 0; }
+.scene-actions { flex: 1 1 100%; margin-top: 4px; border: 0; padding: 0; background: transparent; }
+.scene-actions > summary { cursor: pointer; display: inline-block; padding: 5px 10px; font-size: 12px; font-weight: 500; color: var(--ui-muted); list-style: none; }
+.scene-actions > summary::-webkit-details-marker { display: none; }
+.scene-actions[open] > summary { margin-bottom: 6px; }
+.scene-actions > button { display: block; margin: 2px 0; padding: 5px 10px; font-size: 12px; border-color: transparent; }
 .venue-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; margin-top: 24px; }
 .venue-card { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; background: #fff; border-color: var(--ui-line); padding: 20px; text-align: left; }
 .venue-card-art { display: grid; place-items: center; width: 100%; height: 110px; background: repeating-linear-gradient(0deg, transparent 0 19px, #dce5e3 19px 20px), repeating-linear-gradient(90deg, #f4f8f7 0 19px, #dce5e3 19px 20px); border-radius: 5px; margin-bottom: 8px; }

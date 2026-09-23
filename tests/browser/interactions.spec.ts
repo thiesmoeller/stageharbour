@@ -1,20 +1,15 @@
 import { commitObjectPlacement, openInspector, placeNamedObjectAt, placeWallAt } from '../helpers/inspector.js';
 import { test, expect, type Page } from '@playwright/test';
-import { testAdministrator } from '../helpers/database.js';
+import { createProduction, signInToPlans } from '../helpers/plans.js';
 
 test.use({ viewport: { width: 1800, height: 1100 } });
 
 async function create(page: Page) {
-  await page.goto('/');
-  await page.getByLabel('E-Mail-Adresse').fill(testAdministrator.email);
-  await page.getByLabel('Passwort', { exact: true }).fill(testAdministrator.password);
-  await page.getByRole('button', { name: 'Anmelden', exact: true }).click();
-  await page.getByRole('button', { name: 'Neues Bühnenbild' }).click();
-  await page.getByRole('textbox', { name: 'Produktion' }).fill(`Interaktionen ${test.info().testId}`);
-  await page.getByRole('textbox', { name: 'Spielstätte' }).fill('Probesaal');
-  await page.getByRole('spinbutton', { name: 'Spielstättenbreite (mm)' }).fill('8000');
-  await page.getByRole('spinbutton', { name: 'Spielstättentiefe (mm)' }).fill('6000');
-  await page.getByRole('button', { name: 'Bühnenbild anlegen' }).click();
+  await signInToPlans(page);
+  await createProduction(page, {
+    productionName: `Interaktionen ${test.info().testId}`,
+    venueName: 'Probesaal',
+  });
   await expect(page.locator('.save-status')).toHaveText('Gespeichert');
 }
 async function point(page: Page, x: number, y: number, selector = '.plan-canvas > svg') {

@@ -1,14 +1,6 @@
 import { openInspector, placeNamedObjectAt, placeWallAt } from '../helpers/inspector.js';
 import { test, expect, type Page } from '@playwright/test';
-import { testAdministrator } from '../helpers/database.js';
-
-async function signIn(page: Page) {
-  await page.goto('/');
-  await page.getByLabel('E-Mail-Adresse').fill(testAdministrator.email);
-  await page.getByLabel('Passwort', { exact: true }).fill(testAdministrator.password);
-  await page.getByRole('button', { name: 'Anmelden', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Beispiel-Theatergruppe' })).toBeVisible();
-}
+import { createProduction, signInToPlans } from '../helpers/plans.js';
 
 async function waitUntilSaved(page: Page) {
   await expect(page.locator('.save-status')).toHaveText('Gespeichert', { timeout: 15_000 });
@@ -17,14 +9,12 @@ async function waitUntilSaved(page: Page) {
 test('edits in the plan update the linked 3D view, including front orientation after rotation, undo and reload', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
-  await signIn(page);
-  await page.getByRole('button', { name: 'Neues Bühnenbild' }).click();
-  await page.getByRole('textbox', { name: 'Produktion' }).fill('Raumprobe');
-  await page.getByRole('textbox', { name: 'Spielstätte' }).fill('Probebühne');
-  await page.getByRole('textbox', { name: 'Szene' }).fill('Drehansicht');
-  await page.getByRole('spinbutton', { name: 'Spielstättenbreite (mm)' }).fill('8000');
-  await page.getByRole('spinbutton', { name: 'Spielstättentiefe (mm)' }).fill('6000');
-  await page.getByRole('button', { name: 'Bühnenbild anlegen' }).click();
+  await signInToPlans(page);
+  await createProduction(page, {
+    productionName: 'Raumprobe',
+    venueName: 'Probebühne',
+    sceneName: 'Drehansicht',
+  });
   await expect(page.getByRole('heading', { name: 'Drehansicht' })).toBeVisible();
   await expect(page.getByRole('img', { name: 'Grundriss der Spielstätte' })).toBeVisible();
   await expect(page.getByRole('img', { name: 'Raumsicht der Spielstätte' })).toBeVisible();

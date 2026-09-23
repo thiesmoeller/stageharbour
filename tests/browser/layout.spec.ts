@@ -1,14 +1,10 @@
 import { commitObjectPlacement, openInspector, placeWallAt, commitWallPlacement, placeNamedObjectAt } from '../helpers/inspector.js';
 import { test, expect, type Page } from '@playwright/test';
-import { testAdministrator } from '../helpers/database.js';
 import { pngBytes } from '../helpers/references.js';
+import { createProduction, signInToPlans } from '../helpers/plans.js';
 
 async function signIn(page: Page) {
-  await page.goto('/');
-  await page.getByLabel('E-Mail-Adresse').fill(testAdministrator.email);
-  await page.getByLabel('Passwort', { exact: true }).fill(testAdministrator.password);
-  await page.getByRole('button', { name: 'Anmelden', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Beispiel-Theatergruppe' })).toBeVisible();
+  await signInToPlans(page);
 }
 
 async function waitUntilSaved(page: Page) {
@@ -49,13 +45,11 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await signIn(page);
-  await page.getByRole('button', { name: 'Neues Bühnenbild' }).click();
-  await page.getByRole('textbox', { name: 'Produktion' }).fill('Beispielproduktion');
-  await page.getByRole('textbox', { name: 'Spielstätte' }).fill('Beispielsaal');
-  await page.getByRole('textbox', { name: 'Szene' }).fill('Erste Szene');
-  await page.getByRole('spinbutton', { name: 'Spielstättenbreite (mm)' }).fill('8000');
-  await page.getByRole('spinbutton', { name: 'Spielstättentiefe (mm)' }).fill('6000');
-  await page.getByRole('button', { name: 'Bühnenbild anlegen' }).click();
+  await createProduction(page, {
+    productionName: 'Beispielproduktion',
+    venueName: 'Beispielsaal',
+    sceneName: 'Erste Szene',
+  });
   await expect(page.getByRole('heading', { name: 'Erste Szene' })).toBeVisible();
   await expect(page.getByText('Beispielproduktion · Beispielsaal')).toBeVisible();
   await expect(page.getByText('↑ Publikum · Blick zur Bühne')).toBeVisible();
@@ -450,13 +444,11 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
 
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();
   await expect(page.getByRole('heading', { name: 'Produktionen & Szenen' })).toBeVisible();
-  await page.getByRole('button', { name: 'Neues Bühnenbild' }).click();
-  await page.getByRole('textbox', { name: 'Produktion' }).fill('Gastspiel');
-  await page.getByRole('textbox', { name: 'Spielstätte' }).fill('Stadthalle');
-  await page.getByRole('textbox', { name: 'Szene' }).fill('Gastszene');
-  await page.getByRole('spinbutton', { name: 'Spielstättenbreite (mm)' }).fill('8000');
-  await page.getByRole('spinbutton', { name: 'Spielstättentiefe (mm)' }).fill('6000');
-  await page.getByRole('button', { name: 'Bühnenbild anlegen' }).click();
+  await createProduction(page, {
+    productionName: 'Gastspiel',
+    venueName: 'Stadthalle',
+    sceneName: 'Gastszene',
+  });
   await expect(page.getByRole('heading', { name: 'Gastszene' })).toBeVisible();
   await waitUntilSaved(page);
   await page.getByRole('button', { name: 'Spielstätte' }).click();
@@ -489,9 +481,10 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();
   await expect(page.getByRole('heading', { name: 'Produktionen & Szenen' })).toBeVisible();
   const copiedAcross = page.waitForResponse(response => response.url().includes('/copy') && response.request().method() === 'POST');
-  await page.getByRole('button', { name: /Beispielproduktion · Erste Szene Beispielsaal/ })
-    .locator('xpath=ancestor::div[contains(@class,"scene-card")]')
-    .getByRole('button', { name: 'In andere Spielstätte kopieren' }).click();
+  const sourceCard = page.getByRole('button', { name: /Beispielproduktion · Erste Szene Beispielsaal/ })
+    .locator('xpath=ancestor::div[contains(@class,"scene-card")]');
+  await sourceCard.locator('summary', { hasText: 'Weitere Aktionen' }).click();
+  await sourceCard.getByRole('button', { name: 'In andere Spielstätte kopieren' }).click();
   await page.getByLabel('Zielproduktion').selectOption({ label: 'Gastspiel' });
   await page.getByLabel('Zielspielstätte').selectOption({ label: 'Stadthalle' });
   await page.getByRole('button', { name: 'Als Spielstättenanpassung anlegen' }).click();
@@ -510,9 +503,10 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();
   await expect(page.getByRole('heading', { name: 'Produktionen & Szenen' })).toBeVisible();
   const capturedTemplate = page.waitForResponse(response => /\/scenes\/[^/]+\/templates$/.test(new URL(response.url()).pathname) && response.request().method() === 'POST');
-  await page.getByRole('button', { name: /Beispielproduktion · Erste Szene Beispielsaal/ })
-    .locator('xpath=ancestor::div[contains(@class,"scene-card")]')
-    .getByRole('button', { name: 'Als Szenenvorlage speichern' }).click();
+  const templateSource = page.getByRole('button', { name: /Beispielproduktion · Erste Szene Beispielsaal/ })
+    .locator('xpath=ancestor::div[contains(@class,"scene-card")]');
+  await templateSource.locator('summary', { hasText: 'Weitere Aktionen' }).click();
+  await templateSource.getByRole('button', { name: 'Als Szenenvorlage speichern' }).click();
   await page.getByLabel('Name der Szenenvorlage').fill('Grundriss A');
   await page.getByRole('button', { name: 'Szenenvorlage speichern', exact: true }).click();
   expect((await capturedTemplate).ok()).toBeTruthy();
@@ -536,9 +530,10 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();
   await expect(page.getByRole('heading', { name: 'Produktionen & Szenen' })).toBeVisible();
   const copiedReturn = page.waitForResponse(response => response.url().includes('/copy') && response.request().method() === 'POST');
-  await page.getByRole('button', { name: /Beispielproduktion · Erste Szene Beispielsaal/ })
-    .locator('xpath=ancestor::div[contains(@class,"scene-card")]')
-    .getByRole('button', { name: 'In andere Spielstätte kopieren' }).click();
+  const returnSource = page.getByRole('button', { name: /Beispielproduktion · Erste Szene Beispielsaal/ })
+    .locator('xpath=ancestor::div[contains(@class,"scene-card")]');
+  await returnSource.locator('summary', { hasText: 'Weitere Aktionen' }).click();
+  await returnSource.getByRole('button', { name: 'In andere Spielstätte kopieren' }).click();
   await page.getByLabel('Zielproduktion').selectOption({ label: 'Gastspiel' });
   await page.getByLabel('Zielspielstätte').selectOption({ label: 'Beispielsaal' });
   await page.getByRole('textbox', { name: 'Szene' }).fill('Rückkehr');
@@ -573,13 +568,11 @@ test('create a wall type with a rectangular opening, place it, and export the pl
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await signIn(page);
-  await page.getByRole('button', { name: 'Neues Bühnenbild' }).click();
-  await page.getByRole('textbox', { name: 'Produktion' }).fill('Türproduktion');
-  await page.getByRole('textbox', { name: 'Spielstätte' }).fill('Türsaal');
-  await page.getByRole('textbox', { name: 'Szene' }).fill('Türszene');
-  await page.getByRole('spinbutton', { name: 'Spielstättenbreite (mm)' }).fill('8000');
-  await page.getByRole('spinbutton', { name: 'Spielstättentiefe (mm)' }).fill('6000');
-  await page.getByRole('button', { name: 'Bühnenbild anlegen' }).click();
+  await createProduction(page, {
+    productionName: 'Türproduktion',
+    venueName: 'Türsaal',
+    sceneName: 'Türszene',
+  });
   await expect(page.getByRole('heading', { name: 'Türszene' })).toBeVisible();
   await waitUntilSaved(page);
 
@@ -620,12 +613,10 @@ test('create a wall type with a rectangular opening, place it, and export the pl
 
 test('a failed autosave keeps the local draft and retries the same revision', async ({ page }) => {
   await signIn(page);
-  await page.getByRole('button', { name: 'Neues Bühnenbild' }).click();
-  await page.getByRole('textbox', { name: 'Produktion' }).fill('Netzwerkprobe');
-  await page.getByRole('textbox', { name: 'Spielstätte' }).fill('Probesaal');
-  await page.getByRole('spinbutton', { name: 'Spielstättenbreite (mm)' }).fill('8000');
-  await page.getByRole('spinbutton', { name: 'Spielstättentiefe (mm)' }).fill('6000');
-  await page.getByRole('button', { name: 'Bühnenbild anlegen' }).click();
+  await createProduction(page, {
+    productionName: 'Netzwerkprobe',
+    venueName: 'Probesaal',
+  });
   await expect(page.getByRole('heading', { name: 'Szene 1' })).toBeVisible();
   await waitUntilSaved(page);
 
