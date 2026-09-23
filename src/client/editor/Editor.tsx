@@ -11,7 +11,7 @@ import {
   clipboardPivot, copySelection, cutSelection, pasteClipboard, removeSelection,
   type ClipboardMember, type LayoutClipboard,
 } from '../../shared/clipboard.js';
-import { groupContaining, type GroupMember } from '../../shared/groups.js';
+import { canFormGroup, formGroup, groupContaining, ungroup, type GroupMember } from '../../shared/groups.js';
 import { execute, history, redo, undo, type History } from '../../shared/history.js';
 import { layoutSchema, newBrace, newWall, wallCorners, wallSchema, type Brace, type Layout, type Scene, type VenueGeometry, type Wall } from '../../shared/layout.js';
 import {
@@ -23,7 +23,7 @@ import {
   AUDIENCE_FLOOR_ID, layoutDiagnostics, newPlatform, newStair, platformCentroid, reassignLayoutSupports,
   supportingSurfaces, type Platform, type StairUnit,
 } from '../../shared/levels.js';
-import { placeholderCorners, type Placeholder } from '../../shared/placeholders.js';
+import { PLACEHOLDER_KIND_LABELS, PLACEHOLDER_KINDS, newPlaceholder, placeholderCorners, type Placeholder } from '../../shared/placeholders.js';
 import { overheadBoxCorners, overheadClearance } from '../../shared/overhead.js';
 import { braceCorners } from '../../shared/braceTransforms.js';
 import { assemblyCaption } from '../../shared/assembly.js';
@@ -47,10 +47,8 @@ import { PlatformLayer, SurfaceField } from './PlatformLayer.js';
 import { RotationHandle } from './RotationHandle.js';
 import { AssetLibrary } from './AssetLibrary.js';
 import { assetListSchema, type Asset } from '../../shared/assets.js';
-import { newPlaceholder } from '../../shared/placeholders.js';
 import { StageView } from './StageView.js';
 import { ExportPanel } from './ExportPanel.js';
-import { WallTypePanel } from './WallTypePanel.js';
 import { VenuePanel, InfrastructureMarks } from './VenuePanel.js';
 import { useEditingLease } from './useEditingLease.js';
 import { OverheadMarks, TrussMarks, CurtainMarks } from './VenueOverhead.js';
@@ -59,11 +57,11 @@ import {
   objectOverlapWarnings, overlappingObjectIds, placementOverlaps, wallFootprint,
 } from '../../shared/overlap.js';
 import { keepClearWarnings } from '../../shared/keepClear.js';
-import { InventoryPanel } from './InventoryPanel.js';
+import { InventoryAssignment } from './InventoryPanel.js';
+import { inventorySchema, type InventoryPanel } from '../../shared/inventory.js';
 import { AssemblyPanel } from './AssemblyPanel.js';
 import { GroupInspector } from './GroupInspector.js';
-import { ClipboardPanel } from './ClipboardPanel.js';
-import { PlaceholderInspector, PlaceholderLibrary, addPlaceholder } from './PlaceholderInspector.js';
+import { PlaceholderInspector, addPlaceholder } from './PlaceholderInspector.js';
 import { PlaceholderLayer } from './PlaceholderLayer.js';
 import { ToolIcon } from './ToolIcon.js';
 import { WallToolButton } from './WallToolButton.js';
@@ -128,6 +126,26 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
   } | undefined>(undefined);
   const [groupPreview, setGroupPreview] = useState<Layout>();
   const [panelLabels, setPanelLabels] = useState<Record<string, string>>({});
+  const [inventoryPanels, setInventoryPanels] = useState<InventoryPanel[]>([]);
+  const inventoryGen = useRef(0);
+  function adoptPanels(items: InventoryPanel[]) {
+    inventoryGen.current += 1;
+    setInventoryPanels(items);
+    setPanelLabels(Object.fromEntries(items.map(item => [item.id, item.label])));
+  }
+  useEffect(() => {
+    let cancelled = false;
+    const gen = inventoryGen.current;
+    request(`/api/workspaces/${workspaceId}/inventory`)
+      .then(data => {
+        if (cancelled || inventoryGen.current !== gen) return;
+        const panels = inventorySchema.parse(data).panels;
+        setInventoryPanels(panels);
+        setPanelLabels(Object.fromEntries(panels.map(item => [item.id, item.label])));
+      })
+      .catch(() => { /* assignment stays empty until Bibliothek loads stock */ });
+    return () => { cancelled = true; };
+  }, [workspaceId]);
   const [exportsOpen, setExportsOpen] = useState(false);
   const [venueOpen, setVenueOpen] = useState(false);
   const [openVenueSheet, setOpenVenueSheet] = useState(false);
@@ -450,6 +468,9 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
   const selectedPlatformItem = (state.present.platforms ?? []).find(item => item.id === selectedPlatform);
   const selectedStairItem = (state.present.stairs ?? []).find(item => item.id === selectedStair);
   const selectedPlaceholderItem = (state.present.placeholders ?? []).find(item => item.id === selectedPlaceholder);
+  const groupPicked = picked.filter((item): item is GroupMember => item.kind !== 'platform');
+  const activeGroup = groupPicked.map(member => groupContaining(state.present, member)).find(item => item);
+  const canGroup = canFormGroup(state.present, groupPicked);
   const surfaces = supportingSurfaces(venue, state.present);
   const diagnostics = layoutDiagnostics(state.present, venue);
   const liveLayout = groupPreview ?? state.present;
@@ -696,7 +717,16 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
         : saveState.status === 'conflict' && saveState.conflictKind === 'lease' ? 'Bearbeitung abgelaufen'
           : inspectorPending ? INSPECTOR_PENDING_STATUS : statusText[saveState.status]}</span><div className="document-history">{!readOnly && <>
       <button className="quiet" disabled={!!groupPreview || !!placing || !state.past.length} onClick={() => apply(undo(current.current))} hidden={venueOpen} title="Rückgängig (Strg+Z)" aria-label="Rückgängig"><ToolIcon name="undo" /></button>
-      <button className="quiet" disabled={!!groupPreview || !!placing || !state.future.length} onClick={() => apply(redo(current.current))} hidden={venueOpen} title="Wiederholen (Strg+Shift+Z)" aria-label="Wiederholen"><ToolIcon name="redo" /></button></>}</div><span className="document-kind">{venueOpen ? 'Spielstätte bearbeiten' : 'Bühnenbild'}</span></div>
+      <button className="quiet" disabled={!!groupPreview || !!placing || !state.future.length} onClick={() => apply(redo(current.current))} hidden={venueOpen} title="Wiederholen (Strg+Shift+Z)" aria-label="Wiederholen"><ToolIcon name="redo" /></button>
+      <button className="quiet" type="button" disabled={!!groupPreview || !!placing || selection().length === 0} hidden={venueOpen} onClick={copy}>Kopieren</button>
+      <button className="quiet" type="button" disabled={!!groupPreview || !!placing || selection().length === 0} hidden={venueOpen} onClick={cut}>Ausschneiden</button>
+      <button className="quiet" type="button" disabled={!!groupPreview || !!placing || !clipboard} hidden={venueOpen} onClick={paste}>Einfügen</button>
+      <button className="quiet" type="button" disabled={!!groupPreview || !!placing || !canGroup} hidden={venueOpen}
+        onClick={() => commit(formGroup(current.current.present, groupPicked, crypto.randomUUID()))}>Gruppieren</button>
+      {activeGroup && <button className="quiet" type="button" disabled={!!groupPreview || !!placing} hidden={venueOpen}
+        onClick={() => commit(ungroup(current.current.present, activeGroup.id))}>Gruppe auflösen</button>}
+      <span className="selection-count" hidden={venueOpen || selection().length === 0} data-testid="selection-count">{selection().length} ausgewählt</span>
+      </>}</div><span className="document-kind">{venueOpen ? 'Spielstätte bearbeiten' : 'Bühnenbild'}</span></div>
     <div className="workspace-commandbar">
     <div className="editor-toolbar">
       <button className="quiet" aria-expanded={venueOpen} disabled={venueOpen ? venueDirty : dirty} onClick={() => {
@@ -746,10 +776,37 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
         const line = newMeasureLine(crypto.randomUUID(), { x: 500, y: venue.depth / 2 }, { x: Math.max(1000, venue.width - 500), y: venue.depth / 2 });
         commit({ ...current.current.present, measureLines: [...current.current.present.measureLines ?? [], line] });
       }} title="Maßlinie hinzufügen" aria-label="Maßlinie hinzufügen"><ToolIcon name="expand" /><span>Maß</span></button>
+      {PLACEHOLDER_KINDS.map(kind => <button key={kind} type="button" className="quiet"
+        disabled={!!groupPreview || !!placing || (state.present.placeholders ?? []).length >= 250}
+        onClick={() => {
+          const item = addPlaceholder(kind, venue.width / 2, venue.depth / 2);
+          beginObjectPlacement(
+            { ...current.current.present, placeholders: [...current.current.present.placeholders ?? [], item] },
+            { kind: 'placeholder', id: item.id },
+          );
+        }}
+        title={`${PLACEHOLDER_KIND_LABELS[kind]} hinzufügen`}
+        aria-label={`${PLACEHOLDER_KIND_LABELS[kind]} hinzufügen`}>
+        <ToolIcon name="library" /><span>{PLACEHOLDER_KIND_LABELS[kind]}</span>
+      </button>)}
       </>}
     </div>
     {assetError && <p className="error" role="alert">{assetError}</p>}
-    {libraryOpen && !venueOpen && <AssetLibrary workspaceId={workspaceId} assets={assets} readOnly={readOnly || busyGesture()} selected={selectedWall ?? selectedBraceItem} onCreated={asset => setAssets(items => [...items, asset])} onArchive={id => setAssets(items => items.map(asset => asset.id === id ? { ...asset, archived: true } : asset))} onPlace={placeAsset} />}
+    {libraryOpen && !venueOpen && <AssetLibrary workspaceId={workspaceId} assets={assets} layout={state.present}
+      readOnly={readOnly || busyGesture()} selected={selectedWall ?? selectedBraceItem}
+      wallTypes={wallTypes} selectedTypeId={selectedType}
+      onCreated={asset => setAssets(items => [...items, asset])}
+      onArchive={id => setAssets(items => items.map(asset => asset.id === id ? { ...asset, archived: true } : asset))}
+      onPlace={asset => { setLibraryOpen(false); placeAsset(asset); }}
+      onWallTypeSelect={setSelectedType} onWallTypeCreate={applyType} onWallTypeApply={applyType}
+      onWallTypePlace={type => {
+        setLibraryOpen(false);
+        setExportsOpen(false);
+        placeType(type);
+      }}
+      onWallTypeRemove={removeType} onPendingChange={setInspectorPending}
+      onPanels={adoptPanels} />}
+    <span className="sr-only" data-testid="inventory-panel-count">{inventoryPanels.length}</span>
     {venueOpen && !readOnly && !venueLease.holding && <p className="lease-banner" role="status">{venueLease.message || 'Bearbeitung wird angefordert …'} <button type="button" className="quiet" onClick={() => void venueLease.acquire()}>Bearbeitung erneut anfordern</button></p>}
     {venueOpen && <VenuePanel workspaceId={workspaceId} sceneId={initial.id} venue={venue} venueId={initial.venueId} venueName={venueName}
       venueUpdateAvailable={updateAvailable} readOnly={readOnly || !venueLease.holding} onDirty={setVenueDirty} onSaved={adoptVenue}
@@ -1082,40 +1139,19 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
                 onPendingChange={setInspectorPending} onApply={replaceStair} onRemove={remove} />
               : selectedPlaceholderItem ? <PlaceholderInspector key={JSON.stringify(selectedPlaceholderItem)} item={selectedPlaceholderItem} surfaces={surfaces} readOnly={readOnly}
                   onPendingChange={setInspectorPending} onApply={replacePlaceholder} onRemove={remove} />
-                : <p className="muted">Wählen Sie ein Objekt im Grundriss oder einen Vorhang / eine Spielstättentür. Nur die Öffnung fester Spielstätten-Elemente ist pro Szene änderbar.</p>}
+                : <p className="muted">Objekt im Grundriss wählen oder links über die Werkzeugleiste und die Bibliothek hinzufügen.</p>}
+      {selectedWall && <InventoryAssignment layout={state.present} selectedWall={selectedWall}
+        panels={inventoryPanels} readOnly={readOnly}
+        onAssign={panelId => replace({ ...selectedWall, panelId })}
+        onUnassign={() => replace((({ panelId: _removed, ...rest }) => rest)(selectedWall))} />}
       </div>
-      <details className="inspector-section"><summary>Wandtypen</summary><div className="inspector-section-body">
-      <WallTypePanel types={wallTypes} selectedId={selectedType} readOnly={readOnly}
-        onSelect={setSelectedType} onCreate={applyType} onApply={applyType} onPlace={placeType} onRemove={removeType}
-        onPendingChange={setInspectorPending} />
-      </div></details>
-      <details className="inspector-section"><summary>Platteninventar</summary><div className="inspector-section-body">
-      <InventoryPanel workspaceId={workspaceId} layout={state.present} selectedWall={selectedWall} readOnly={readOnly}
-        onAssign={panelId => selectedWall && replace({ ...selectedWall, panelId })}
-        onUnassign={() => selectedWall && replace((({ panelId: _removed, ...rest }) => rest)(selectedWall))}
-        onPanels={items => setPanelLabels(Object.fromEntries(items.map(item => [item.id, item.label])))} />
-      </div></details>
-      <details className="inspector-section"><summary>Aufbau & Verbindungen</summary><div className="inspector-section-body">
+      {selectedWall && <details className="inspector-section"><summary>Aufbau & Verbindungen</summary><div className="inspector-section-body">
       <AssemblyPanel layout={state.present} selectedWall={selectedWall} readOnly={readOnly} onChange={commit} />
-      </div></details>
-      <details className="inspector-section"><summary>Gruppieren</summary><div className="inspector-section-body">
-      <GroupInspector layout={state.present} picked={picked.filter((item): item is GroupMember => item.kind !== 'platform')} readOnly={readOnly}
+      </div></details>}
+      {activeGroup && <details className="inspector-section" open><summary>Gruppe</summary><div className="inspector-section-body">
+      <GroupInspector layout={state.present} picked={groupPicked} readOnly={readOnly}
         onPendingChange={setInspectorPending} onChange={commit} />
-      </div></details>
-      <details className="inspector-section" open><summary>Zwischenablage</summary><div className="inspector-section-body">
-      <ClipboardPanel selection={selection()} canPaste={!!clipboard} busy={!!groupPreview || !!placing}
-        readOnly={readOnly} onCopy={copy} onCut={cut} onPaste={paste} />
-      </div></details>
-      <details className="inspector-section"><summary>Platzhalter</summary><div className="inspector-section-body">
-      <PlaceholderLibrary readOnly={readOnly} disabled={!!groupPreview || !!placing || (state.present.placeholders ?? []).length >= 250}
-        onAdd={kind => {
-          const item = addPlaceholder(kind, venue.width / 2, venue.depth / 2);
-          beginObjectPlacement(
-            { ...current.current.present, placeholders: [...current.current.present.placeholders ?? [], item] },
-            { kind: 'placeholder', id: item.id },
-          );
-        }} />
-      </div></details>
+      </div></details>}
     </aside></div>}
     <div className="workspace-statusbar"><span><span className="status-dot" />{venueOpen ? 'Spielstättenentwurf' : 'Bühnenbild'} · {state.present.walls.length} Wände</span><span className="status-hint">Klicken zum Auswählen · Ziehen zum Verschieben · Strg+Z rückgängig</span><button className="quiet" aria-expanded={helpOpen} onClick={() => setHelpOpen(open => !open)}><ToolIcon name="help" /> Bedienung</button><span>Maße in mm</span></div>
     {helpOpen && <div className="workspace-help"><h3>Arbeiten im Grundriss</h3>      <p className="muted viewport-hint">Raster: 1 m / 50 cm · Zwei-Finger-Scroll oder Mittelklick verschieben · Pinch / Strg+Scroll zoomen · Auf dem Boden ziehen: Mehrfachauswahl (nur vollständig umschlossene Objekte) · Orange ↻ dreht · Stützen an Wänden · {SNAP_NOTICE}</p><p>Strg/Cmd+C kopiert die Auswahl, Strg/Cmd+V hängt die Kopie an den Zeiger — Klick setzt, Escape bricht ab. Entf löscht ausgewählte Objekte. Escape bricht Platzieren und Bewegungen ab oder hebt die Auswahl auf (auch in der Raumsicht · Klick in freien Raum). Überschneidungen erscheinen rot auf dem Grundriss.</p></div>}

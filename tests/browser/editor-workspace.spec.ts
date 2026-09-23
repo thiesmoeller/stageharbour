@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openInspector, placeWallAt } from '../helpers/inspector.js';
+import { openLibrary, placeWallAt } from '../helpers/inspector.js';
 import { createProduction, signInToPlans } from '../helpers/plans.js';
 
 test('editor keeps the canvas in view, preserves tray drafts, and adapts to smaller screens', async ({ page }) => {
@@ -14,21 +14,17 @@ test('editor keeps the canvas in view, preserves tray drafts, and adapts to smal
     sceneName: 'Erster Akt · Das Zimmer',
   });
   await expect(page.getByRole('heading', { name: 'Keine Auswahl' })).toBeVisible();
-  const wallTypes = page.locator('.inspector-section').filter({ has: page.locator('summary', { hasText: 'Wandtypen' }) });
-  await expect(wallTypes).not.toHaveAttribute('open');
-  await openInspector(page, 'Wandtypen');
-  await page.getByRole('button', { name: 'Wandtyp anlegen' }).click();
-  await page.getByLabel('Wandtyp-Bezeichnung').fill('Türwand im Entwurf');
+  await expect(page.getByText(/Werkzeugleiste und die Bibliothek/)).toBeVisible();
+  const library = await openLibrary(page, 'Wandtypen');
+  await library.getByRole('button', { name: 'Wandtyp anlegen' }).click();
+  await library.getByLabel('Wandtyp-Bezeichnung').fill('Türwand im Entwurf');
   const viewsWidth = (await page.locator('.editor-views').boundingBox())!.width;
   await page.getByRole('button', { name: 'Eigenschaften', exact: true }).click();
   await expect(page.locator('.wall-inspector')).toBeHidden();
   expect((await page.locator('.editor-views').boundingBox())!.width).toBeGreaterThan(viewsWidth + 200);
   await page.getByRole('button', { name: 'Eigenschaften', exact: true }).click();
-  await expect(page.getByLabel('Wandtyp-Bezeichnung')).toHaveValue('Türwand im Entwurf');
-  await wallTypes.locator('summary').click({ force: true });
-  await openInspector(page, 'Wandtypen');
-  await expect(page.getByLabel('Wandtyp-Bezeichnung')).toHaveValue('Türwand im Entwurf');
-  await wallTypes.locator('summary').click({ force: true });
+  await expect(library.getByLabel('Wandtyp-Bezeichnung')).toHaveValue('Türwand im Entwurf');
+  await page.getByRole('button', { name: 'Objektbibliothek', exact: true }).click();
 
   for (const [x, y, rotation] of [[2000, 4500, 0], [3200, 4500, 0], [4400, 4500, 0], [5600, 4500, 0], [1400, 3900, 90]]) {
     await placeWallAt(page, x, y);

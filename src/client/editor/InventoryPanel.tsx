@@ -9,9 +9,10 @@ import type { Layout, Wall } from '../../shared/layout.js';
 import { typesOf } from '../../shared/wall-types.js';
 import { ApiError, request } from '../api.js';
 
-export function InventoryPanel({ workspaceId, layout, selectedWall, readOnly, onAssign, onUnassign, onPanels }: {
-  workspaceId: string; layout: Layout; selectedWall?: Wall; readOnly: boolean;
-  onAssign: (panelId: string) => void; onUnassign: () => void; onPanels?: (panels: InventoryPanel[]) => void;
+/** Stock CRUD for the Bibliothek Plattenbestand tab. */
+export function InventoryStock({ workspaceId, layout, readOnly, onPanels }: {
+  workspaceId: string; layout: Layout; readOnly: boolean;
+  onPanels: (panels: InventoryPanel[]) => void;
 }) {
   const [panels, setPanels] = useState<InventoryPanel[]>([]);
   const [error, setError] = useState('');
@@ -22,12 +23,21 @@ export function InventoryPanel({ workspaceId, layout, selectedWall, readOnly, on
   async function load() {
     const data = inventorySchema.parse(await request(base));
     setPanels(data.panels);
-    onPanels?.(data.panels);
+    onPanels(data.panels);
     return data;
   }
   useEffect(() => {
     let cancelled = false;
-    load().catch(() => { if (!cancelled) setError('Bestand konnte nicht geladen werden.'); });
+    (async () => {
+      try {
+        const data = inventorySchema.parse(await request(base));
+        if (cancelled) return;
+        setPanels(data.panels);
+        onPanels(data.panels);
+      } catch {
+        if (!cancelled) setError('Bestand konnte nicht geladen werden.');
+      }
+    })();
     return () => { cancelled = true; };
   }, [base]);
   async function acquire() {
@@ -60,18 +70,17 @@ export function InventoryPanel({ workspaceId, layout, selectedWall, readOnly, on
     setBusy(true); setError('');
     try {
       const updated = inventoryPanelSchema.parse(await request(`${base}/panels/${panel.id}`, { available }, 'PATCH'));
-      setPanels(current => current.map(item => item.id === updated.id ? updated : item));
+      setPanels(current => {
+        const next = current.map(item => item.id === updated.id ? updated : item);
+        onPanels(next);
+        return next;
+      });
     } catch { setError('Verfügbarkeit konnte nicht geändert werden.'); }
     finally { setBusy(false); }
   }
   const warnings = inventoryWarnings(layout, panels);
-  const placement = selectedWall ? placementType(selectedWall, typesOf(layout)) : undefined;
-  const assignable = selectedWall && placement
-    ? panels.filter(panel => panel.id === selectedWall.panelId || typesCompatible(panel.type, placement))
-    : [];
-  const assigned = panels.find(panel => panel.id === selectedWall?.panelId);
   return <div className="inventory-panel">
-    <h3>Bestand</h3>
+    <h3>Plattenbestand</h3>
     <p className="muted">Gemeldeter Bestand: {REPORTED_PANEL_COUNTS.plain} {GROUP_WALL_TYPE_NAMES.plain}, {REPORTED_PANEL_COUNTS.door} {GROUP_DOOR_STOCK_NAME}, {REPORTED_PANEL_COUNTS.window} {GROUP_WALL_TYPE_NAMES.window}, {REPORTED_PANEL_COUNTS.arch} {GROUP_WALL_TYPE_NAMES.arch} ({REPORTED_PANEL_COUNTS.plain + REPORTED_PANEL_COUNTS.door + REPORTED_PANEL_COUNTS.window + REPORTED_PANEL_COUNTS.arch} Platten), zuzüglich Halbe Wände 600×2400×250 mm. Etiketten hier sind Beispiele. Das Bogenprofil bleibt vorerst rechteckig.</p>
     {warnings.length > 0 && <ul data-testid="inventory-warnings" role="status">{warnings.map((warning, index) => <li key={`${warning.kind}-${warning.wallId ?? index}`} data-kind={warning.kind}>{warning.message}</li>)}</ul>}
     {error && <p role="alert" className="error">{error}</p>}
@@ -94,15 +103,27 @@ export function InventoryPanel({ workspaceId, layout, selectedWall, readOnly, on
       <input id="panel-note" name="note" maxLength={500} />
       <div className="form-actions"><button type="submit">Platte anlegen</button></div>
     </fieldset></form>}
-    <h4>Zuweisung</h4>
-    {selectedWall ? <>
-      <label htmlFor="panel-assignment">Platte zuweisen</label>
-      <select id="panel-assignment" value={selectedWall.panelId ?? ''} disabled={readOnly} onChange={event => event.target.value ? onAssign(event.target.value) : onUnassign()}>
-        <option value="">Keine Platte</option>
-        {assignable.map(panel => <option key={panel.id} value={panel.id}>{panel.label}{panel.available ? '' : ' (nicht verfügbar)'}</option>)}
-        {assigned && !assignable.some(panel => panel.id === assigned.id) && <option value={assigned.id}>{assigned.label} (nicht verfügbar)</option>}
-      </select>
-      {assigned && <p className="muted">Zugewiesen: {assigned.label}</p>}
-    </> : <p className="muted">Wählen Sie ein Wandelement, um eine Platte zuzuweisen.</p>}
+  </div>;
+}
+
+/** Assignment UI for a selected wall — panels come from Editor (updated by InventoryStock). */
+export function InventoryAssignment({ layout, selectedWall, panels, readOnly, onAssign, onUnassign }: {
+  layout: Layout; selectedWall: Wall; panels: InventoryPanel[]; readOnly: boolean;
+  onAssign: (panelId: string) => void; onUnassign: () => void;
+}) {
+  const warnings = inventoryWarnings(layout, panels);
+  const placement = placementType(selectedWall, typesOf(layout));
+  const assignable = panels.filter(panel => panel.id === selectedWall.panelId || typesCompatible(panel.type, placement));
+  const assigned = panels.find(panel => panel.id === selectedWall.panelId);
+  return <div className="inventory-assignment" data-testid="inventory-assignment" data-panel-count={panels.length}>
+    <h4>Plattenzuweisung</h4>
+    {warnings.length > 0 && <ul data-testid="inventory-warnings" role="status">{warnings.map((warning, index) => <li key={`${warning.kind}-${warning.wallId ?? index}`} data-kind={warning.kind}>{warning.message}</li>)}</ul>}
+    <label htmlFor="panel-assignment">Platte zuweisen</label>
+    <select id="panel-assignment" value={selectedWall.panelId ?? ''} disabled={readOnly} onChange={event => event.target.value ? onAssign(event.target.value) : onUnassign()}>
+      <option value="">Keine Platte</option>
+      {assignable.map(panel => <option key={panel.id} value={panel.id}>{panel.label}{panel.available ? '' : ' (nicht verfügbar)'}</option>)}
+      {assigned && !assignable.some(panel => panel.id === assigned.id) && <option value={assigned.id}>{assigned.label} (nicht verfügbar)</option>}
+    </select>
+    {assigned && <p className="muted">Zugewiesen: {assigned.label}</p>}
   </div>;
 }

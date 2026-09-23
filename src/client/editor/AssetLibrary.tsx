@@ -4,19 +4,32 @@ import {
   assetSchema, MAX_MODEL_BYTES, MAX_MODEL_MB, modelAxisSchema, modelDimensionsFromReference,
   type Asset, type AssetDefinition, type ModelAxis,
 } from '../../shared/assets.js';
-import { newBrace, newWall, type Brace, type Wall } from '../../shared/layout.js';
+import { newBrace, newWall, type Brace, type Layout, type Wall } from '../../shared/layout.js';
+import type { WallElementType } from '../../shared/wall-types.js';
 import { request } from '../api.js';
 import { measureGlbFile } from './measureGlb.js';
 import { useEditingLease } from './useEditingLease.js';
+import { InventoryStock } from './InventoryPanel.js';
+import { WallTypePanel } from './WallTypePanel.js';
 
 const PascalCatalog = lazy(() => import('./PascalCatalog.js'));
 const axisLabels: Record<ModelAxis, string> = { width: 'Breite', height: 'Höhe', depth: 'Tiefe' };
+type LibraryTab = 'inventory' | 'panels' | 'wallTypes' | 'import' | 'catalog';
 
-export function AssetLibrary({ workspaceId, assets, readOnly, selected, onCreated, onArchive, onPlace }: {
-  workspaceId: string; assets: Asset[]; readOnly: boolean; selected?: Wall | Brace;
+export function AssetLibrary({ workspaceId, assets, layout, readOnly, selected, wallTypes, selectedTypeId, onCreated, onArchive, onPlace,
+  onWallTypeSelect, onWallTypeCreate, onWallTypeApply, onWallTypePlace, onWallTypeRemove, onPendingChange, onPanels }: {
+  workspaceId: string; assets: Asset[]; layout: Layout; readOnly: boolean; selected?: Wall | Brace;
+  wallTypes: WallElementType[]; selectedTypeId?: string;
   onCreated: (asset: Asset) => void; onArchive: (id: string) => void; onPlace: (asset: Asset) => void;
+  onWallTypeSelect: (id?: string) => void;
+  onWallTypeCreate: (type: WallElementType) => void;
+  onWallTypeApply: (type: WallElementType) => void;
+  onWallTypePlace: (type: WallElementType) => void;
+  onWallTypeRemove: (id: string) => void;
+  onPendingChange?: (pending: boolean) => void;
+  onPanels: (panels: import('../../shared/inventory.js').InventoryPanel[]) => void;
 }) {
-  const [tab, setTab] = useState<'inventory' | 'import' | 'catalog'>('inventory');
+  const [tab, setTab] = useState<LibraryTab>('inventory');
   const [search, setSearch] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -85,7 +98,8 @@ export function AssetLibrary({ workspaceId, assets, readOnly, selected, onCreate
   return <section className="asset-library" aria-label="Objektbibliothek">
     <div className="section-heading"><h3>Objektbibliothek</h3><span>Gemeinsam in der Theatergruppe</span></div>
     <div className="asset-tabs">
-      {([['inventory', 'Inventar'], ['import', 'GLB importieren'], ['catalog', 'Pascal-Katalog']] as const).map(([id, title]) => <button key={id} type="button" className="quiet" aria-pressed={tab === id} onClick={() => { setTab(id); setError(''); }}>{title}</button>)}
+      {([['inventory', 'Inventar'], ['panels', 'Plattenbestand'], ['wallTypes', 'Wandtypen'], ['import', 'GLB importieren'], ['catalog', 'Pascal-Katalog']] as const)
+        .map(([id, title]) => <button key={id} type="button" className="quiet" aria-pressed={tab === id} onClick={() => { setTab(id); setError(''); }}>{title}</button>)}
     </div>
     {tab === 'inventory' && <>
       <label htmlFor="asset-search">Inventar durchsuchen</label><input id="asset-search" value={search} onChange={event => setSearch(event.target.value)} />
@@ -109,6 +123,10 @@ export function AssetLibrary({ workspaceId, assets, readOnly, selected, onCreate
       </fieldset></form>}
       <p className="muted">Vorlagen erzeugen unabhängige Exemplare. Archivieren entfernt nur die Vorlage aus der Auswahl; bestehende Szenen behalten ihre Objekte.</p>
     </>}
+    {tab === 'panels' && <InventoryStock workspaceId={workspaceId} layout={layout} readOnly={readOnly} onPanels={onPanels} />}
+    {tab === 'wallTypes' && <WallTypePanel types={wallTypes} selectedId={selectedTypeId} readOnly={readOnly}
+      onSelect={onWallTypeSelect} onCreate={onWallTypeCreate} onApply={onWallTypeApply} onPlace={onWallTypePlace} onRemove={onWallTypeRemove}
+      onPendingChange={onPendingChange} />}
     {tab === 'import' && <form onSubmit={event => void upload(event)}><fieldset disabled={busy || readOnly || measuring}>
       <p>GLB mit eingebetteten Texturen, bis {MAX_MODEL_MB} MB. Das Modell wird für alle Mitglieder gespeichert.</p>
       <label htmlFor="model-name">Modellname</label><input id="model-name" name="name" maxLength={120} required />

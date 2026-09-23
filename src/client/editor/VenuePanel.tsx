@@ -1202,7 +1202,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
             <div className="form-actions"><button type="button" className="quiet" onClick={() => remove()}>Auswahl löschen</button></div>
           </fieldset> : <p className="muted">Objekt im Grundriss wählen oder links Wand, Podest, Stuhl, Strom, Notausgang oder Lüftung hinzufügen.</p>}
         </div>
-        <details className="inspector-section" open><summary>Zwischenablage</summary><div className="inspector-section-body">
+        <details className="inspector-section"><summary>Zwischenablage</summary><div className="inspector-section-body">
           <ClipboardPanel selection={selectedIds.map(id => ({ kind: 'wall', id }))} canPaste={!!clipboard} busy={busy} readOnly={readOnly}
             onCopy={copy} onCut={cut} onPaste={paste} />
         </div></details>
