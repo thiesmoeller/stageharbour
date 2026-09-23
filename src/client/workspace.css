@@ -213,6 +213,31 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
   .split-control { display: none; }
   .status-hint { visibility: hidden; }
 }
+@media (max-width: 1100px) {
+  .editor-grid[data-narrow=true] { position: relative; }
+  .editor-grid[data-narrow=true][data-inspector-open=true] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .editor-grid[data-narrow=true][data-inspector-open=true] > .wall-inspector {
+    position: fixed;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    z-index: 40;
+    max-height: min(55vh, 520px);
+    margin: 0;
+    border: 1px solid var(--ui-line);
+    border-radius: 8px;
+    box-shadow: 0 12px 32px #20304033;
+    background: #fff;
+  }
+  .editor-grid[data-narrow=true] .editor-views {
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .editor-grid[data-narrow=true] .editor-views[data-mode=split] {
+    grid-template-rows: minmax(0, 1fr);
+  }
+}
 @media (max-width: 760px) {
   .app:has(.workspace) > .masthead { padding: 0 12px; height: 46px; }
   .app:has(.editor) { height: auto; min-height: 100dvh; overflow: visible; }

@@ -68,6 +68,7 @@ import { ToolIcon } from './ToolIcon.js';
 import { WallToolButton } from './WallToolButton.js';
 import { AlignmentGuides, CentrelineMark, SnapToggle } from './SnapGuides.js';
 import { confirmDiscardPending, usePendingApplyForm } from './usePendingApplyForm.js';
+import { canvasModeForWidth, useNarrowEditor } from './useNarrowEditor.js';
 import {
   effectiveCurtains, effectiveVenueDoorOpen, setCurtainOpenPercent, setVenueDoorOpenPercent, venueDooredWalls,
 } from '../../shared/venueFixtures.js';
@@ -88,6 +89,8 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const [viewMode, setViewMode] = useState<'split' | 'plan' | 'stage'>('split');
   const [viewShare, setViewShare] = useState(55);
+  const narrowEditor = useNarrowEditor();
+  const activeView = canvasModeForWidth(viewMode, narrowEditor);
   const current = useRef(state);
   const stageGesture = useRef<{ layout: Layout; members: ClipboardMember[] } | undefined>(undefined);
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -400,7 +403,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
   }
   function paste() {
     if (busyGesture() || !clipboard) return;
-    if (viewMode === 'stage') setViewMode('split');
+    if (viewMode === 'stage') setViewMode(narrowEditor ? 'plan' : 'split');
     const cursor = lastPlanPoint.current;
     const pivot = clipboardPivot(clipboard) ?? cursor;
     const result = pasteClipboard(current.current.present, clipboard, () => crypto.randomUUID(), {
@@ -658,7 +661,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
   function placeAsset(asset: Asset) {
     if (readOnly || busyGesture()) return;
     setLibraryOpen(false);
-    if (viewMode === 'stage') setViewMode('split');
+    if (viewMode === 'stage') setViewMode(narrowEditor ? 'plan' : 'split');
     const definition = asset.definition, id = crypto.randomUUID(), x = venue.width / 2, y = venue.depth / 2;
     if (definition.kind === 'wall') {
       const { typeId: _type, panelId: _panel, assemblyNumber: _assembly, ...template } = definition.template;
@@ -707,8 +710,8 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
 
     </div>
     <div className="workspace-viewbar" hidden={venueOpen} role="toolbar" aria-label="Ansichten">
-      <div className="view-modes">{(['split', 'plan', 'stage'] as const).map(mode => <button key={mode} type="button" className="quiet" aria-pressed={viewMode === mode} onClick={() => setViewMode(mode)}>{mode === 'split' ? '2D + 3D' : mode === 'plan' ? 'Grundriss' : 'Raumansicht'}</button>)}</div>
-      <label className="split-control" hidden={viewMode !== 'split'}>Aufteilung<input aria-label="Ansichten aufteilen" type="range" min="30" max="70" value={viewShare} onChange={event => setViewShare(Number(event.target.value))} /></label>
+      <div className="view-modes">{(narrowEditor ? (['plan', 'stage'] as const) : (['split', 'plan', 'stage'] as const)).map(mode => <button key={mode} type="button" className="quiet" aria-pressed={activeView === mode} onClick={() => setViewMode(mode)}>{mode === 'split' ? '2D + 3D' : mode === 'plan' ? 'Grundriss' : 'Raumansicht'}</button>)}</div>
+      <label className="split-control" hidden={activeView !== 'split'}>Aufteilung<input aria-label="Ansichten aufteilen" type="range" min="30" max="70" value={viewShare} onChange={event => setViewShare(Number(event.target.value))} /></label>
       <button type="button" className="quiet" aria-expanded={inspectorOpen} onClick={() => setInspectorOpen(open => !open)} title={inspectorOpen ? 'Eigenschaften ausblenden' : 'Eigenschaften einblenden'} aria-label="Eigenschaften"><ToolIcon name="tray" /></button>
       <button type="button" className="quiet" onClick={() => { if (document.fullscreenElement) void document.exitFullscreen(); else void root.current?.requestFullscreen(); }} title="Vollbild" aria-label="Vollbild"><ToolIcon name="expand" /></button>
     </div>
@@ -779,7 +782,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
       <button className="quiet" onClick={() => { if (window.confirm('Lokale Änderungen verwerfen und die gespeicherte Fassung laden?')) { saver.dispose(); onDirty(false); onClose(); } }}>Gespeicherte Fassung laden</button>
     </div>}
     {permissionReadOnly && onRequestEditing && <p role="status">Eine Bearbeitung ist möglich, sobald die bisherige Freigabe endet (spätestens 45 Sekunden nach dem letzten Lebenszeichen). <button onClick={onRequestEditing}>Bearbeitung erneut anfordern</button></p>}
-    {!venueOpen && <div className="editor-grid" data-inspector-open={inspectorOpen}><div className="editor-views" data-mode={viewMode} style={viewMode === 'split' ? { gridTemplateColumns: `minmax(0, ${viewShare}fr) minmax(0, ${100 - viewShare}fr)` } : { gridTemplateColumns: 'minmax(0, 1fr)' }}><div className="plan-canvas" hidden={viewMode === 'stage'}>
+    {!venueOpen && <div className="editor-grid" data-inspector-open={inspectorOpen} data-narrow={narrowEditor}><div className="editor-views" data-mode={activeView} style={activeView === 'split' ? { gridTemplateColumns: `minmax(0, ${viewShare}fr) minmax(0, ${100 - viewShare}fr)` } : { gridTemplateColumns: 'minmax(0, 1fr)' }}><div className="plan-canvas" hidden={activeView === 'stage'}>
       <div className="plan-viewbar"><h3>Grundriss <span>2D</span></h3>
       <PlanDisplayToggles value={planDisplay} onChange={setPlanDisplay} />
       <div className="plan-zoom">
@@ -1011,7 +1014,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
         </p>}
       </div>
     </div>
-    {viewMode !== 'plan' && <StageView layout={placing ? {
+    {activeView !== 'plan' && <StageView layout={placing ? {
       ...shown,
       wallTypes: placing.pendingType ? [...typesOf(shown), placing.pendingType] : shown.wallTypes,
       walls: [...shown.walls, placing.wall],

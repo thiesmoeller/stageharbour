@@ -44,6 +44,7 @@ import { ReportSheetEditor } from './ReportSheetEditor.js';
 import { type ReportTemplate } from '../../shared/reportTemplate.js';
 import { ToolIcon } from './ToolIcon.js';
 import { defaultLighting, type StageLightingSettings } from '../../shared/lighting.js';
+import { canvasModeForWidth, useNarrowEditor } from './useNarrowEditor.js';
 
 const MaterialPicker = lazy(() => import('./MaterialPicker.js'));
 type ClickMode = 'select' | 'vertex' | 'pin' | 'corridor' | 'draw-zone' | 'zone-vertex' | 'place' | 'draw-truss' | 'draw-curtain';
@@ -169,6 +170,8 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('split');
   const [viewShare, setViewShare] = useState(55);
+  const narrowEditor = useNarrowEditor();
+  const activeView = canvasModeForWidth(viewMode, narrowEditor);
   const [helpOpen, setHelpOpen] = useState(false);
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [guides, setGuides] = useState<SnapGuide[]>([]);
@@ -668,7 +671,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
   }
   function paste() {
     if (busyGesture() || !clipboard) return;
-    if (viewMode === 'stage') setViewMode('split');
+    if (viewMode === 'stage') setViewMode(narrowEditor ? 'plan' : 'split');
     const cursor = lastPlanPoint.current;
     const pivot = venueSelectionPivot(clipboard.source, clipboard.ids) ?? cursor;
     const result = pasteVenueSelection(previewVenue, clipboard, () => crypto.randomUUID(), {
@@ -780,8 +783,8 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
         <span className={`save-status ${draft.dirty ? 'pending' : ''}`} role="status">{draft.dirty ? 'Unveröffentlichter Spielstättenentwurf' : 'Spielstättenfassung gespeichert'}</span>
       </div>
       {!sheetEditorOpen && <div className="workspace-viewbar" role="toolbar" aria-label="Ansichten">
-        <div className="view-modes">{(['split', 'plan', 'stage'] as const).map(mode => <button key={mode} type="button" className="quiet" aria-pressed={viewMode === mode} onClick={() => setViewMode(mode)}>{mode === 'split' ? '2D + 3D' : mode === 'plan' ? 'Grundriss' : 'Raumansicht'}</button>)}</div>
-        <label className="split-control" hidden={viewMode !== 'split'}>Aufteilung<input aria-label="Ansichten aufteilen" type="range" min="30" max="70" value={viewShare} onChange={event => setViewShare(Number(event.target.value))} /></label>
+        <div className="view-modes">{(narrowEditor ? (['plan', 'stage'] as const) : (['split', 'plan', 'stage'] as const)).map(mode => <button key={mode} type="button" className="quiet" aria-pressed={activeView === mode} onClick={() => setViewMode(mode)}>{mode === 'split' ? '2D + 3D' : mode === 'plan' ? 'Grundriss' : 'Raumansicht'}</button>)}</div>
+        <label className="split-control" hidden={activeView !== 'split'}>Aufteilung<input aria-label="Ansichten aufteilen" type="range" min="30" max="70" value={viewShare} onChange={event => setViewShare(Number(event.target.value))} /></label>
       <button type="button" className="quiet" aria-expanded={inspectorOpen} onClick={() => setInspectorOpen(open => !open)} title={inspectorOpen ? 'Eigenschaften ausblenden' : 'Eigenschaften einblenden'} aria-label="Eigenschaften"><ToolIcon name="tray" /></button>
       </div>}
     </div>
@@ -805,9 +808,9 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
       <button type="button" className="quiet" aria-pressed={click === 'draw-curtain'} disabled={curtains.length >= 250} onClick={() => { setCurtainDrawStart(undefined); setCurtainDrawHover(undefined); setTrussDrawStart(undefined); setClick('draw-curtain'); }} title="Molton zeichnen (Start und Ende)" aria-label="Molton zeichnen"><ToolIcon name="wall" /><span>Molton</span></button>
       <button type="button" className="quiet" aria-pressed={selectedIds.includes(CENTRELINE_SELECTION)} onClick={() => setSelectedIds([CENTRELINE_SELECTION])} title="Mittellinie wählen" aria-label="Mittellinie wählen"><ToolIcon name="settings" /><span>Mitte</span></button>
     </div>}
-    {!sheetEditorOpen && <div className="editor-grid" data-inspector-open={inspectorOpen}>
-      <div className="editor-views venue-editor-views" data-mode={viewMode} style={viewMode === 'split' ? { gridTemplateColumns: `minmax(0, ${viewShare}fr) minmax(0, ${100 - viewShare}fr)` } : { gridTemplateColumns: 'minmax(0, 1fr)' }}>
-        <div className="plan-canvas venue-plan" hidden={viewMode === 'stage'}
+    {!sheetEditorOpen && <div className="editor-grid" data-inspector-open={inspectorOpen} data-narrow={narrowEditor}>
+      <div className="editor-views venue-editor-views" data-mode={activeView} style={activeView === 'split' ? { gridTemplateColumns: `minmax(0, ${viewShare}fr) minmax(0, ${100 - viewShare}fr)` } : { gridTemplateColumns: 'minmax(0, 1fr)' }}>
+        <div className="plan-canvas venue-plan" hidden={activeView === 'stage'}
           data-underlay-drag={underlayDrag || undefined}
           onDragEnter={underlayDragOver} onDragOver={underlayDragOver} onDragLeave={underlayDragLeave}
           onDrop={event => { event.preventDefault(); setUnderlayDrag(false); void acceptUnderlayTransfer(event.dataTransfer); }}>
@@ -1007,7 +1010,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
             </p>}
           </div>
         </div>
-        {viewMode !== 'plan' && <StageView onLightingChange={readOnly ? undefined : setLighting} layout={liveLayout} venue={previewVenue} venueEditable workspaceId={workspaceId} selectedIds={selectedIds} pivot={pivot} onSelect={(id, additive) => { if (!busyGesture()) setSelectedIds(ids => additive ? ids.includes(id) ? ids.filter(value => value !== id) : [id, ...ids] : [id]); }} onClearSelection={() => { if (!busyGesture()) setSelectedIds([]); }} onTransform={readOnly ? undefined : transform} onPushPull={readOnly ? undefined : pushPull} snapEnabled={snapEnabled} />}
+        {activeView !== 'plan' && <StageView onLightingChange={readOnly ? undefined : setLighting} layout={liveLayout} venue={previewVenue} venueEditable workspaceId={workspaceId} selectedIds={selectedIds} pivot={pivot} onSelect={(id, additive) => { if (!busyGesture()) setSelectedIds(ids => additive ? ids.includes(id) ? ids.filter(value => value !== id) : [id, ...ids] : [id]); }} onClearSelection={() => { if (!busyGesture()) setSelectedIds([]); }} onTransform={readOnly ? undefined : transform} onPushPull={readOnly ? undefined : pushPull} snapEnabled={snapEnabled} />}
       </div>
       <aside className="wall-inspector" inert={busyGesture()}>
         <div className="inspector-title"><ToolIcon name="settings" /><h3>Eigenschaften</h3><span>mm</span></div>
