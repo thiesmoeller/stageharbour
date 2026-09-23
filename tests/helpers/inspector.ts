@@ -37,6 +37,11 @@ export const commitObjectPlacement = (
   options?: { bypassSnap?: boolean },
 ) => commitWallPlacement(page, x, y, 'placing-object', options);
 
+/** Plan wall groups only — avoid RAL picker testids that also start with wall-. */
+export function planWalls(page: Page) {
+  return page.locator('.plan-canvas g[data-testid^="wall-"]');
+}
+
 /** Start wall placement from the tool rail and commit at plan coordinates (mm). */
 export async function placeWallAt(page: Page, x = 4000, y = 3000) {
   await page.getByRole('button', { name: 'Wand hinzufügen', exact: true }).click();

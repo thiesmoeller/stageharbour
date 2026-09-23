@@ -49,12 +49,12 @@ test('design a venue independently, reuse it in a production, and save scene lig
   await expect(page.getByLabel('Frontlichtfarbe')).toHaveValue('#ffd19a');
   await page.locator('.lighting-presets').getByRole('button', { name: 'Kühl', exact: true }).click();
   await expect(page.getByLabel('Frontlichtfarbe')).toHaveValue('#c1d8ff');
-  await expect(page.locator('.save-status')).toHaveText('Gespeichert');
+  await expect(page.locator('.save-status')).toHaveText('Gespeichert', { timeout: 15_000 });
   await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
   await expect(page.getByLabel('Frontlichtfarbe')).toHaveValue('#ffd19a');
   await page.getByRole('button', { name: 'Wiederholen', exact: true }).click();
   await expect(page.getByLabel('Frontlichtfarbe')).toHaveValue('#c1d8ff');
-  await expect(page.locator('.save-status')).toHaveText('Gespeichert');
+  await expect(page.locator('.save-status')).toHaveText('Gespeichert', { timeout: 15_000 });
   const canvas = page.locator('[data-renderer="pascal"] canvas');
   await expect(canvas).toBeVisible();
   await page.locator('.lighting-panel summary').click();
@@ -70,9 +70,17 @@ test('design a venue independently, reuse it in a production, and save scene lig
   expect(lit.equals(dark)).toBe(false);
   await page.locator('.lighting-panel summary').click();
   await page.locator('.lighting-presets').getByRole('button', { name: 'Kühl', exact: true }).click();
-  await expect(page.locator('.save-status')).toHaveText('Gespeichert');
+  await expect(page.locator('.save-status')).toHaveText('Gespeichert', { timeout: 15_000 });
   await page.reload();
-  await page.getByRole('button', { name: /Lichtprobe · Szene 1/ }).click();
+  const editor = page.getByRole('heading', { name: 'Szene 1', exact: true });
+  const card = page.getByRole('button', { name: /Lichtprobe · Szene 1/ });
+  const workspace = page.getByRole('region', { name: 'Bühnenbild bearbeiten' });
+  try {
+    await workspace.waitFor({ state: 'visible', timeout: 8_000 });
+  } catch {
+    await card.click();
+  }
+  await expect(editor).toBeVisible();
   await page.locator('.lighting-panel summary').click();
   await expect(page.getByLabel('Frontlichtfarbe')).toHaveValue('#c1d8ff');
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();

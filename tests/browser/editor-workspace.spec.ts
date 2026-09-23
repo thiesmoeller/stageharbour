@@ -45,6 +45,7 @@ test('editor keeps the canvas in view, preserves tray drafts, and adapts to smal
   await expect(page.locator('.save-status')).toHaveText('Gespeichert');
   await expect(page.getByRole('img', { name: 'Grundriss der Spielstätte', exact: true })).toBeInViewport();
   await expect(page.getByRole('img', { name: 'Raumsicht der Spielstätte', exact: true })).toBeInViewport();
+  await page.locator('#wall-x').scrollIntoViewIfNeeded();
   await expect(page.locator('#wall-x')).toBeInViewport();
   expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true);
 

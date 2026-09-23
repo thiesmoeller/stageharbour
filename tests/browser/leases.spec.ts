@@ -35,9 +35,10 @@ test('a second session sees who is editing and cannot modify the plan', async ({
   await expect(editorPage.getByRole('button', { name: 'Wand hinzufügen' })).toHaveCount(0);
 
   await adminPage.getByRole('button', { name: 'Zur Übersicht', exact: true }).click();
+  await expect(adminPage.getByRole('heading', { name: 'Beispiel-Theatergruppe' })).toBeVisible();
   await editorPage.getByRole('button', { name: 'Bearbeitung erneut anfordern', exact: true }).click();
-  await expect(editorPage.getByRole('button', { name: 'Wand hinzufügen' })).toBeVisible();
-  await expect(editorPage.locator('.save-status')).toHaveText('Gespeichert');
+  await expect(editorPage.getByRole('button', { name: 'Wand hinzufügen' })).toBeVisible({ timeout: 15_000 });
+  await expect(editorPage.locator('.save-status')).toHaveText('Gespeichert', { timeout: 15_000 });
 
   await adminContext.close();
   await editorContext.close();

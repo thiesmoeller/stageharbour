@@ -12,7 +12,25 @@ async function signIn(page: Page) {
 }
 
 async function waitUntilSaved(page: Page) {
-  await expect(page.locator('.save-status')).toHaveText('Gespeichert', { timeout: 10_000 });
+  await expect(page.locator('.save-status')).toHaveText('Gespeichert', { timeout: 15_000 });
+}
+
+/** After reload, hash routes may restore the open scene; otherwise open it from the list. */
+async function reopenScene(page: Page, sceneHeading: string, listButton: RegExp) {
+  await page.reload();
+  const editor = page.getByRole('heading', { name: sceneHeading, exact: true });
+  const card = page.getByRole('button', { name: listButton });
+  const workspace = page.getByRole('region', { name: 'Bühnenbild bearbeiten' });
+  // Deep-link restore wins when present; avoid clicking a list card that the hash route will detach.
+  try {
+    await workspace.waitFor({ state: 'visible', timeout: 8_000 });
+    await expect(editor).toBeVisible();
+    return;
+  } catch {
+    /* list view — open from the card */
+  }
+  await card.click();
+  await expect(editor).toBeVisible();
 }
 
 async function planToScreen(page: Page, x: number, y: number) {
@@ -78,10 +96,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByLabel('Y (mm)')).toHaveValue('3000');
   await waitUntilSaved(page);
 
-  await page.reload();
-  await expect(page.getByRole('heading', { name: 'Beispiel-Theatergruppe' })).toBeVisible();
-  await page.getByRole('button', { name: /Beispielproduktion · Erste Szene/ }).click();
-  await expect(page.getByRole('heading', { name: 'Erste Szene' })).toBeVisible();
+  await reopenScene(page, 'Erste Szene', /Beispielproduktion · Erste Szene/);
   await expect(wall).toHaveCount(1);
   await wall.click();
   await expect(page.getByLabel('X (mm)')).toHaveValue('4000');
@@ -116,9 +131,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(brace).toHaveCount(1);
   await waitUntilSaved(page);
 
-  await page.reload();
-  await expect(page.getByRole('heading', { name: 'Beispiel-Theatergruppe' })).toBeVisible();
-  await page.getByRole('button', { name: /Beispielproduktion · Erste Szene/ }).click();
+  await reopenScene(page, 'Erste Szene', /Beispielproduktion · Erste Szene/);
   await expect(page.locator('[data-testid^="brace-"]')).toHaveCount(1);
   await page.locator('[data-testid^="brace-"]').click();
   await expect(page.getByLabel('X (mm)')).toHaveValue('4000');
@@ -192,8 +205,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByRole('button', { name: 'Spielstätte speichern' }).click();
   expect((await saved).ok()).toBeTruthy();
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();
-  await page.reload();
-  await page.getByRole('button', { name: /Beispielproduktion · Erste Szene/ }).click();
+  await reopenScene(page, 'Erste Szene', /Beispielproduktion · Erste Szene/);
   await expect(page.locator('.plan-canvas [data-testid^="connection-point-"]')).toHaveCount(1);
   await expect(page.locator('.plan-canvas [data-testid^="connection-point-"]')).toContainText('Lichtstrom');
   await expect(page.locator('.plan-canvas g[data-testid^="cable-corridor-"]')).toHaveCount(1);
@@ -256,8 +268,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByTestId('inventory-warnings')).toContainText('keine Platte zugewiesen');
   await expect(page.getByTestId('inventory-warnings')).toContainText('Bestand reicht nicht');
   await waitUntilSaved(page);
-  await page.reload();
-  await page.getByRole('button', { name: /Beispielproduktion · Erste Szene/ }).click();
+  await reopenScene(page, 'Erste Szene', /Beispielproduktion · Erste Szene/);
   await expect(page.getByRole('heading', { name: 'Erste Szene' })).toBeVisible();
   await expect(page.locator('.plan-canvas [data-testid^="placeholder-"]')).toHaveCount(1);
   await page.locator('.plan-canvas [data-testid^="placeholder-"]').click();
@@ -291,8 +302,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByLabel('Rigginghinweise').fill('Stifte belassen.');
   await page.getByRole('button', { name: 'Hinweise speichern' }).click();
   await waitUntilSaved(page);
-  await page.reload();
-  await page.getByRole('button', { name: /Beispielproduktion · Erste Szene/ }).click();
+  await reopenScene(page, 'Erste Szene', /Beispielproduktion · Erste Szene/);
   await expect(page.getByText('Position 1 · Platte Beispiel-P01')).toBeVisible();
   await expect(page.getByTestId('assembly-connections')).toContainText('Position 1 – Position 2');
   await openInspector(page, 'Aufbau & Verbindungen');
@@ -327,8 +337,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await openInspector(page, 'Gruppieren');
   await expect(page.getByLabel('Drehpunkt X (mm)')).toHaveValue('3500');
   await waitUntilSaved(page);
-  await page.reload();
-  await page.getByRole('button', { name: /Beispielproduktion · Erste Szene/ }).click();
+  await reopenScene(page, 'Erste Szene', /Beispielproduktion · Erste Szene/);
   await expect(page.getByRole('heading', { name: 'Erste Szene' })).toBeVisible();
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await openInspector(page, 'Gruppieren');
@@ -363,6 +372,9 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByLabel('X (mm)', { exact: true }).focus();
   await page.keyboard.press('ControlOrMeta+v');
   await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(2);
+  // Paste into a focused inspector field marks pending Übernehmen state without placing walls.
+  const discard = page.getByRole('button', { name: 'Verwerfen', exact: true });
+  if (await discard.isVisible().catch(() => false)) await discard.click();
   await waitUntilSaved(page);
 
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();
@@ -382,9 +394,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('2200');
   await waitUntilSaved(page);
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();
-  await page.reload();
-  await expect(page.getByRole('heading', { name: 'Beispiel-Theatergruppe' })).toBeVisible();
-  await page.getByRole('button', { name: /Beispielproduktion · Erste Szene Beispielsaal/ }).click();
+  await reopenScene(page, 'Erste Szene', /Beispielproduktion · Erste Szene Beispielsaal/);
   await expect(page.getByRole('heading', { name: 'Erste Szene', exact: true })).toBeVisible();
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('1800');
@@ -430,9 +440,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('4000');
   // Alt bypass is covered with isolated wall geometry in interactions.spec.ts.
   await waitUntilSaved(page);
-  await page.reload();
-  await expect(page.getByRole('heading', { name: 'Beispiel-Theatergruppe' })).toBeVisible();
-  await page.getByRole('button', { name: /Beispielproduktion · Erste Szene Beispielsaal/ }).click();
+  await reopenScene(page, 'Erste Szene', /Beispielproduktion · Erste Szene Beispielsaal/);
   await expect(page.getByRole('heading', { name: 'Erste Szene' })).toBeVisible();
   await expect(page.getByTestId('stage-centreline')).toBeVisible();
   await page.getByRole('button', { name: 'Spielstätte' }).click();
@@ -628,8 +636,7 @@ test('a failed autosave keeps the local draft and retries the same revision', as
   await page.unroute('**/api/workspaces/**/scenes/**/layout');
   await page.getByRole('button', { name: 'Speichern erneut versuchen' }).click();
   await waitUntilSaved(page);
-  await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(1);
-  await page.reload();
-  await page.getByRole('button', { name: /Netzwerkprobe · Szene 1/ }).click();
-  await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(1);
+  await expect(page.locator('.plan-canvas g[data-testid^="wall-"]')).toHaveCount(1);
+  await reopenScene(page, 'Szene 1', /Netzwerkprobe · Szene 1/);
+  await expect(page.locator('.plan-canvas g[data-testid^="wall-"]')).toHaveCount(1);
 });

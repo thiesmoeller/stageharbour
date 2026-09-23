@@ -20,6 +20,11 @@ export function Venues({ me, onDirty, venueId }: { me: Me; onDirty: (dirty: bool
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
+  const openedIdRef = useRef<string | undefined>(undefined);
+  const openingRef = useRef<string | undefined>(undefined);
+  const dirtyRef = useRef(false);
+  openedIdRef.current = opened?.id;
+  dirtyRef.current = dirty;
   const readOnly = !can(me.workspace.role, 'venues');
   const base = `/api/workspaces/${me.workspace.id}/venues`;
   const lease = useEditingLease(`${base}/${opened?.id ?? ''}`, !!opened && !readOnly);
@@ -34,27 +39,41 @@ export function Venues({ me, onDirty, venueId }: { me: Me; onDirty: (dirty: bool
   }, [base, attempt]);
   useEffect(() => { onDirty(dirty); return () => onDirty(false); }, [dirty, onDirty]);
   async function open(id: string) {
+    if (openedIdRef.current === id || openingRef.current === id) return;
+    openingRef.current = id;
+    openedIdRef.current = id;
     setBusy(true); setError('');
     try {
       setOpened(venueRecordSchema.parse(await request(`${base}/${id}`)));
       writeWorkspaceLocation({ section: 'venues', venueId: id });
     }
-    catch { setError('Die Spielstätte konnte nicht geöffnet werden.'); writeWorkspaceLocation({ section: 'venues' }); }
-    finally { setBusy(false); }
+    catch {
+      openedIdRef.current = undefined;
+      setError('Die Spielstätte konnte nicht geöffnet werden.');
+      writeWorkspaceLocation({ section: 'venues' });
+    }
+    finally { openingRef.current = undefined; setBusy(false); }
+  }
+  function closeOpened() {
+    openedIdRef.current = undefined;
+    openingRef.current = undefined;
+    setOpened(undefined);
+    setAttempt(value => value + 1);
+    writeWorkspaceLocation({ section: 'venues' });
   }
   useEffect(() => {
     if (!venueId) {
-      if (!opened) return;
-      if (dirty) {
-        writeWorkspaceLocation({ section: 'venues', venueId: opened.id });
+      if (!openedIdRef.current) return;
+      if (dirtyRef.current) {
+        writeWorkspaceLocation({ section: 'venues', venueId: openedIdRef.current });
         return;
       }
-      setOpened(undefined); setAttempt(value => value + 1);
+      closeOpened();
       return;
     }
-    if (opened?.id === venueId) return;
-    if (opened && dirty) {
-      writeWorkspaceLocation({ section: 'venues', venueId: opened.id });
+    if (openedIdRef.current === venueId || openingRef.current === venueId) return;
+    if (openedIdRef.current && dirtyRef.current) {
+      writeWorkspaceLocation({ section: 'venues', venueId: openedIdRef.current });
       return;
     }
     void open(venueId);
@@ -67,9 +86,12 @@ export function Venues({ me, onDirty, venueId }: { me: Me; onDirty: (dirty: bool
     setBusy(true); setError('');
     try {
       const created = venueRecordSchema.parse(await request(base, parsed.data));
+      openingRef.current = created.id;
+      openedIdRef.current = created.id;
       setOpened(created);
       setCreating(false);
       writeWorkspaceLocation({ section: 'venues', venueId: created.id });
+      openingRef.current = undefined;
     }
     catch { setError('Die Spielstätte konnte nicht angelegt werden.'); }
     finally { setBusy(false); }
@@ -96,7 +118,7 @@ export function Venues({ me, onDirty, venueId }: { me: Me; onDirty: (dirty: bool
     catch (caught) { setError(caught instanceof ApiError ? caught.message : 'Die Spielstätte konnte nicht gelöscht werden.'); setBusy(false); }
   }
   if (opened) return <section className="editor venue-workspace" aria-label="Spielstätte unabhängig bearbeiten">
-    <div className="editor-heading"><button className="quiet back-button" disabled={dirty} onClick={() => { setOpened(undefined); setAttempt(value => value + 1); writeWorkspaceLocation({ section: 'venues' }); }} aria-label="Zur Spielstättenübersicht" title={dirty ? 'Entwurf zuerst speichern oder verwerfen' : 'Zur Spielstättenübersicht'}><ToolIcon name="back" /></button>
+    <div className="editor-heading"><button className="quiet back-button" disabled={dirty} onClick={closeOpened} aria-label="Zur Spielstättenübersicht" title={dirty ? 'Entwurf zuerst speichern oder verwerfen' : 'Zur Spielstättenübersicht'}><ToolIcon name="back" /></button>
       <div><p className="eyebrow">SPIELSTÄTTEN &amp; BÜHNEN · Raum einmal anlegen</p><h2>{opened.name}</h2></div>
       <span className={`save-status ${lease.holding || readOnly ? '' : 'pending'}`} role="status">
         {readOnly ? 'Nur Ansicht' : (lease.message || 'Bearbeitung wird angefordert …')}
