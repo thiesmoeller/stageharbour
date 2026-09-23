@@ -13,6 +13,7 @@ test('administrator invites an editor who sets a password and opens the workspac
   await page.getByLabel('Passwort', { exact: true }).fill(testAdministrator.password);
   await page.getByRole('button', { name: 'Anmelden', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Beispiel-Theatergruppe' })).toBeVisible();
+  await page.getByRole('button', { name: /Verwaltung/ }).click();
   await page.getByLabel('Name', { exact: true }).fill(editor.name);
   await page.getByLabel('E-Mail-Adresse').fill(editor.email);
   await page.getByLabel('Berechtigung', { exact: true }).selectOption('editor');
@@ -34,6 +35,7 @@ test('administrator invites an editor who sets a password and opens the workspac
   await expect(page.getByRole('heading', { name: 'Beispiel-Theatergruppe' })).toBeVisible();
   await expect(page.getByText('Angemeldet als Editorin Beispiel')).toBeVisible();
   await expect(page.getByText('Bearbeitung', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Verwaltung/ })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Mitglieder' })).toHaveCount(0);
   expect(errors).toEqual([]);
 });

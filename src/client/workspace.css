@@ -285,11 +285,15 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
 }
 
 /* Independent venue library and lighting preview. */
-.workspace-navigation { display: flex; gap: 12px; margin: 24px 0; }
-.workspace-navigation button { flex: 1; text-align: left; padding: 18px 20px; background: #fff; border-color: var(--ui-line); }
+.workspace-navigation { display: flex; flex-wrap: wrap; gap: 12px; margin: 24px 0; }
+.workspace-navigation button { flex: 1 1 180px; text-align: left; padding: 18px 20px; background: #fff; border-color: var(--ui-line); }
 .workspace-navigation button span { display: block; margin-top: 5px; font-size: 12px; font-weight: 400; color: var(--ui-muted); }
 .workspace-navigation [aria-current=page] { border-color: #67968b; background: #edf5f2; box-shadow: inset 3px 0 #286a62; }
 .workspace:has(.editor) > .workspace-navigation { display: none; }
+.production-export { margin-top: 16px; border: 1px solid var(--ui-line); border-radius: 8px; padding: 0 16px 16px; background: #fff; }
+.production-export > summary { cursor: pointer; padding: 14px 0; font-weight: 600; }
+.production-export[open] > summary { border-bottom: 1px solid var(--ui-line); margin-bottom: 12px; }
+.production-export .export-panel { border: 0; padding: 0; background: transparent; }
 .venue-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; margin-top: 24px; }
 .venue-card { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; background: #fff; border-color: var(--ui-line); padding: 20px; text-align: left; }
 .venue-card-art { display: grid; place-items: center; width: 100%; height: 110px; background: repeating-linear-gradient(0deg, transparent 0 19px, #dce5e3 19px 20px), repeating-linear-gradient(90deg, #f4f8f7 0 19px, #dce5e3 19px 20px); border-radius: 5px; margin-bottom: 8px; }

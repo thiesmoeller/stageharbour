@@ -13,9 +13,12 @@ test('German login, failed credentials, workspace, reload, logout and mobile lay
   await page.getByLabel('Passwort', { exact: true }).fill(testAdministrator.password);
   await page.getByRole('button', { name: 'Anmelden', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Beispiel-Theatergruppe' })).toBeVisible();
+  await page.getByRole('button', { name: /Verwaltung/ }).click();
   await expect(page.getByRole('cell', { name: testAdministrator.email })).toBeVisible();
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Beispiel-Theatergruppe' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Verwaltung/, exact: false })).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByRole('cell', { name: testAdministrator.email })).toBeVisible();
   await page.screenshot({ path: 'test-results/workspace-desktop.png', fullPage: true });
   await page.getByRole('button', { name: 'Abmelden', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Willkommen zurück' })).toBeVisible();
