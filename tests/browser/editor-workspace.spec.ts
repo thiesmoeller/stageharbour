@@ -1,23 +1,18 @@
 import { test, expect } from '@playwright/test';
-import { testAdministrator } from '../helpers/database.js';
 import { openInspector, placeWallAt } from '../helpers/inspector.js';
+import { createProduction, signInToPlans } from '../helpers/plans.js';
 
 test('editor keeps the canvas in view, preserves tray drafts, and adapts to smaller screens', async ({ page }) => {
   test.setTimeout(process.env.CI ? 120_000 : 60_000);
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('/');
-  await page.getByLabel('E-Mail-Adresse').fill(testAdministrator.email);
-  await page.getByLabel('Passwort', { exact: true }).fill(testAdministrator.password);
-  await page.getByRole('button', { name: 'Anmelden', exact: true }).click();
-  await page.getByRole('button', { name: 'Neues Bühnenbild' }).click();
-  await page.getByRole('textbox', { name: 'Produktion' }).fill('Der eingebildete Kranke');
-  await page.getByRole('textbox', { name: 'Spielstätte' }).fill('Theatersaal');
-  await page.getByRole('textbox', { name: 'Szene' }).fill('Erster Akt · Das Zimmer');
-  await page.getByRole('spinbutton', { name: 'Spielstättenbreite (mm)' }).fill('8000');
-  await page.getByRole('spinbutton', { name: 'Spielstättentiefe (mm)' }).fill('6000');
-  await page.getByRole('button', { name: 'Bühnenbild anlegen' }).click();
+  await signInToPlans(page);
+  await createProduction(page, {
+    productionName: 'Der eingebildete Kranke',
+    venueName: 'Theatersaal',
+    sceneName: 'Erster Akt · Das Zimmer',
+  });
   await expect(page.getByRole('heading', { name: 'Keine Auswahl' })).toBeVisible();
   const wallTypes = page.locator('.inspector-section').filter({ has: page.locator('summary', { hasText: 'Wandtypen' }) });
   await expect(wallTypes).not.toHaveAttribute('open');

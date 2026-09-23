@@ -1,13 +1,10 @@
 import { test, expect, type Page } from '@playwright/test';
 import { testAdministrator, testEditor } from '../helpers/database.js';
 import { placeWallAt } from '../helpers/inspector.js';
+import { createProduction, signInToPlans } from '../helpers/plans.js';
 
 async function signIn(page: Page, account: { email: string; password: string }) {
-  await page.goto('/');
-  await page.getByLabel('E-Mail-Adresse').fill(account.email);
-  await page.getByLabel('Passwort', { exact: true }).fill(account.password);
-  await page.getByRole('button', { name: 'Anmelden', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Beispiel-Theatergruppe' })).toBeVisible();
+  await signInToPlans(page, account);
 }
 
 test('a second session sees who is editing and cannot modify the plan', async ({ browser }) => {
@@ -16,12 +13,10 @@ test('a second session sees who is editing and cannot modify the plan', async ({
   const adminPage = await adminContext.newPage();
   const editorPage = await editorContext.newPage();
   await signIn(adminPage, testAdministrator);
-  await adminPage.getByRole('button', { name: 'Neues Bühnenbild' }).click();
-  await adminPage.getByRole('textbox', { name: 'Produktion' }).fill('Pachtprobe');
-  await adminPage.getByRole('textbox', { name: 'Spielstätte' }).fill('Probesaal');
-  await adminPage.getByRole('spinbutton', { name: 'Spielstättenbreite (mm)' }).fill('8000');
-  await adminPage.getByRole('spinbutton', { name: 'Spielstättentiefe (mm)' }).fill('6000');
-  await adminPage.getByRole('button', { name: 'Bühnenbild anlegen' }).click();
+  await createProduction(adminPage, {
+    productionName: 'Pachtprobe',
+    venueName: 'Probesaal',
+  });
   await expect(adminPage.getByRole('heading', { name: 'Szene 1' })).toBeVisible();
   await expect(adminPage.getByRole('button', { name: 'Wand hinzufügen' })).toBeVisible();
   await expect(adminPage.locator('.save-status')).toHaveText('Gespeichert', { timeout: 10_000 });
@@ -67,12 +62,10 @@ test('venue editing shows the holder and becomes writable after release', async 
 
 test('lease loss preserves the local scene and offers separate template recovery', async ({ page }) => {
   await signIn(page, testAdministrator);
-  await page.getByRole('button', { name: 'Neues Bühnenbild' }).click();
-  await page.getByRole('textbox', { name: 'Produktion' }).fill('Entwurfsrettung');
-  await page.getByRole('textbox', { name: 'Spielstätte' }).fill('Probebühne');
-  await page.getByRole('spinbutton', { name: 'Spielstättenbreite (mm)' }).fill('8000');
-  await page.getByRole('spinbutton', { name: 'Spielstättentiefe (mm)' }).fill('6000');
-  await page.getByRole('button', { name: 'Bühnenbild anlegen' }).click();
+  await createProduction(page, {
+    productionName: 'Entwurfsrettung',
+    venueName: 'Probebühne',
+  });
   await expect(page.getByRole('button', { name: 'Wand hinzufügen' })).toBeVisible();
   await page.route('**/scenes/*/layout', route => route.fulfill({ status: 423, contentType: 'application/json', body: JSON.stringify({ message: 'Bearbeitung abgelaufen' }) }));
   await placeWallAt(page);

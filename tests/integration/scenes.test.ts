@@ -225,6 +225,46 @@ test('copying reads the source without a lease; freeze stays put after editing t
   assert.deepEqual(again, original);
 });
 
+test('creating a blank scene on an existing production reuses adaptation and starts empty', async () => {
+  const created = await app.inject({
+    method: 'POST', url: base, headers,
+    payload: { productionName: 'Leerproduktion', venueName: 'Leersaal', sceneName: 'Erste Szene', width: 8000, depth: 6000 },
+  });
+  assert.equal(created.statusCode, 201, created.body);
+  const first = created.json<Scene>();
+  assert.equal((await app.inject({ method: 'POST', url: `${base}/${first.id}/lease`, headers })).statusCode, 200);
+  assert.equal((await app.inject({
+    method: 'PUT', url: `${base}/${first.id}/layout`, headers,
+    payload: { revision: 0, layout: { schemaVersion: 1, walls: [newWall(randomUUID(), 1000, 2000)], braces: [] } },
+  })).statusCode, 200);
+  await app.inject({ method: 'POST', url: `${base}/${first.id}/lease/release`, headers });
+
+  const blank = await app.inject({
+    method: 'POST', url: base, headers,
+    payload: { productionId: first.productionId, venueVersionId: first.venueVersionId, sceneName: 'Zweite Szene' },
+  });
+  assert.equal(blank.statusCode, 201, blank.body);
+  const second = blank.json<Scene>();
+  assert.notEqual(second.id, first.id);
+  assert.equal(second.productionId, first.productionId);
+  assert.equal(second.productionName, 'Leerproduktion');
+  assert.equal(second.venueVersionId, first.venueVersionId);
+  assert.equal(second.venueName, 'Leersaal');
+  assert.equal(second.name, 'Zweite Szene');
+  assert.equal(second.revision, 0);
+  assert.equal(second.lease, null);
+  assert.deepEqual(second.layout.walls, []);
+  assert.deepEqual(second.layout.braces, []);
+  assert.equal((await app.inject({
+    method: 'POST', url: base, headers,
+    payload: { productionId: first.productionId, venueVersionId: randomUUID(), sceneName: 'Fehlt' },
+  })).statusCode, 404);
+  assert.equal((await app.inject({
+    method: 'POST', url: base, headers,
+    payload: { productionId: randomUUID(), venueVersionId: first.venueVersionId, sceneName: 'Fehlt' },
+  })).statusCode, 404);
+});
+
 test('viewer cannot copy across productions; foreign workspace is hidden', async () => {
   const dest = (await app.inject({
     method: 'POST', url: base, headers,

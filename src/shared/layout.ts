@@ -140,6 +140,7 @@ export const saveVenueResultSchema = z.strictObject({
 export const createSceneSchema = z.union([
   z.strictObject({ productionName: name, venueName: name, sceneName: name, width: dimension, depth: dimension }),
   z.strictObject({ productionName: name, sceneName: name, venueVersionId: z.uuid() }),
+  z.strictObject({ productionId: z.uuid(), venueVersionId: z.uuid(), sceneName: name }),
 ]);
 export const duplicateSceneSchema = z.strictObject({ sceneName: name.optional() });
 export const copySceneSchema = z.strictObject({
