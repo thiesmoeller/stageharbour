@@ -35,7 +35,7 @@ export function InventoryStock({ workspaceId, layout, readOnly, onPanels }: {
         setPanels(data.panels);
         onPanels(data.panels);
       } catch {
-        if (!cancelled) setError('Bestand konnte nicht geladen werden.');
+        if (!cancelled) setError('Plattenbestand konnte nicht geladen werden.');
       }
     })();
     return () => { cancelled = true; };
@@ -43,7 +43,7 @@ export function InventoryStock({ workspaceId, layout, readOnly, onPanels }: {
   async function acquire() {
     setBusy(true); setError('');
     try { if (await lease.acquire()) await load(); }
-    catch (caught) { setError(caught instanceof ApiError && caught.status === 423 ? 'Der Bestand wird bereits bearbeitet.' : 'Bestand konnte nicht gesperrt werden.'); }
+    catch (caught) { setError(caught instanceof ApiError && caught.status === 423 ? 'Der Plattenbestand wird bereits bearbeitet.' : 'Plattenbestand konnte nicht gesperrt werden.'); }
     finally { setBusy(false); }
   }
   async function create(event: FormEvent<HTMLFormElement>) {
@@ -81,11 +81,11 @@ export function InventoryStock({ workspaceId, layout, readOnly, onPanels }: {
   const warnings = inventoryWarnings(layout, panels);
   return <div className="inventory-panel">
     <h3>Plattenbestand</h3>
-    <p className="muted">Gemeldeter Bestand: {REPORTED_PANEL_COUNTS.plain} {GROUP_WALL_TYPE_NAMES.plain}, {REPORTED_PANEL_COUNTS.door} {GROUP_DOOR_STOCK_NAME}, {REPORTED_PANEL_COUNTS.window} {GROUP_WALL_TYPE_NAMES.window}, {REPORTED_PANEL_COUNTS.arch} {GROUP_WALL_TYPE_NAMES.arch} ({REPORTED_PANEL_COUNTS.plain + REPORTED_PANEL_COUNTS.door + REPORTED_PANEL_COUNTS.window + REPORTED_PANEL_COUNTS.arch} Platten), zuzüglich Halbe Wände 600×2400×250 mm. Etiketten hier sind Beispiele. Das Bogenprofil bleibt vorerst rechteckig.</p>
+    <p className="muted">Gemeldeter Plattenbestand: {REPORTED_PANEL_COUNTS.plain} {GROUP_WALL_TYPE_NAMES.plain}, {REPORTED_PANEL_COUNTS.door} {GROUP_DOOR_STOCK_NAME}, {REPORTED_PANEL_COUNTS.window} {GROUP_WALL_TYPE_NAMES.window}, {REPORTED_PANEL_COUNTS.arch} {GROUP_WALL_TYPE_NAMES.arch} ({REPORTED_PANEL_COUNTS.plain + REPORTED_PANEL_COUNTS.door + REPORTED_PANEL_COUNTS.window + REPORTED_PANEL_COUNTS.arch} Platten), zuzüglich Halbe Wände 600×2400×250 mm. Etiketten hier sind Beispiele. Das Bogenprofil bleibt vorerst rechteckig.</p>
     {warnings.length > 0 && <ul data-testid="inventory-warnings" role="status">{warnings.map((warning, index) => <li key={`${warning.kind}-${warning.wallId ?? index}`} data-kind={warning.kind}>{warning.message}</li>)}</ul>}
     {error && <p role="alert" className="error">{error}</p>}
     {lease.message && <p role="status">{lease.message}</p>}
-    {!readOnly && !holding && <div className="form-actions"><button type="button" onClick={() => void acquire()} disabled={busy}>Bestand bearbeiten</button></div>}
+    {!readOnly && !holding && <div className="form-actions"><button type="button" onClick={() => void acquire()} disabled={busy}>Plattenbestand bearbeiten</button></div>}
     <p className="muted">Verfügbar: {panels.filter(panel => panel.available).length} von {panels.length} Platten.</p>
     {panels.length > 0 && <ul className="inventory-list">{panels.map(panel => <li key={panel.id}>
       <label><input type="checkbox" checked={panel.available} disabled={!holding || busy} onChange={event => void setAvailable(panel, event.target.checked)} /> {panel.label} · {panel.type.name}{panel.note ? ` · ${panel.note}` : ''}</label>

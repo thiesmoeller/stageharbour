@@ -74,7 +74,7 @@ test('design a venue independently, reuse it in a production, and save scene lig
   await page.reload();
   const editor = page.getByRole('heading', { name: 'Szene 1', exact: true });
   const card = page.getByRole('button', { name: /Lichtprobe · Szene 1/ });
-  const workspace = page.getByRole('region', { name: 'Bühnenbild bearbeiten' });
+  const workspace = page.getByRole('region', { name: 'Szene bearbeiten' });
   try {
     await workspace.waitFor({ state: 'visible', timeout: 8_000 });
   } catch {

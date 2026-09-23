@@ -15,7 +15,7 @@ export default function PascalCatalog({ disabled, onAdd }: { disabled: boolean; 
       if (!parsed.success) return null;
       return <article className="asset-card" key={item.id}>
         {item.thumbnail && <img src={item.thumbnail} alt="" loading="lazy" referrerPolicy="no-referrer" />}
-        <strong>{item.name}</strong><button type="button" disabled={disabled} onClick={() => void onAdd(item.name, parsed.data)}>Ins Inventar übernehmen</button>
+        <strong>{item.name}</strong><button type="button" disabled={disabled} onClick={() => void onAdd(item.name, parsed.data)}>In Objektvorlagen übernehmen</button>
       </article>;
     })}</div>
     {!items.length && <p>Keine passenden Modelle.</p>}

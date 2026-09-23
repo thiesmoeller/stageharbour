@@ -16,7 +16,7 @@ async function reopenScene(page: Page, sceneHeading: string, listButton: RegExp)
   await page.reload();
   const editor = page.getByRole('heading', { name: sceneHeading, exact: true });
   const card = page.getByRole('button', { name: listButton });
-  const workspace = page.getByRole('region', { name: 'Bühnenbild bearbeiten' });
+  const workspace = page.getByRole('region', { name: 'Szene bearbeiten' });
   // Deep-link restore wins when present; avoid clicking a list card that the hash route will detach.
   try {
     await workspace.waitFor({ state: 'visible', timeout: 8_000 });
@@ -140,23 +140,23 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByLabel('Eckpunkt 3 Y (mm)').fill('3500');
   await page.getByLabel('Eckpunkt 4 X (mm)').fill('200');
   await page.getByLabel('Eckpunkt 4 Y (mm)').fill('3200');
-  await openInspector(page, 'Vorlage & Maßstab');
+  await openInspector(page, 'Planunterlage & Maßstab');
   const uploaded = page.waitForResponse(response => response.url().includes('/venue-references') && response.request().method() === 'POST');
-  await page.getByLabel('Vorlage hochladen').setInputFiles({
+  await page.getByLabel('Planunterlage hochladen').setInputFiles({
     name: 'grundriss.png', mimeType: 'image/png', buffer: pngBytes(),
   });
   expect((await uploaded).ok()).toBeTruthy();
-  await expect(page.getByRole('dialog', { name: 'Vorlage einrichten' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Planunterlage einrichten' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Im Grundriss übernehmen' })).toBeEnabled({ timeout: 15000 });
   await page.getByRole('button', { name: 'Im Grundriss übernehmen' }).click();
-  await expect(page.getByRole('dialog', { name: 'Vorlage einrichten' })).toHaveCount(0);
-  await openInspector(page, 'Vorlage & Maßstab');
+  await expect(page.getByRole('dialog', { name: 'Planunterlage einrichten' })).toHaveCount(0);
+  await openInspector(page, 'Planunterlage & Maßstab');
   await page.getByLabel('Punkt A X').fill('0');
   await page.getByLabel('Punkt A Y').fill('0');
   await page.getByLabel('Punkt B X').fill('30');
   await page.getByLabel('Punkt B Y').fill('40');
   await page.getByLabel('Bekannte Strecke (mm)').fill('5000');
-  await openInspector(page, 'Vorlage & Maßstab');
+  await openInspector(page, 'Planunterlage & Maßstab');
   await expect(page.getByText('Maßstab: 100 mm je Vorlagen-Einheit')).toBeVisible();
   await openInspector(page, 'Anschlüsse & Kabelwege');
   await page.getByRole('button', { name: 'Stromanschluss hinzufügen' }).click();
@@ -212,7 +212,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByLabel('Eckpunkt 4 X (mm)')).toHaveValue('200');
   await expect(page.getByLabel('Punkt B X')).toHaveValue('30');
   await expect(page.getByLabel('Bekannte Strecke (mm)')).toHaveValue('5000');
-  await openInspector(page, 'Vorlage & Maßstab');
+  await openInspector(page, 'Planunterlage & Maßstab');
   await expect(page.getByText('Maßstab: 100 mm je Vorlagen-Einheit')).toBeVisible();
   await expect(page.getByLabel('Anschluss 1 Bezeichnung')).toHaveValue('Lichtstrom');
   await expect(page.getByLabel('Anschluss 1 X (mm)')).toHaveValue('2500');
@@ -251,7 +251,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await placeWallAt(page, 5000, 3000);
   await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(2);
   const library = await openLibrary(page, 'Plattenbestand');
-  await library.getByRole('button', { name: 'Bestand bearbeiten' }).click();
+  await library.getByRole('button', { name: 'Plattenbestand bearbeiten' }).click();
   await library.getByLabel('Plattenetikett').fill('Beispiel-P01');
   await library.getByRole('button', { name: 'Platte anlegen' }).click();
   await expect(library.getByText('Beispiel-P01 · Glattwand')).toBeVisible();
@@ -260,7 +260,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await page.getByLabel('Platte zuweisen').selectOption({ label: 'Beispiel-P01' });
   await expect(page.getByTestId('inventory-warnings')).toContainText('keine Platte zugewiesen');
-  await expect(page.getByTestId('inventory-warnings')).toContainText('Bestand reicht nicht');
+  await expect(page.getByTestId('inventory-warnings')).toContainText('Plattenbestand reicht nicht');
   await waitUntilSaved(page);
   await reopenScene(page, 'Erste Szene', /Beispielproduktion · Erste Szene/);
   await expect(page.getByRole('heading', { name: 'Erste Szene' })).toBeVisible();

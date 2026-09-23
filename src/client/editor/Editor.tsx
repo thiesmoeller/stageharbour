@@ -710,7 +710,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     const anchor = document.createElement('a'); anchor.href = url; anchor.download = `buehnenentwurf-${initial.id}.json`; anchor.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
-  return <section ref={root} className="editor" aria-label="Bühnenbild bearbeiten">
+  return <section ref={root} className="editor" aria-label="Szene bearbeiten">
     <div className="editor-heading"><button className="quiet back-button" disabled={dirty} onClick={onClose} title="Zur Übersicht" aria-label="Zur Übersicht"><ToolIcon name="back" /></button><div><p className="eyebrow">{initial.productionName} · {venueName}</p><h2>{initial.name}</h2></div>
       <span className={`save-status ${inspectorPending ? 'pending' : saveState.status}`} role="status">{permissionReadOnly
         ? (initial.lease ? `Nur Ansicht · Bearbeitung durch ${initial.lease.holderName}` : 'Nur Ansicht')
@@ -726,7 +726,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
       {activeGroup && <button className="quiet" type="button" disabled={!!groupPreview || !!placing} hidden={venueOpen}
         onClick={() => commit(ungroup(current.current.present, activeGroup.id))}>Gruppe auflösen</button>}
       <span className="selection-count" hidden={venueOpen || selection().length === 0} data-testid="selection-count">{selection().length} ausgewählt</span>
-      </>}</div><span className="document-kind">{venueOpen ? 'Spielstätte bearbeiten' : 'Bühnenbild'}</span></div>
+      </>}</div><span className="document-kind">{venueOpen ? 'Spielstätte bearbeiten' : 'Szene'}</span></div>
     <div className="workspace-commandbar">
     <div className="editor-toolbar">
       <button className="quiet" aria-expanded={venueOpen} disabled={venueOpen ? venueDirty : dirty} onClick={() => {
@@ -1153,7 +1153,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
         onPendingChange={setInspectorPending} onChange={commit} />
       </div></details>}
     </aside></div>}
-    <div className="workspace-statusbar"><span><span className="status-dot" />{venueOpen ? 'Spielstättenentwurf' : 'Bühnenbild'} · {state.present.walls.length} Wände</span><span className="status-hint">Klicken zum Auswählen · Ziehen zum Verschieben · Strg+Z rückgängig</span><button className="quiet" aria-expanded={helpOpen} onClick={() => setHelpOpen(open => !open)}><ToolIcon name="help" /> Bedienung</button><span>Maße in mm</span></div>
+    <div className="workspace-statusbar"><span><span className="status-dot" />{venueOpen ? 'Spielstättenentwurf' : 'Szene'} · {state.present.walls.length} Wände</span><span className="status-hint">Klicken zum Auswählen · Ziehen zum Verschieben · Strg+Z rückgängig</span><button className="quiet" aria-expanded={helpOpen} onClick={() => setHelpOpen(open => !open)}><ToolIcon name="help" /> Bedienung</button><span>Maße in mm</span></div>
     {helpOpen && <div className="workspace-help"><h3>Arbeiten im Grundriss</h3>      <p className="muted viewport-hint">Raster: 1 m / 50 cm · Zwei-Finger-Scroll oder Mittelklick verschieben · Pinch / Strg+Scroll zoomen · Auf dem Boden ziehen: Mehrfachauswahl (nur vollständig umschlossene Objekte) · Orange ↻ dreht · Stützen an Wänden · {SNAP_NOTICE}</p><p>Strg/Cmd+C kopiert die Auswahl, Strg/Cmd+V hängt die Kopie an den Zeiger — Klick setzt, Escape bricht ab. Entf löscht ausgewählte Objekte. Escape bricht Platzieren und Bewegungen ab oder hebt die Auswahl auf (auch in der Raumsicht · Klick in freien Raum). Überschneidungen erscheinen rot auf dem Grundriss.</p></div>}
   </section>;
 }

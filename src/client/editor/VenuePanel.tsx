@@ -1234,7 +1234,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
             </div>
           </fieldset>
         </div></details>
-        <details className="inspector-section" open={!!fileId || underlayDialogOpen}><summary>Vorlage & Maßstab</summary><div className="inspector-section-body">
+        <details className="inspector-section" open={!!fileId || underlayDialogOpen}><summary>Planunterlage & Maßstab</summary><div className="inspector-section-body">
           <fieldset disabled={readOnly || busy || busyGesture()}>
             <div className={`underlay-dropzone${underlayDrag ? ' underlay-dropzone--active' : ''}`}
               data-testid="underlay-dropzone"
@@ -1246,12 +1246,12 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
                   Aus Zwischenablage
                 </button>
               </div>
-              <label htmlFor="venue-file">Vorlage hochladen</label>
+              <label htmlFor="venue-file">Planunterlage hochladen</label>
               <input id="venue-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif,application/pdf"
                 onChange={event => void chooseFile(event.currentTarget.files?.[0])} />
             </div>
             <div className="form-actions">
-              <button type="button" disabled={!fileId} onClick={() => setUnderlayDialogOpen(true)}>Vorlage einrichten …</button>
+              <button type="button" disabled={!fileId} onClick={() => setUnderlayDialogOpen(true)}>Planunterlage einrichten …</button>
             </div>
             {fileId && <p className="muted">
               {rotationDeg ? `Drehung ${Math.round(rotationDeg)}° · ` : ''}
