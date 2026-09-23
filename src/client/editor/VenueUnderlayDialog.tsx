@@ -138,7 +138,7 @@ export function VenueUnderlayDialog({
     <form ref={dialogRef} className="modal underlay-dialog underlay-dialog--workspace" role="dialog"
       aria-labelledby="underlay-dialog-title" aria-modal="true" tabIndex={-1}
       onClick={event => event.stopPropagation()} onSubmit={submit}>
-      <h2 id="underlay-dialog-title">Vorlage einrichten</h2>
+      <h2 id="underlay-dialog-title">Planunterlage einrichten</h2>
       <p className="muted">Bild drehen und zoomen, dann eine bekannte Strecke auf dem Bild abgreifen. Erst danach erscheint die Vorlage maßstäblich im Grundriss.</p>
 
       {pageCount != null && pageCount > 1 && <div>

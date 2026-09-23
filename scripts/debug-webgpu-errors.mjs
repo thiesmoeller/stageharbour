@@ -32,7 +32,7 @@ await page.getByLabel('E-Mail-Adresse').fill(email);
 await page.getByLabel('Passwort', { exact: true }).fill(password);
 await page.getByRole('button', { name: 'Anmelden', exact: true }).click();
 await page.getByText('Angemeldet als').waitFor({ timeout: 15_000 });
-await page.getByText(/Bühnenbild öffnen/).first().click();
+await page.getByText(/Szene öffnen/).first().click();
 await page.locator('[data-renderer="pascal"] canvas').first().waitFor({ timeout: 30_000 });
 await page.waitForTimeout(settleMs);
 

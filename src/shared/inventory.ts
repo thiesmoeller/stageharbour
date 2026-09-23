@@ -132,7 +132,7 @@ export function inventoryWarnings(layout: Layout, panels: readonly InventoryPane
     assigned.set(wall.panelId, holders);
     const panel = byId.get(wall.panelId);
     if (!panel) {
-      warnings.push({ kind: 'unavailable', wallId: wall.id, panelId: wall.panelId, message: `Die zugewiesene Platte für „${wall.label}“ ist nicht im Bestand.` });
+      warnings.push({ kind: 'unavailable', wallId: wall.id, panelId: wall.panelId, message: `Die zugewiesene Platte für „${wall.label}“ ist nicht im Plattenbestand.` });
       continue;
     }
     if (!panel.available) {
@@ -158,7 +158,7 @@ export function inventoryWarnings(layout: Layout, panels: readonly InventoryPane
   for (const group of groups.values()) {
     const usable = panels.filter(item => item.available && typesCompatible(item.type, group.placement)).length;
     if (group.needed > usable) {
-      warnings.push({ kind: 'shortage', message: `Bestand reicht nicht: ${group.needed} Plätze, ${usable} verfügbare Platten.` });
+      warnings.push({ kind: 'shortage', message: `Plattenbestand reicht nicht: ${group.needed} Plätze, ${usable} verfügbare Platten.` });
     }
   }
   return warnings;

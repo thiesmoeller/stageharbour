@@ -40,7 +40,7 @@ export function AssetLibrary({ workspaceId, assets, layout, readOnly, selected, 
   const base = `/api/workspaces/${workspaceId}/assets`;
   const lease = useEditingLease(`/api/workspaces/${workspaceId}/inventory`, !readOnly);
   async function requireLease() {
-    if (!await lease.acquire()) throw new Error('Der Bestand wird bereits bearbeitet oder ist nicht erreichbar. Bitte erneut versuchen.');
+    if (!await lease.acquire()) throw new Error('Der Plattenbestand wird bereits bearbeitet oder ist nicht erreichbar. Bitte erneut versuchen.');
   }
   const reference = Number(lengthMm);
   const dimensions = bounds && Number.isFinite(reference) && reference >= 1
@@ -60,7 +60,7 @@ export function AssetLibrary({ workspaceId, assets, layout, readOnly, selected, 
     setBusy(true); setError('');
     try {
       await create(String(data.get('name')), 'thickness' in rest ? { kind: 'wall', template: rest } : { kind: 'brace', template: rest });
-    } catch { setError('Die Inventarvorlage konnte nicht gespeichert werden.'); }
+    } catch { setError('Die Objektvorlage konnte nicht gespeichert werden.'); }
     finally { setBusy(false); }
   }
   async function onFileChange(file: File | undefined) {
@@ -98,11 +98,11 @@ export function AssetLibrary({ workspaceId, assets, layout, readOnly, selected, 
   return <section className="asset-library" aria-label="Objektbibliothek">
     <div className="section-heading"><h3>Objektbibliothek</h3><span>Gemeinsam in der Theatergruppe</span></div>
     <div className="asset-tabs">
-      {([['inventory', 'Inventar'], ['panels', 'Plattenbestand'], ['wallTypes', 'Wandtypen'], ['import', 'GLB importieren'], ['catalog', 'Pascal-Katalog']] as const)
+      {([['inventory', 'Objektvorlagen'], ['panels', 'Plattenbestand'], ['wallTypes', 'Wandtypen'], ['import', 'GLB importieren'], ['catalog', 'Pascal-Katalog']] as const)
         .map(([id, title]) => <button key={id} type="button" className="quiet" aria-pressed={tab === id} onClick={() => { setTab(id); setError(''); }}>{title}</button>)}
     </div>
     {tab === 'inventory' && <>
-      <label htmlFor="asset-search">Inventar durchsuchen</label><input id="asset-search" value={search} onChange={event => setSearch(event.target.value)} />
+      <label htmlFor="asset-search">Objektvorlagen durchsuchen</label><input id="asset-search" value={search} onChange={event => setSearch(event.target.value)} />
       <div className="asset-grid">{assets.filter(asset => !asset.archived && asset.name.toLocaleLowerCase().includes(search.toLocaleLowerCase())).map(asset => <article className="asset-card" key={asset.id}>
         <strong>{asset.name}</strong><span>{asset.definition.kind === 'wall' ? 'Wandelement' : asset.definition.kind === 'brace' ? 'Gewichtete Stütze' : '3D-Modell'}</span>
         <button type="button" disabled={readOnly || busy} onClick={() => onPlace(asset)}>Platzieren</button>
@@ -115,11 +115,11 @@ export function AssetLibrary({ workspaceId, assets, layout, readOnly, selected, 
       </article>)}</div>
       {!assets.some(asset => !asset.archived) && <p className="muted">Speichern Sie Wände und Stützen als wiederverwendbare Vorlagen oder importieren Sie Modelle.</p>}
       {!readOnly && <form onSubmit={event => void template(event)}><fieldset disabled={busy}>
-        <label htmlFor="template-name">Name der Inventarvorlage</label><input id="template-name" name="name" required maxLength={120} />
+        <label htmlFor="template-name">Name der Objektvorlage</label><input id="template-name" name="name" required maxLength={120} />
         <label htmlFor="template-kind">Vorlage aus</label><select id="template-kind" name="kind">
           {selected && <option value="selection">Ausgewähltes Objekt ({selected.label})</option>}
           <option value="wall">Standardwand · 1200 × 2400 × 28 mm</option><option value="brace">Beispielstütze · Maße vor Einsatz prüfen</option>
-        </select><button type="submit">Inventarvorlage speichern</button>
+        </select><button type="submit">Objektvorlage speichern</button>
       </fieldset></form>}
       <p className="muted">Vorlagen erzeugen unabhängige Exemplare. Archivieren entfernt nur die Vorlage aus der Auswahl; bestehende Szenen behalten ihre Objekte.</p>
     </>}
@@ -143,7 +143,7 @@ export function AssetLibrary({ workspaceId, assets, layout, readOnly, selected, 
       <input id="model-length" type="number" min="1" max="100000" step="any" value={lengthMm}
         onChange={event => setLengthMm(event.target.value)} required disabled={!bounds} />
       {dimensions && <p className="muted">Ergebnis: {Math.round(dimensions.width)} × {Math.round(dimensions.height)} × {Math.round(dimensions.depth)} mm (Breite × Höhe × Tiefe).</p>}
-      <button type="submit" disabled={!dimensions}>Modell ins Inventar importieren</button>
+      <button type="submit" disabled={!dimensions}>Modell in Objektvorlagen importieren</button>
     </fieldset></form>}
     {tab === 'catalog' && <Suspense fallback={<p role="status">Katalog wird geladen …</p>}><PascalCatalog disabled={readOnly || busy} onAdd={async (name, definition) => {
       setBusy(true); setError('');

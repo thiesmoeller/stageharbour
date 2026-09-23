@@ -16,8 +16,8 @@ test('inventory, GLB models and Pascal catalogue items participate in placement,
   });
   await page.getByRole('button', { name: 'Objektbibliothek', exact: true }).click();
   const library = page.getByRole('region', { name: 'Objektbibliothek' });
-  await library.getByLabel('Name der Inventarvorlage').fill('Standardkulisse');
-  await library.getByRole('button', { name: 'Inventarvorlage speichern' }).click();
+  await library.getByLabel('Name der Objektvorlage').fill('Standardkulisse');
+  await library.getByRole('button', { name: 'Objektvorlage speichern' }).click();
   const wallCard = library.locator('article').filter({ hasText: 'Standardkulisse' });
   await wallCard.getByRole('button', { name: 'Platzieren' }).click();
   await commitWallPlacement(page);
@@ -39,7 +39,7 @@ test('inventory, GLB models and Pascal catalogue items participate in placement,
   await library.getByLabel('Bekanntes Außenmaß').selectOption('height');
   await library.getByLabel('Höhe (mm)').fill('900');
   await expect(library.getByText(/Ergebnis: 900 × 900 × 900 mm/)).toBeVisible();
-  await library.getByRole('button', { name: 'Modell ins Inventar importieren' }).click();
+  await library.getByRole('button', { name: 'Modell in Objektvorlagen importieren' }).click();
   const modelCard = library.locator('article').filter({ hasText: 'Testpodest' });
   await modelCard.getByRole('button', { name: 'Platzieren' }).click();
   await expect(page.getByTestId('placing-object')).toBeAttached();
@@ -61,7 +61,7 @@ test('inventory, GLB models and Pascal catalogue items participate in placement,
   await page.getByRole('button', { name: 'Objektbibliothek', exact: true }).click();
   await library.getByRole('button', { name: 'Pascal-Katalog', exact: true }).click();
   await library.getByLabel('Pascal-Katalog durchsuchen').fill('Cactus');
-  await library.getByRole('button', { name: 'Ins Inventar übernehmen' }).first().click();
+  await library.getByRole('button', { name: 'In Objektvorlagen übernehmen' }).first().click();
   await library.locator('article').filter({ hasText: 'Cactus' }).getByRole('button', { name: 'Platzieren' }).click();
   await commitObjectPlacement(page, 5000, 3000);
   await expect(page.locator('[data-testid^="placeholder-"]')).toHaveCount(2);
@@ -78,7 +78,7 @@ test('inventory, GLB models and Pascal catalogue items participate in placement,
   await expect(page.locator('.model-error')).toHaveCount(0);
 
   await page.reload();
-  const workspace = page.getByRole('region', { name: 'Bühnenbild bearbeiten' });
+  const workspace = page.getByRole('region', { name: 'Szene bearbeiten' });
   try {
     await workspace.waitFor({ state: 'visible', timeout: 8_000 });
   } catch {

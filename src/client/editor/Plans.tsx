@@ -54,7 +54,7 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
       setScenes(sceneListSchema.parse(sceneData));
       setAvailableVenues(venueListSchema.parse(venueData));
       setTemplates(sceneTemplateListSchema.parse(templateData));
-    }).catch(() => { if (!cancelled) setError('Bühnenbilder konnten nicht geladen werden.'); })
+    }).catch(() => { if (!cancelled) setError('Szenen konnten nicht geladen werden.'); })
       .finally(() => { if (!cancelled) setBusy(false); });
     return () => { cancelled = true; };
   }, [base, templatesBase, attempt]);
@@ -374,8 +374,8 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
       <div className="form-actions"><button type="submit">Szenenvorlage einfügen</button>
         <button className="quiet" type="button" onClick={() => setInstantiating(undefined)}>Abbrechen</button></div>
     </fieldset></form>}
-    {busy && <p role="status">Bühnenbilder werden geladen …</p>}
-    {!busy && !scenes.length && !editingForm && !error && <p className="muted">Noch keine Bühnenbilder vorhanden.{!readOnly && ' Legen Sie Ihre erste Produktion mit Spielstätte und Szene an.'}</p>}
+    {busy && <p role="status">Szenen werden geladen …</p>}
+    {!busy && !scenes.length && !editingForm && !error && <p className="muted">Noch keine Szenen vorhanden.{!readOnly && ' Legen Sie Ihre erste Produktion mit Spielstätte und Szene an.'}</p>}
     {productions.map(item => {
       const productionScenes = scenes.filter(scene => scene.productionId === item.productionId);
       const venueNames = uniqueBy(productionScenes, scene => scene.venueId);
@@ -396,7 +396,7 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
                 {scene.preview && <PlanPreview preview={scene.preview} label={`Grundriss ${scene.name}`} />}
                 <span className="scene-open-copy">
                   <strong>{scene.name}</strong>
-                  <span>{scene.venueUpdateAvailable ? 'Aktualisierung verfügbar · ' : ''}{scene.lease ? `Bearbeitung durch ${scene.lease.holderName}` : 'Bühnenbild öffnen'} →</span>
+                  <span>{scene.venueUpdateAvailable ? 'Aktualisierung verfügbar · ' : ''}{scene.lease ? `Bearbeitung durch ${scene.lease.holderName}` : 'Szene öffnen'} →</span>
                 </span>
               </button>
               {!readOnly && scene.venueUpdateAvailable && <button className="quiet" type="button" onClick={() => void applyVenue(scene.id)} disabled={busy}>Spielstättenfassung übernehmen</button>}

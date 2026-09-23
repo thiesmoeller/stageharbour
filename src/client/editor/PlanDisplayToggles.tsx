@@ -12,7 +12,7 @@ export function PlanDisplayToggles({ value, onChange, includeUnderlay = false }:
   return <div className="plan-display-toggles" role="group" aria-label="Grundriss-Anzeige">
     {includeUnderlay && <label className="plan-display-toggle">
       <input type="checkbox" checked={value.showUnderlay} onChange={() => toggle('showUnderlay')} />
-      Vorlage
+      Planunterlage
     </label>}
     <label className="plan-display-toggle">
       <input type="checkbox" checked={value.showObjectNames} onChange={() => toggle('showObjectNames')} />
