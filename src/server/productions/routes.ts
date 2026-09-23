@@ -5,6 +5,7 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { errorSchema, okSchema, workspaceParamsSchema } from '../../shared/contracts.js';
 import { layoutSchema, captureTemplateSchema, createSceneSchema, copySceneSchema, duplicateSceneSchema, instantiateTemplateSchema, saveLayoutSchema, sceneSchema, sceneListSchema, sceneTemplateListSchema, sceneTemplateSchema, venueGeometrySchema, wallCorners } from '../../shared/layout.js';
+import { stripLayoutReportTemplates } from '../../shared/reportTemplate.js';
 import { captureTemplateLayout, copiedSceneName, copyLayoutIntoVenue, duplicateLayout } from '../../shared/scenes.js';
 import { overheadClearance, overheadWarningSchema } from '../../shared/overhead.js';
 import { keepClearWarningSchema, keepClearWarnings } from '../../shared/keepClear.js';
@@ -301,14 +302,15 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
         const assets = await tx.select().from(inventoryAsset).where(and(eq(inventoryAsset.workspaceId, workspaceId), inArray(inventoryAsset.id, assetIds)));
         if (assets.length !== assetIds.length || assets.some(asset => asset.definition.kind !== 'model')) throw new AccessError(400, 'Ein Modell ist in dieser Theatergruppe nicht verfügbar.');
       }
-      const [updated] = await tx.update(scene).set({ layout: request.body.layout, revision: sql`${scene.revision} + 1` })
+      const layout = stripLayoutReportTemplates(request.body.layout);
+      const [updated] = await tx.update(scene).set({ layout, revision: sql`${scene.revision} + 1` })
         .where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, sceneId), eq(scene.revision, request.body.revision)))
         .returning({ revision: scene.revision });
       if (!updated) return undefined;
       const venue = venueGeometrySchema.parse(existing.venue);
       return {
         revision: updated.revision,
-        warnings: [...overheadClearance(request.body.layout, venue), ...keepClearWarnings(venue, request.body.layout)],
+        warnings: [...overheadClearance(layout, venue), ...keepClearWarnings(venue, layout)],
       };
     });
     if (result) return result;
