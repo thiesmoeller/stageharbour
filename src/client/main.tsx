@@ -279,17 +279,23 @@ function Workspace({ me, branding, onBranding, onDirty, location }: {
 }) {
   const section = location.section;
   const editing = ('sceneId' in location && !!location.sceneId) || ('venueId' in location && !!location.venueId);
+  const isAdmin = can(me.workspace.role, 'members');
   return <main className="workspace">
     <div className="workspace-heading" hidden={editing}><div><p className="eyebrow">EUER ARBEITSBEREICH</p><h1>{me.workspace.name}</h1><p>Angemeldet als {me.user.name}</p></div><span className="role-badge">{roleNames[me.workspace.role]}</span></div>
     <nav className="workspace-navigation" aria-label="Arbeitsbereiche" hidden={editing}>
       <button className="quiet" aria-current={section === 'plans' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'plans' })}>Produktionen & Szenen<span>Bühnenbilder entwerfen und planen</span></button>
       <button className="quiet" aria-current={section === 'venues' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'venues' })}>Spielstätten & Bühnen<span>Räume, Grundrisse und feste Einrichtungen</span></button>
+      <button className="quiet" aria-current={section === 'account' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'account' })}>Mein Konto<span>Verknüpfte Anmeldung</span></button>
+      {isAdmin && <button className="quiet" aria-current={section === 'admin' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'admin' })}>Verwaltung<span>Mitglieder, Darstellung und Aktivität</span></button>}
     </nav>
-    {section === 'plans'
-      ? <Plans me={me} onDirty={onDirty} sceneId={'sceneId' in location ? location.sceneId : undefined} />
-      : <Venues me={me} onDirty={onDirty} venueId={'venueId' in location ? location.venueId : undefined} />}
-    <div className="workspace-management" hidden={editing}><LinkedAccounts />
-    {can(me.workspace.role, 'members') && <><SiteBranding workspaceId={me.workspace.id} branding={branding} onBranding={onBranding} /><Members me={me} /><AuditLog workspaceId={me.workspace.id} /></>}</div>
+    {section === 'plans' && <Plans me={me} onDirty={onDirty} sceneId={'sceneId' in location ? location.sceneId : undefined} />}
+    {section === 'venues' && <Venues me={me} onDirty={onDirty} venueId={'venueId' in location ? location.venueId : undefined} />}
+    {section === 'account' && <div className="workspace-management"><LinkedAccounts /></div>}
+    {section === 'admin' && isAdmin && <div className="workspace-management">
+      <SiteBranding workspaceId={me.workspace.id} branding={branding} onBranding={onBranding} />
+      <Members me={me} />
+      <AuditLog workspaceId={me.workspace.id} />
+    </div>}
   </main>;
 }
 

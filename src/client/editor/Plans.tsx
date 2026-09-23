@@ -358,9 +358,12 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
             </div>)}</div>
           </div>;
         })}
-        <PackageExport workspaceId={me.workspace.id} productionId={item.productionId}
-          scenes={productionScenes.map(scene => ({ id: scene.id, name: `${scene.name} · ${scene.venueName}` }))}
-          readOnly={readOnly} freezeDisabled={busy} />
+        <details className="production-export">
+          <summary>Konstruktionspaket exportieren</summary>
+          <PackageExport workspaceId={me.workspace.id} productionId={item.productionId}
+            scenes={productionScenes.map(scene => ({ id: scene.id, name: `${scene.name} · ${scene.venueName}` }))}
+            readOnly={readOnly} freezeDisabled={busy} />
+        </details>
       </section>;
     })}
     <div className="section-heading"><h2>Szenenvorlagen</h2></div>

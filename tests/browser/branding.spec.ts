@@ -9,6 +9,7 @@ test('administrator can set site branding with a logo', async ({ page }) => {
   await page.getByLabel('Passwort', { exact: true }).fill(testAdministrator.password);
   await page.getByRole('button', { name: 'Anmelden', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Beispiel-Theatergruppe' })).toBeVisible();
+  await page.getByRole('button', { name: /Verwaltung/ }).click();
   await expect(page.getByRole('heading', { name: 'Darstellung' })).toBeVisible();
   await page.getByRole('heading', { name: 'Darstellung' }).scrollIntoViewIfNeeded();
 
