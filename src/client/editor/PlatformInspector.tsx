@@ -4,14 +4,17 @@ import {
   type Platform, type PlatformStyle, type StairUnit, type SupportingSurface,
 } from '../../shared/levels.js';
 import { clipPlatformToStageDeck, snapStageDeckElevation, snapStageDeckSize } from '../../shared/stageDeck.js';
+import { usePendingApplyForm } from './usePendingApplyForm.js';
 
 const MaterialPicker = lazy(() => import('./MaterialPicker.js'));
 
-export function PlatformInspector({ platform, readOnly, bulkCount = 1, finishMixed = false, onApply, onRemove }: {
+export function PlatformInspector({ platform, readOnly, bulkCount = 1, finishMixed = false, onPendingChange, onApply, onRemove }: {
   platform: Platform; readOnly: boolean; bulkCount?: number; finishMixed?: boolean;
+  onPendingChange?: (pending: boolean) => void;
   onApply: (platform: Platform) => void; onRemove: () => void;
 }) {
   const [error, setError] = useState('');
+  const { pending, resetKey, clearPending, discard, formProps } = usePendingApplyForm(onPendingChange);
   const box = orientedPlatformBox(platform.outline);
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -37,9 +40,10 @@ export function PlatformInspector({ platform, readOnly, bulkCount = 1, finishMix
     });
     if (!result.success) { setError('Bitte prüfen Sie die Maße und die Bezeichnung.'); return; }
     setError('');
+    clearPending();
     onApply(style === 'stageDeck' ? clipPlatformToStageDeck(result.data) : result.data);
   }
-  return <form onSubmit={submit}><fieldset disabled={readOnly}>
+  return <form key={resetKey} onSubmit={submit} {...formProps}><fieldset disabled={readOnly}>
     {bulkCount > 1 && <p className="muted bulk-selection-hint">{bulkCount} Podeste ausgewählt. Die Oberfläche wird auf alle übernommen; übrige Felder gelten nur für das hervorgehobene Podest.</p>}
     <label htmlFor="platform-label">Bezeichnung</label><input id="platform-label" name="label" defaultValue={platform.label} maxLength={120} required />
     <label htmlFor="platform-style">Bauweise</label>
@@ -59,15 +63,21 @@ export function PlatformInspector({ platform, readOnly, bulkCount = 1, finishMix
       <MaterialPicker id="platform-finish" value={platform.finish} mixed={finishMixed} />
     </Suspense>
     {error && <p role="alert" className="error">{error}</p>}
-    {!readOnly && <div className="form-actions"><button type="submit">Übernehmen</button><button className="quiet" type="button" onClick={onRemove}>Podest löschen</button></div>}
+    {!readOnly && <div className="form-actions">
+      <button type="submit">Übernehmen</button>
+      {pending && <button className="quiet" type="button" onClick={discard}>Verwerfen</button>}
+      <button className="quiet" type="button" onClick={onRemove}>Podest löschen</button>
+    </div>}
   </fieldset></form>;
 }
 
-export function StairInspector({ stair, surfaces, readOnly, onApply, onRemove }: {
+export function StairInspector({ stair, surfaces, readOnly, onPendingChange, onApply, onRemove }: {
   stair: StairUnit; surfaces: SupportingSurface[]; readOnly: boolean;
+  onPendingChange?: (pending: boolean) => void;
   onApply: (stair: StairUnit) => void; onRemove: () => void;
 }) {
   const [error, setError] = useState('');
+  const { pending, resetKey, clearPending, discard, formProps } = usePendingApplyForm(onPendingChange);
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -77,9 +87,9 @@ export function StairInspector({ stair, surfaces, readOnly, onApply, onRemove }:
       ...Object.fromEntries(['x', 'y', 'rotation', 'width', 'run', 'riserHeight'].map(key => [key, Number(data.get(key))])),
     });
     if (!result.success) { setError('Bitte prüfen Sie die Maße und die verbundenen Flächen.'); return; }
-    setError(''); onApply(result.data);
+    setError(''); clearPending(); onApply(result.data);
   }
-  return <form onSubmit={submit}><fieldset disabled={readOnly}>
+  return <form key={resetKey} onSubmit={submit} {...formProps}><fieldset disabled={readOnly}>
     <label htmlFor="stair-label">Bezeichnung</label><input id="stair-label" name="label" defaultValue={stair.label} maxLength={120} required />
     <label htmlFor="stair-lower">Untere Fläche</label>
     <select id="stair-lower" name="lowerSurfaceId" defaultValue={stair.lowerSurfaceId}>
@@ -96,6 +106,10 @@ export function StairInspector({ stair, surfaces, readOnly, onApply, onRemove }:
       <input id={`stair-${key}`} name={key} type="number" step="any" min={min} max={key === 'rotation' ? 360 : 100000} defaultValue={stair[key]} required /></div>)}</div>
     <p className="muted">Die Gesamthöhe ergibt sich aus den verbundenen Auflageflächen. Beispielmaße, keine gemessene Vorgabe.</p>
     {error && <p role="alert" className="error">{error}</p>}
-    {!readOnly && <div className="form-actions"><button type="submit">Übernehmen</button><button className="quiet" type="button" onClick={onRemove}>Treppe löschen</button></div>}
+    {!readOnly && <div className="form-actions">
+      <button type="submit">Übernehmen</button>
+      {pending && <button className="quiet" type="button" onClick={discard}>Verwerfen</button>}
+      <button className="quiet" type="button" onClick={onRemove}>Treppe löschen</button>
+    </div>}
   </fieldset></form>;
 }

@@ -2,12 +2,15 @@ import { useState, type FormEvent } from 'react';
 import { braceSchema, type Brace } from '../../shared/layout.js';
 import type { SupportingSurface } from '../../shared/levels.js';
 import { SurfaceField } from './PlatformLayer.js';
+import { usePendingApplyForm } from './usePendingApplyForm.js';
 
-export function BraceInspector({ brace, surfaces, readOnly, onApply, onRemove, onAlign }: {
+export function BraceInspector({ brace, surfaces, readOnly, onPendingChange, onApply, onRemove, onAlign }: {
   brace: Brace; surfaces: SupportingSurface[]; readOnly: boolean;
+  onPendingChange?: (pending: boolean) => void;
   onApply: (brace: Brace) => void; onRemove: () => void; onAlign?: () => void;
 }) {
   const [error, setError] = useState('');
+  const { pending, resetKey, clearPending, discard, formProps } = usePendingApplyForm(onPendingChange);
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -16,9 +19,9 @@ export function BraceInspector({ brace, surfaces, readOnly, onApply, onRemove, o
       ...Object.fromEntries(['x', 'y', 'rotation', 'footprintWidth', 'footprintDepth', 'height'].map(key => [key, Number(data.get(key))])),
     });
     if (!result.success) { setError('Bitte prüfen Sie die Maße und die Bezeichnung.'); return; }
-    setError(''); onApply(result.data);
+    setError(''); clearPending(); onApply(result.data);
   }
-  return <form onSubmit={submit}><fieldset disabled={readOnly}>
+  return <form key={resetKey} onSubmit={submit} {...formProps}><fieldset disabled={readOnly}>
     <label htmlFor="brace-label">Bezeichnung</label><input id="brace-label" name="label" defaultValue={brace.label} maxLength={120} required />
     <SurfaceField id="brace-surface" value={brace.supportingSurfaceId} surfaces={surfaces} />
     <div className="numeric-fields">{([
@@ -32,6 +35,7 @@ export function BraceInspector({ brace, surfaces, readOnly, onApply, onRemove, o
     {error && <p role="alert" className="error">{error}</p>}
     {!readOnly && <div className="form-actions">
       <button type="submit">Übernehmen</button>
+      {pending && <button className="quiet" type="button" onClick={discard}>Verwerfen</button>}
       {onAlign && <button className="quiet" type="button" onClick={onAlign}>An Wand ausrichten</button>}
       <button className="quiet" type="button" onClick={onRemove}>Stütze löschen</button>
     </div>}

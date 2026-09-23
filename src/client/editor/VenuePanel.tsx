@@ -41,7 +41,7 @@ import type { StageEditing } from './StageEditing.js';
 import { useViewportWheel } from './viewportWheel.js';
 import { ApiError, request, upload } from '../api.js';
 import { ReportSheetEditor } from './ReportSheetEditor.js';
-import { newReportTemplate, type ReportTemplate } from '../../shared/reportTemplate.js';
+import { type ReportTemplate } from '../../shared/reportTemplate.js';
 import { ToolIcon } from './ToolIcon.js';
 import { defaultLighting, type StageLightingSettings } from '../../shared/lighting.js';
 
@@ -774,12 +774,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
         {venueUpdateAvailable && !readOnly && <button type="button" disabled={busy} onClick={() => void applyUpdate()}>Spielstättenfassung übernehmen</button>}
         {!readOnly && <SnapToggle enabled={snapEnabled} onChange={setSnapEnabled} />}
         <button type="button" className="quiet" aria-pressed={sheetEditorOpen}
-          onClick={() => {
-            if (!sheetEditorOpen && !reportTemplates.length && !readOnly) {
-              setReportTemplates([newReportTemplate(crypto.randomUUID(), 'Standardblatt')]);
-            }
-            setSheetEditorOpen(open => !open);
-          }}>
+          onClick={() => setSheetEditorOpen(open => !open)}>
           {sheetEditorOpen ? 'Blatt-Layout schließen' : 'Blatt-Layout'}
         </button>
         <span className={`save-status ${draft.dirty ? 'pending' : ''}`} role="status">{draft.dirty ? 'Unveröffentlichter Spielstättenentwurf' : 'Spielstättenfassung gespeichert'}</span>

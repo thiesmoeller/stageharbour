@@ -5,6 +5,7 @@ import {
   newPlaceholder, placeholderKindSchema, placeholderSchema, type Placeholder, type PlaceholderKind,
 } from '../../shared/placeholders.js';
 import { SurfaceField } from './PlatformLayer.js';
+import { usePendingApplyForm } from './usePendingApplyForm.js';
 
 const kinds = PLACEHOLDER_KINDS;
 
@@ -21,11 +22,13 @@ export function PlaceholderLibrary({ readOnly, disabled, onAdd }: {
   </div>;
 }
 
-export function PlaceholderInspector({ item, surfaces, readOnly, onApply, onRemove }: {
+export function PlaceholderInspector({ item, surfaces, readOnly, onPendingChange, onApply, onRemove }: {
   item: Placeholder; surfaces: SupportingSurface[]; readOnly: boolean;
+  onPendingChange?: (pending: boolean) => void;
   onApply: (item: Placeholder) => void; onRemove: () => void;
 }) {
   const [error, setError] = useState('');
+  const { pending, resetKey, clearPending, discard, formProps } = usePendingApplyForm(onPendingChange);
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -35,9 +38,9 @@ export function PlaceholderInspector({ item, surfaces, readOnly, onApply, onRemo
       ...Object.fromEntries(['x', 'y', 'rotation', 'width', 'depth', 'height'].map(key => [key, Number(data.get(key))])),
     });
     if (!result.success) { setError('Bitte prüfen Sie die Maße und die Bezeichnung.'); return; }
-    setError(''); onApply(result.data);
+    setError(''); clearPending(); onApply(result.data);
   }
-  return <form onSubmit={submit}><fieldset disabled={readOnly}>
+  return <form key={resetKey} onSubmit={submit} {...formProps}><fieldset disabled={readOnly}>
     <label htmlFor="placeholder-kind">Art</label>
     <select id="placeholder-kind" name="kind" defaultValue={item.kind}>
       {kinds.map(kind => <option key={kind} value={kind}>{PLACEHOLDER_KIND_LABELS[kind]}</option>)}
@@ -52,8 +55,11 @@ export function PlaceholderInspector({ item, surfaces, readOnly, onApply, onRemo
       <input id={`placeholder-${key}`} name={key} type="number" step="any" min={min} max={max} defaultValue={item[key]} required /></div>)}</div>
     <p className="muted">{PLACEHOLDER_EXAMPLE_NOTICE} X/Y beziehen sich auf die Grundflächenmitte.</p>
     {error && <p role="alert" className="error">{error}</p>}
-    {!readOnly && <div className="form-actions"><button type="submit">Übernehmen</button>
-      <button className="quiet" type="button" onClick={onRemove}>Platzhalter löschen</button></div>}
+    {!readOnly && <div className="form-actions">
+      <button type="submit">Übernehmen</button>
+      {pending && <button className="quiet" type="button" onClick={discard}>Verwerfen</button>}
+      <button className="quiet" type="button" onClick={onRemove}>Platzhalter löschen</button>
+    </div>}
   </fieldset></form>;
 }
 

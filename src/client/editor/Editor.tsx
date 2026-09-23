@@ -67,6 +67,7 @@ import { PlaceholderLayer } from './PlaceholderLayer.js';
 import { ToolIcon } from './ToolIcon.js';
 import { WallToolButton } from './WallToolButton.js';
 import { AlignmentGuides, CentrelineMark, SnapToggle } from './SnapGuides.js';
+import { confirmDiscardPending, usePendingApplyForm } from './usePendingApplyForm.js';
 import {
   effectiveCurtains, effectiveVenueDoorOpen, setCurtainOpenPercent, setVenueDoorOpenPercent, venueDooredWalls,
 } from '../../shared/venueFixtures.js';
@@ -74,6 +75,7 @@ import {
 const MaterialPicker = lazy(() => import('./MaterialPicker.js'));
 type VenueFixtureSelection = { kind: 'curtain' | 'door'; id: string };
 const statusText = { saved: 'Gespeichert', pending: 'Änderungen ausstehend …', saving: 'Speichert …', failed: 'Speichern fehlgeschlagen', conflict: 'Neuere Fassung vorhanden' };
+const INSPECTOR_PENDING_STATUS = 'Nicht übernommene Eingaben';
 export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onClose, onDirty, onRequestEditing }: {
   initial: Scene; workspaceId: string; readOnly: boolean; onClose: () => void; onDirty: (value: boolean) => void; onRequestEditing?: () => void;
 }) {
@@ -126,6 +128,9 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
   const [venueOpen, setVenueOpen] = useState(false);
   const [openVenueSheet, setOpenVenueSheet] = useState(false);
   const [venueDirty, setVenueDirty] = useState(false);
+  const [inspectorPending, setInspectorPending] = useState(false);
+  const inspectorPendingRef = useRef(false);
+  inspectorPendingRef.current = inspectorPending;
   const [venue, setVenue] = useState<VenueGeometry>(boot.venue);
   useEffect(() => {
     if (!persistLiftedTemplates.current || permissionReadOnly) return;
@@ -193,7 +198,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     } catch (error) { setRecoveryMessage(error instanceof ApiError ? error.message : 'Entwurf konnte nicht gesichert werden. Bitte herunterladen.'); }
     finally { setRecovering(false); }
   }
-  const dirty = venueDirty || saveState.dirty || !!groupPreview || !!placing;
+  const dirty = venueDirty || saveState.dirty || !!groupPreview || !!placing || inspectorPending;
   useEffect(() => { onDirty(dirty); }, [dirty, onDirty]);
   useEffect(() => {
     if (readOnly) return;
@@ -206,7 +211,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
   }, [readOnly, saver, workspaceId, initial.id]);
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
-      if (saver.getSnapshot().dirty || busyGesture()) { event.preventDefault(); event.returnValue = ''; }
+      if (saver.getSnapshot().dirty || busyGesture() || inspectorPendingRef.current) { event.preventDefault(); event.returnValue = ''; }
     };
     window.addEventListener('beforeunload', warn);
     return () => { window.removeEventListener('beforeunload', warn); saver.dispose(); onDirty(false); };
@@ -343,8 +348,14 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
   function replaceStair(stair: StairUnit) {
     commit({ ...current.current.present, stairs: (current.current.present.stairs ?? []).map(item => item.id === stair.id ? stair : item) });
   }
-  function clearSelection() { pickedRef.current = []; setPicked([]); setFixtureSelection(undefined); }
-  function setSelection(members: ClipboardMember[]) { pickedRef.current = members; setPicked(members); setFixtureSelection(undefined); }
+  function clearSelection() {
+    if (!confirmDiscardPending(inspectorPendingRef.current)) return;
+    pickedRef.current = []; setPicked([]); setFixtureSelection(undefined);
+  }
+  function setSelection(members: ClipboardMember[]) {
+    if (!confirmDiscardPending(inspectorPendingRef.current)) return;
+    pickedRef.current = members; setPicked(members); setFixtureSelection(undefined);
+  }
   function selection(): ClipboardMember[] {
     const present = current.current.present;
     const ids = new Set([...present.walls, ...present.braces, ...present.platforms ?? [], ...present.stairs ?? [], ...present.placeholders ?? []].map(item => item.id));
@@ -355,7 +366,6 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
   }
   function pick(member: ClipboardMember, additive: boolean) {
     if (busyGesture()) return;
-    setFixtureSelection(undefined);
     const old = selection();
     if (additive) setSelection(old.some(item => item.id === member.id) ? old.filter(item => item.id !== member.id) : [member, ...old]);
     else {
@@ -365,6 +375,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
   }
   function pickVenueFixture(fixture: VenueFixtureSelection) {
     if (busyGesture()) return;
+    if (!confirmDiscardPending(inspectorPendingRef.current)) return;
     pickedRef.current = [];
     setPicked([]);
     setFixtureSelection(fixture);
@@ -672,9 +683,10 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
   }
   return <section ref={root} className="editor" aria-label="Bühnenbild bearbeiten">
     <div className="editor-heading"><button className="quiet back-button" disabled={dirty} onClick={onClose} title="Zur Übersicht" aria-label="Zur Übersicht"><ToolIcon name="back" /></button><div><p className="eyebrow">{initial.productionName} · {venueName}</p><h2>{initial.name}</h2></div>
-      <span className={`save-status ${saveState.status}`} role="status">{permissionReadOnly
+      <span className={`save-status ${inspectorPending ? 'pending' : saveState.status}`} role="status">{permissionReadOnly
         ? (initial.lease ? `Nur Ansicht · Bearbeitung durch ${initial.lease.holderName}` : 'Nur Ansicht')
-        : saveState.status === 'conflict' && saveState.conflictKind === 'lease' ? 'Bearbeitung abgelaufen' : statusText[saveState.status]}</span><div className="document-history">{!readOnly && <>
+        : saveState.status === 'conflict' && saveState.conflictKind === 'lease' ? 'Bearbeitung abgelaufen'
+          : inspectorPending ? INSPECTOR_PENDING_STATUS : statusText[saveState.status]}</span><div className="document-history">{!readOnly && <>
       <button className="quiet" disabled={!!groupPreview || !!placing || !state.past.length} onClick={() => apply(undo(current.current))} hidden={venueOpen} title="Rückgängig (Strg+Z)" aria-label="Rückgängig"><ToolIcon name="undo" /></button>
       <button className="quiet" disabled={!!groupPreview || !!placing || !state.future.length} onClick={() => apply(redo(current.current))} hidden={venueOpen} title="Wiederholen (Strg+Shift+Z)" aria-label="Wiederholen"><ToolIcon name="redo" /></button></>}</div><span className="document-kind">{venueOpen ? 'Spielstätte bearbeiten' : 'Bühnenbild'}</span></div>
     <div className="workspace-commandbar">
@@ -1035,9 +1047,11 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
         {(state.present.placeholders ?? []).map((item, index) => <option key={item.id} value={`placeholder:${item.id}`}>M{index + 1}. {item.label}</option>)}
       </select>
       {selectedCurtain ? <VenueCurtainOpenForm key={selectedCurtain.id} openPercent={selectedCurtain.openPercent} readOnly={readOnly}
+          onPendingChange={setInspectorPending}
           onApply={openPercent => { if (!busyGesture()) commit(setCurtainOpenPercent(current.current.present, selectedCurtain.id, openPercent)); }} />
         : selectedVenueDoor ? <VenueDoorOpenForm key={selectedVenueDoor.id}
             openPercent={effectiveVenueDoorOpen(selectedVenueDoor, shown)} readOnly={readOnly}
+            onPendingChange={setInspectorPending}
             onApply={doorOpenPercent => { if (!busyGesture()) commit(setVenueDoorOpenPercent(current.current.present, selectedVenueDoor.id, doorOpenPercent)); }} />
           : selectedWall ? <WallForm key={JSON.stringify(selectedWall)} wall={selectedWall}
               openings={resolveWall(selectedWall, wallTypes).openings} typed={!!selectedWall.typeId} surfaces={surfaces}
@@ -1045,8 +1059,9 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
               finishMixed={mixedPropertyValue(selection().flatMap(item => item.kind === 'wall' ? [state.present.walls.find(wall => wall.id === item.id)?.finish] : [])) === MIXED_PROPERTY}
               frontRalMixed={mixedPropertyValue(selection().flatMap(item => item.kind === 'wall' ? [state.present.walls.find(wall => wall.id === item.id)?.frontRal] : [])) === MIXED_PROPERTY}
               backRalMixed={mixedPropertyValue(selection().flatMap(item => item.kind === 'wall' ? [state.present.walls.find(wall => wall.id === item.id)?.backRal] : [])) === MIXED_PROPERTY}
-              onApply={applyWall} onRemove={remove} />
-        : selectedBraceItem ? <BraceInspector key={JSON.stringify(selectedBraceItem)} brace={selectedBraceItem} surfaces={surfaces} readOnly={readOnly} onApply={replaceBrace} onRemove={remove}
+              onPendingChange={setInspectorPending} onApply={applyWall} onRemove={remove} />
+        : selectedBraceItem ? <BraceInspector key={JSON.stringify(selectedBraceItem)} brace={selectedBraceItem} surfaces={surfaces} readOnly={readOnly}
+            onPendingChange={setInspectorPending} onApply={replaceBrace} onRemove={remove}
             onAlign={() => {
               const walls = planningWalls(current.current.present, venue);
               const aligned = alignBraceToNearestWall(selectedBraceItem, walls, { force: true });
@@ -1055,14 +1070,17 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
           : selectedPlatformItem ? <PlatformInspector key={JSON.stringify(selectedPlatformItem)} platform={selectedPlatformItem}
               readOnly={readOnly} bulkCount={pickedPlatforms.length}
               finishMixed={mixedPropertyValue(pickedPlatforms.map(id => state.present.platforms?.find(item => item.id === id)?.finish)) === MIXED_PROPERTY}
-              onApply={replacePlatform} onRemove={remove} />
-            : selectedStairItem ? <StairInspector key={JSON.stringify(selectedStairItem)} stair={selectedStairItem} surfaces={surfaces} readOnly={readOnly} onApply={replaceStair} onRemove={remove} />
-              : selectedPlaceholderItem ? <PlaceholderInspector key={JSON.stringify(selectedPlaceholderItem)} item={selectedPlaceholderItem} surfaces={surfaces} readOnly={readOnly} onApply={replacePlaceholder} onRemove={remove} />
+              onPendingChange={setInspectorPending} onApply={replacePlatform} onRemove={remove} />
+            : selectedStairItem ? <StairInspector key={JSON.stringify(selectedStairItem)} stair={selectedStairItem} surfaces={surfaces} readOnly={readOnly}
+                onPendingChange={setInspectorPending} onApply={replaceStair} onRemove={remove} />
+              : selectedPlaceholderItem ? <PlaceholderInspector key={JSON.stringify(selectedPlaceholderItem)} item={selectedPlaceholderItem} surfaces={surfaces} readOnly={readOnly}
+                  onPendingChange={setInspectorPending} onApply={replacePlaceholder} onRemove={remove} />
                 : <p className="muted">Wählen Sie ein Objekt im Grundriss oder einen Vorhang / eine Spielstättentür. Nur die Öffnung fester Spielstätten-Elemente ist pro Szene änderbar.</p>}
       </div>
       <details className="inspector-section"><summary>Wandtypen</summary><div className="inspector-section-body">
       <WallTypePanel types={wallTypes} selectedId={selectedType} readOnly={readOnly}
-        onSelect={setSelectedType} onCreate={applyType} onApply={applyType} onPlace={placeType} onRemove={removeType} />
+        onSelect={setSelectedType} onCreate={applyType} onApply={applyType} onPlace={placeType} onRemove={removeType}
+        onPendingChange={setInspectorPending} />
       </div></details>
       <details className="inspector-section"><summary>Platteninventar</summary><div className="inspector-section-body">
       <InventoryPanel workspaceId={workspaceId} layout={state.present} selectedWall={selectedWall} readOnly={readOnly}
@@ -1074,7 +1092,8 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
       <AssemblyPanel layout={state.present} selectedWall={selectedWall} readOnly={readOnly} onChange={commit} />
       </div></details>
       <details className="inspector-section"><summary>Gruppieren</summary><div className="inspector-section-body">
-      <GroupInspector layout={state.present} picked={picked.filter((item): item is GroupMember => item.kind !== 'platform')} readOnly={readOnly} onChange={commit} />
+      <GroupInspector layout={state.present} picked={picked.filter((item): item is GroupMember => item.kind !== 'platform')} readOnly={readOnly}
+        onPendingChange={setInspectorPending} onChange={commit} />
       </div></details>
       <details className="inspector-section" open><summary>Zwischenablage</summary><div className="inspector-section-body">
       <ClipboardPanel selection={selection()} canPaste={!!clipboard} busy={!!groupPreview || !!placing}
@@ -1096,14 +1115,15 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
   </section>;
 }
 
-function WallForm({ wall, openings, typed, surfaces, readOnly, bulkWallCount = 1, finishMixed = false, frontRalMixed = false, backRalMixed = false, onApply, onRemove }: {
+function WallForm({ wall, openings, typed, surfaces, readOnly, bulkWallCount = 1, finishMixed = false, frontRalMixed = false, backRalMixed = false, onPendingChange, onApply, onRemove }: {
   wall: Wall; openings: Opening[]; typed: boolean; surfaces: ReturnType<typeof supportingSurfaces>; readOnly: boolean;
   bulkWallCount?: number; finishMixed?: boolean; frontRalMixed?: boolean; backRalMixed?: boolean;
-  onApply: (wall: Wall) => void; onRemove: () => void;
+  onPendingChange?: (pending: boolean) => void; onApply: (wall: Wall) => void; onRemove: () => void;
 }) {
   const [error, setError] = useState('');
   const [frontRal, setFrontRal] = useState(wall.frontRal);
   const [backRal, setBackRal] = useState(wall.backRal);
+  const { pending, resetKey, markPending, clearPending, discard, formProps } = usePendingApplyForm(onPendingChange);
   const doors = openings.filter(isDoorOpening);
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1123,9 +1143,9 @@ function WallForm({ wall, openings, typed, surfaces, readOnly, bulkWallCount = 1
       doorOpenPercent: doors.length && doorRaw !== null && doorRaw !== '' ? Number(doorRaw) : undefined,
     });
     if (!result.success) { setError('Bitte prüfen Sie die Maße und die Bezeichnung.'); return; }
-    setError(''); onApply(result.data);
+    setError(''); clearPending(); onApply(result.data);
   }
-  return <form onSubmit={submit}><fieldset disabled={readOnly}>
+  return <form key={resetKey} onSubmit={submit} {...formProps}><fieldset disabled={readOnly}>
     {bulkWallCount > 1 && <p className="muted bulk-selection-hint">{bulkWallCount} Wände ausgewählt. Oberfläche und RAL gelten für alle; übrige Felder nur für die hervorgehobene Wand.</p>}
     <label htmlFor="wall-label">Bezeichnung</label><input id="wall-label" name="label" defaultValue={wall.label} maxLength={120} required />
     <label htmlFor="wall-assembly">Position (Montagenummer)</label>
@@ -1146,46 +1166,58 @@ function WallForm({ wall, openings, typed, surfaces, readOnly, bulkWallCount = 1
       <MaterialPicker id="wall-finish" value={wall.finish} mixed={finishMixed} />
     </Suspense>
     <RalPicker id="wall-front-ral" name="frontRal" label="Vorderseite · RAL-Wandfarbe" value={frontRal} mixed={frontRalMixed}
-      onChange={code => setFrontRal(code)} />
+      onChange={code => { setFrontRal(code); markPending(); }} />
     <RalPicker id="wall-back-ral" name="backRal" label="Rückseite · RAL-Wandfarbe" value={backRal} mixed={backRalMixed}
-      onChange={code => setBackRal(code)} />
+      onChange={code => { setBackRal(code); markPending(); }} />
     <p className="muted">RAL ist matte Dispersionsfarbe (rau durch Schichtaufbau). Pascal-Material bleibt optional für Sperrholz-Optik.</p>
     <p className="muted">{typed ? 'Außenmaße und Öffnungen kommen vom Wandtyp.' : 'X/Y beziehen sich auf die Wandmitte. Ursprung: vordere linke Ecke der Spielstätte.'}</p>
     {error && <p role="alert" className="error">{error}</p>}
-    {!readOnly && <div className="form-actions"><button type="submit">Übernehmen</button><button className="quiet" type="button" onClick={onRemove}>Wand löschen</button></div>}
+    {!readOnly && <div className="form-actions">
+      <button type="submit">Übernehmen</button>
+      {pending && <button className="quiet" type="button" onClick={() => { setFrontRal(wall.frontRal); setBackRal(wall.backRal); discard(); }}>Verwerfen</button>}
+      <button className="quiet" type="button" onClick={onRemove}>Wand löschen</button>
+    </div>}
   </fieldset></form>;
 }
 
-function VenueCurtainOpenForm({ openPercent, readOnly, onApply }: {
-  openPercent: number; readOnly: boolean; onApply: (openPercent: number) => void;
+function VenueCurtainOpenForm({ openPercent, readOnly, onPendingChange, onApply }: {
+  openPercent: number; readOnly: boolean; onPendingChange?: (pending: boolean) => void; onApply: (openPercent: number) => void;
 }) {
-  return <form onSubmit={event => {
+  const { pending, resetKey, clearPending, discard, formProps } = usePendingApplyForm(onPendingChange);
+  return <form key={resetKey} onSubmit={event => {
     event.preventDefault();
     const value = Number(new FormData(event.currentTarget).get('openPercent'));
     if (!Number.isFinite(value) || value < 0 || value > 100) return;
-    onApply(value);
-  }}><fieldset disabled={readOnly}>
+    clearPending(); onApply(value);
+  }} {...formProps}><fieldset disabled={readOnly}>
     <p className="muted">Position und Spur kommen von der Spielstätte. Nur die Öffnung gilt für diese Szene.</p>
     <label htmlFor="venue-curtain-open">Öffnung (%)</label>
     <input id="venue-curtain-open" name="openPercent" type="number" min={0} max={100} step={1} defaultValue={openPercent} data-testid="venue-curtain-open" />
     <p className="muted">0 % geschlossen, 100 % vollständig geöffnet / gerafft.</p>
-    {!readOnly && <div className="form-actions"><button type="submit">Übernehmen</button></div>}
+    {!readOnly && <div className="form-actions">
+      <button type="submit">Übernehmen</button>
+      {pending && <button className="quiet" type="button" onClick={discard}>Verwerfen</button>}
+    </div>}
   </fieldset></form>;
 }
 
-function VenueDoorOpenForm({ openPercent, readOnly, onApply }: {
-  openPercent: number; readOnly: boolean; onApply: (openPercent: number) => void;
+function VenueDoorOpenForm({ openPercent, readOnly, onPendingChange, onApply }: {
+  openPercent: number; readOnly: boolean; onPendingChange?: (pending: boolean) => void; onApply: (openPercent: number) => void;
 }) {
-  return <form onSubmit={event => {
+  const { pending, resetKey, clearPending, discard, formProps } = usePendingApplyForm(onPendingChange);
+  return <form key={resetKey} onSubmit={event => {
     event.preventDefault();
     const value = Number(new FormData(event.currentTarget).get('doorOpenPercent'));
     if (!Number.isFinite(value) || value < 0 || value > 100) return;
-    onApply(value);
-  }}><fieldset disabled={readOnly}>
+    clearPending(); onApply(value);
+  }} {...formProps}><fieldset disabled={readOnly}>
     <p className="muted">Feste Spielstättenwand — nur die Türöffnung ist pro Szene änderbar.</p>
     <label htmlFor="venue-door-open">Türöffnung (%)</label>
     <input id="venue-door-open" name="doorOpenPercent" type="number" min={0} max={100} step={1} defaultValue={openPercent} data-testid="venue-door-open" />
     <p className="muted">0 % geschlossen, 100 % = 90° offen.</p>
-    {!readOnly && <div className="form-actions"><button type="submit">Übernehmen</button></div>}
+    {!readOnly && <div className="form-actions">
+      <button type="submit">Übernehmen</button>
+      {pending && <button className="quiet" type="button" onClick={discard}>Verwerfen</button>}
+    </div>}
   </fieldset></form>;
 }
