@@ -7,8 +7,9 @@ import { VenuePanel } from './VenuePanel.js';
 import { PlanPreview } from './PlanPreview.js';
 import { can } from '../../shared/permissions.js';
 import { useEditingLease } from './useEditingLease.js';
+import { writeWorkspaceLocation } from '../workspaceRoutes.js';
 
-export function Venues({ me, onDirty }: { me: Me; onDirty: (dirty: boolean) => void }) {
+export function Venues({ me, onDirty, venueId }: { me: Me; onDirty: (dirty: boolean) => void; venueId?: string }) {
   const [venues, setVenues] = useState<ReturnType<typeof venueListSchema.parse>>([]);
   const [opened, setOpened] = useState<VenueRecord>();
   const openedRef = useRef(opened);
@@ -34,17 +35,42 @@ export function Venues({ me, onDirty }: { me: Me; onDirty: (dirty: boolean) => v
   useEffect(() => { onDirty(dirty); return () => onDirty(false); }, [dirty, onDirty]);
   async function open(id: string) {
     setBusy(true); setError('');
-    try { setOpened(venueRecordSchema.parse(await request(`${base}/${id}`))); }
-    catch { setError('Die Spielstätte konnte nicht geöffnet werden.'); }
+    try {
+      setOpened(venueRecordSchema.parse(await request(`${base}/${id}`)));
+      writeWorkspaceLocation({ section: 'venues', venueId: id });
+    }
+    catch { setError('Die Spielstätte konnte nicht geöffnet werden.'); writeWorkspaceLocation({ section: 'venues' }); }
     finally { setBusy(false); }
   }
+  useEffect(() => {
+    if (!venueId) {
+      if (!opened) return;
+      if (dirty) {
+        writeWorkspaceLocation({ section: 'venues', venueId: opened.id });
+        return;
+      }
+      setOpened(undefined); setAttempt(value => value + 1);
+      return;
+    }
+    if (opened?.id === venueId) return;
+    if (opened && dirty) {
+      writeWorkspaceLocation({ section: 'venues', venueId: opened.id });
+      return;
+    }
+    void open(venueId);
+  }, [venueId]);
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const parsed = createVenueSchema.safeParse({ name: data.get('name'), width: Number(data.get('width')), depth: Number(data.get('depth')) });
     if (!parsed.success) { setError('Bitte geben Sie einen Namen und gültige Maße ein.'); return; }
     setBusy(true); setError('');
-    try { setOpened(venueRecordSchema.parse(await request(base, parsed.data))); setCreating(false); }
+    try {
+      const created = venueRecordSchema.parse(await request(base, parsed.data));
+      setOpened(created);
+      setCreating(false);
+      writeWorkspaceLocation({ section: 'venues', venueId: created.id });
+    }
     catch { setError('Die Spielstätte konnte nicht angelegt werden.'); }
     finally { setBusy(false); }
   }
@@ -70,7 +96,7 @@ export function Venues({ me, onDirty }: { me: Me; onDirty: (dirty: boolean) => v
     catch (caught) { setError(caught instanceof ApiError ? caught.message : 'Die Spielstätte konnte nicht gelöscht werden.'); setBusy(false); }
   }
   if (opened) return <section className="editor venue-workspace" aria-label="Spielstätte unabhängig bearbeiten">
-    <div className="editor-heading"><button className="quiet back-button" disabled={dirty} onClick={() => { setOpened(undefined); setAttempt(value => value + 1); }} aria-label="Zur Spielstättenübersicht" title={dirty ? 'Entwurf zuerst speichern oder verwerfen' : 'Zur Spielstättenübersicht'}><ToolIcon name="back" /></button>
+    <div className="editor-heading"><button className="quiet back-button" disabled={dirty} onClick={() => { setOpened(undefined); setAttempt(value => value + 1); writeWorkspaceLocation({ section: 'venues' }); }} aria-label="Zur Spielstättenübersicht" title={dirty ? 'Entwurf zuerst speichern oder verwerfen' : 'Zur Spielstättenübersicht'}><ToolIcon name="back" /></button>
       <div><p className="eyebrow">SPIELSTÄTTEN &amp; BÜHNEN · Raum einmal anlegen</p><h2>{opened.name}</h2></div>
       <span className={`save-status ${lease.holding || readOnly ? '' : 'pending'}`} role="status">
         {readOnly ? 'Nur Ansicht' : (lease.message || 'Bearbeitung wird angefordert …')}
