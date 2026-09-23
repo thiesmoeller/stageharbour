@@ -1,10 +1,11 @@
-import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import {
   GROUP_WALL_TYPE_KINDS, GROUP_WALL_TYPE_NAMES, groupWallType, groupWallTypeSizeLabel, type GroupWallTypeKind,
 } from '../../shared/inventory.js';
 import type { WallElementType } from '../../shared/wall-types.js';
 import { ToolIcon } from './ToolIcon.js';
+import { useModalFocus } from './useModalFocus.js';
 
 const LONG_PRESS_MS = 380;
 
@@ -16,13 +17,15 @@ export function WallToolButton({ disabled, sceneTypes, onAddPlain, onAddType }: 
 }) {
   const [open, setOpen] = useState(false);
   const [anchor, setAnchor] = useState({ top: 0, left: 0 });
-  const button = useRef<HTMLButtonElement>(null);
-  const dialog = useRef<HTMLDivElement>(null);
+  const root = useRef<HTMLDivElement>(null);
+  const menuButton = useRef<HTMLButtonElement>(null);
   const timer = useRef<number>(0);
   const longPress = useRef(false);
+  const close = useCallback(() => setOpen(false), []);
+  const dialog = useModalFocus<HTMLDivElement>(open, close);
 
   function measure() {
-    const box = button.current?.getBoundingClientRect();
+    const box = root.current?.getBoundingClientRect();
     if (!box) return;
     setAnchor({ top: box.top, left: box.right + 10 });
   }
@@ -41,16 +44,14 @@ export function WallToolButton({ disabled, sceneTypes, onAddPlain, onAddType }: 
 
   useEffect(() => {
     if (!open) return;
-    function close(event: Event) {
+    function onPointer(event: Event) {
       const target = event.target as Node;
-      if (button.current?.contains(target) || dialog.current?.contains(target)) return;
+      if (root.current?.contains(target) || dialog.current?.contains(target)) return;
       setOpen(false);
     }
-    function onKey(event: KeyboardEvent) { if (event.key === 'Escape') setOpen(false); }
-    document.addEventListener('pointerdown', close);
-    document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('pointerdown', close); document.removeEventListener('keydown', onKey); };
-  }, [open]);
+    document.addEventListener('pointerdown', onPointer);
+    return () => document.removeEventListener('pointerdown', onPointer);
+  }, [open, dialog]);
 
   function clearTimer() {
     if (timer.current) window.clearTimeout(timer.current);
@@ -86,8 +87,8 @@ export function WallToolButton({ disabled, sceneTypes, onAddPlain, onAddType }: 
     }
   }
 
-  /** Click covers pointer and keyboard (Enter/Space); long-press only opens the type menu. */
-  function onClick() {
+  /** Primary click adds a plain wall; long-press still opens types as a convenience. */
+  function onPrimaryClick() {
     if (disabled) return;
     if (longPress.current) {
       longPress.current = false;
@@ -110,21 +111,28 @@ export function WallToolButton({ disabled, sceneTypes, onAddPlain, onAddType }: 
   const custom = sceneTypes.filter(type => !(GROUP_WALL_TYPE_KINDS as readonly string[]).some(kind => GROUP_WALL_TYPE_NAMES[kind as GroupWallTypeKind] === type.name));
 
   return <>
-    <div className="wall-tool">
-      <button ref={button} type="button" className="quiet" disabled={disabled} aria-haspopup="dialog" aria-expanded={open}
-        title="Wand hinzufügen · Lang drücken für Wandtypen" aria-label="Wand hinzufügen"
+    <div ref={root} className="wall-tool">
+      <button type="button" className="quiet wall-tool-primary" disabled={disabled}
+        title="Wand hinzufügen" aria-label="Wand hinzufügen"
         onPointerDown={onPointerDown} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel}
-        onClick={onClick}
+        onClick={onPrimaryClick}
         onContextMenu={event => { event.preventDefault(); if (!disabled) openTypes(); }}>
         <ToolIcon name="wall" /><span>Wand</span>
       </button>
+      <button ref={menuButton} type="button" className="quiet wall-tool-menu" disabled={disabled}
+        aria-haspopup="dialog" aria-expanded={open}
+        title="Wandtypen wählen" aria-label="Wandtypen wählen"
+        onClick={() => { if (disabled) return; if (open) setOpen(false); else openTypes(); }}>
+        <span aria-hidden="true">▾</span>
+      </button>
     </div>
     {open && createPortal(
-      <div ref={dialog} className="wall-type-dialog" role="dialog" aria-label="Wandtypen"
+      <div ref={dialog} className="wall-type-dialog" role="dialog" aria-modal="true"
+        aria-label="Wandtypen" tabIndex={-1}
         style={{ top: anchor.top, left: Math.min(anchor.left, window.innerWidth - 320) }}>
         <header>
           <strong>Wandtypen</strong>
-          <button type="button" className="quiet" aria-label="Schließen" onClick={() => setOpen(false)}>×</button>
+          <button type="button" className="quiet" aria-label="Schließen" onClick={close}>×</button>
         </header>
         <div className="wall-type-choices" role="menu">
           {GROUP_WALL_TYPE_KINDS.map(kind => <button key={kind} type="button" role="menuitem" className="quiet" disabled={disabled}

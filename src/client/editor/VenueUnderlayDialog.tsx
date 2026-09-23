@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent } from 'react';
 import type { Calibration, PlanPoint } from '../../shared/venue.js';
 import { millimetresPerUnit } from '../../shared/venue.js';
+import { useModalFocus } from './useModalFocus.js';
 
 type Overlay = { href: string; pixelWidth: number; pixelHeight: number };
 
@@ -34,6 +35,8 @@ export function VenueUnderlayDialog({
   const svg = useRef<SVGSVGElement>(null);
   const imageGroup = useRef<SVGGElement>(null);
   const panDrag = useRef<{ clientX: number; clientY: number; panX: number; panY: number } | undefined>(undefined);
+  const close = useCallback(() => { if (!busy) onClose(); }, [busy, onClose]);
+  const dialogRef = useModalFocus<HTMLFormElement>(open, close);
   useEffect(() => {
     setDistance(String(calibration.distanceMm || 1000));
     setMeasureMode(false);
@@ -131,9 +134,9 @@ export function VenueUnderlayDialog({
   const stroke = Math.max(2, Math.min(width, height) / 200);
   const radius = Math.max(4, Math.min(width, height) / 80);
 
-  return <div className="modal-backdrop" role="presentation" onClick={onClose}>
-    <form className="modal underlay-dialog underlay-dialog--workspace" role="dialog"
-      aria-labelledby="underlay-dialog-title" aria-modal="true"
+  return <div className="modal-backdrop" role="presentation" onClick={close}>
+    <form ref={dialogRef} className="modal underlay-dialog underlay-dialog--workspace" role="dialog"
+      aria-labelledby="underlay-dialog-title" aria-modal="true" tabIndex={-1}
       onClick={event => event.stopPropagation()} onSubmit={submit}>
       <h2 id="underlay-dialog-title">Vorlage einrichten</h2>
       <p className="muted">Bild drehen und zoomen, dann eine bekannte Strecke auf dem Bild abgreifen. Erst danach erscheint die Vorlage maßstäblich im Grundriss.</p>
@@ -205,7 +208,7 @@ export function VenueUnderlayDialog({
       </fieldset>
 
       <div className="form-actions">
-        <button type="button" className="quiet" onClick={onClose} disabled={busy}>Abbrechen</button>
+        <button type="button" className="quiet" onClick={close} disabled={busy}>Abbrechen</button>
         <button type="submit" disabled={busy || !overlay}>Im Grundriss übernehmen</button>
       </div>
     </form>
