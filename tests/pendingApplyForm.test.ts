@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { PENDING_DISCARD_CONFIRM, confirmDiscardPending } from '../src/client/editor/usePendingApplyForm.js';
+import {
+  PENDING_DISCARD_CONFIRM, adjustPendingCount, confirmDiscardPending,
+} from '../src/client/editor/usePendingApplyForm.js';
 
 test('confirmDiscardPending skips the dialog when nothing is pending', () => {
   assert.equal(confirmDiscardPending(false), true);
@@ -29,4 +31,19 @@ test('confirmDiscardPending proceeds when the user confirms', () => {
   } finally {
     globalThis.confirm = original;
   }
+});
+
+test('adjustPendingCount ref-counts subscribe(+1) and cleanup(−1) without going negative', () => {
+  let count = 0;
+  count = adjustPendingCount(count, true); // form A pending
+  assert.equal(count, 1);
+  count = adjustPendingCount(count, true); // form B pending
+  assert.equal(count, 2);
+  count = adjustPendingCount(count, false); // form A discarded — shared flag must stay true
+  assert.equal(count, 1);
+  assert.equal(count > 0, true);
+  count = adjustPendingCount(count, false); // form B discarded
+  assert.equal(count, 0);
+  count = adjustPendingCount(count, false); // stray cleanup
+  assert.equal(count, 0);
 });

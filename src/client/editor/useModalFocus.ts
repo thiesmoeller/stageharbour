@@ -10,6 +10,9 @@ function focusables(root: HTMLElement): HTMLElement[] {
 export function useModalFocus<T extends HTMLElement = HTMLElement>(open: boolean, onClose: () => void): RefObject<T | null> {
   const container = useRef<T | null>(null);
   const previous = useRef<HTMLElement | null>(null);
+  // Keep latest onClose without re-running the open effect (parent callbacks often change identity).
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return;
@@ -23,7 +26,7 @@ export function useModalFocus<T extends HTMLElement = HTMLElement>(open: boolean
       if (event.key === 'Escape') {
         event.preventDefault();
         event.stopPropagation();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (event.key !== 'Tab' || !root) return;
@@ -50,7 +53,7 @@ export function useModalFocus<T extends HTMLElement = HTMLElement>(open: boolean
       document.removeEventListener('keydown', onKeyDown, true);
       previous.current?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   return container;
 }

@@ -81,3 +81,24 @@ test('adopting a saved venue apply replaces the draft without queueing another s
   assert.equal(saver.getSnapshot().revision, 6);
   saver.dispose();
 });
+test('acknowledgeRevision bumps revision for the next flush without clearing dirty edits', async () => {
+  const calls: { layout: Layout; revision: number; resolve: (revision: number) => void }[] = [];
+  const saver = new Autosave(empty, 0, (layout, revision) => new Promise(resolve => calls.push({ layout, revision, resolve })), 50);
+  saver.queue(placed);
+  assert.equal(saver.getSnapshot().status, 'pending');
+  assert.equal(saver.getSnapshot().dirty, true);
+  assert.equal(saver.getSnapshot().revision, 0);
+  saver.acknowledgeRevision(1);
+  assert.equal(saver.getSnapshot().revision, 1);
+  assert.equal(saver.getSnapshot().dirty, true);
+  assert.equal(saver.getSnapshot().status, 'pending');
+  await waitFor(saver, 'saving');
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0]!.revision, 1);
+  assert.deepEqual(calls[0]!.layout, placed);
+  calls[0]!.resolve(2);
+  await waitFor(saver, 'saved');
+  assert.equal(saver.getSnapshot().revision, 2);
+  assert.equal(saver.getSnapshot().dirty, false);
+  saver.dispose();
+});
