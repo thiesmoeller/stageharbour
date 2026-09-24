@@ -17,6 +17,7 @@ export type ElevationOpening = {
 };
 export type ElevationPanel = {
   wallId: string; label: string; left: number; width: number; height: number;
+  assemblyNumber?: number; panelLabel?: string;
   openings: ElevationOpening[];
 };
 export type ElevationFace = {
@@ -59,6 +60,7 @@ export function elevationFaces(snapshot: ConstructionSnapshot): ElevationFace[] 
       panels.push({
         wallId: resolved.id, label: resolved.label, left: origin,
         width: resolved.width, height: resolved.height, openings,
+        assemblyNumber: wall.assemblyNumber, panelLabel: frozen?.panelLabel,
       });
       clusters.set(facing, panels);
     }

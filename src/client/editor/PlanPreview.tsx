@@ -13,6 +13,23 @@ export type PlanPreviewData = {
   platforms: { outline: { x: number; y: number }[] }[];
 };
 
+/** Whole hall and scenery, so a rubber band can pick any part of the drawing. */
+export function fullPlanPreview(venue: VenueGeometry, layout: Layout): PlanPreviewData {
+  const hall = planReportExtent(venue, layout, 'venue', 0);
+  const scenery = planReportExtent(venue, layout, 'scenery', 0);
+  const minX = Math.min(hall.minX, scenery.minX);
+  const minY = Math.min(hall.minY, scenery.minY);
+  const maxX = Math.max(hall.maxX, scenery.maxX);
+  const maxY = Math.max(hall.maxY, scenery.maxY);
+  return {
+    ...planPreviewFromScene(venue, layout, 'venue'),
+    width: Math.max(1, maxX - minX),
+    depth: Math.max(1, maxY - minY),
+    originX: minX,
+    originY: minY,
+  };
+}
+
 export function planPreviewFromScene(
   venue: VenueGeometry,
   layout: Layout,

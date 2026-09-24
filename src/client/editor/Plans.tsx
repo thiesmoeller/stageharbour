@@ -8,7 +8,7 @@ import type { Me } from '../../shared/contracts.js';
 import { can } from '../../shared/permissions.js';
 import { ApiError, request } from '../api.js';
 import { Editor } from './Editor.js';
-import { PackageExport } from './ExportPanel.js';
+import { ExportWorkspace } from './ExportWorkspace.js';
 import { PlanPreview } from './PlanPreview.js';
 import { writeWorkspaceLocation } from '../workspaceRoutes.js';
 
@@ -33,6 +33,7 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
   const [documentDirty, setDocumentDirty] = useState(false);
+  const [packageExport, setPackageExport] = useState<{ productionId: string; scenes: { id: string; name: string }[] }>();
   const openedIdRef = useRef<string | undefined>(undefined);
   const openingRef = useRef<string | undefined>(undefined);
   const documentDirtyRef = useRef(false);
@@ -410,14 +411,15 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
             </div>)}</div>
           </div>;
         })}
-        <details className="production-export">
-          <summary>Konstruktionspaket exportieren</summary>
-          <PackageExport workspaceId={me.workspace.id} productionId={item.productionId}
-            scenes={productionScenes.map(scene => ({ id: scene.id, name: `${scene.name} · ${scene.venueName}` }))}
-            readOnly={readOnly} freezeDisabled={busy} />
-        </details>
+        {!readOnly && <button type="button" className="quiet" onClick={() => setPackageExport({
+          productionId: item.productionId,
+          scenes: productionScenes.map(scene => ({ id: scene.id, name: `${scene.name} · ${scene.venueName}` })),
+        })}>Konstruktionspaket exportieren</button>}
       </section>;
     })}
+    {packageExport && <ExportWorkspace workspaceId={me.workspace.id} productionId={packageExport.productionId}
+      scenes={packageExport.scenes} groups={[]} walls={[]} templates={[]} readOnly={readOnly} freezeDisabled={busy}
+      onClose={() => setPackageExport(undefined)} />}
     <div className="section-heading"><h2>Szenenvorlagen</h2></div>
     {!busy && !templates.length && !capturing && !instantiating && !error && <p className="muted">Noch keine Szenenvorlagen vorhanden.{!readOnly && ' Speichern Sie eine Szene als schreibgeschützte Szenenvorlage.'}</p>}
     <div className="scene-list">{templates.map(template => <div className="scene-card" key={template.id}>

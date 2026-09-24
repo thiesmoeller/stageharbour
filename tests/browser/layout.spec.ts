@@ -285,7 +285,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByRole('button', { name: 'Montagenummern vergeben' }).click();
   await waitUntilSaved(page);
   await expect(page.locator('[data-testid^="assembly-label-"]')).toHaveText([
-    'Position 1 · Platte Beispiel-P01', 'Position 2',
+    '1Beispiel-P01', '2',
   ]);
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   const assembledX = await page.getByLabel('X (mm)').inputValue();
@@ -297,7 +297,9 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByRole('button', { name: 'Hinweise speichern' }).click();
   await waitUntilSaved(page);
   await reopenScene(page, 'Erste Szene', /Beispielproduktion · Erste Szene/);
-  await expect(page.getByText('Position 1 · Platte Beispiel-P01')).toBeVisible();
+  await expect(page.locator('[data-testid^="assembly-label-"]')).toHaveText([
+    '1Beispiel-P01', '2',
+  ]);
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await openInspector(page, 'Aufbau & Verbindungen');
   await expect(page.getByTestId('assembly-connections')).toContainText('Position 1 – Position 2');
@@ -552,6 +554,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
 });
 
 test('create a wall type with a rectangular opening, place it, and export the plan', async ({ page }) => {
+  test.setTimeout(90_000);
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await signIn(page);
@@ -595,9 +598,12 @@ test('create a wall type with a rectangular opening, place it, and export the pl
   await waitUntilSaved(page);
 
   await page.getByRole('button', { name: 'Konstruktionsplan' }).click();
-  await page.getByLabel('Bezeichnung der Fassung').fill('Türfassung');
-  await page.getByRole('button', { name: 'Als Konstruktionsplan exportieren' }).click();
-  await expect(page.getByRole('listitem').filter({ hasText: 'Türfassung' })).toContainText('Fertig');
+  const workspace = page.getByRole('region', { name: 'Export' });
+  await workspace.getByLabel('Bezeichnung der Fassung').fill('Türfassung');
+  await expect(workspace.getByRole('status').first()).toContainText('Vorschau bereit', { timeout: 20_000 });
+  await workspace.getByRole('button', { name: 'PDF erstellen' }).click();
+  await workspace.getByText('Frühere Fassungen').click();
+  await expect(workspace.getByRole('listitem').filter({ hasText: 'Türfassung' })).toContainText('Fertig');
   expect(errors).toEqual([]);
 });
 

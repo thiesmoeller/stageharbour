@@ -4,7 +4,7 @@ const children = [
   // Keep local development bound to loopback even when the shell exports a
   // machine-wide HOST variable (node --env-file does not override it).
   spawn(process.execPath, ['--import', 'tsx', '--watch', 'src/server/main.ts'], { stdio: 'inherit', env: { ...process.env, HOST: '127.0.0.1' } }),
-  spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1'], { stdio: 'inherit' }),
+  spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--host', 'localhost'], { stdio: 'inherit' }),
 ];
 let stopping = false;
 function stop(code = 0) {
