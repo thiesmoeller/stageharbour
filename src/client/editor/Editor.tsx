@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type PointerEvent } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type PointerEvent } from 'react';
 import { z } from 'zod';
 import { applyPlatformFinish, applyWallFinish, applyWallRal, memberIdsByKind, mixedPropertyValue, MIXED_PROPERTY, selectionPivot } from '../../shared/editing.js';
 import { newMeasureLine } from '../../shared/measurements.js';
@@ -66,7 +66,7 @@ import { PlaceholderLayer } from './PlaceholderLayer.js';
 import { ToolIcon } from './ToolIcon.js';
 import { WallToolButton } from './WallToolButton.js';
 import { AlignmentGuides, CentrelineMark, SnapToggle } from './SnapGuides.js';
-import { confirmDiscardPending, usePendingApplyForm } from './usePendingApplyForm.js';
+import { adjustPendingCount, confirmDiscardPending, usePendingApplyForm } from './usePendingApplyForm.js';
 import { canvasModeForWidth, useNarrowEditor } from './useNarrowEditor.js';
 import {
   effectiveCurtains, effectiveVenueDoorOpen, setCurtainOpenPercent, setVenueDoorOpenPercent, venueDooredWalls,
@@ -153,22 +153,12 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
   const [inspectorPending, setInspectorPending] = useState(false);
   const inspectorPendingRef = useRef(false);
   inspectorPendingRef.current = inspectorPending;
+  const pendingCount = useRef(0);
+  const reportInspectorPending = useCallback((pending: boolean) => {
+    pendingCount.current = adjustPendingCount(pendingCount.current, pending);
+    setInspectorPending(pendingCount.current > 0);
+  }, []);
   const [venue, setVenue] = useState<VenueGeometry>(boot.venue);
-  useEffect(() => {
-    if (!persistLiftedTemplates.current || permissionReadOnly) return;
-    const templates = boot.venue.reportTemplates;
-    if (!templates?.length) return;
-    persistLiftedTemplates.current = false;
-    let cancelled = false;
-    void request(`/api/workspaces/${workspaceId}/scenes/${initial.id}/venue/report-templates`, { reportTemplates: templates }, 'PATCH')
-      .then(data => {
-        if (cancelled) return;
-        const result = saveVenueResultSchema.parse(data);
-        setVenue(result.venue);
-      })
-      .catch(() => { /* stay in-memory until the next venue save */ });
-    return () => { cancelled = true; };
-  }, [workspaceId, initial.id, permissionReadOnly]);
   const lastPlanPoint = useRef({ x: initial.venue.width / 2, y: initial.venue.depth / 2 });
   const [venueName, setVenueName] = useState(initial.venueName);
   const [updateAvailable, setUpdateAvailable] = useState(!!initial.venueUpdateAvailable);
@@ -203,6 +193,22 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     }
   }));
   const saveState = useSyncExternalStore(saver.subscribe, saver.getSnapshot);
+  useEffect(() => {
+    if (!persistLiftedTemplates.current || permissionReadOnly) return;
+    const templates = boot.venue.reportTemplates;
+    if (!templates?.length) return;
+    persistLiftedTemplates.current = false;
+    let cancelled = false;
+    void request(`/api/workspaces/${workspaceId}/scenes/${initial.id}/venue/report-templates`, { reportTemplates: templates }, 'PATCH')
+      .then(data => {
+        if (cancelled) return;
+        const result = saveVenueResultSchema.parse(data);
+        saver.acknowledgeRevision(result.revision);
+        setVenue(result.venue);
+      })
+      .catch(() => { /* stay in-memory until the next venue save */ });
+    return () => { cancelled = true; };
+  }, [workspaceId, initial.id, permissionReadOnly, saver]);
   const readOnly = permissionReadOnly || saveState.status === 'conflict';
   const venueLease = useEditingLease(`/api/workspaces/${workspaceId}/venues/${initial.venueId}`, venueOpen && !readOnly);
   useEffect(() => { if (venueOpen && !readOnly) void venueLease.acquire(); }, [venueOpen, readOnly]);
@@ -804,7 +810,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
         setExportsOpen(false);
         placeType(type);
       }}
-      onWallTypeRemove={removeType} onPendingChange={setInspectorPending}
+      onWallTypeRemove={removeType} onPendingChange={reportInspectorPending}
       onPanels={adoptPanels} />}
     <span className="sr-only" data-testid="inventory-panel-count">{inventoryPanels.length}</span>
     {venueOpen && !readOnly && !venueLease.holding && <p className="lease-banner" role="status">{venueLease.message || 'Bearbeitung wird angefordert …'} <button type="button" className="quiet" onClick={() => void venueLease.acquire()}>Bearbeitung erneut anfordern</button></p>}
@@ -1111,11 +1117,11 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
         {(state.present.placeholders ?? []).map((item, index) => <option key={item.id} value={`placeholder:${item.id}`}>M{index + 1}. {item.label}</option>)}
       </select>
       {selectedCurtain ? <VenueCurtainOpenForm key={selectedCurtain.id} openPercent={selectedCurtain.openPercent} readOnly={readOnly}
-          onPendingChange={setInspectorPending}
+          onPendingChange={reportInspectorPending}
           onApply={openPercent => { if (!busyGesture()) commit(setCurtainOpenPercent(current.current.present, selectedCurtain.id, openPercent)); }} />
         : selectedVenueDoor ? <VenueDoorOpenForm key={selectedVenueDoor.id}
             openPercent={effectiveVenueDoorOpen(selectedVenueDoor, shown)} readOnly={readOnly}
-            onPendingChange={setInspectorPending}
+            onPendingChange={reportInspectorPending}
             onApply={doorOpenPercent => { if (!busyGesture()) commit(setVenueDoorOpenPercent(current.current.present, selectedVenueDoor.id, doorOpenPercent)); }} />
           : selectedWall ? <WallForm key={JSON.stringify(selectedWall)} wall={selectedWall}
               openings={resolveWall(selectedWall, wallTypes).openings} typed={!!selectedWall.typeId} surfaces={surfaces}
@@ -1123,9 +1129,9 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
               finishMixed={mixedPropertyValue(selection().flatMap(item => item.kind === 'wall' ? [state.present.walls.find(wall => wall.id === item.id)?.finish] : [])) === MIXED_PROPERTY}
               frontRalMixed={mixedPropertyValue(selection().flatMap(item => item.kind === 'wall' ? [state.present.walls.find(wall => wall.id === item.id)?.frontRal] : [])) === MIXED_PROPERTY}
               backRalMixed={mixedPropertyValue(selection().flatMap(item => item.kind === 'wall' ? [state.present.walls.find(wall => wall.id === item.id)?.backRal] : [])) === MIXED_PROPERTY}
-              onPendingChange={setInspectorPending} onApply={applyWall} onRemove={remove} />
+              onPendingChange={reportInspectorPending} onApply={applyWall} onRemove={remove} />
         : selectedBraceItem ? <BraceInspector key={JSON.stringify(selectedBraceItem)} brace={selectedBraceItem} surfaces={surfaces} readOnly={readOnly}
-            onPendingChange={setInspectorPending} onApply={replaceBrace} onRemove={remove}
+            onPendingChange={reportInspectorPending} onApply={replaceBrace} onRemove={remove}
             onAlign={() => {
               const walls = planningWalls(current.current.present, venue);
               const aligned = alignBraceToNearestWall(selectedBraceItem, walls, { force: true });
@@ -1134,11 +1140,11 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
           : selectedPlatformItem ? <PlatformInspector key={JSON.stringify(selectedPlatformItem)} platform={selectedPlatformItem}
               readOnly={readOnly} bulkCount={pickedPlatforms.length}
               finishMixed={mixedPropertyValue(pickedPlatforms.map(id => state.present.platforms?.find(item => item.id === id)?.finish)) === MIXED_PROPERTY}
-              onPendingChange={setInspectorPending} onApply={replacePlatform} onRemove={remove} />
+              onPendingChange={reportInspectorPending} onApply={replacePlatform} onRemove={remove} />
             : selectedStairItem ? <StairInspector key={JSON.stringify(selectedStairItem)} stair={selectedStairItem} surfaces={surfaces} readOnly={readOnly}
-                onPendingChange={setInspectorPending} onApply={replaceStair} onRemove={remove} />
+                onPendingChange={reportInspectorPending} onApply={replaceStair} onRemove={remove} />
               : selectedPlaceholderItem ? <PlaceholderInspector key={JSON.stringify(selectedPlaceholderItem)} item={selectedPlaceholderItem} surfaces={surfaces} readOnly={readOnly}
-                  onPendingChange={setInspectorPending} onApply={replacePlaceholder} onRemove={remove} />
+                  onPendingChange={reportInspectorPending} onApply={replacePlaceholder} onRemove={remove} />
                 : <p className="muted">Objekt im Grundriss wählen oder links über die Werkzeugleiste und die Bibliothek hinzufügen.</p>}
       {selectedWall && <InventoryAssignment layout={state.present} selectedWall={selectedWall}
         panels={inventoryPanels} readOnly={readOnly}
@@ -1150,7 +1156,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
       </div></details>}
       {activeGroup && <details className="inspector-section" open><summary>Gruppe</summary><div className="inspector-section-body">
       <GroupInspector layout={state.present} picked={groupPicked} readOnly={readOnly}
-        onPendingChange={setInspectorPending} onChange={commit} />
+        onPendingChange={reportInspectorPending} onChange={commit} />
       </div></details>}
     </aside></div>}
     <div className="workspace-statusbar"><span><span className="status-dot" />{venueOpen ? 'Spielstättenentwurf' : 'Szene'} · {state.present.walls.length} Wände</span><span className="status-hint">Klicken zum Auswählen · Ziehen zum Verschieben · Strg+Z rückgängig</span><button className="quiet" aria-expanded={helpOpen} onClick={() => setHelpOpen(open => !open)}><ToolIcon name="help" /> Bedienung</button><span>Maße in mm</span></div>

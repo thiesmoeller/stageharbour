@@ -1,4 +1,4 @@
-import { StrictMode, useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { StrictMode, useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { z } from 'zod';
 import { invitationSchema, loginOptionsSchema, meSchema, membersSchema, invitationPreviewSchema, passwordResetPreviewSchema, brandingSchema, DEFAULT_BRANDING, type Branding, type Me, type Member, type Role } from '../shared/contracts.js';
@@ -7,7 +7,8 @@ import { Venues } from './editor/Venues.js';
 import { Plans } from './editor/Plans.js';
 import { can } from '../shared/permissions.js';
 import { AuditLog } from './AuditLog.js';
-import { parseWorkspaceLocation, writeWorkspaceLocation, type WorkspaceLocation } from './workspaceRoutes.js';
+import { parseWorkspaceLocation, workspaceHash, writeWorkspaceLocation, type WorkspaceLocation } from './workspaceRoutes.js';
+import { shouldBlockDirtyRouteChange, UNSAVED_ROUTE_LEAVE_CONFIRM } from './dirtyRouteChange.js';
 import './style.css';
 import './workspace.css';
 
@@ -20,6 +21,13 @@ type HashRoute =
   | { kind: 'invite'; token: string }
   | { kind: 'reset'; token: string }
   | { kind: 'forgot' };
+
+function hashForRoute(route: HashRoute): string {
+  if (route.kind === 'invite') return `#/einladung/${route.token}`;
+  if (route.kind === 'reset') return `#/passwort/${route.token}`;
+  if (route.kind === 'forgot') return '#/passwort-vergessen';
+  return workspaceHash(route.location);
+}
 
 function readHash(): HashRoute {
   const raw = location.hash.replace(/^#/, '');
@@ -44,10 +52,30 @@ function App() {
   const [signOutError, setSignOutError] = useState('');
   const [signingOut, setSigningOut] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const dirtyRef = useRef(dirty);
+  dirtyRef.current = dirty;
+  const routeRef = useRef(route);
+  routeRef.current = route;
+  const suppressHashChange = useRef(false);
   const [branding, setBranding] = useState<Branding>(DEFAULT_BRANDING);
   const [logoKey, setLogoKey] = useState(0);
   useEffect(() => {
-    const onHash = () => setRoute(readHash());
+    const onHash = () => {
+      if (suppressHashChange.current) {
+        suppressHashChange.current = false;
+        return;
+      }
+      const next = readHash();
+      const current = routeRef.current;
+      if (shouldBlockDirtyRouteChange(dirtyRef.current, hashForRoute(current), hashForRoute(next))) {
+        if (!window.confirm(UNSAVED_ROUTE_LEAVE_CONFIRM)) {
+          suppressHashChange.current = true;
+          window.location.hash = hashForRoute(current);
+          return;
+        }
+      }
+      setRoute(next);
+    };
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);

@@ -63,6 +63,10 @@ export class Autosave {
     this.inFlight = false;
     this.publish('saved', false, revision);
   }
+  /** Bump the acknowledged revision after a side-channel save (e.g. template migration) without touching the draft. */
+  acknowledgeRevision(revision: number) {
+    this.publish(this.state.status, this.state.dirty, revision, this.state.conflictKind);
+  }
   private async flush() {
     if (this.inFlight || this.state.status === 'conflict') return;
     const layout = structuredClone(this.latest);

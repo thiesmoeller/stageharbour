@@ -256,7 +256,7 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
   .tool-rail { position: static; flex-direction: row; flex-wrap: nowrap; width: 100%; max-width: 100%; height: auto; max-height: none; margin: 6px 0; padding: 3px 8px; order: 0; flex-shrink: 0; overflow-x: auto; scrollbar-width: thin; box-sizing: border-box; }
   .document-history { max-width: 100%; }
   .document-history .quiet { font-size: 10px; padding: 2px 4px; min-height: 28px; }
-  .document-history > button:not([aria-label="Rückgängig"]):not([aria-label="Wiederholen"]),
+  /* Keep clipboard/group actions visible; only the selection count is too noisy on narrow layouts. */
   .document-history .selection-count { display: none; }
   .editor .tool-rail button { flex: 0 0 auto; width: 52px; min-width: 52px; min-height: 44px; padding: 4px 2px; }
   .tool-rail button:first-child { margin: 0; border-bottom: 0; border-right: 1px solid var(--ui-line); }

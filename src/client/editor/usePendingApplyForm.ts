@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+/** Ref-count helper for aggregating multiple Übernehmen forms into one dirty flag. */
+export function adjustPendingCount(count: number, pending: boolean): number {
+  const next = count + (pending ? 1 : -1);
+  return next < 0 ? 0 : next;
+}
+
 /** Tracks unapplied edits in Übernehmen forms so save status stays honest (U01). */
 export function usePendingApplyForm(onPendingChange?: (pending: boolean) => void) {
   const [pending, setPending] = useState(false);
@@ -8,7 +14,8 @@ export function usePendingApplyForm(onPendingChange?: (pending: boolean) => void
   onPendingChangeRef.current = onPendingChange;
 
   useEffect(() => {
-    onPendingChangeRef.current?.(pending);
+    if (!pending) return;
+    onPendingChangeRef.current?.(true);
     return () => { onPendingChangeRef.current?.(false); };
   }, [pending]);
 
