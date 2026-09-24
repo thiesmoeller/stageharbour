@@ -19,6 +19,7 @@ import { createFakeMailTransport, createMailTransport, type MailTransport } from
 import { LeaseError, createLeases } from './productions/leases.js';
 import { registerProductionRoutes } from './productions/routes.js';
 import { InventoryError, registerInventoryRoutes } from './inventory/routes.js';
+import { registerDocumentRoutes } from './exports/documentRoutes.js';
 import { registerExportRoutes } from './exports/routes.js';
 import { registerPackageRoutes } from './exports/packageRoutes.js';
 import { registerVenueRoutes, VenueError } from './venues/routes.js';
@@ -53,6 +54,7 @@ export async function createApp(db: Database, config: Config, options: {
   registerInventoryRoutes(app, db, access, config.APP_ORIGIN, leases);
   registerVenueRoutes(app, db, access, config.APP_ORIGIN, storage, leases);
   registerExportRoutes(app, db, access, config.APP_ORIGIN, storage, options.renderPdf ?? renderOffThread);
+  registerDocumentRoutes(app, db, access, config.APP_ORIGIN, storage);
   // Packages render in-process: the worker path was marking revisions failed without a useful client error.
   registerPackageRoutes(app, db, access, config.APP_ORIGIN, storage, snapshot => renderPackage(snapshot));
   registerAssetRoutes(app, db, access, config.APP_ORIGIN, storage, leases);

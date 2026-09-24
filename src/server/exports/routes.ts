@@ -10,6 +10,7 @@ import type { Database } from '../db/connection.js';
 import { adaptation, constructionPlanRevision, inventoryPanel, production, scene, venue, venueVersion } from '../db/schema.js';
 import { AccessError, type createAccess } from '../identity/access.js';
 import type { FileStorage } from './storage.js';
+import { pdfForStoredSnapshot } from './documentRoutes.js';
 import { constructionPageBreakdown } from './pdf.js';
 
 export function registerExportRoutes(
@@ -22,6 +23,10 @@ export function registerExportRoutes(
   const item = params.extend({ exportId: z.uuid() });
   const errors = { 400: errorSchema, 401: errorSchema, 403: errorSchema, 404: errorSchema, 409: errorSchema };
   function asRevision(row: typeof constructionPlanRevision.$inferSelect): ExportRevision {
+    const stored = row.snapshot as { schemaVersion?: number; paper?: 'A4' | 'A3'; scale?: 25 | 50 | 100 };
+    if (stored?.schemaVersion === 2 && stored.paper && stored.scale) {
+      return { id: row.id, name: row.name, paper: stored.paper, scale: stored.scale, status: row.status, createdAt: row.createdAt.toISOString() };
+    }
     const snapshot = constructionSnapshotSchema.parse(row.snapshot);
     return { id: row.id, name: row.name, paper: snapshot.paper, scale: snapshot.scale, status: row.status, createdAt: row.createdAt.toISOString() };
   }
@@ -54,7 +59,8 @@ export function registerExportRoutes(
   async function produce(row: typeof constructionPlanRevision.$inferSelect) {
     try {
       const storageKey = `${row.workspaceId}/${row.id}.pdf`;
-      await storage.put(storageKey, await renderPdf(row.snapshot));
+      const issued = await pdfForStoredSnapshot(row.snapshot);
+      await storage.put(storageKey, issued ?? await renderPdf(row.snapshot));
       await db.update(constructionPlanRevision).set({ status: 'ready', storageKey })
         .where(and(eq(constructionPlanRevision.workspaceId, row.workspaceId), eq(constructionPlanRevision.id, row.id)));
     } catch {

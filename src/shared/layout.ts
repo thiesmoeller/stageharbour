@@ -14,6 +14,7 @@ import { groupSchema, groupsReferenceLayout } from './groups.js';
 import { trussesSchema } from './truss.js';
 import { curtainsSchema } from './curtains.js';
 import { measureLinesSchema } from './measurements.js';
+import { playDimensionsSchema } from './dimensionSchema.js';
 import { wallPicturesSchema } from './wallPictures.js';
 import { reportTemplatesSchema } from './reportTemplate.js';
 import { RAL_CODE_PATTERN } from './ral.js';
@@ -77,6 +78,8 @@ export const layoutSchema = z.strictObject({
   groups: z.array(groupSchema).max(250).optional(),
   placeholders: placeholdersSchema.optional(),
   measureLines: measureLinesSchema.optional(),
+  /** Associative horizontal or vertical distances on this play. */
+  dimensions: playDimensionsSchema.optional(),
   wallPictures: wallPicturesSchema.optional(),
   /**
    * @deprecated Prefer `venue.reportTemplates`. Kept optional so older scene layouts still parse;
@@ -106,7 +109,7 @@ export const layoutSchema = z.strictObject({
   return new Set(pairs).size === pairs.length;
 }, 'Connection pairs must be unique').refine(layout => groupsReferenceLayout(layout), 'Groups must reference unique layout members');
 export type Layout = z.infer<typeof layoutSchema>;
-export const venueGeometrySchema = z.strictObject({
+const venueGeometryObject = z.strictObject({
   lighting: stageLightingSchema.optional(),
   schemaVersion: z.literal(1), width: dimension, depth: dimension,
   outline: venueOutlineSchema.optional(), trace: venueTraceSchema.optional(),
@@ -130,6 +133,21 @@ export const venueGeometrySchema = z.strictObject({
    * Shared by every play adapted to the venue — not per scene layout.
    */
   reportTemplates: reportTemplatesSchema.optional(),
+});
+/** Saved venues may still carry the removed Startpunkt tool. Accept those keys, then drop them. */
+const venueGeometryStored = venueGeometryObject.extend({
+  constructionPoints: z.unknown().optional(),
+  constructionMeasures: z.unknown().optional(),
+});
+function stripConstructionPoints(value: object) {
+  const record = { ...value } as Record<string, unknown>;
+  delete record.constructionPoints;
+  delete record.constructionMeasures;
+  return record;
+}
+export const venueGeometrySchema = z.codec(venueGeometryStored, venueGeometryStored, {
+  decode: value => stripConstructionPoints(value) as z.input<typeof venueGeometryStored>,
+  encode: value => stripConstructionPoints(value) as z.output<typeof venueGeometryStored>,
 }).refine(venue => uniqueLevelIds(venue.platforms ?? [], venue.stairs ?? []), 'Platform and stair IDs must be unique');
 export type VenueGeometry = z.infer<typeof venueGeometrySchema>;
 export const saveVenueSchema = z.strictObject({ venue: venueGeometrySchema });

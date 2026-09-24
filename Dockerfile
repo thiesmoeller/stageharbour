@@ -19,6 +19,7 @@ RUN npm ci --omit=dev && npm cache clean --force \
     && mkdir -p /data/storage && chown node:node /data/storage
 COPY --from=build /app/dist ./dist
 COPY drizzle ./drizzle
+COPY assets ./assets
 USER node
 EXPOSE 3000
 CMD ["sh", "-c", "node dist/server/db/migrate.js && exec node dist/server/main.js"]

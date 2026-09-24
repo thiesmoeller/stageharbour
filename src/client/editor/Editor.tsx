@@ -1,7 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type PointerEvent } from 'react';
 import { z } from 'zod';
 import { applyPlatformFinish, applyWallFinish, applyWallRal, memberIdsByKind, mixedPropertyValue, MIXED_PROPERTY, selectionPivot } from '../../shared/editing.js';
-import { newMeasureLine } from '../../shared/measurements.js';
 import { navigatePlan } from './planNavigation.js';
 import { sceneResizeDocument, resizedScene } from '../../shared/sceneResize.js';
 import { editorCommand } from './interactionKeys.js';
@@ -26,10 +25,13 @@ import {
 import { PLACEHOLDER_KIND_LABELS, PLACEHOLDER_KINDS, newPlaceholder, placeholderCorners, type Placeholder } from '../../shared/placeholders.js';
 import { overheadBoxCorners, overheadClearance } from '../../shared/overhead.js';
 import { braceCorners } from '../../shared/braceTransforms.js';
-import { assemblyCaption } from '../../shared/assembly.js';
+import { WallIdentity } from './ConstructionMarks.js';
+import { DimensionLayer } from './DimensionLayer.js';
+import { dimensionFromPlacement, dimensionSnapPoints, dimensionValue, nearestSnap, resolveDimension, type SnapAnchor } from '../../shared/dimensions.js';
 import { doorOpenAngleDegrees, isDoorOpening, resolveWall, typesOf, type Opening, type WallElementType } from '../../shared/wall-types.js';
 import { measuredOutline } from '../../shared/venue.js';
 import { defaultPlanDisplay, type PlanDisplayOptions } from '../../shared/planDisplay.js';
+import { fullPlanPreview } from './PlanPreview.js';
 import { PlanDisplayToggles } from './PlanDisplayToggles.js';
 import { planningWalls } from '../../shared/planningGeometry.js';
 import { useViewportWheel } from './viewportWheel.js';
@@ -48,7 +50,7 @@ import { RotationHandle } from './RotationHandle.js';
 import { AssetLibrary } from './AssetLibrary.js';
 import { assetListSchema, type Asset } from '../../shared/assets.js';
 import { StageView } from './StageView.js';
-import { ExportPanel } from './ExportPanel.js';
+import { ExportWorkspace } from './ExportWorkspace.js';
 import { VenuePanel, InfrastructureMarks } from './VenuePanel.js';
 import { useEditingLease } from './useEditingLease.js';
 import { OverheadMarks, TrussMarks, CurtainMarks } from './VenueOverhead.js';
@@ -147,6 +149,8 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     return () => { cancelled = true; };
   }, [workspaceId]);
   const [exportsOpen, setExportsOpen] = useState(false);
+  const [dimensioning, setDimensioning] = useState<{ a?: SnapAnchor; b?: SnapAnchor; cursor?: { x: number; y: number }; hover?: SnapAnchor } | null>(null);
+  const [selectedDimension, setSelectedDimension] = useState<string>();
   const [venueOpen, setVenueOpen] = useState(false);
   const [openVenueSheet, setOpenVenueSheet] = useState(false);
   const [venueDirty, setVenueDirty] = useState(false);
@@ -450,6 +454,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
       if (!command) return;
       event.preventDefault();
       if (command === 'cancel') {
+        if (dimensioning) { setDimensioning(null); setSnapStatus(undefined); return; }
         if (placingRef.current || objectPlacement.current) cancelPlacing();
         else if (planGesture.current || marqueeDrag.current || panDrag.current) finish(true);
         else if (!stageGesture.current) clearSelection();
@@ -462,7 +467,12 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
       else if (command === 'cut') cut();
       else if (command === 'paste') paste();
       else if (command === 'save') saver.saveNow();
-      else if (command === 'delete') remove();
+      else if (command === 'delete') {
+        if (selectedDimension) {
+          commit({ ...current.current.present, dimensions: (current.current.present.dimensions ?? []).filter(item => item.id !== selectedDimension) });
+          setSelectedDimension(undefined);
+        } else remove();
+      }
     };
     window.addEventListener('keydown', shortcut);
     return () => window.removeEventListener('keydown', shortcut);
@@ -711,6 +721,56 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
       beginObjectPlacement(start, { kind: brace ? 'brace' : 'placeholder', id }, { x, y });
     }
   }
+  function dimensionReach(pixels = 16) {
+    const rect = svg.current?.getBoundingClientRect();
+    return rect && rect.width ? (viewW / rect.width) * pixels : pixels * 20;
+  }
+  function pickDimension(event: PointerEvent<SVGRectElement>) {
+    if (event.button !== 0 || !dimensioning) return;
+    event.stopPropagation();
+    const at = point(event);
+    const hit = nearestSnap(dimensionSnapPoints(venue, current.current.present), at, dimensionReach());
+    if (!dimensioning.a) {
+      if (!hit) return;
+      setDimensioning({ a: hit, hover: hit });
+      setSnapStatus('Zweiten Punkt wählen. Es rastet an Ecken ein.');
+      return;
+    }
+    if (!dimensioning.b) {
+      if (!hit || (hit.anchor.kind === dimensioning.a.anchor.kind && hit.point.x === dimensioning.a.point.x && hit.point.y === dimensioning.a.point.y)) return;
+      setDimensioning({ ...dimensioning, b: hit, cursor: at, hover: hit });
+      setSnapStatus('Maßlinie zur Seite ziehen, dann klicken zum Ablegen.');
+      return;
+    }
+    const placed = dimensionFromPlacement(dimensioning.a.point, dimensioning.b.point, at);
+    commit({
+      ...current.current.present,
+      dimensions: [...(current.current.present.dimensions ?? []), {
+        id: crypto.randomUUID(), ...placed, a: dimensioning.a.anchor, b: dimensioning.b.anchor,
+      }],
+    });
+    setDimensioning(null);
+    setSnapStatus(undefined);
+  }
+  function hoverDimension(event: PointerEvent<SVGRectElement>) {
+    if (!dimensioning) return;
+    const at = point(event);
+    const hover = nearestSnap(dimensionSnapPoints(venue, current.current.present), at, dimensionReach());
+    setDimensioning({ ...dimensioning, cursor: at, hover });
+    if (dimensioning.a && dimensioning.b) {
+      const placed = dimensionFromPlacement(dimensioning.a.point, dimensioning.b.point, at);
+      setSnapStatus(`${Math.round(dimensionValue(placed.orientation, dimensioning.a.point, dimensioning.b.point))} mm · klicken zum Ablegen`);
+    } else if (hover) setSnapStatus(dimensioning.a ? 'Zweiten Eckpunkt wählen.' : 'Ersten Eckpunkt wählen.');
+  }
+  const resolvedDimensions = (state.present.dimensions ?? []).flatMap(item => {
+    const resolved = resolveDimension(item, venue, liveLayout);
+    return resolved ? [resolved] : [];
+  });
+  const dimensionPreview = dimensioning?.a && dimensioning.b && dimensioning.cursor ? (() => {
+    const placed = dimensionFromPlacement(dimensioning.a.point, dimensioning.b.point, dimensioning.cursor);
+    const valueMm = dimensionValue(placed.orientation, dimensioning.a.point, dimensioning.b.point);
+    return { id: 'preview', orientation: placed.orientation, a: dimensioning.a.point, b: dimensioning.b.point, offset: placed.offset, valueMm };
+  })() : undefined;
   function downloadDraft() {
     const url = URL.createObjectURL(new Blob([JSON.stringify({ ...initial, revision: saveState.revision, layout: current.current.present }, null, 2)], { type: 'application/json' }));
     const anchor = document.createElement('a'); anchor.href = url; anchor.download = `buehnenentwurf-${initial.id}.json`; anchor.click();
@@ -778,10 +838,10 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
         const id = crypto.randomUUID(), stair = newStair(id, AUDIENCE_FLOOR_ID, raised.id, venue.width / 2, venue.depth / 2);
         beginObjectPlacement({ ...current.current.present, stairs: [...current.current.present.stairs ?? [], stair] }, { kind: 'stair', id });
       }} title="Treppe hinzufügen" aria-label="Treppe hinzufügen"><ToolIcon name="stairs" /><span>Treppe</span></button>
-      <button disabled={!!groupPreview || !!placing || (state.present.measureLines ?? []).length >= 500} onClick={() => {
-        const line = newMeasureLine(crypto.randomUUID(), { x: 500, y: venue.depth / 2 }, { x: Math.max(1000, venue.width - 500), y: venue.depth / 2 });
-        commit({ ...current.current.present, measureLines: [...current.current.present.measureLines ?? [], line] });
-      }} title="Maßlinie hinzufügen" aria-label="Maßlinie hinzufügen"><ToolIcon name="expand" /><span>Maß</span></button>
+      <button type="button" aria-pressed={dimensioning !== null} disabled={!!groupPreview || !!placing || (state.present.dimensions ?? []).length >= 200} onClick={() => {
+        setDimensioning(current => current ? null : {});
+        setSnapStatus(dimensioning ? undefined : 'Ersten Eckpunkt wählen. Der grüne Punkt zeigt die Ecke. Escape bricht ab.');
+      }} title="Maß zwischen zwei Punkten, dann die Maßlinie zur Seite ziehen" aria-label="Maß hinzufügen"><ToolIcon name="expand" /><span>Maß</span></button>
       {PLACEHOLDER_KINDS.map(kind => <button key={kind} type="button" className="quiet"
         disabled={!!groupPreview || !!placing || (state.present.placeholders ?? []).length >= 250}
         onClick={() => {
@@ -817,26 +877,18 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     {venueOpen && <VenuePanel workspaceId={workspaceId} sceneId={initial.id} venue={venue} venueId={initial.venueId} venueName={venueName}
       venueUpdateAvailable={updateAvailable} readOnly={readOnly || !venueLease.holding} onDirty={setVenueDirty} onSaved={adoptVenue}
       onVenueRenamed={({ name }) => setVenueName(name)} sceneLayout={state.present} openSheetEditor={openVenueSheet} />}
-    {exportsOpen && <div className="export-drawer">
-      <ExportPanel workspaceId={workspaceId} sceneId={initial.id} productionId={initial.productionId}
-        readOnly={readOnly} freezeDisabled={dirty || saveState.status !== 'saved'} groups={state.present.groups ?? []} walls={state.present.walls} />
-      <section className="report-composer" data-testid="report-composer-venue-hint">
-        <header className="report-composer-header">
-          <h3>Blatt-Layout</h3>
-          <p className="muted">Berichtsvorlagen gehören zur Spielstätte. Eigener Blatt-Editor mit Live-2D/3D-Quellen.</p>
-        </header>
-        {(venue.reportTemplates?.length ?? 0) > 0
-          ? <p>{venue.reportTemplates!.length} Vorlage{venue.reportTemplates!.length === 1 ? '' : 'n'}: {venue.reportTemplates!.map(item => item.name).join(', ')}</p>
-          : <p className="muted">Noch keine Vorlage — im Blatt-Layout der Spielstätte anlegen und speichern.</p>}
-        {!readOnly && <div className="form-actions">
-          <button type="button" onClick={() => {
-            setExportsOpen(false);
-            setOpenVenueSheet(true);
-            setVenueOpen(true);
-          }}>Blatt-Layout öffnen</button>
-        </div>}
-      </section>
-    </div>}
+    {exportsOpen && <ExportWorkspace workspaceId={workspaceId} sceneId={initial.id} productionId={initial.productionId}
+      scenes={[{ id: initial.id, name: initial.name }]} groups={state.present.groups ?? []} walls={state.present.walls}
+      planPreview={fullPlanPreview(venue, state.present)}
+      venueSize={{ width: venue.width, depth: venue.depth }}
+      templates={venue.reportTemplates ?? []} readOnly={readOnly} freezeDisabled={dirty || saveState.status !== 'saved'}
+      onClose={() => setExportsOpen(false)}
+      onSaveTemplate={async templates => {
+        const data = await request(`/api/workspaces/${workspaceId}/scenes/${initial.id}/venue/report-templates`, { reportTemplates: templates }, 'PATCH');
+        const result = saveVenueResultSchema.parse(data);
+        saver.acknowledgeRevision(result.revision);
+        setVenue(result.venue);
+      }} />}
     {['failed', 'conflict'].includes(saveState.status) && <div className="error" role="alert">
       <p>{saveState.status === 'conflict'
         ? (saveState.conflictKind === 'lease'
@@ -976,13 +1028,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
                 </>}
               </g>;
             })}
-            {planDisplay.showObjectNames && <g pointerEvents="none" data-testid={`assembly-label-${wall.id}`}>
-              <text y={-resolved.thickness / 2 - 160} textAnchor="middle" fontSize="150">
-                {wall.assemblyNumber != null
-                  ? assemblyCaption(wall.assemblyNumber, wall.panelId ? panelLabels[wall.panelId] : undefined)
-                  : wall.label}
-              </text>
-            </g>}
+            {planDisplay.showObjectNames && <WallIdentity rotation={wall.rotation} assemblyNumber={wall.assemblyNumber} plate={wall.panelId ? panelLabels[wall.panelId] : undefined} testId={`assembly-label-${wall.id}`} />}
             {planDisplay.showTexts && <>
               <text y={resolved.thickness / 2 + 90} textAnchor="middle" fontSize="110" pointerEvents="none">V</text>
               <text y={-resolved.thickness / 2 - 40} textAnchor="middle" fontSize="110" pointerEvents="none">R</text>
@@ -1006,7 +1052,6 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
         })()}
         <BraceLayer braces={shown.braces} selectedId={selectedBrace} groupedIds={groupedIds} overlappingIds={overlapIds}
           readOnly={readOnly} display={planDisplay} onPointerDown={startBrace} />
-        <MeasureLayer lines={state.present.measureLines ?? []} />
         <PlaceholderLayer placeholders={shown.placeholders ?? []} selectedId={selectedPlaceholder}
           overlappingIds={overlapIds}
           readOnly={readOnly} groupedIds={groupedIds} display={planDisplay} onPointerDown={startPlaceholder} />
@@ -1063,6 +1108,13 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
           return <RotationHandle centre={stair} rotation={stair.rotation} width={stair.width}
             testId={`rotate-stair-${stair.id}`} label="Treppe drehen" onPointerDown={event => startRotateStair(event, stair)} />;
         })()}
+        <MeasureLayer lines={state.present.measureLines ?? []} />
+        {dimensioning && <rect data-testid="dimension-target" x={viewCx - viewW / 2} y={-(viewCy + viewH / 2)} width={viewW} height={viewH}
+          fill="white" fillOpacity={0} pointerEvents="all" onPointerDown={pickDimension} onPointerMove={hoverDimension} />}
+        <DimensionLayer dimensions={resolvedDimensions} preview={dimensionPreview} selectedId={selectedDimension}
+          passPointer={dimensioning !== null} snapRadius={dimensionReach(9)}
+          snaps={dimensioning ? [dimensioning.a?.point, dimensioning.b?.point, dimensioning.hover?.point].flatMap(item => item ? [item] : []) : []}
+          onSelect={id => { setSelectedDimension(id); setDimensioning(null); }} />
         {selectedPlaceholderItem && !readOnly && !selectionBundle && (() => {
           const item = (shown.placeholders ?? []).find(entry => entry.id === selectedPlaceholderItem.id) ?? selectedPlaceholderItem;
           return <RotationHandle centre={item} rotation={item.rotation} width={item.width}

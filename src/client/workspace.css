@@ -381,3 +381,27 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
   .underlay-workspace-svg { height: min(40vh, 320px); }
   .underlay-workspace-hint { margin-left: 0; flex: 1 1 100%; }
 }
+.export-workspace { position: fixed; inset: 0; z-index: 30; display: flex; flex-direction: column; background: #f4f7f5; color: #203c36; }
+.export-workspace-bar, .export-preview-toolbar, .export-workspace-switch { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.export-workspace-bar { padding: 10px 16px; background: white; border-bottom: 1px solid var(--ui-line); }
+.export-workspace-bar h2 { margin: 0 12px 0 0; font-size: 18px; }
+.export-workspace-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(280px, 420px) 1fr 120px; }
+.export-plan-band { width: 100%; height: min(52vh, 420px); display: block; background: #eef2ec; border: 1px solid var(--ui-line); border-radius: 8px; cursor: crosshair; touch-action: none; }
+.export-workspace-settings { overflow: auto; padding: 16px; background: white; border-right: 1px solid var(--ui-line); }
+.export-workspace-settings label, .export-workspace-settings legend { display: block; margin-top: 10px; font-size: 13px; }
+.export-workspace-preview { min-width: 0; display: flex; flex-direction: column; padding: 8px; }
+.export-sheet-stage { position: relative; flex: 1; overflow: auto; background: #d5ddd6; }
+.export-sheet-stage canvas { display: block; margin: 12px auto; background: white; }
+.export-text-layer { position: absolute; inset: 0; pointer-events: none; }
+.export-text-layer span { position: absolute; color: transparent; white-space: pre; }
+.export-pdf-link { position: absolute; pointer-events: auto; background: transparent; border: 0; }
+.export-thumb-rail { overflow: auto; padding: 8px; background: white; border-left: 1px solid var(--ui-line); }
+.export-thumb-rail button { display: block; margin: 0 0 8px; padding: 2px; border: 1px solid var(--ui-line); background: white; }
+.export-thumb-rail button[aria-current="true"] { border-color: #315d49; }
+.export-frame-numbers { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.export-view-row { display: grid; gap: 6px; margin: 8px 0; padding: 8px; border: 1px solid var(--ui-line); border-radius: 8px; }
+@media (max-width: 800px) {
+  .export-workspace-body { grid-template-columns: 1fr; }
+  .export-workspace-body.panel-settings .export-workspace-preview, .export-workspace-body.panel-settings .export-thumb-rail { display: none; }
+  .export-workspace-body.panel-preview .export-workspace-settings { display: none; }
+}

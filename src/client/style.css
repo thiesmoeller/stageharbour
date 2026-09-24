@@ -189,6 +189,12 @@ select { font: inherit; width: 100%; padding: 8px; border: 1px solid #cbd3c8; bo
 .bulk-selection-hint { background: #eef3ea; border: 1px solid #d5decc; border-radius: 6px; padding: 10px 12px; }
 .assembly-number { fill: #214b40; }
 .measure-line { stroke: #986122; stroke-width: 3; vector-effect: non-scaling-stroke; }
+.dimension-extension, .dimension-line, .dimension-tick { stroke: #173c36; stroke-width: 1.6; vector-effect: non-scaling-stroke; fill: none; }
+.dimension-text { fill: #173c36; paint-order: stroke; stroke: #f7f9f5; stroke-width: 90; }
+.dimension-selected .dimension-line, .dimension-selected .dimension-extension, .dimension-selected .dimension-tick { stroke: #173c36; }
+.dimension-snap { fill: none; stroke: #fff; stroke-width: 5; vector-effect: non-scaling-stroke; }
+.dimension-snap circle:first-child { stroke: #1f8a38; stroke-width: 2.5; }
+.dimension-snap circle:last-child { fill: #1f8a38; stroke: #fff; stroke-width: 2; }
 .measure-end { fill: #986122; }
 .measure-caption { fill: #5a4630; font-weight: 600; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }

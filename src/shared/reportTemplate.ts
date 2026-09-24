@@ -4,7 +4,7 @@ import { z } from 'zod';
  * Visual construction-report sheet layout (InDesign / Canva-style page composer).
  * Frames place plan crops or 3D views on paper; templates are reusable layouts.
  */
-export const reportFrameKindSchema = z.enum(['plan', 'elevation', 'view3d', 'notes']);
+export const reportFrameKindSchema = z.enum(['plan', 'elevation', 'view3d', 'notes', 'schedule']);
 export type ReportFrameKind = z.infer<typeof reportFrameKindSchema>;
 
 /** Same presets as the editor Kamerablick / orthogonal elevations. */
@@ -38,6 +38,18 @@ export const reportFrameSchema = z.strictObject({
   /** Plan crop: scenery = set pieces only; venue = full hall including audience. */
   planScope: reportPlanScopeSchema.optional(),
   label: z.string().trim().max(80).optional(),
+  scale: z.union([z.literal(25), z.literal(50), z.literal(100)]).optional(),
+  crop: z.strictObject({
+    minX: z.number().finite(), minY: z.number().finite(), maxX: z.number().finite(), maxY: z.number().finite(),
+  }).optional(),
+  sourceRole: z.enum(['primary', 'each']).optional(),
+  groupIndex: z.number().int().min(0).max(40).optional(),
+  camera: z.strictObject({
+    projection: z.enum(['perspective', 'orthographic']),
+    position: z.strictObject({ x: z.number().finite(), y: z.number().finite(), z: z.number().finite() }),
+    target: z.strictObject({ x: z.number().finite(), y: z.number().finite(), z: z.number().finite() }),
+    preset: reportViewSchema.optional(),
+  }).optional(),
 });
 export type ReportFrame = z.infer<typeof reportFrameSchema>;
 
@@ -45,6 +57,7 @@ export const reportPageSchema = z.strictObject({
   id: z.uuid(),
   name: z.string().trim().min(1).max(120),
   paper: z.enum(['a4', 'a3']).default('a4'),
+  orientation: z.enum(['portrait', 'landscape']).optional(),
   frames: z.array(reportFrameSchema).max(40),
 });
 export type ReportPage = z.infer<typeof reportPageSchema>;
