@@ -5,7 +5,7 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { errorSchema, workspaceParamsSchema } from '../../shared/contracts.js';
 import { exportRevisionSchema, freezeSnapshot } from '../../shared/export.js';
-import { exportDocumentSpecSchema, type ExportDocumentSpec, type FrozenScene } from '../../shared/exportDocument.js';
+import { exportDocumentSpecSchema, prepareDocumentBodySchema, decodeViewImages, type ExportDocumentSpec, type FrozenScene } from '../../shared/exportDocument.js';
 import { sceneSchema, type Scene } from '../../shared/layout.js';
 import { freezePackage } from '../../shared/package.js';
 import type { Database } from '../db/connection.js';
@@ -104,12 +104,14 @@ export function registerDocumentRoutes(
   }
 
   api.post('/api/workspaces/:workspaceId/documents', {
-    schema: { params, body: exportDocumentSpecSchema, response: { 201: jobSchema, ...errors } },
+    bodyLimit: 24 * 1024 * 1024,
+    schema: { params, body: prepareDocumentBodySchema, response: { 201: jobSchema, ...errors } },
   }, async (request, reply) => {
     if (request.headers.origin !== origin) throw new AccessError(403, 'Ungültiger Ursprung.');
     await access(request, request.params.workspaceId, 'exports');
     await expirePreparations(db, storage);
-    const spec = request.body;
+    const { viewImages, ...specFields } = request.body;
+    const spec = exportDocumentSpecSchema.parse(specFields);
     const scenes = await loadScenes(request.params.workspaceId, spec.scenes.map(item => item.sceneId));
     const issuedAt = new Date();
     const labels = await panelLabels(request.params.workspaceId, scenes.flatMap(scene => scene.layout.walls.flatMap(wall => wall.panelId ? [wall.panelId] : [])));
@@ -134,7 +136,8 @@ export function registerDocumentRoutes(
       expiresAt: preparationExpiry(issuedAt), issuedRevisionId: null,
     };
     await db.insert(exportPreparation).values(row);
-    enqueuePreparation(db, storage, id);
+    const captured = decodeViewImages(viewImages);
+    enqueuePreparation(db, storage, id, async () => captured);
     return reply.code(201).send(asJob({ ...row, queuedAt: issuedAt, expiresAt: row.expiresAt }));
   });
 

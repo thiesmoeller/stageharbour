@@ -400,6 +400,11 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
 .export-thumb-rail button[aria-current="true"] { border-color: #315d49; }
 .export-frame-numbers { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .export-view-row { display: grid; gap: 6px; margin: 8px 0; padding: 8px; border: 1px solid var(--ui-line); border-radius: 8px; }
+.export-stage-aim { margin-top: 12px; padding: 10px; border: 1px solid var(--ui-line); border-radius: 8px; background: #f7f9f5; }
+.export-stage-aim .stage-view { min-height: 280px; margin-top: 8px; }
+.export-stage-aim .stage-canvas { min-height: 240px; height: 280px; }
+.export-stage-aim .stage-measurements { display: none; }
+.export-stage-aim [data-testid="export-capture-view"] { position: relative; z-index: 2; }
 @media (max-width: 800px) {
   .export-workspace-body { grid-template-columns: 1fr; }
   .export-workspace-body.panel-settings .export-workspace-preview, .export-workspace-body.panel-settings .export-thumb-rail { display: none; }

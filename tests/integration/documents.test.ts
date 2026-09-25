@@ -83,3 +83,32 @@ test('issuing a fresh preview stores the reviewed PDF and a second issue is the 
   })).rawPayload);
   assert.equal(stored.equals(preview), true);
 });
+
+test('client-captured Raumsicht images appear in the prepared PDF', async () => {
+  const viewId = randomUUID();
+  const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  const created = await app.inject({
+    method: 'POST', url: `/api/workspaces/${fixture.config.WORKSPACE_ID}/documents`, headers,
+    payload: {
+      ...spec('Mit Raumsicht'),
+      viewCameras: [{
+        id: viewId, label: 'Umlaufansicht',
+        camera: { projection: 'perspective', position: { x: 4000, y: 2500, z: -2000 }, target: { x: 4000, y: 0, z: 3000 }, preset: 'orbit' },
+      }],
+      viewImages: { [`view-${scene.id}-${viewId}`]: png },
+    },
+  });
+  assert.equal(created.statusCode, 201, created.body);
+  let job = created.json();
+  for (let attempt = 0; attempt < 40 && (job.status === 'queued' || job.status === 'rendering'); attempt++) {
+    await new Promise(resolve => setTimeout(resolve, 50));
+    job = (await app.inject({ url: `/api/workspaces/${fixture.config.WORKSPACE_ID}/documents/${job.id}`, headers })).json();
+  }
+  assert.equal(job.status, 'ready', JSON.stringify(job));
+  const pdf = Buffer.from((await app.inject({
+    url: `/api/workspaces/${fixture.config.WORKSPACE_ID}/documents/${job.id}/file`, headers,
+  })).rawPayload);
+  const text = pdf.toString('latin1');
+  assert.equal(text.includes('3D-Ansicht konnte nicht gerendert werden.'), false);
+  assert.ok(/\/Subtype\s*\/Image|XObject/.test(text), 'PDF contains an embedded image object');
+});

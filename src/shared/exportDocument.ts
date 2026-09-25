@@ -100,6 +100,35 @@ export const exportDocumentSpecSchema = z.strictObject({
 });
 export type ExportDocumentSpec = z.infer<typeof exportDocumentSpecSchema>;
 
+/** Base64 PNG (optionally data-URL) keyed by compose frame id (`view-${sceneId}-${viewId}`). */
+export const viewImagesSchema = z.record(
+  z.string().min(1).max(160),
+  // ~12 MiB chars ≈ 9 MiB binary after base64; POST bodyLimit is 24 MiB.
+  z.string().min(8).max(12_000_000),
+).refine(value => Object.keys(value).length <= 12, 'Too many Raumsicht images');
+
+/** POST /documents body: document spec plus optional client-captured Raumsicht frames. */
+export const prepareDocumentBodySchema = exportDocumentSpecSchema.extend({
+  viewImages: viewImagesSchema.optional(),
+});
+export type PrepareDocumentBody = z.infer<typeof prepareDocumentBodySchema>;
+
+export function viewFrameId(sceneId: string, viewId?: string) {
+  return viewId ? `view-${sceneId}-${viewId}` : `view-${sceneId}`;
+}
+
+/** Decode client PNG payloads for PDFKit. Strips a data-URL prefix when present. */
+export function decodeViewImages(images?: Record<string, string>): Map<string, Buffer> {
+  const map = new Map<string, Buffer>();
+  if (!images) return map;
+  for (const [frameId, payload] of Object.entries(images)) {
+    const base64 = payload.includes(',') ? payload.slice(payload.indexOf(',') + 1) : payload;
+    const buffer = Buffer.from(base64, 'base64');
+    if (buffer.length >= 8 && buffer[0] === 0x89 && buffer[1] === 0x50) map.set(frameId, buffer);
+  }
+  return map;
+}
+
 export const SHEET_MARGIN_MM = 12;
 export const TITLE_BAND_MM = 20;
 export const FOOTER_BAND_MM = 12;
@@ -182,10 +211,20 @@ export function contentBounds(snapshot: ConstructionSnapshot, layers: ExportLaye
   if (layers.scenery) {
     for (const wall of snapshot.resolvedWalls) points.push(...wall.corners);
     for (const brace of snapshot.resolvedBraces ?? []) points.push(...brace.corners);
-    for (const item of snapshot.resolvedPlaceholders ?? []) points.push(...item.corners);
+    for (const item of snapshot.resolvedPlaceholders ?? []) {
+      if (item.kind === 'chair' && !layers.audience) continue;
+      points.push(...item.corners);
+    }
   }
+  if (layers.audience) {
+    for (const item of snapshot.resolvedPlaceholders ?? []) {
+      if (item.kind !== 'chair') continue;
+      points.push(...item.corners);
+    }
+  }
+  // Venue outline is drawn as context when enabled, but does not enlarge the crop — construction
+  // sheets default to scenery (no empty audience hall). Keep-clear polygons still influence crop.
   if (layers.venueContext) {
-    points.push(...measuredOutline(snapshot.venue));
     for (const zone of snapshot.venue.keepClearZones ?? []) points.push(...zone.polygon);
   }
   const box = boxOf(points);
@@ -349,7 +388,16 @@ function planPaint(
       if (box) identityMarks(wallIdentityLines(wall.assemblyNumber, wall.panelLabel), (box.minX + box.maxX) / 2, (box.minY + box.maxY) / 2, frame, view, measure, paint);
     }
     for (const brace of snapshot.resolvedBraces ?? []) paint.push(poly([...brace.corners], frame, view, undefined, '#5c6b52', 0.5));
-    for (const item of snapshot.resolvedPlaceholders ?? []) paint.push(poly([...item.corners], frame, view, undefined, '#8b8478', 0.4));
+    for (const item of snapshot.resolvedPlaceholders ?? []) {
+      if (item.kind === 'chair') continue;
+      paint.push(poly([...item.corners], frame, view, undefined, '#8b8478', 0.4));
+    }
+  }
+  if (layers.audience) {
+    for (const item of snapshot.resolvedPlaceholders ?? []) {
+      if (item.kind !== 'chair') continue;
+      paint.push(poly([...item.corners], frame, view, undefined, '#8b8478', 0.4));
+    }
   }
   for (const item of snapshot.layout.dimensions ?? []) {
     const dimension = resolveDimension(item, snapshot.venue, snapshot.layout);
@@ -789,7 +837,7 @@ function composeView(
   const orientation: SheetOrientation = spec.orientation === 'landscape' ? 'landscape' : 'portrait';
   const body = bodyRect(spec.paper, orientation);
   const size = sheetSizeMm(spec.paper, orientation);
-  const frameId = view ? `view-${scene.sceneId}-${view.id}` : `view-${scene.sceneId}`;
+  const frameId = view ? viewFrameId(scene.sceneId, view.id) : viewFrameId(scene.sceneId);
   const title = view ? `Raumsicht · ${view.label}` : 'Raumsicht';
   pushSheet(sheets, {
     title, sceneName: scene.sceneName, paper: spec.paper, orientation,

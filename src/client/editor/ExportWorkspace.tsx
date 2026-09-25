@@ -1,12 +1,18 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
-import { exportListSchema, exportRevisionSchema, germanDate, type ExportRevision } from '../../shared/export.js';
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import {
-  defaultCamera, documentPagesFromTemplate, type CameraPreset, type DocumentFrame, type DocumentPage, type ExportDocumentSpec, type FrameCrop, type SheetOrientation,
+  defaultExportLayers, EXPORT_LAYER_OPTIONS, exportListSchema, exportRevisionSchema, germanDate,
+  type ExportLayers, type ExportRevision,
+} from '../../shared/export.js';
+import {
+  defaultCamera, documentPagesFromTemplate, viewFrameId, type CameraPreset, type DocumentFrame, type DocumentPage, type ExportDocumentSpec, type FrameCrop, type SheetOrientation,
 } from '../../shared/exportDocument.js';
+import type { Asset } from '../../shared/assets.js';
 import type { Group } from '../../shared/groups.js';
-import type { Wall } from '../../shared/layout.js';
+import type { Layout, VenueGeometry, Wall } from '../../shared/layout.js';
 import type { PlanPreviewData } from './PlanPreview.js';
 import { REPORT_VIEW_LABELS, type ReportTemplate } from '../../shared/reportTemplate.js';
+import { StageView, type StageCaptureHandle } from './StageView.js';
+// StageCaptureHandle re-exported from StageView
 import { ApiError, request } from '../api.js';
 
 type Job = {
@@ -17,9 +23,22 @@ type Job = {
 
 const statusText = { pending: 'In Arbeit', ready: 'Fertig', failed: 'Fehlgeschlagen' };
 
+function LayerToggles({ idPrefix, layers, onChange, disabled }: {
+  idPrefix: string; layers: ExportLayers; onChange: (next: ExportLayers) => void; disabled?: boolean;
+}) {
+  return <div className="export-layers" role="group" aria-label="PDF-Ebenen">
+    <p className="export-layers-title">Inhalt der PDF</p>
+    {EXPORT_LAYER_OPTIONS.map(option => <label key={option.key} htmlFor={`${idPrefix}-${option.key}`} title={option.hint}>
+      <input id={`${idPrefix}-${option.key}`} type="checkbox" checked={layers[option.key]} disabled={disabled}
+        onChange={event => onChange({ ...layers, [option.key]: event.target.checked })} />
+      {option.label}
+    </label>)}
+  </div>;
+}
+
 export function ExportWorkspace({
   workspaceId, sceneId, productionId, scenes, groups, walls, templates, readOnly, freezeDisabled, onClose, onSaveTemplate,
-  planPreview, venueSize,
+  planPreview, venueSize, layout, venue, assets = [],
 }: {
   workspaceId: string; sceneId?: string; productionId: string;
   scenes: readonly { id: string; name: string }[];
@@ -28,6 +47,10 @@ export function ExportWorkspace({
   /** Fitted ground plan used to rubber-band the exported window. */
   planPreview?: PlanPreviewData;
   venueSize?: { width: number; depth: number };
+  /** Live scene for aiming Raumsicht cameras on this page. */
+  layout?: Layout;
+  venue?: VenueGeometry;
+  assets?: Asset[];
   onSaveTemplate?: (templates: ReportTemplate[]) => Promise<void>;
 }) {
   const selectedDefault = sceneId ? [sceneId] : scenes.map(scene => scene.id);
@@ -39,6 +62,11 @@ export function ExportWorkspace({
   const [preset, setPreset] = useState<'construction' | 'presentation'>('construction');
   const [planCrop, setPlanCrop] = useState<FrameCrop | undefined>();
   const [viewCameras, setViewCameras] = useState<{ id: string; label: string; preset: CameraPreset }[]>([]);
+  const [viewImages, setViewImages] = useState<Record<string, string>>({});
+  const [activeViewId, setActiveViewId] = useState<string>();
+  const stageCapture = useRef<StageCaptureHandle | null>(null);
+  const onCaptureReady = useCallback((handle: StageCaptureHandle | null) => { stageCapture.current = handle; }, []);
+  const [layers, setLayers] = useState<ExportLayers>(defaultExportLayers);
   const [documentKind, setDocumentKind] = useState<'scene' | 'package'>(scenes.length > 1 ? 'package' : 'scene');
   const [elevationGroupIds, setElevationGroupIds] = useState<string[]>([]);
   const [templateId, setTemplateId] = useState('');
@@ -73,6 +101,7 @@ export function ExportWorkspace({
     if (!sceneIds.length || !revisionName.trim()) return undefined;
     return {
       schemaVersion: 1, preset, kind: documentKind, revisionName: revisionName.trim(), paper, orientation, scale,
+      layers,
       scenes: sceneIds.map(id => ({ sceneId: id, elevationGroupIds: id === (sceneId ?? sceneIds[0]) ? elevationGroupIds : [] })),
       templateId: templateId || undefined,
       planCrop, viewCameras: viewCameras.flatMap(view => {
@@ -87,7 +116,13 @@ export function ExportWorkspace({
       }),
       customPages,
     };
-  }, [sceneIds, revisionName, preset, documentKind, paper, orientation, scale, elevationGroupIds, sceneId, templateId, customPages, planCrop, viewCameras, venueSize?.width, venueSize?.depth]);
+  }, [sceneIds, revisionName, preset, documentKind, paper, orientation, scale, layers, elevationGroupIds, sceneId, templateId, customPages, planCrop, viewCameras, venueSize?.width, venueSize?.depth]);
+
+  const preparePayload = useMemo(() => {
+    if (!spec) return undefined;
+    const images = Object.keys(viewImages).length ? viewImages : undefined;
+    return images ? { ...spec, viewImages: images } : spec;
+  }, [spec, viewImages]);
 
   useEffect(() => {
     if (!historyBase.includes('/scenes/undefined')) {
@@ -96,12 +131,12 @@ export function ExportWorkspace({
   }, [historyBase, issued?.id]);
 
   useEffect(() => {
-    if (!spec || readOnly) return;
+    if (!preparePayload || readOnly) return;
     let stop = false;
     const handle = window.setTimeout(() => {
       setPhase('preparing');
       setError('');
-      request(`/api/workspaces/${workspaceId}/documents`, spec).then(async created => {
+      request(`/api/workspaces/${workspaceId}/documents`, preparePayload).then(async created => {
         let current = created as Job;
         setJob(current);
         while (!stop && (current.status === 'queued' || current.status === 'rendering')) {
@@ -131,7 +166,7 @@ export function ExportWorkspace({
       });
     }, 300);
     return () => { stop = true; window.clearTimeout(handle); };
-  }, [workspaceId, spec, readOnly]);
+  }, [workspaceId, preparePayload, readOnly]);
 
   function editPages(next: DocumentPage[]) {
     setPast(current => [...current, customPages ?? []]);
@@ -181,6 +216,18 @@ export function ExportWorkspace({
       setError('Das PDF konnte nicht heruntergeladen werden.');
     } finally {
       setPhase(job?.status === 'ready' ? 'ready' : 'idle');
+    }
+  }
+
+  async function remove(id: string) {
+    if (!window.confirm('Diese Fassung endgültig löschen?')) return;
+    setError('');
+    try {
+      await request(`${historyBase}/${id}`, undefined, 'DELETE');
+      setHistory(current => current.filter(item => item.id !== id));
+      if (issued?.id === id) setIssued(undefined);
+    } catch {
+      setError('Die Fassung konnte nicht gelöscht werden.');
     }
   }
 
@@ -264,31 +311,87 @@ export function ExportWorkspace({
           <option value="50">1:50</option>
           <option value="100">1:100</option>
         </select>
+        <LayerToggles idPrefix="export-layer" layers={layers} disabled={readOnly} onChange={next => { setLayers(next); setOutdated(true); }} />
         {customPages && <p className="muted">Eine eigene Blattaufteilung ersetzt Ausschnitt und Raumsichten. Eine Änderung hier stellt die automatische Aufteilung wieder her.</p>}
         <fieldset>
           <legend>Raumsichten</legend>
-          {viewCameras.map(view => <div key={view.id} className="export-view-row">
-            <label htmlFor={`view-preset-${view.id}`}>Kamerablick
-              <select id={`view-preset-${view.id}`} value={view.preset} onChange={event => {
-                const next = event.target.value as CameraPreset;
-                setViewCameras(current => current.map(item => item.id === view.id ? { ...item, preset: next, label: REPORT_VIEW_LABELS[next] } : item));
+          {viewCameras.map(view => {
+            const frameKey = sceneIds[0] ? viewFrameId(sceneIds[0], view.id) : view.id;
+            const captured = !!viewImages[frameKey];
+            return <div key={view.id} className="export-view-row">
+              <label htmlFor={`view-preset-${view.id}`}>Kamerablick
+                <select id={`view-preset-${view.id}`} value={view.preset} onChange={event => {
+                  const next = event.target.value as CameraPreset;
+                  setViewCameras(current => current.map(item => item.id === view.id ? { ...item, preset: next, label: REPORT_VIEW_LABELS[next] } : item));
+                  setActiveViewId(view.id);
+                  dropCustomLayout();
+                }}>
+                  {(Object.keys(REPORT_VIEW_LABELS) as CameraPreset[]).map(presetId => <option key={presetId} value={presetId}>{REPORT_VIEW_LABELS[presetId]}</option>)}
+                </select>
+              </label>
+              <label htmlFor={`view-label-${view.id}`}>Bezeichnung
+                <input id={`view-label-${view.id}`} value={view.label} maxLength={80} onChange={event => {
+                  setViewCameras(current => current.map(item => item.id === view.id ? { ...item, label: event.target.value } : item));
+                  dropCustomLayout();
+                }} />
+              </label>
+              <button type="button" className="quiet" aria-pressed={activeViewId === view.id} onClick={() => setActiveViewId(view.id)}>Ausrichten</button>
+              <span className="muted">{captured ? 'Für PDF übernommen' : 'Noch kein Bild'}</span>
+              <button type="button" className="quiet" onClick={() => {
+                setViewCameras(current => current.filter(item => item.id !== view.id));
+                setViewImages(current => {
+                  const next = { ...current };
+                  delete next[frameKey];
+                  return next;
+                });
+                if (activeViewId === view.id) setActiveViewId(undefined);
                 dropCustomLayout();
-              }}>
-                {(Object.keys(REPORT_VIEW_LABELS) as CameraPreset[]).map(presetId => <option key={presetId} value={presetId}>{REPORT_VIEW_LABELS[presetId]}</option>)}
-              </select>
-            </label>
-            <label htmlFor={`view-label-${view.id}`}>Bezeichnung
-              <input id={`view-label-${view.id}`} value={view.label} maxLength={80} onChange={event => {
-                setViewCameras(current => current.map(item => item.id === view.id ? { ...item, label: event.target.value } : item));
-                dropCustomLayout();
-              }} />
-            </label>
-            <button type="button" className="quiet" onClick={() => { setViewCameras(current => current.filter(item => item.id !== view.id)); dropCustomLayout(); }}>Entfernen</button>
-          </div>)}
+              }}>Entfernen</button>
+            </div>;
+          })}
           <button type="button" className="quiet" disabled={viewCameras.length >= 12} onClick={() => {
-            setViewCameras(current => [...current, { id: crypto.randomUUID(), preset: 'audience', label: REPORT_VIEW_LABELS.audience }]);
+            const id = crypto.randomUUID();
+            setViewCameras(current => [...current, { id, preset: 'orbit', label: REPORT_VIEW_LABELS.orbit }]);
+            setActiveViewId(id);
             dropCustomLayout();
           }}>Raumsicht hinzufügen</button>
+          {layout && venue && viewCameras.length > 0 && (() => {
+            const active = viewCameras.find(view => view.id === activeViewId) ?? viewCameras[0];
+            if (!active || !sceneIds[0]) return null;
+            const frameKey = viewFrameId(sceneIds[0], active.id);
+            return <div className="export-stage-aim" data-testid="export-stage-aim">
+              <p className="muted">Richten Sie die Kamera aus und übernehmen Sie den Blick für das PDF. Ohne Übernahme bleibt die Raumsicht-Seite leer.</p>
+              <button type="button" data-testid="export-capture-view" disabled={readOnly} onClick={event => {
+                event.preventDefault();
+                void (async () => {
+                  try {
+                    const capture = stageCapture.current;
+                    if (!capture) {
+                      setError('Die Raumsicht ist noch nicht bereit. Bitte kurz warten und erneut versuchen.');
+                      return;
+                    }
+                    const png = await capture.capturePng();
+                    if (!png.startsWith('data:image/png') || png.length < 256) {
+                      setError('Die Aufnahme ist leer. Bitte Kamera neu ausrichten und erneut versuchen.');
+                      return;
+                    }
+                    setViewImages(current => ({ ...current, [frameKey]: png }));
+                    setError('');
+                    setOutdated(true);
+                  } catch (caught) {
+                    setError(caught instanceof Error ? caught.message : 'Die Raumsicht konnte nicht aufgenommen werden.');
+                  }
+                })();
+              }}>Für PDF übernehmen</button>
+              <StageView layout={layout} venue={venue} assets={assets} workspaceId={workspaceId}
+                onCaptureReady={onCaptureReady} initialView={active.preset} title={active.label || 'Raumsicht'} selectedIds={[]}
+                onViewChange={next => {
+                  setViewCameras(current => current.map(item => item.id === active.id
+                    ? { ...item, preset: next, label: item.label.trim() ? item.label : REPORT_VIEW_LABELS[next] }
+                    : item));
+                }} />
+            </div>;
+          })()}
         </fieldset>
         {groups.length > 0 && <fieldset>
           <legend>Frontansichten</legend>
@@ -337,7 +440,9 @@ export function ExportWorkspace({
             <strong>{item.name}</strong>
             <span>{germanDate(item.createdAt)} · {item.paper} · 1:{item.scale} · {statusText[item.status]}</span>
             {item.status === 'ready' && <button className="quiet" type="button" onClick={() => void download(item)}>Herunterladen</button>}
+            {!readOnly && <button className="quiet" type="button" onClick={() => void remove(item.id)}>Löschen</button>}
           </li>)}</ul>
+          {!history.length && <p className="muted">Noch keine herausgegebenen Fassungen.</p>}
         </details>
       </form>
       <div className="export-workspace-preview">
