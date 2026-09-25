@@ -10,3 +10,5 @@
 !src/**
 !drizzle/
 !drizzle/**
+!assets/
+!assets/**
