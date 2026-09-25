@@ -733,7 +733,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     if (!dimensioning.a) {
       if (!hit) return;
       setDimensioning({ a: hit, hover: hit });
-      setSnapStatus('Zweiten Punkt wählen. Es rastet an Ecken ein.');
+      setSnapStatus('Zweiten Punkt wählen. Es rastet an Ecken und Kantenmitten ein.');
       return;
     }
     if (!dimensioning.b) {
@@ -760,7 +760,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     if (dimensioning.a && dimensioning.b) {
       const placed = dimensionFromPlacement(dimensioning.a.point, dimensioning.b.point, at);
       setSnapStatus(`${Math.round(dimensionValue(placed.orientation, dimensioning.a.point, dimensioning.b.point))} mm · klicken zum Ablegen`);
-    } else if (hover) setSnapStatus(dimensioning.a ? 'Zweiten Eckpunkt wählen.' : 'Ersten Eckpunkt wählen.');
+    } else if (hover) setSnapStatus(dimensioning.a ? 'Zweiten Punkt wählen.' : 'Ersten Punkt wählen.');
   }
   const resolvedDimensions = (state.present.dimensions ?? []).flatMap(item => {
     const resolved = resolveDimension(item, venue, liveLayout);
@@ -840,7 +840,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
       }} title="Treppe hinzufügen" aria-label="Treppe hinzufügen"><ToolIcon name="stairs" /><span>Treppe</span></button>
       <button type="button" aria-pressed={dimensioning !== null} disabled={!!groupPreview || !!placing || (state.present.dimensions ?? []).length >= 200} onClick={() => {
         setDimensioning(current => current ? null : {});
-        setSnapStatus(dimensioning ? undefined : 'Ersten Eckpunkt wählen. Der grüne Punkt zeigt die Ecke. Escape bricht ab.');
+        setSnapStatus(dimensioning ? undefined : 'Ersten Punkt wählen. Der rote Punkt zeigt Ecke oder Kantenmitte. Escape bricht ab.');
       }} title="Maß zwischen zwei Punkten, dann die Maßlinie zur Seite ziehen" aria-label="Maß hinzufügen"><ToolIcon name="expand" /><span>Maß</span></button>
       {PLACEHOLDER_KINDS.map(kind => <button key={kind} type="button" className="quiet"
         disabled={!!groupPreview || !!placing || (state.present.placeholders ?? []).length >= 250}
@@ -1112,7 +1112,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
         {dimensioning && <rect data-testid="dimension-target" x={viewCx - viewW / 2} y={-(viewCy + viewH / 2)} width={viewW} height={viewH}
           fill="white" fillOpacity={0} pointerEvents="all" onPointerDown={pickDimension} onPointerMove={hoverDimension} />}
         <DimensionLayer dimensions={resolvedDimensions} preview={dimensionPreview} selectedId={selectedDimension}
-          passPointer={dimensioning !== null} snapRadius={dimensionReach(9)}
+          passPointer={dimensioning !== null} snapRadius={dimensionReach(16)}
           snaps={dimensioning ? [dimensioning.a?.point, dimensioning.b?.point, dimensioning.hover?.point].flatMap(item => item ? [item] : []) : []}
           onSelect={id => { setSelectedDimension(id); setDimensioning(null); }} />
         {selectedPlaceholderItem && !readOnly && !selectionBundle && (() => {
