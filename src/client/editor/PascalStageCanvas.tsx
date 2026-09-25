@@ -16,6 +16,8 @@ import type { StageEditing } from './StageEditing.js';
 import { VenueFloor } from './VenueFloor.js';
 import { PascalSceneBridge, StageInteraction } from './PascalStageNodes.js';
 import { useBlockBrowserZoom } from './viewportWheel.js';
+import type { StageCaptureHandle } from './StageCapture.js';
+import { captureViewportPng } from './StageCapture.js';
 
 /** Viewer owns the R3F Canvas, so pointer-miss must be detected via raycast. */
 function ClearSelectionOnMiss({ onClear }: { onClear?: () => void }) {
@@ -74,7 +76,31 @@ function EditOrbitBinding({ allowOrbit }: { allowOrbit: boolean }) {
   return null;
 }
 
-export default function PascalStageCanvas({ model, layout, venue, audience, view = audience ? 'audience' : 'orbit', assets, workspaceId, lighting = defaultLighting, ...editing }: { model: StageModel; layout: Layout; venue: VenueGeometry; audience: boolean; view?: StageCameraView; assets: Asset[]; workspaceId: string; lighting?: StageLightingSettings } & StageEditing) {
+/** Snapshot the live Pascal frame for PDF embedding (WebGPU-safe render-target readback). */
+function PascalCaptureBridge({ onCaptureReady }: { onCaptureReady?: (handle: StageCaptureHandle | null) => void }) {
+  const gl = useThree(state => state.gl);
+  const scene = useThree(state => state.scene);
+  const camera = useThree(state => state.camera);
+  useEffect(() => {
+    if (!onCaptureReady) return;
+    const handle: StageCaptureHandle = {
+      async capturePng() {
+        await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+        return captureViewportPng(gl as never, scene, camera);
+      },
+    };
+    onCaptureReady(handle);
+    return () => onCaptureReady(null);
+  }, [camera, gl, onCaptureReady, scene]);
+  return null;
+}
+
+export default function PascalStageCanvas({ model, layout, venue, audience, view = audience ? 'audience' : 'orbit', assets, workspaceId, lighting = defaultLighting, onCaptureReady, aimOnly = false, ...editing }: {
+  model: StageModel; layout: Layout; venue: VenueGeometry; audience: boolean; view?: StageCameraView; assets: Asset[]; workspaceId: string; lighting?: StageLightingSettings;
+  onCaptureReady?: (handle: StageCaptureHandle | null) => void;
+  /** Export aiming: hide edit tools, skip heavy post-FX. */
+  aimOnly?: boolean;
+} & StageEditing) {
   const [focusSelection, setFocusSelection] = useState(false);
   const [frameRevision, setFrameRevision] = useState(0);
   function frame(selection: boolean) { setFocusSelection(selection); setFrameRevision(value => value + 1); }
@@ -101,7 +127,7 @@ export default function PascalStageCanvas({ model, layout, venue, audience, view
   const mirroredTargetX = mirrorWidth - target.x;
   return <StageInteraction.Provider value={{ assets, workspaceId, mirrorWidth, model, venueEditable: editing.venueEditable, selectedIds: editing.selectedIds ?? [], onSelect: editing.onSelect, onClearSelection: editing.onClearSelection }}>
     <PascalSceneBridge layout={layout} venue={venue} />
-    <div className="render-toolbar">
+    {!aimOnly && <div className="render-toolbar">
       <button type="button" className="quiet" disabled={!editing.pivot} onClick={() => frame(true)}><ToolIcon name="expand" />Auswahl einpassen</button><button type="button" className="quiet" onClick={() => frame(false)}><ToolIcon name="expand" />Bühne einpassen</button>
       {editing.onTransform && <><button type="button" className="quiet" aria-pressed={mode === 'translate'} onClick={() => setMode('translate')} title="3D verschieben"><ToolIcon name="move" />3D verschieben</button><button type="button" className="quiet" aria-pressed={mode === 'rotate'} onClick={() => setMode('rotate')} title="3D drehen"><ToolIcon name="rotate" />3D drehen</button></>}
       {editing.onPushPull && <button type="button" className="quiet" aria-pressed={mode === 'pushPull'} onClick={() => setMode('pushPull')} title="Größe ziehen" aria-label="Größe ziehen"><ToolIcon name="expand" />Größe ziehen</button>}
@@ -110,10 +136,11 @@ export default function PascalStageCanvas({ model, layout, venue, audience, view
         <option value="sunset">Abend</option>
       </select></label>
       <label><input type="checkbox" checked={detailed} onChange={event => setDetailed(event.target.checked)} /> Hohe Renderqualität</label></div></details>
-    </div>
+    </div>}
     <div ref={canvas} className="stage-canvas" role="img" aria-label="Raumsicht der Spielstätte" data-renderer="pascal" data-lighting={lighting.enabled ? 'theatre' : 'studio'}>
-      <Viewer defaultRender={{ shading: 'rendered' }} selectionManager="custom" useBvh={false} renderContext="viewer" disablePostFx={!detailed || lighting.enabled}>
-        <ClearSelectionOnMiss onClear={editing.onClearSelection} />
+      <Viewer defaultRender={{ shading: 'rendered' }} selectionManager="custom" useBvh={false} renderContext="viewer" disablePostFx={aimOnly || !detailed || lighting.enabled}>
+        {onCaptureReady && <PascalCaptureBridge onCaptureReady={onCaptureReady} />}
+        {!aimOnly && <ClearSelectionOnMiss onClear={editing.onClearSelection} />}
         <StageLighting settings={lighting} width={venue.width} depth={venue.depth} environmentKey={theme} />
         <StageCamera key={frameRevision} view={view} span={focusSelection && editing.pivot ? 3 : span} target={[mirroredTargetX / 1000, target.y / 1000, target.z / 1000]}
           position={view === 'top' ? [mirroredTargetX / 1000, span * 2, target.z / 1000] : view === 'side' ? [-span * 2, 2, target.z / 1000] : view === 'front' ? [mirroredTargetX / 1000, 2, -span] : focusSelection && editing.pivot ? [mirroredTargetX / 1000 + 2, 4, target.z / 1000 - 5] : [mirroredCameraX / 1000, camera.y / 1000, camera.z / 1000]} />
@@ -123,11 +150,11 @@ export default function PascalStageCanvas({ model, layout, venue, audience, view
           <VenueFloor venue={venue} lit />
           </group>
         </group>
-        {mode !== 'pushPull' && <StageTransformControls {...editing} width={mirrorWidth} mode={mode === 'rotate' ? 'rotate' : 'translate'} />}
-        <PushPullControls venue={editing.resizeDocument ?? venue} scope={editing.resizeScope ?? 'venue'} enabled={mode === 'pushPull'} snapEnabled={editing.snapEnabled} onPushPull={editing.onPushPull} />
+        {!aimOnly && mode !== 'pushPull' && <StageTransformControls {...editing} width={mirrorWidth} mode={mode === 'rotate' ? 'rotate' : 'translate'} />}
+        {!aimOnly && <PushPullControls venue={editing.resizeDocument ?? venue} scope={editing.resizeScope ?? 'venue'} enabled={mode === 'pushPull'} snapEnabled={editing.snapEnabled} onPushPull={editing.onPushPull} />}
         <OrbitControls makeDefault
           target={[mirroredTargetX / 1000, target.y / 1000, target.z / 1000]} maxPolarAngle={Math.PI / 2 - 0.01} minDistance={0.1} maxDistance={500} />
-        <EditOrbitBinding allowOrbit={view === 'orbit'} />
+        <EditOrbitBinding allowOrbit={view === 'orbit' || aimOnly} />
       </Viewer>
     </div>
   </StageInteraction.Provider>;

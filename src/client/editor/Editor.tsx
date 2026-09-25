@@ -881,6 +881,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
       scenes={[{ id: initial.id, name: initial.name }]} groups={state.present.groups ?? []} walls={state.present.walls}
       planPreview={fullPlanPreview(venue, state.present)}
       venueSize={{ width: venue.width, depth: venue.depth }}
+      layout={state.present} venue={venue} assets={assets}
       templates={venue.reportTemplates ?? []} readOnly={readOnly} freezeDisabled={dirty || saveState.status !== 'saved'}
       onClose={() => setExportsOpen(false)}
       onSaveTemplate={async templates => {
@@ -1133,7 +1134,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
         </p>}
       </div>
     </div>
-    {activeView !== 'plan' && <StageView layout={placing ? {
+    {activeView !== 'plan' && !exportsOpen && <StageView layout={placing ? {
       ...shown,
       wallTypes: placing.pendingType ? [...typesOf(shown), placing.pendingType] : shown.wallTypes,
       walls: [...shown.walls, placing.wall],

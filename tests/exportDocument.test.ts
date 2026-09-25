@@ -71,7 +71,7 @@ test('rotated walls and negative coordinates stay inside a centred sheet', () =>
     spec: spec(frozen.sceneId), scenes: [frozen], productionName: 'Beispielproduktion', issuedAtLabel: '07.09.2026',
   });
   const bounds = contentBounds(frozen.snapshot, {
-    scenery: true, venueContext: true, labels: true, dimensions: true, warnings: true,
+    scenery: true, venueContext: true, audience: false, labels: true, dimensions: true, warnings: true,
     constraints: true, orientation: true, softGoods: true,
   });
   for (const corner of frozen.snapshot.resolvedWalls[0]!.corners) {
@@ -85,6 +85,26 @@ test('rotated walls and negative coordinates stay inside a centred sheet', () =>
   const cy = (bounds.minY + bounds.maxY) / 2;
   assert.ok(Math.abs((view.minX + view.maxX) / 2 - cx) < 1);
   assert.ok(Math.abs((view.minY + view.maxY) / 2 - cy) < 1);
+});
+
+test('construction plan crop hugs set pieces and ignores audience chairs by default', () => {
+  const wall = newWall(randomUUID(), 4000, 4000);
+  const frozen = sceneWith([wall]);
+  const chair = {
+    id: randomUUID(), kind: 'chair' as const, label: 'Parkett', width: 450, depth: 450, height: 900,
+    corners: [
+      { x: 1000, y: 200 }, { x: 1450, y: 200 }, { x: 1450, y: 650 }, { x: 1000, y: 650 },
+    ] as [{ x: number; y: number }, { x: number; y: number }, { x: number; y: number }, { x: number; y: number }],
+  };
+  frozen.snapshot = { ...frozen.snapshot, resolvedPlaceholders: [chair] };
+  const layers = {
+    scenery: true, venueContext: true, audience: false, labels: true, dimensions: true, warnings: true,
+    constraints: true, orientation: true, softGoods: true,
+  };
+  const withoutAudience = contentBounds(frozen.snapshot, layers);
+  assert.ok(withoutAudience.minY > 1000, 'chairs below the set stay outside the default crop');
+  const withAudience = contentBounds(frozen.snapshot, { ...layers, audience: true });
+  assert.ok(withAudience.minY < withoutAudience.minY);
 });
 
 test('plan text boxes do not overlap and notes paginate with a repeated heading', () => {
@@ -124,6 +144,26 @@ test('a missing 3D render stays in the PDF as a recoverable notice', async () =>
   const pdf = await renderDocument(layout);
   assert.match(await pdfText(pdf), /3D-Ansicht konnte nicht gerendert werden/);
   assert.ok(layout.sheets.some(sheet => sheet.scaleLabel === 'ohne Maßstab'));
+});
+
+test('a captured Raumsicht PNG is embedded instead of the missing-render notice', async () => {
+  const viewId = randomUUID();
+  const frozen = sceneWith([newWall(randomUUID(), 1000, 1000)]);
+  const layout = composeDocument({
+    spec: spec(frozen.sceneId, {
+      viewCameras: [{
+        id: viewId, label: 'Umlaufansicht',
+        camera: { projection: 'perspective', position: { x: 1, y: 2, z: 3 }, target: { x: 0, y: 1, z: 0 }, preset: 'orbit' },
+      }],
+    }),
+    scenes: [frozen], productionName: 'Beispielproduktion', issuedAtLabel: '07.09.2026',
+  });
+  const frameId = `view-${frozen.sceneId}-${viewId}`;
+  assert.ok(layout.sheets.some(sheet => sheet.frames.some(frame => frame.id === frameId)));
+  // 1×1 red PNG
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+  const text = await pdfText(await renderDocument(layout, new Map([[frameId, png]])));
+  assert.doesNotMatch(text, /3D-Ansicht konnte nicht gerendert werden/);
 });
 
 test('wall marks show the play number and the inventory plate', async () => {

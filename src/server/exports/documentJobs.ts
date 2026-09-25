@@ -26,8 +26,17 @@ export function isIssuedDocument(value: unknown): value is IssuedDocument {
     && Array.isArray((value as IssuedDocument).scenes));
 }
 
+function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b));
+  return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${stableStringify(item)}`).join(',')}}`;
+}
+
 export function sourceFingerprint(spec: ExportDocumentSpec, scenes: readonly { sceneId: string; revision: number; venueVersionId: string; layout: unknown; venue: unknown }[]) {
-  return createHash('sha256').update(JSON.stringify({
+  // Sort object keys so Zod output order vs Postgres jsonb key order cannot flip the hash
+  // (adding export layer fields made prepare vs issue serialization diverge).
+  return createHash('sha256').update(stableStringify({
     spec,
     scenes: scenes.map(scene => ({
       sceneId: scene.sceneId, revision: scene.revision, venueVersionId: scene.venueVersionId,
