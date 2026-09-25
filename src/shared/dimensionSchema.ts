@@ -4,8 +4,12 @@ const scope = z.enum(['scene', 'venue']);
 
 export const dimensionAnchorSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('outline'), index: z.number().int().min(0).max(500) }),
+  /** Point along a venue outline edge. `t` is 0 at the start vertex and 1 at the end. */
+  z.strictObject({ kind: z.literal('outlineEdge'), edge: z.number().int().min(0).max(500), t: z.number().min(0).max(1) }),
   z.strictObject({ kind: z.literal('wall'), scope, wallId: z.uuid(), corner: z.number().int().min(0).max(3) }),
+  z.strictObject({ kind: z.literal('wallEdge'), scope, wallId: z.uuid(), edge: z.number().int().min(0).max(3), t: z.number().min(0).max(1) }),
   z.strictObject({ kind: z.literal('platform'), scope, platformId: z.uuid(), index: z.number().int().min(0).max(32) }),
+  z.strictObject({ kind: z.literal('platformEdge'), scope, platformId: z.uuid(), edge: z.number().int().min(0).max(32), t: z.number().min(0).max(1) }),
   z.strictObject({ kind: z.literal('brace'), braceId: z.uuid(), corner: z.number().int().min(0).max(3) }),
 ]);
 export type DimensionAnchor = z.infer<typeof dimensionAnchorSchema>;

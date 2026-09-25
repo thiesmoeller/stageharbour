@@ -1,11 +1,52 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { dimensionFigure, dimensionFromPlacement, resolveDimension } from '../src/shared/dimensions.js';
+import {
+  dimensionFigure, dimensionFromPlacement, dimensionSnapPoints, nearestSnap, resolveAnchor, resolveDimension,
+} from '../src/shared/dimensions.js';
 import { newWall, wallCorners, type Layout, type VenueGeometry } from '../src/shared/layout.js';
 import { resolveWall } from '../src/shared/wall-types.js';
 
 const venue: VenueGeometry = { schemaVersion: 1, width: 8000, depth: 6000 };
+const emptyLayout: Layout = { schemaVersion: 1, walls: [], braces: [] };
+
+test('Maß snaps to midpoints of venue outline, wall and Podest edges', () => {
+  const wall = newWall(randomUUID(), 2000, 3000);
+  const platform = {
+    id: randomUUID(), label: 'Podest', elevation: 400,
+    outline: [{ x: 1000, y: 1000 }, { x: 3000, y: 1000 }, { x: 3000, y: 2000 }, { x: 1000, y: 2000 }],
+  };
+  const withVenue: VenueGeometry = { ...venue, walls: [wall], platforms: [platform] };
+  const snaps = dimensionSnapPoints(withVenue, emptyLayout);
+
+  const leftMid = nearestSnap(snaps, { x: 0, y: 3000 }, 50);
+  assert.deepEqual(leftMid?.point, { x: 0, y: 3000 });
+  assert.deepEqual(leftMid?.anchor, { kind: 'outlineEdge', edge: 3, t: 0.5 });
+  assert.deepEqual(resolveAnchor(leftMid!.anchor, { ...withVenue, depth: 7000 }, emptyLayout), { x: 0, y: 3500 });
+
+  const corners = wallCorners(resolveWall(wall, []));
+  const wallFrontMid = { x: (corners[0]!.x + corners[1]!.x) / 2, y: (corners[0]!.y + corners[1]!.y) / 2 };
+  const wallHit = nearestSnap(snaps, wallFrontMid, 50);
+  assert.deepEqual(wallHit?.point, wallFrontMid);
+  assert.deepEqual(wallHit?.anchor, { kind: 'wallEdge', scope: 'venue', wallId: wall.id, edge: 0, t: 0.5 });
+  const movedWall = { ...wall, x: wall.x + 500 };
+  assert.deepEqual(
+    resolveAnchor(wallHit!.anchor, { ...withVenue, walls: [movedWall] }, emptyLayout),
+    { x: wallFrontMid.x + 500, y: wallFrontMid.y },
+  );
+
+  const platformFrontMid = { x: 2000, y: 1000 };
+  const platformHit = nearestSnap(snaps, platformFrontMid, 50);
+  assert.deepEqual(platformHit?.point, platformFrontMid);
+  assert.deepEqual(platformHit?.anchor, { kind: 'platformEdge', scope: 'venue', platformId: platform.id, edge: 0, t: 0.5 });
+  assert.deepEqual(
+    resolveAnchor(platformHit!.anchor, {
+      ...withVenue,
+      platforms: [{ ...platform, outline: platform.outline.map(point => ({ ...point, y: point.y + 200 })) }],
+    }, emptyLayout),
+    { x: 2000, y: 1200 },
+  );
+});
 
 test('a play dimension follows both points and drops when one leaves the scene', () => {
   const wall = newWall(randomUUID(), 2000, 3000);

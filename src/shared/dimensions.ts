@@ -8,9 +8,23 @@ export type { DimensionAnchor, PlayDimension } from './dimensionSchema.js';
 
 export type SnapAnchor = { point: PlanPoint; anchor: DimensionAnchor };
 
+function edgePoint(start: PlanPoint, end: PlanPoint, t: number): PlanPoint {
+  return { x: start.x + (end.x - start.x) * t, y: start.y + (end.y - start.y) * t };
+}
+
+function pushClosedEdgeMids(points: readonly PlanPoint[], into: SnapAnchor[], anchorAt: (edge: number, t: number) => DimensionAnchor) {
+  for (let edge = 0; edge < points.length; edge++) {
+    const start = points[edge]!;
+    const end = points[(edge + 1) % points.length]!;
+    into.push({ point: edgePoint(start, end, 0.5), anchor: anchorAt(edge, 0.5) });
+  }
+}
+
 export function dimensionSnapPoints(venue: VenueGeometry, layout: Layout): SnapAnchor[] {
   const points: SnapAnchor[] = [];
-  measuredOutline(venue).forEach((point, index) => points.push({ point, anchor: { kind: 'outline', index } }));
+  const outline = measuredOutline(venue);
+  outline.forEach((point, index) => points.push({ point, anchor: { kind: 'outline', index } }));
+  pushClosedEdgeMids(outline, points, (edge, t) => ({ kind: 'outlineEdge', edge, t }));
   const sceneTypes = layout.wallTypes ?? [];
   for (const wall of layout.walls) {
     wallCorners(resolveWall(wall, sceneTypes)).forEach((point, corner) => {
@@ -20,16 +34,18 @@ export function dimensionSnapPoints(venue: VenueGeometry, layout: Layout): SnapA
   }
   const venueTypes = venue.wallTypes ?? [];
   for (const wall of venue.walls ?? []) {
-    wallCorners(resolveWall(wall, venueTypes)).forEach((point, corner) => {
-      if (corner > 3) return;
+    const corners = wallCorners(resolveWall(wall, venueTypes)).slice(0, 4);
+    corners.forEach((point, corner) => {
       points.push({ point, anchor: { kind: 'wall', scope: 'venue', wallId: wall.id, corner: corner as 0 | 1 | 2 | 3 } });
     });
+    pushClosedEdgeMids(corners, points, (edge, t) => ({ kind: 'wallEdge', scope: 'venue', wallId: wall.id, edge: edge as 0 | 1 | 2 | 3, t }));
   }
   for (const platform of layout.platforms ?? []) {
     platform.outline.forEach((point, index) => points.push({ point, anchor: { kind: 'platform', scope: 'scene', platformId: platform.id, index } }));
   }
   for (const platform of venue.platforms ?? []) {
     platform.outline.forEach((point, index) => points.push({ point, anchor: { kind: 'platform', scope: 'venue', platformId: platform.id, index } }));
+    pushClosedEdgeMids(platform.outline, points, (edge, t) => ({ kind: 'platformEdge', scope: 'venue', platformId: platform.id, edge, t }));
   }
   for (const brace of layout.braces) {
     braceCorners(brace).forEach((point, corner) => {
@@ -52,15 +68,34 @@ export function nearestSnap(points: readonly SnapAnchor[], at: PlanPoint, maxDis
 
 export function resolveAnchor(anchor: DimensionAnchor, venue: VenueGeometry, layout: Layout): PlanPoint | undefined {
   if (anchor.kind === 'outline') return measuredOutline(venue)[anchor.index];
-  if (anchor.kind === 'wall') {
+  if (anchor.kind === 'outlineEdge') {
+    const outline = measuredOutline(venue);
+    const start = outline[anchor.edge];
+    const end = outline[(anchor.edge + 1) % outline.length];
+    if (!start || !end) return undefined;
+    return edgePoint(start, end, anchor.t);
+  }
+  if (anchor.kind === 'wall' || anchor.kind === 'wallEdge') {
     const walls = anchor.scope === 'scene' ? layout.walls : (venue.walls ?? []);
     const types = anchor.scope === 'scene' ? (layout.wallTypes ?? []) : (venue.wallTypes ?? []);
     const wall = walls.find(item => item.id === anchor.wallId);
-    return wall ? wallCorners(resolveWall(wall, types))[anchor.corner] : undefined;
+    if (!wall) return undefined;
+    const corners = wallCorners(resolveWall(wall, types)).slice(0, 4);
+    if (anchor.kind === 'wall') return corners[anchor.corner];
+    const start = corners[anchor.edge];
+    const end = corners[(anchor.edge + 1) % corners.length];
+    if (!start || !end) return undefined;
+    return edgePoint(start, end, anchor.t);
   }
-  if (anchor.kind === 'platform') {
+  if (anchor.kind === 'platform' || anchor.kind === 'platformEdge') {
     const platforms = anchor.scope === 'scene' ? (layout.platforms ?? []) : (venue.platforms ?? []);
-    return platforms.find(item => item.id === anchor.platformId)?.outline[anchor.index];
+    const platform = platforms.find(item => item.id === anchor.platformId);
+    if (!platform) return undefined;
+    if (anchor.kind === 'platform') return platform.outline[anchor.index];
+    const start = platform.outline[anchor.edge];
+    const end = platform.outline[(anchor.edge + 1) % platform.outline.length];
+    if (!start || !end) return undefined;
+    return edgePoint(start, end, anchor.t);
   }
   const brace = layout.braces.find(item => item.id === anchor.braceId);
   return brace ? braceCorners(brace)[anchor.corner] : undefined;
