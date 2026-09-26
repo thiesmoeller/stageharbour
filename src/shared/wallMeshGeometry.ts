@@ -67,6 +67,62 @@ export function panelOuterContour(size: { x: number; y: number }, flushOpenings:
   return traceSolidOutline(xs, ys, solid);
 }
 
+/**
+ * Axis-aligned solid boxes for shadow casting. ExtrudeGeometry notches/holes cast
+ * filled “ghost” shadows under the stage’s mirrored (-X) scene graph; boxes do not.
+ */
+export function wallShadowVolumes(
+  size: { x: number; y: number; z: number },
+  openings: readonly Opening[] = [],
+): { position: [number, number, number]; size: [number, number, number] }[] {
+  const hw = size.x / 2, hh = size.y / 2;
+  if (!openings.length) {
+    return [{ position: [0, 0, 0], size: [size.x, size.y, size.z] }];
+  }
+  const voids = openings.map(opening => {
+    const rect = openingRect(opening, hw, hh);
+    return {
+      x0: Math.max(-hw, rect.x0), y0: Math.max(-hh, rect.y0),
+      x1: Math.min(hw, rect.x1), y1: Math.min(hh, rect.y1),
+    };
+  }).filter(v => v.x1 - v.x0 > 1e-6 && v.y1 - v.y0 > 1e-6);
+  if (!voids.length) {
+    return [{ position: [0, 0, 0], size: [size.x, size.y, size.z] }];
+  }
+  const xs = uniqueSorted([-hw, hw, ...voids.flatMap(v => [v.x0, v.x1])]);
+  const ys = uniqueSorted([-hh, hh, ...voids.flatMap(v => [v.y0, v.y1])]);
+  const volumes: { position: [number, number, number]; size: [number, number, number] }[] = [];
+  // Merge contiguous solid cells per row into fewer boxes (cleaner shadows, fewer draw calls).
+  for (let j = 0; j < ys.length - 1; j++) {
+    const y0 = ys[j]!, y1 = ys[j + 1]!, h = y1 - y0;
+    if (h < 1e-6) continue;
+    let runStart: number | undefined;
+    for (let i = 0; i < xs.length - 1; i++) {
+      const x0 = xs[i]!, x1 = xs[i + 1]!;
+      const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+      const solid = !voids.some(v => cx > v.x0 && cx < v.x1 && cy > v.y0 && cy < v.y1);
+      if (solid) {
+        if (runStart === undefined) runStart = x0;
+      } else if (runStart !== undefined) {
+        const w = x0 - runStart;
+        if (w > 1e-6) volumes.push({ position: [(runStart + x0) / 2, cy, 0], size: [w, h, size.z] });
+        runStart = undefined;
+      }
+    }
+    if (runStart !== undefined) {
+      const xEnd = xs[xs.length - 1]!;
+      const w = xEnd - runStart;
+      if (w > 1e-6) volumes.push({ position: [(runStart + xEnd) / 2, (y0 + y1) / 2, 0], size: [w, h, size.z] });
+    }
+  }
+  if (!volumes.length) {
+    // Degenerate: keep a thin lintel so the wall still grounds a shadow.
+    const lintel = Math.min(1, size.y);
+    return [{ position: [0, hh - lintel / 2, 0], size: [size.x, lintel, size.z] }];
+  }
+  return volumes;
+}
+
 function key(x: number, y: number) {
   return `${x},${y}`;
 }

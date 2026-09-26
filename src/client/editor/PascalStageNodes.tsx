@@ -3,7 +3,7 @@ import { registerNode, nodeRegistry, useRegistry, useScene, type AnyNode, type A
 import { createMaterialFromPresetRef, ErrorBoundary, useGLTFKTX2, useViewer } from '@pascal-app/viewer';
 import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
-import { Box3, Group, Matrix4, Mesh, Vector3 } from 'three';
+import { Box3, BoxGeometry, EdgesGeometry, Group, LineSegments, Matrix4, Mesh, Vector3 } from 'three';
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { Asset, AssetDefinition } from '../../shared/assets.js';
 import type { Layout, VenueGeometry } from '../../shared/layout.js';
@@ -129,7 +129,7 @@ function StageNodeRenderer({ node }: { node: StageNode }) {
 }
 
 function SelectionBounds({ target }: { target: React.RefObject<Group | null> }) {
-  const outline = useRef<Mesh>(null!);
+  const outline = useRef<LineSegments>(null!);
   const localBox = useMemo(() => new Box3(), []);
   const corner = useMemo(() => new Vector3(), []);
   const center = useMemo(() => new Vector3(), []);
@@ -139,6 +139,14 @@ function SelectionBounds({ target }: { target: React.RefObject<Group | null> }) 
   const local = useMemo(() => new Matrix4(), []);
   const translate = useMemo(() => new Matrix4(), []);
   const scaleMat = useMemo(() => new Matrix4(), []);
+  // Edges only — boxGeometry + wireframe draws face diagonals that cut through flush Ausschnitte.
+  const edges = useMemo(() => {
+    const box = new BoxGeometry(1, 1, 1);
+    const geometry = new EdgesGeometry(box);
+    box.dispose();
+    return geometry;
+  }, []);
+  useLayoutEffect(() => () => { edges.dispose(); }, [edges]);
   useFrame(() => {
     const root = target.current, marker = outline.current, content = root?.children[0];
     if (!root || !marker || !content) return;
@@ -179,10 +187,9 @@ function SelectionBounds({ target }: { target: React.RefObject<Group | null> }) 
     marker.matrixAutoUpdate = false;
     marker.matrix.copy(local);
   });
-  return <mesh ref={outline} matrixAutoUpdate={false} raycast={() => {}}>
-    <boxGeometry args={[1, 1, 1]} />
-    <meshBasicMaterial color="#e9a83b" wireframe depthTest={false} />
-  </mesh>;
+  return <lineSegments ref={outline} matrixAutoUpdate={false} raycast={() => {}} geometry={edges}>
+    <lineBasicMaterial color="#e9a83b" depthTest={false} />
+  </lineSegments>;
 }
 
 if (!nodeRegistry.has('stage-object')) registerNode({

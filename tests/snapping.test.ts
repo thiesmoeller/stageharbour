@@ -3,12 +3,12 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { formGroup, transformGroup } from '../src/shared/groups.js';
 import { freezeSnapshot } from '../src/shared/export.js';
-import { layoutSchema, newBrace, newWall, venueGeometrySchema, type Layout } from '../src/shared/layout.js';
+import { layoutSchema, newBrace, newWall, venueGeometrySchema, wallFromDrawnSegment, type Layout } from '../src/shared/layout.js';
 import { placementOverlaps, wallFootprint } from '../src/shared/overlap.js';
 import {
   COMMON_LAYOUT_ANGLES_DEG, GUIDE_PADDING_MM, SNAP_ANGLE_DEG, SNAP_DISTANCE_MM, SNAP_EDGE_FRACTIONS, SNAP_NOTICE,
   alignBraceToNearestWall, braceContactHinge, centrelineSchema, defaultCentreline, planRotationAt, rotateBraceOnContact,
-  rotateToward, rotationHandlePoint, snapBracePose, snapGroupPose, snapMembersPose, snapRotation, snapStatusText, snapWallPose, wallFaceAnchors,
+  rotateToward, rotationHandlePoint, snapBracePose, snapDrawSegment, snapGroupPose, snapMembersPose, snapRotation, snapStatusText, snapWallPose, wallFaceAnchors,
 } from '../src/shared/snapping.js';
 import { permanentWalls, planningWalls } from '../src/shared/planningGeometry.js';
 
@@ -37,6 +37,30 @@ test('rotate toward a pointer snaps to common layout angles unless bypassed', ()
   const free = rotateToward(wall, { x: 2000 + Math.cos(88 * Math.PI / 180) * 1000, y: 3000 + Math.sin(88 * Math.PI / 180) * 1000 }, { bypass: true });
   assert(Math.abs(free.rotation - 88) < 0.01);
   assert.equal(free.angleSnapped, false);
+});
+
+test('draw-segment snap locks near-horizontal and near-vertical lines to 15° steps', () => {
+  const start = { x: 1000, y: 2000 };
+  const almostHorizontal = snapDrawSegment(start, { x: 2500, y: 2040 });
+  assert.equal(almostHorizontal.rotation, 0);
+  assert.equal(almostHorizontal.snapped, true);
+  assert.equal(Math.round(almostHorizontal.end.y), 2000);
+  const almostVertical = snapDrawSegment(start, { x: 1030, y: 3500 });
+  assert.equal(almostVertical.rotation, 90);
+  assert.equal(almostVertical.snapped, true);
+  assert.equal(Math.round(almostVertical.end.x), 1000);
+  const free = snapDrawSegment(start, { x: 2500, y: 2040 }, { bypass: true });
+  assert.equal(free.snapped, false);
+  assert(Math.abs(free.rotation) > 1);
+});
+
+test('wallFromDrawnSegment builds a wall along the snapped segment', () => {
+  const wall = wallFromDrawnSegment(randomUUID(), { x: 1000, y: 2000 }, { x: 3000, y: 2050 });
+  assert.ok(wall);
+  assert.equal(wall.rotation, 0);
+  assert.equal(wall.width, 2000);
+  assert.equal(wall.x, 2000);
+  assert.equal(wall.y, 2000);
 });
 
 test('snap status names edge, centreline and angle snaps in German', () => {

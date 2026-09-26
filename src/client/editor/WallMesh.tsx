@@ -1,7 +1,7 @@
 import { useMemo, useLayoutEffect } from 'react';
 import { DoubleSide, type Material } from 'three';
 import type { WallSolid } from '../../shared/transforms.js';
-import { buildWallPanelGeometry, openingFlushSides } from '../../shared/wallMeshGeometry.js';
+import { buildWallPanelGeometry, openingFlushSides, wallShadowVolumes } from '../../shared/wallMeshGeometry.js';
 import {
   DOOR_FRAME, DOOR_FRAME_COLOR, DOOR_LEAF, DOOR_LEAF_COLOR, doorOpenAngleDegrees, isDoorOpening,
   type Opening,
@@ -85,9 +85,9 @@ export function OpeningInteractionHandles({ wall, wallId, scope }: {
     }
   }
   return <>
-    {solids.map(solid => <mesh key={solid.key} position={solid.position}>
+    {solids.map(solid => <mesh key={solid.key} position={solid.position} castShadow={false} receiveShadow={false}>
       <boxGeometry args={solid.args} />
-      <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      <meshBasicMaterial transparent opacity={0} depthWrite={false} colorWrite={false} />
     </mesh>)}
     {wall.openings.map(opening => {
       const x0 = -hw + opening.left, y0 = -hh + opening.sill;
@@ -100,11 +100,11 @@ export function OpeningInteractionHandles({ wall, wallId, scope }: {
         { edge: 'top', position: [cx, y1, 0], args: [opening.width, 48, wall.size.z + 16] },
       ];
       return <group key={opening.id}>
-        {edges.map(({ edge, position, args }) => <mesh key={edge} position={position} userData={{
+        {edges.map(({ edge, position, args }) => <mesh key={edge} position={position} castShadow={false} receiveShadow={false} userData={{
           pushPull: { id: wallId, kind: 'wallOpening', openingId: opening.id, edge, scope },
         }}>
           <boxGeometry args={args} />
-          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} colorWrite={false} />
         </mesh>)}
       </group>;
     })}
@@ -122,9 +122,19 @@ export function WallMesh({ wall, lit = false, frontMaterial, frontColor, backCol
     () => buildWallPanelGeometry(wall.size, wall.openings),
     [wall.size.x, wall.size.y, wall.size.z, openingsKey],
   );
+  const shadowVolumes = useMemo(
+    () => (lit && wall.openings.length ? wallShadowVolumes(wall.size, wall.openings) : []),
+    [lit, wall.size.x, wall.size.y, wall.size.z, openingsKey],
+  );
   useLayoutEffect(() => () => { geometry.dispose(); }, [geometry]);
-  return <group>
-    <mesh castShadow={lit} receiveShadow={lit} geometry={geometry} position={[wall.center.x, wall.center.y, wall.center.z]} rotation={[0, wall.rotationY, 0]}>
+  return <group position={[wall.center.x, wall.center.y, wall.center.z]} rotation={[0, wall.rotationY, 0]}>
+    {/* Extrude notches cast filled ghost shadows under the mirrored stage graph — boxes cast cleanly. */}
+    {shadowVolumes.map((volume, index) => <mesh key={`shadow-${index}`} castShadow receiveShadow={false}
+      position={volume.position} frustumCulled={false} raycast={() => {}}>
+      <boxGeometry args={volume.size} />
+      <meshBasicMaterial colorWrite={false} depthWrite={false} />
+    </mesh>)}
+    <mesh castShadow={lit && shadowVolumes.length === 0} receiveShadow={lit} geometry={geometry}>
       <Surface attach="material-0" color={edge} side={DoubleSide} />
       {frontColor
         ? <Surface attach="material-1" color={frontColor} side={DoubleSide} {...paintProps} />
@@ -135,10 +145,8 @@ export function WallMesh({ wall, lit = false, frontMaterial, frontColor, backCol
         ? <Surface attach="material-2" color={backColor} side={DoubleSide} {...paintProps} />
         : <Surface attach="material-2" color={timber} side={DoubleSide} />}
     </mesh>
-    <group position={[wall.center.x, wall.center.y, wall.center.z]} rotation={[0, wall.rotationY, 0]}>
-      <DoorFittings wall={wall} lit={lit} />
-      {wall.openings.length > 0 && <OpeningInteractionHandles wall={wall} wallId={wall.id} scope={interactionScope} />}
-    </group>
+    <DoorFittings wall={wall} lit={lit} />
+    {wall.openings.length > 0 && <OpeningInteractionHandles wall={wall} wallId={wall.id} scope={interactionScope} />}
   </group>;
 }
 
