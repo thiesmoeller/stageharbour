@@ -42,6 +42,20 @@ test('migrateWallSurfaces lifts finish and RAL into surfaces', () => {
   assert.deepEqual(layout.walls[0]!.surfaces?.front?.full, { kind: 'library', ref: 'library:color-white' });
 });
 
+test('layoutSchema.encode migrates legacy finish so Fastify can serialize raw DB rows', () => {
+  const raw = {
+    schemaVersion: 1 as const,
+    walls: [{ ...newWall(randomUUID(), 1000, 1000), finish: 'library:preset-sand' as const }],
+    braces: [],
+  };
+  // Response serialization encodes the handler return value without a prior parse.
+  const encoded = layoutSchema.encode(raw);
+  assert.equal('finish' in encoded.walls[0]!, false);
+  assert.deepEqual(encoded.walls[0]!.surfaces?.front?.full, {
+    kind: 'library', ref: 'library:preset-sand',
+  });
+});
+
 test('patchWallSurfaces supports full face and two bands', () => {
   const painted = patchWallSurfaces(undefined, 'front', {
     mode: 'full', full: { kind: 'paint', ral: '9010' },
@@ -109,11 +123,72 @@ test('banded front split assigns lower and upper material groups', () => {
   geometry.dispose();
 });
 
+/** Every front/back band triangle must lie entirely on its side of the split (no diagonal wedges). */
+function assertHorizontalBandGroups(
+  geometry: ReturnType<typeof buildWallPanelGeometry>,
+  size: { x: number; y: number; z: number },
+  splits: { frontMm?: number; backMm?: number },
+) {
+  const hh = size.y / 2;
+  const position = geometry.getAttribute('position');
+  const index = geometry.getIndex();
+  assert.ok(index);
+  const frontSplitY = splits.frontMm !== undefined ? -hh + splits.frontMm : undefined;
+  const backSplitY = splits.backMm !== undefined ? -hh + splits.backMm : undefined;
+  const eps = 0.5; // mm — ExtrudeGeometry float noise
+  for (const group of geometry.groups) {
+    const splitY = group.materialIndex === WALL_MAT_FRONT_LOWER || group.materialIndex === WALL_MAT_FRONT_UPPER
+      ? frontSplitY
+      : group.materialIndex === WALL_MAT_BACK_LOWER || group.materialIndex === WALL_MAT_BACK_UPPER
+        ? backSplitY
+        : undefined;
+    if (splitY === undefined) continue;
+    const lower = group.materialIndex === WALL_MAT_FRONT_LOWER || group.materialIndex === WALL_MAT_BACK_LOWER;
+    for (let i = group.start; i < group.start + group.count; i += 3) {
+      const ys = [0, 1, 2].map(k => position.getY(index.getX(i + k)));
+      if (lower) {
+        assert.ok(Math.max(...ys) <= splitY + eps,
+          `lower band triangle crosses above splitY=${splitY}: ${ys.join(',')}`);
+      } else {
+        assert.ok(Math.min(...ys) >= splitY - eps,
+          `upper band triangle crosses below splitY=${splitY}: ${ys.join(',')}`);
+      }
+    }
+  }
+}
+
+test('single (unbanded) front keeps one full-face material slot', () => {
+  const size = { x: 4000, y: 2400, z: 100 };
+  const geometry = buildWallPanelGeometry(size, []);
+  assert.ok(geometry.groups.find(g => g.materialIndex === WALL_MAT_FRONT_LOWER)!.count > 0);
+  assert.equal(geometry.groups.find(g => g.materialIndex === WALL_MAT_FRONT_UPPER)!.count, 0);
+  geometry.dispose();
+});
+
+test('banded front split is a horizontal stripe, not diagonal wedges', () => {
+  const size = { x: 4000, y: 2400, z: 100 };
+  const splits = { frontMm: 1200 };
+  const geometry = buildWallPanelGeometry(size, [], splits);
+  assertHorizontalBandGroups(geometry, size, splits);
+  geometry.dispose();
+});
+
+test('banded front with doorway stays a horizontal stripe around the opening', () => {
+  const size = { x: 5100, y: 2400, z: 28 };
+  const opening = { id: randomUUID(), left: 1800, sill: 0, width: 1000, height: 2000 };
+  const splits = { frontMm: 1200 };
+  const geometry = buildWallPanelGeometry(size, [opening], splits);
+  assert.equal(wallGeometryGroupCoverage(geometry).complete, true);
+  assertHorizontalBandGroups(geometry, size, splits);
+  geometry.dispose();
+});
+
 test('openings stay empty with banded materials and shadow volumes', () => {
   const size = { x: 5000, y: 2400, z: 200 };
   const opening = { id: randomUUID(), left: 1000, sill: 0, width: 2000, height: 2000 };
   const geometry = buildWallPanelGeometry(size, [opening], { frontMm: 1000, backMm: 1000 });
   assert.equal(wallGeometryGroupCoverage(geometry).complete, true);
+  assertHorizontalBandGroups(geometry, size, { frontMm: 1000, backMm: 1000 });
   const volumes = wallShadowVolumes(size, [opening]);
   assert.ok(volumes.length >= 2);
   const hw = size.x / 2, hh = size.y / 2;
