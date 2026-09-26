@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useThree } from '@react-three/fiber';
-import { DoubleSide, Plane, Quaternion, Vector2, Vector3, type Object3D } from 'three';
+import { DoubleSide, Mesh, Plane, Quaternion, Vector2, Vector3, type Material, type Object3D } from 'three';
 import type { VenueGeometry } from '../../shared/layout.js';
 import {
-  applyPushPull, classifyLocalFace, localNormalFromWorld, planRotationFor, resolvePushPullFace,
+  applyPushPull, classifyLocalFace, inferenceDeltaMm, localNormalFromWorld, planRotationFor, resolveDragDeltaMm,
+  resolvePushPullFace,
   type OpeningEdge, type PushPullHandle,
 } from '../../shared/pushPull.js';
 
@@ -36,6 +37,22 @@ function kindFromNode(object: Object3D, scope: 'venue' | 'scene'): NodeHit | und
   }
 }
 
+function isSameHandle(meta: NodeHit | undefined, handle: PushPullHandle) {
+  if (!meta) return false;
+  if (handle.kind === 'wallOpening') {
+    return meta.kind === 'wallOpening' && meta.id === handle.id
+      && meta.openingId === handle.openingId && meta.edge === handle.edge;
+  }
+  return meta.kind === handle.kind && meta.id === handle.id;
+}
+
+function isInvisiblePickProxy(object: Object3D) {
+  if (!(object instanceof Mesh)) return false;
+  const mats: Material[] = Array.isArray(object.material) ? object.material : [object.material];
+  return mats.length > 0 && mats.every(mat => !!(mat as Material & { transparent?: boolean; opacity?: number }).transparent
+    && ((mat as Material & { opacity?: number }).opacity ?? 1) < 0.05);
+}
+
 /** World-space direction that grows the cutout when dragging an opening edge. */
 function openingGrowNormal(edge: OpeningEdge, planRotationDeg: number, mirroredX: boolean, target: Vector3) {
   const local = edge === 'left' ? { x: -1, y: 0, z: 0 }
@@ -64,7 +81,7 @@ export function PushPullControls({
   const scene = useThree(state => state.scene);
   const raycaster = useThree(state => state.raycaster);
   const controls = useThree(state => state.controls) as { enabled?: boolean } | null;
-  const [hover, setHover] = useState<{ handle: PushPullHandle; point: Vector3; normal: Vector3 }>();
+  const [hover, setHover] = useState<{ handle: PushPullHandle; point: Vector3; normal: Vector3; inferred?: boolean }>();
   const drag = useRef<DragState | undefined>(undefined);
   const publisher = useRef(onPushPull); publisher.current = onPushPull;
   const currentControls = useRef(controls); currentControls.current = controls;
@@ -80,6 +97,7 @@ export function PushPullControls({
   const side = useMemo(() => new Vector3(), []);
   const planeNormal = useMemo(() => new Vector3(), []);
   const camDir = useMemo(() => new Vector3(), []);
+  const snapPoint = useMemo(() => new Vector3(), []);
 
   useEffect(() => {
     if (!enabled || !onPushPull) {
@@ -103,6 +121,18 @@ export function PushPullControls({
         if (!hit.object.visible || hit.object.name === 'venue-floor' || hit.object.userData?.pushPullIgnore) return false;
         return !!kindFromNode(hit.object, scope) && !!hit.face;
       });
+    }
+    /** First solid under the cursor that is not the face/edge currently being dragged. */
+    function inferencePoint(clientX: number, clientY: number, handle: PushPullHandle) {
+      const rect = target.getBoundingClientRect();
+      ndc.set((clientX - rect.left) / rect.width * 2 - 1, -(clientY - rect.top) / rect.height * 2 + 1);
+      raycaster.setFromCamera(ndc, camera);
+      for (const hit of raycaster.intersectObjects(scene.children, true)) {
+        if (!hit.object.visible || hit.object.name === 'venue-floor' || hit.object.userData?.pushPullIgnore) continue;
+        if (isInvisiblePickProxy(hit.object)) continue;
+        if (isSameHandle(kindFromNode(hit.object, scope), handle)) continue;
+        return hit.point;
+      }
     }
     function handleFor(hit: { object: Object3D; face: { normal: Vector3 }; point: Vector3 }) {
       const meta = kindFromNode(hit.object, scope);
@@ -133,12 +163,23 @@ export function PushPullControls({
       ndc.set((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1);
       raycaster.setFromCamera(ndc, camera);
       if (!raycaster.ray.intersectPlane(active.plane, hitPoint)) return;
-      const deltaM = hitPoint.clone().sub(active.origin).dot(active.normal);
-      let deltaMm = deltaM * 1000;
+      const freeDeltaMm = hitPoint.clone().sub(active.origin).dot(active.normal) * 1000;
       active.bypass = event.altKey || !snapEnabled;
-      if (!active.bypass) deltaMm = Math.round(deltaMm / 5) * 5;
+      const pointed = !active.bypass ? inferencePoint(event.clientX, event.clientY, active.handle) : undefined;
+      const inferenceMm = pointed
+        ? inferenceDeltaMm(
+          { x: active.origin.x, y: active.origin.y, z: active.origin.z },
+          { x: active.normal.x, y: active.normal.y, z: active.normal.z },
+          { x: pointed.x, y: pointed.y, z: pointed.z },
+        )
+        : undefined;
+      const { deltaMm, inferred } = resolveDragDeltaMm(freeDeltaMm, inferenceMm, {
+        snapEnabled, bypass: active.bypass,
+      });
       const next = applyPushPull(active.start, active.handle, deltaMm);
       active.latest = next;
+      snapPoint.copy(active.origin).addScaledVector(active.normal, deltaMm / 1000);
+      setHover({ handle: active.handle, point: snapPoint.clone(), normal: active.normal, inferred });
       publish('preview', next, active.bypass);
     }
     function onDown(event: PointerEvent) {
@@ -197,20 +238,20 @@ export function PushPullControls({
       target.removeEventListener('pointercancel', onCancel);
       window.removeEventListener('keydown', onKey);
     };
-  }, [axis, camera, camDir, controls, enabled, gl, hitPoint, ndc, onPushPull, planeNormal, raycaster, scene, side, snapEnabled, venue, scope]);
+  }, [axis, camera, camDir, controls, enabled, gl, hitPoint, ndc, onPushPull, planeNormal, raycaster, scene, side, snapEnabled, snapPoint, venue, scope]);
 
   if (!enabled || !hover) return null;
-  return <FaceHighlight point={hover.point} normal={hover.normal} />;
+  return <FaceHighlight point={hover.point} normal={hover.normal} inferred={!!hover.inferred} />;
 }
 
-function FaceHighlight({ point, normal }: { point: Vector3; normal: Vector3 }) {
+function FaceHighlight({ point, normal, inferred }: { point: Vector3; normal: Vector3; inferred?: boolean }) {
   const quaternion = useMemo(
     () => new Quaternion().setFromUnitVectors(new Vector3(0, 0, 1), normal.clone().normalize()),
     [normal],
   );
   return <mesh position={point} quaternion={quaternion} userData={{ pushPullIgnore: true }} raycast={() => {}}>
-    <planeGeometry args={[1.2, 1.2]} />
-    <meshBasicMaterial color="#e9a83b" transparent opacity={0.45} depthTest={false} side={DoubleSide} />
+    <planeGeometry args={[inferred ? 1.6 : 1.2, inferred ? 1.6 : 1.2]} />
+    <meshBasicMaterial color={inferred ? '#f0b429' : '#e9a83b'} transparent opacity={inferred ? 0.65 : 0.45} depthTest={false} side={DoubleSide} />
   </mesh>;
 }
 
