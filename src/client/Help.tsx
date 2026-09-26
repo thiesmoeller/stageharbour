@@ -16,6 +16,7 @@ export function Help() {
       <a href="#hilfe-kuerzel">Tastatur</a>
       <a href="#hilfe-oberflaechen">Wandoberflächen</a>
       <a href="#hilfe-raumsicht">Raumsicht</a>
+      <a href="#hilfe-bestand">Bestand</a>
     </nav>
 
     <section id="hilfe-ablauf">
@@ -99,6 +100,20 @@ export function Help() {
         <li><strong>Erweiterte Darstellung</strong> nutzt Pascal-Beleuchtung und Texturen; dort wirken Oberflächen.</li>
         <li>Klick in freien Raum hebt die Auswahl auf (wie im Grundriss).</li>
       </ul>
+    </section>
+
+    <section id="hilfe-bestand">
+      <h2>Bestand</h2>
+      <p>Unter <strong>Bestand</strong> verwalten Sie den <strong>Plattenbestand</strong> und katalogisierte <strong>Wandtypen</strong>
+        (inkl. Tür und Fenster) ohne eine Szene zu öffnen. Die Objektbibliothek bleibt der Ort zum Platzieren und Entwerfen.</p>
+      <ul>
+        <li><strong>Szene zuerst</strong> — Bühnenbild frei anlegen; Platten müssen nicht vorher im Bestand existieren.</li>
+        <li><strong>Zuweisung später</strong> — physische Platten weisen Sie in der Szene an Wände zu, nicht im Bestand.</li>
+        <li><strong>Kopie gehört der Szene</strong> — beim Kopieren/Übernehmen in eine andere Spielstätte werden Platten-IDs gelöscht
+          (clone-and-own). Es gibt keine Live-Synchronisation mit einem Master-Layout.</li>
+        <li><strong>Oberflächen</strong> bleiben am Wand-Inspektor (Pascal/RAL), nicht im Bestand.</li>
+      </ul>
+      <p className="muted">Einmalige Wandtypen dürfen weiter nur in der Szene existieren; Bestand speichert die Katalogtypen für Platten.</p>
     </section>
 
     <p className="help-footer muted">Kurzhilfe im Editor: Schaltfläche <strong>Bedienung</strong> in der Statusleiste · diese Seite jederzeit unter Hilfe im Arbeitsbereich.</p>

@@ -72,9 +72,12 @@ test('lease loss preserves the local scene and offers separate template recovery
   await expect(page.locator('.save-status')).toHaveText('Bearbeitung abgelaufen');
   await expect(page.getByRole('button', { name: 'Wand hinzufügen' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Lokalen Entwurf herunterladen' })).toBeVisible();
-  page.once('dialog', dialog => dialog.accept('Gerettete Probebühne'));
   const saved = page.waitForResponse(response => response.url().endsWith('/recover') && response.request().method() === 'POST');
   await page.getByRole('button', { name: 'Entwurf als Szenenvorlage sichern' }).click();
+  const prompt = page.getByRole('dialog', { name: 'Entwurf als Szenenvorlage sichern' });
+  await expect(prompt).toBeVisible();
+  await prompt.getByLabel('Name der Szenenvorlage').fill('Gerettete Probebühne');
+  await prompt.getByRole('button', { name: 'Sichern' }).click();
   const response = await saved;
   expect(response.status()).toBe(201);
   expect((await response.json()).layout.walls).toHaveLength(1);

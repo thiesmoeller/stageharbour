@@ -65,6 +65,10 @@ A definition of a kind of wall element, including distinguishing features such a
 **Inventory template**:
 A reusable definition of a wall element, weighted rear brace or scenic object. Placing a template creates an independent scene instance; the template is not itself a physical panel label or a count of available pieces.
 
+**Bestand**:
+The workspace home for physical panel stock and stocked wall-element types (including doors and windows as types). Crews design scenes first and assign panels later; one-off wall types may still exist only on a scene. Surface finishes are not managed here.
+_Avoid_: Materialien, Inventar (alone), Bibliothek
+
 **Scenic object**:
 A prop or piece of scenery represented by a model with physical outside dimensions and a placement in a scene layout.
 

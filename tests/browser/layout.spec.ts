@@ -12,10 +12,12 @@ async function waitUntilSaved(page: Page) {
 }
 
 /** After reload, hash routes may restore the open scene; otherwise open it from the list. */
-async function reopenScene(page: Page, sceneHeading: string, listButton: RegExp) {
+async function reopenScene(page: Page, sceneHeading: string, listButton: RegExp | string) {
   await page.reload();
   const editor = page.getByRole('heading', { name: sceneHeading, exact: true });
-  const card = page.getByRole('button', { name: listButton });
+  const card = typeof listButton === 'string'
+    ? page.getByRole('button', { name: listButton, exact: true })
+    : page.getByRole('button', { name: listButton });
   const workspace = page.getByRole('region', { name: 'Szene bearbeiten' });
   // Deep-link restore wins when present; avoid clicking a list card that the hash route will detach.
   try {
@@ -25,6 +27,7 @@ async function reopenScene(page: Page, sceneHeading: string, listButton: RegExp)
   } catch {
     /* list view — open from the card */
   }
+  await expect(card).toHaveCount(1);
   await card.click();
   await expect(editor).toBeVisible();
 }
@@ -46,12 +49,12 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   page.on('pageerror', error => errors.push(error.message));
   await signIn(page);
   await createProduction(page, {
-    productionName: 'Beispielproduktion',
-    venueName: 'Beispielsaal',
-    sceneName: 'Erste Szene',
+    productionName: 'LayoutJourney',
+    venueName: 'LayoutSaal',
+    sceneName: 'LayoutSzene',
   });
-  await expect(page.getByRole('heading', { name: 'Erste Szene' })).toBeVisible();
-  await expect(page.getByText('Beispielproduktion · Beispielsaal')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'LayoutSzene' })).toBeVisible();
+  await expect(page.getByText('LayoutJourney · LayoutSaal')).toBeVisible();
   await expect(page.getByText('↑ Publikum · Blick zur Bühne')).toBeVisible();
   await waitUntilSaved(page);
 
@@ -90,7 +93,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByLabel('Y (mm)')).toHaveValue('3000');
   await waitUntilSaved(page);
 
-  await reopenScene(page, 'Erste Szene', /Beispielproduktion · Erste Szene/);
+  await reopenScene(page, 'LayoutSzene', 'LayoutJourney · LayoutSzene LayoutSaal');
   await expect(wall).toHaveCount(1);
   await wall.click();
   await expect(page.getByLabel('X (mm)')).toHaveValue('4000');
@@ -125,7 +128,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(brace).toHaveCount(1);
   await waitUntilSaved(page);
 
-  await reopenScene(page, 'Erste Szene', /Beispielproduktion · Erste Szene/);
+  await reopenScene(page, 'LayoutSzene', 'LayoutJourney · LayoutSzene LayoutSaal');
   await expect(page.locator('[data-testid^="brace-"]')).toHaveCount(1);
   await page.locator('[data-testid^="brace-"]').click();
   await expect(page.getByLabel('X (mm)')).toHaveValue('4000');
@@ -199,7 +202,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByRole('button', { name: 'Spielstätte speichern' }).click();
   expect((await saved).ok()).toBeTruthy();
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();
-  await reopenScene(page, 'Erste Szene', /Beispielproduktion · Erste Szene/);
+  await reopenScene(page, 'LayoutSzene', 'LayoutJourney · LayoutSzene LayoutSaal');
   await expect(page.locator('.plan-canvas [data-testid^="connection-point-"]')).toHaveCount(1);
   await expect(page.locator('.plan-canvas [data-testid^="connection-point-"]')).toContainText('Lichtstrom');
   await expect(page.locator('.plan-canvas g[data-testid^="cable-corridor-"]')).toHaveCount(1);
@@ -250,20 +253,22 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
 
   await placeWallAt(page, 5000, 3000);
   await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(2);
+  // Editor already loaded workspace inventory (shared across e2e); assert growth, not absolute empty.
+  const stockBefore = Number(await page.getByTestId('inventory-panel-count').textContent());
   const library = await openLibrary(page, 'Plattenbestand');
   await library.getByRole('button', { name: 'Plattenbestand bearbeiten' }).click();
   await library.getByLabel('Plattenetikett').fill('Beispiel-P01');
   await library.getByRole('button', { name: 'Platte anlegen' }).click();
   await expect(library.getByText('Beispiel-P01 · Glattwand')).toBeVisible();
-  await expect(page.getByTestId('inventory-panel-count')).toHaveText('1');
+  await expect(page.getByTestId('inventory-panel-count')).toHaveText(String(stockBefore + 1));
   await page.getByRole('button', { name: 'Objektbibliothek', exact: true }).click();
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await page.getByLabel('Platte zuweisen').selectOption({ label: 'Beispiel-P01' });
   await expect(page.getByTestId('inventory-warnings')).toContainText('keine Platte zugewiesen');
   await expect(page.getByTestId('inventory-warnings')).toContainText('Plattenbestand reicht nicht');
   await waitUntilSaved(page);
-  await reopenScene(page, 'Erste Szene', /Beispielproduktion · Erste Szene/);
-  await expect(page.getByRole('heading', { name: 'Erste Szene' })).toBeVisible();
+  await reopenScene(page, 'LayoutSzene', 'LayoutJourney · LayoutSzene LayoutSaal');
+  await expect(page.getByRole('heading', { name: 'LayoutSzene' })).toBeVisible();
   await expect(page.locator('.plan-canvas [data-testid^="placeholder-"]')).toHaveCount(1);
   await page.locator('.plan-canvas [data-testid^="placeholder-"]').click();
   await expect(page.locator('#placeholder-depth')).toHaveValue('900');
@@ -296,7 +301,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByLabel('Rigginghinweise').fill('Stifte belassen.');
   await page.getByRole('button', { name: 'Hinweise speichern' }).click();
   await waitUntilSaved(page);
-  await reopenScene(page, 'Erste Szene', /Beispielproduktion · Erste Szene/);
+  await reopenScene(page, 'LayoutSzene', 'LayoutJourney · LayoutSzene LayoutSaal');
   await expect(page.locator('[data-testid^="assembly-label-"]')).toHaveText([
     '1Beispiel-P01', '2',
   ]);
@@ -329,8 +334,8 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('5500');
   await expect(page.getByLabel('Drehpunkt X (mm)')).toHaveValue('3500');
   await waitUntilSaved(page);
-  await reopenScene(page, 'Erste Szene', /Beispielproduktion · Erste Szene/);
-  await expect(page.getByRole('heading', { name: 'Erste Szene' })).toBeVisible();
+  await reopenScene(page, 'LayoutSzene', 'LayoutJourney · LayoutSzene LayoutSaal');
+  await expect(page.getByRole('heading', { name: 'LayoutSzene' })).toBeVisible();
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await expect(page.getByLabel('Drehpunkt X (mm)')).toHaveValue('3500');
   await expect(page.getByRole('button', { name: 'Gruppe auflösen' }).first()).toBeVisible();
@@ -368,12 +373,12 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();
   await expect(page.getByRole('heading', { name: 'Produktionen & Szenen' })).toBeVisible();
   const duplicated = page.waitForResponse(response => response.url().includes('/duplicate') && response.request().method() === 'POST');
-  await page.locator('.scene-card').filter({ has: page.getByRole('button', { name: /Beispielproduktion · Erste Szene Beispielsaal/ }) }).getByRole('button', { name: 'Szene duplizieren', exact: true }).click();
+  await page.locator('.scene-card').filter({ has: page.getByRole('button', { name: 'LayoutJourney · LayoutSzene LayoutSaal' }) }).getByRole('button', { name: 'Szene duplizieren', exact: true }).click();
   expect((await duplicated).ok()).toBeTruthy();
-  await expect(page.getByRole('button', { name: /Erste Szene \(Kopie\)/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Beispielproduktion · Erste Szene Beispielsaal/ })).toBeVisible();
-  await page.getByRole('button', { name: /Erste Szene \(Kopie\)/ }).click();
-  await expect(page.getByRole('heading', { name: 'Erste Szene (Kopie)' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /LayoutSzene \(Kopie\)/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'LayoutJourney · LayoutSzene LayoutSaal' })).toBeVisible();
+  await page.getByRole('button', { name: /LayoutSzene \(Kopie\)/ }).click();
+  await expect(page.getByRole('heading', { name: 'LayoutSzene (Kopie)' })).toBeVisible();
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await expect(page.getByText('Zugewiesen: Beispiel-P01')).toBeVisible();
   await page.getByLabel('X (mm)', { exact: true }).fill('2200');
@@ -381,8 +386,8 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('2200');
   await waitUntilSaved(page);
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();
-  await reopenScene(page, 'Erste Szene', /Beispielproduktion · Erste Szene Beispielsaal/);
-  await expect(page.getByRole('heading', { name: 'Erste Szene', exact: true })).toBeVisible();
+  await reopenScene(page, 'LayoutSzene', 'LayoutJourney · LayoutSzene LayoutSaal');
+  await expect(page.getByRole('heading', { name: 'LayoutSzene', exact: true })).toBeVisible();
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('1800');
   await expect(page.getByText('Zugewiesen: Beispiel-P01')).toBeVisible();
@@ -425,8 +430,8 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('4000');
   // Alt bypass is covered with isolated wall geometry in interactions.spec.ts.
   await waitUntilSaved(page);
-  await reopenScene(page, 'Erste Szene', /Beispielproduktion · Erste Szene Beispielsaal/);
-  await expect(page.getByRole('heading', { name: 'Erste Szene' })).toBeVisible();
+  await reopenScene(page, 'LayoutSzene', 'LayoutJourney · LayoutSzene LayoutSaal');
+  await expect(page.getByRole('heading', { name: 'LayoutSzene' })).toBeVisible();
   await expect(page.getByTestId('stage-centreline')).toBeVisible();
   await page.getByRole('button', { name: 'Spielstätte' }).click();
   await expect(page.getByLabel('Mittellinie X (mm)')).toHaveValue('4000');
@@ -472,7 +477,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();
   await expect(page.getByRole('heading', { name: 'Produktionen & Szenen' })).toBeVisible();
   const copiedAcross = page.waitForResponse(response => response.url().includes('/copy') && response.request().method() === 'POST');
-  const sourceCard = page.getByRole('button', { name: /Beispielproduktion · Erste Szene Beispielsaal/ })
+  const sourceCard = page.getByRole('button', { name: 'LayoutJourney · LayoutSzene LayoutSaal' })
     .locator('xpath=ancestor::div[contains(@class,"scene-card")]');
   await sourceCard.locator('summary', { hasText: 'Weitere Aktionen' }).click();
   await sourceCard.getByRole('button', { name: 'In andere Spielstätte kopieren' }).click();
@@ -480,9 +485,9 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByLabel('Zielspielstätte').selectOption({ label: 'Stadthalle' });
   await page.getByRole('button', { name: 'Als Spielstättenanpassung anlegen' }).click();
   expect((await copiedAcross).ok()).toBeTruthy();
-  await expect(page.getByRole('button', { name: /Gastspiel · Erste Szene \(Kopie\)/ })).toBeVisible();
-  await page.getByRole('button', { name: /Gastspiel · Erste Szene \(Kopie\)/ }).click();
-  await expect(page.getByRole('heading', { name: 'Erste Szene (Kopie)' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Gastspiel · LayoutSzene \(Kopie\)/ })).toBeVisible();
+  await page.getByRole('button', { name: /Gastspiel · LayoutSzene \(Kopie\)/ }).click();
+  await expect(page.getByRole('heading', { name: 'LayoutSzene (Kopie)' })).toBeVisible();
   await expect(page.getByText('Gastspiel · Stadthalle')).toBeVisible();
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await expect(page.getByText('Zugewiesen: Beispiel-P01')).toHaveCount(0);
@@ -493,7 +498,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();
   await expect(page.getByRole('heading', { name: 'Produktionen & Szenen' })).toBeVisible();
   const capturedTemplate = page.waitForResponse(response => /\/scenes\/[^/]+\/templates$/.test(new URL(response.url()).pathname) && response.request().method() === 'POST');
-  const templateSource = page.getByRole('button', { name: /Beispielproduktion · Erste Szene Beispielsaal/ })
+  const templateSource = page.getByRole('button', { name: 'LayoutJourney · LayoutSzene LayoutSaal' })
     .locator('xpath=ancestor::div[contains(@class,"scene-card")]');
   await templateSource.locator('summary', { hasText: 'Weitere Aktionen' }).click();
   await templateSource.getByRole('button', { name: 'Als Szenenvorlage speichern' }).click();
@@ -519,18 +524,18 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();
   await expect(page.getByRole('heading', { name: 'Produktionen & Szenen' })).toBeVisible();
   const copiedReturn = page.waitForResponse(response => response.url().includes('/copy') && response.request().method() === 'POST');
-  const returnSource = page.getByRole('button', { name: /Beispielproduktion · Erste Szene Beispielsaal/ })
+  const returnSource = page.getByRole('button', { name: 'LayoutJourney · LayoutSzene LayoutSaal' })
     .locator('xpath=ancestor::div[contains(@class,"scene-card")]');
   await returnSource.locator('summary', { hasText: 'Weitere Aktionen' }).click();
   await returnSource.getByRole('button', { name: 'In andere Spielstätte kopieren' }).click();
   await page.getByLabel('Zielproduktion').selectOption({ label: 'Gastspiel' });
-  await page.getByLabel('Zielspielstätte').selectOption({ label: 'Beispielsaal' });
+  await page.getByLabel('Zielspielstätte').selectOption({ label: 'LayoutSaal' });
   await page.getByRole('textbox', { name: 'Szene' }).fill('Rückkehr');
   await page.getByRole('button', { name: 'Als Spielstättenanpassung anlegen' }).click();
   expect((await copiedReturn).ok()).toBeTruthy();
   await expect(page.getByRole('button', { name: /Gastspiel · Rückkehr/ })).toBeVisible();
-  await page.getByRole('button', { name: /Beispielproduktion · Erste Szene Beispielsaal/ }).click();
-  await expect(page.getByRole('heading', { name: 'Erste Szene', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'LayoutJourney · LayoutSzene LayoutSaal' }).click();
+  await expect(page.getByRole('heading', { name: 'LayoutSzene', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Spielstätte' }).click();
   await openInspector(page, 'Überbauung');
   await page.getByLabel('Deckenhöhe über Fußboden (mm)').fill('1800');
@@ -540,7 +545,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();
   await expect(page.getByRole('heading', { name: 'Produktionen & Szenen' })).toBeVisible();
   await expect(page.getByRole('button', { name: /Gastspiel · Rückkehr/ })).toContainText('Aktualisierung verfügbar');
-  await expect(page.getByRole('button', { name: /Beispielproduktion · Erste Szene Beispielsaal/ })).not.toContainText('Aktualisierung verfügbar');
+  await expect(page.getByRole('button', { name: 'LayoutJourney · LayoutSzene LayoutSaal' })).not.toContainText('Aktualisierung verfügbar');
   const appliedVenue = page.waitForResponse(response => response.url().includes('/venue-apply') && response.request().method() === 'POST');
   await page.getByRole('button', { name: /Gastspiel · Rückkehr/ })
     .locator('xpath=ancestor::div[contains(@class,"scene-card")]')

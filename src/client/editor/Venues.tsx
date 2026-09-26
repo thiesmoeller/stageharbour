@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { Me } from '../../shared/contracts.js';
 import { createVenueSchema, renameVenueSchema, venueListSchema, venueRecordSchema, type VenueRecord } from '../../shared/venueLibrary.js';
 import { ApiError, request } from '../api.js';
+import { askConfirm } from '../ConfirmDialog.js';
 import { ToolIcon } from './ToolIcon.js';
 import { VenuePanel } from './VenuePanel.js';
 import { PlanPreview } from './PlanPreview.js';
@@ -112,7 +113,12 @@ export function Venues({ me, onDirty, venueId }: { me: Me; onDirty: (dirty: bool
     } finally { setBusy(false); }
   }
   async function remove(id: string, name: string) {
-    if (!window.confirm(`Spielstätte „${name}“ wirklich löschen? Nur möglich, wenn keine Produktion sie mehr verwendet.`)) return;
+    if (!await askConfirm({
+      title: 'Spielstätte löschen?',
+      message: `Spielstätte „${name}“ wirklich löschen? Nur möglich, wenn keine Produktion sie mehr verwendet.`,
+      confirmLabel: 'Spielstätte löschen',
+      danger: true,
+    })) return;
     setBusy(true); setError('');
     try { await request(`${base}/${id}`, undefined, 'DELETE'); setAttempt(value => value + 1); }
     catch (caught) { setError(caught instanceof ApiError ? caught.message : 'Die Spielstätte konnte nicht gelöscht werden.'); setBusy(false); }

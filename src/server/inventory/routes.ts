@@ -4,9 +4,9 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { errorSchema, workspaceParamsSchema } from '../../shared/contracts.js';
-import { assignPanelSchema, createPanelSchema, inventoryPanelSchema, inventorySchema, sameGeometry, typesCompatible, updatePanelSchema, placementType } from '../../shared/inventory.js';
+import { assignPanelSchema, createPanelSchema, inventoryPanelSchema, inventorySchema, sameGeometry, typesCompatible, updatePanelSchema, upsertInventoryTypeSchema, placementType } from '../../shared/inventory.js';
 import { leaseHolderSchema } from '../../shared/leases.js';
-import { typesOf, type WallElementType } from '../../shared/wall-types.js';
+import { typesOf, wallTypeSchema, type WallElementType } from '../../shared/wall-types.js';
 import type { Database } from '../db/connection.js';
 import { inventoryPanel, inventoryWallType, scene } from '../db/schema.js';
 import { AccessError, type createAccess } from '../identity/access.js';
@@ -105,6 +105,61 @@ export function registerInventoryRoutes(app: FastifyInstance, db: Database, acce
       return panel;
     });
     return result;
+  });
+  const typeParams = workspaceParamsSchema.extend({ typeId: z.uuid() });
+  api.post(`${path}/types`, {
+    schema: { params: workspaceParamsSchema, body: upsertInventoryTypeSchema, response: { 201: wallTypeSchema, ...errors } },
+  }, async (request, reply) => {
+    const { workspaceId } = request.params;
+    const { user } = await requireEditor(request, workspaceId);
+    const result = await db.transaction(async tx => {
+      await leases.requireHeld(tx, workspaceId, 'inventory', workspaceId, user.id);
+      const [existing] = await tx.select().from(inventoryWallType)
+        .where(and(eq(inventoryWallType.workspaceId, workspaceId), eq(inventoryWallType.id, request.body.id)));
+      if (existing) throw new AccessError(409, 'Dieser Wandtyp ist im Bestand bereits angelegt.');
+      await tx.insert(inventoryWallType).values({ id: request.body.id, workspaceId, definition: request.body });
+      return request.body;
+    });
+    return reply.code(201).send(result);
+  });
+  api.put(`${path}/types/:typeId`, {
+    schema: { params: typeParams, body: upsertInventoryTypeSchema, response: { 200: wallTypeSchema, ...errors } },
+  }, async request => {
+    const { workspaceId, typeId } = request.params;
+    const { user } = await requireEditor(request, workspaceId);
+    if (request.body.id !== typeId) throw new AccessError(400, 'Wandtyp-ID stimmt nicht überein.');
+    return db.transaction(async tx => {
+      await leases.requireHeld(tx, workspaceId, 'inventory', workspaceId, user.id);
+      const [existing] = await tx.select().from(inventoryWallType)
+        .where(and(eq(inventoryWallType.workspaceId, workspaceId), eq(inventoryWallType.id, typeId)));
+      if (!existing) throw new AccessError(404, 'Wandtyp nicht verfügbar.');
+      const [inUse] = await tx.select({ id: inventoryPanel.id }).from(inventoryPanel)
+        .where(and(eq(inventoryPanel.workspaceId, workspaceId), eq(inventoryPanel.typeId, typeId))).limit(1);
+      if (inUse && !sameGeometry(existing.definition, request.body)) {
+        throw new AccessError(409, 'Dieser Wandtyp ist im Bestand bereits anders definiert.');
+      }
+      await tx.update(inventoryWallType).set({ definition: request.body })
+        .where(and(eq(inventoryWallType.workspaceId, workspaceId), eq(inventoryWallType.id, typeId)));
+      return request.body;
+    });
+  });
+  api.delete(`${path}/types/:typeId`, {
+    schema: { params: typeParams, response: { 200: z.object({ ok: z.literal(true) }), ...errors } },
+  }, async request => {
+    const { workspaceId, typeId } = request.params;
+    const { user } = await requireEditor(request, workspaceId);
+    await db.transaction(async tx => {
+      await leases.requireHeld(tx, workspaceId, 'inventory', workspaceId, user.id);
+      const [existing] = await tx.select().from(inventoryWallType)
+        .where(and(eq(inventoryWallType.workspaceId, workspaceId), eq(inventoryWallType.id, typeId)));
+      if (!existing) throw new AccessError(404, 'Wandtyp nicht verfügbar.');
+      const [inUse] = await tx.select({ id: inventoryPanel.id }).from(inventoryPanel)
+        .where(and(eq(inventoryPanel.workspaceId, workspaceId), eq(inventoryPanel.typeId, typeId))).limit(1);
+      if (inUse) throw new AccessError(409, 'Dieser Wandtyp wird noch von Platten verwendet.');
+      await tx.delete(inventoryWallType)
+        .where(and(eq(inventoryWallType.workspaceId, workspaceId), eq(inventoryWallType.id, typeId)));
+    });
+    return { ok: true as const };
   });
   api.post('/api/workspaces/:workspaceId/scenes/:sceneId/walls/:wallId/assignment', {
     schema: { params: assignmentParams, body: assignPanelSchema, response: { 200: z.object({ panelId: z.uuid() }), ...errors } },

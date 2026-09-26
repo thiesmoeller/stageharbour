@@ -8,7 +8,7 @@ export function WallTypePanel({ types, selectedId, readOnly, onSelect, onCreate,
   onSelect: (id?: string) => void;
   onCreate: (type: WallElementType) => void;
   onApply: (type: WallElementType) => void;
-  onPlace: (type: WallElementType) => void;
+  onPlace?: (type: WallElementType) => void;
   onRemove: (id: string) => void;
   onPendingChange?: (pending: boolean) => void;
 }) {
@@ -16,18 +16,23 @@ export function WallTypePanel({ types, selectedId, readOnly, onSelect, onCreate,
   const [typePending, setTypePending] = useState(false);
   const selected = types.find(type => type.id === selectedId);
   function createType() {
-    if (!confirmDiscardPending(typePending)) return;
-    const type = template
-      ? groupWallType(template, crypto.randomUUID(), crypto.randomUUID())
-      : newWallType(crypto.randomUUID());
-    onCreate(type);
+    void (async () => {
+      if (!(await confirmDiscardPending(typePending))) return;
+      const type = template
+        ? groupWallType(template, crypto.randomUUID(), crypto.randomUUID())
+        : newWallType(crypto.randomUUID());
+      onCreate(type);
+    })();
   }
   return <div className="wall-types">
     <h3>Wandtypen</h3>
     <label htmlFor="wall-type-selection">Wandtyp</label>
     <select id="wall-type-selection" value={selected?.id ?? ''} onChange={event => {
-      if (!confirmDiscardPending(typePending)) return;
-      onSelect(event.target.value || undefined);
+      const next = event.target.value || undefined;
+      void (async () => {
+        if (!(await confirmDiscardPending(typePending))) return;
+        onSelect(next);
+      })();
     }}>
       <option value="">Wandtyp auswählen</option>
       {types.map((type, index) => <option key={type.id} value={type.id}>{index + 1}. {type.name}</option>)}
@@ -53,7 +58,7 @@ export function WallTypePanel({ types, selectedId, readOnly, onSelect, onCreate,
 function TypeForm({ type, readOnly, onPendingChange, onApply, onPlace, onRemove }: {
   type: WallElementType; readOnly: boolean;
   onPendingChange?: (pending: boolean) => void;
-  onApply: (type: WallElementType) => void; onPlace: (type: WallElementType) => void; onRemove: () => void;
+  onApply: (type: WallElementType) => void; onPlace?: (type: WallElementType) => void; onRemove: () => void;
 }) {
   const [openings, setOpenings] = useState(type.openings);
   const [error, setError] = useState('');
@@ -109,7 +114,7 @@ function TypeForm({ type, readOnly, onPendingChange, onApply, onPlace, onRemove 
     {!readOnly && <div className="form-actions">
       <button type="submit">Wandtyp speichern</button>
       {pending && <button className="quiet" type="button" onClick={() => { setOpenings(type.openings); discard(); }}>Verwerfen</button>}
-      <button className="quiet" type="button" onClick={() => onPlace(type)}>Wandtyp platzieren</button>
+      {onPlace && <button className="quiet" type="button" onClick={() => onPlace(type)}>Wandtyp platzieren</button>}
       <button className="quiet" type="button" onClick={onRemove}>Wandtyp löschen</button>
     </div>}
   </fieldset></form>;
