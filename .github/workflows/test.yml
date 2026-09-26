@@ -4,6 +4,7 @@ permissions:
   contents: read
   packages: write
 jobs:
+  # Full suite on x86 — this is the real confidence gate (incl. all Playwright e2e).
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 35
@@ -36,16 +37,60 @@ jobs:
           name: browser-failures
           path: test-results/
 
-  deploy:
+  # Native arm64 smoke only — unit + integration + a short login/workspace e2e.
+  # CapRover often runs on ARM; we do not re-run the full 3D/layout browser suite here.
+  arm64-smoke:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17.6-alpine
+        env:
+          POSTGRES_USER: stage_planner
+          POSTGRES_PASSWORD: local-development-only
+          POSTGRES_DB: stage_planner
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U stage_planner -d stage_planner"
+          --health-interval 2s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+      - run: npm run test:integration
+      - run: npm run test:e2e:smoke
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-failures-arm64
+          path: test-results/
+
+  # Build each architecture natively (no QEMU). Manifest + CapRover deploy follow.
+  publish:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: test
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
+    needs: [test, arm64-smoke]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            platform: linux/amd64
+            suffix: amd64
+          - runner: ubuntu-24.04-arm
+            platform: linux/arm64
+            suffix: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
@@ -59,19 +104,47 @@ jobs:
           version=$(git describe --tags --always --dirty)
           echo "image=${image}:${tag}" >> "$GITHUB_OUTPUT"
           echo "latest=${image}:latest" >> "$GITHUB_OUTPUT"
+          echo "arch=${image}:${tag}-${{ matrix.suffix }}" >> "$GITHUB_OUTPUT"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
       - uses: docker/build-push-action@v6
         with:
           context: .
           push: true
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ matrix.platform }}
           build-args: |
             APP_VERSION=${{ steps.meta.outputs.version }}
-          tags: |
-            ${{ steps.meta.outputs.image }}
-            ${{ steps.meta.outputs.latest }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ${{ steps.meta.outputs.arch }}
+          cache-from: type=gha,scope=build-${{ matrix.suffix }}
+          cache-to: type=gha,mode=max,scope=build-${{ matrix.suffix }}
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        run: |
+          image=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')
+          tag=$(echo '${{ github.sha }}' | cut -c1-7)
+          echo "image=${image}:${tag}" >> "$GITHUB_OUTPUT"
+          echo "latest=${image}:latest" >> "$GITHUB_OUTPUT"
+          echo "amd64=${image}:${tag}-amd64" >> "$GITHUB_OUTPUT"
+          echo "arm64=${image}:${tag}-arm64" >> "$GITHUB_OUTPUT"
+      - name: Create multi-arch manifests
+        run: |
+          docker buildx imagetools create \
+            -t "${{ steps.meta.outputs.image }}" \
+            -t "${{ steps.meta.outputs.latest }}" \
+            "${{ steps.meta.outputs.amd64 }}" \
+            "${{ steps.meta.outputs.arm64 }}"
+      - uses: actions/checkout@v4
       - uses: caprover/deploy-from-github@v1.1.2
         with:
           server: ${{ secrets.CAPROVER_SERVER }}
