@@ -362,6 +362,18 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
 .modal-backdrop { position: fixed; inset: 0; z-index: 1200; display: grid; place-items: center; padding: 16px; background: #20304055; }
 .modal { width: min(440px, 100%); max-height: min(90vh, 720px); overflow: auto; padding: 18px 20px; background: #fff; border: 1px solid var(--ui-line); border-radius: 10px; box-shadow: 0 18px 48px #20304033; }
 .modal h2 { margin: 0 0 8px; font-size: 1.15rem; }
+.confirm-dialog { width: min(400px, 100%); }
+.confirm-dialog p { margin: 0 0 16px; color: var(--ui-muted); line-height: 1.55; font-size: 13px; }
+.confirm-dialog .muted { margin-bottom: 12px; }
+.confirm-dialog label { display: block; margin: 0 0 4px; font-size: 12px; font-weight: 600; }
+.confirm-dialog input { width: 100%; margin-bottom: 14px; }
+.confirm-dialog .form-actions { margin: 0; justify-content: flex-end; gap: 8px; }
+.confirm-dialog .danger, .workspace .confirm-dialog .danger, .editor .confirm-dialog .danger {
+  background: #a33d30; color: #fff; border: 1px solid #8a3228;
+}
+.confirm-dialog .danger:hover, .workspace .confirm-dialog .danger:hover, .editor .confirm-dialog .danger:hover {
+  background: #8a3228;
+}
 .underlay-dialog .muted { margin: 0 0 12px; }
 .underlay-dialog--workspace { width: min(920px, calc(100vw - 32px)); max-height: min(94vh, 900px); }
 .underlay-workspace { display: flex; flex-direction: column; gap: 6px; margin: 10px 0 12px; }

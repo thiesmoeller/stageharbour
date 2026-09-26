@@ -37,6 +37,7 @@ import { planningWalls } from '../../shared/planningGeometry.js';
 import { useViewportWheel } from './viewportWheel.js';
 import { LEASE_HEARTBEAT_MS } from '../../shared/leases.js';
 import { ApiError, request } from '../api.js';
+import { askConfirm, askPrompt } from '../ConfirmDialog.js';
 import { Autosave, SaveConflict } from './autosave.js';
 import { BraceInspector } from './BraceInspector.js';
 import { BraceLayer } from './BraceLayer.js';
@@ -160,7 +161,11 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
   const pendingCount = useRef(0);
   const reportInspectorPending = useCallback((pending: boolean) => {
     pendingCount.current = adjustPendingCount(pendingCount.current, pending);
-    setInspectorPending(pendingCount.current > 0);
+    const next = pendingCount.current > 0;
+    // Keep the ref in lockstep so Auswahl/selection guards in the same event turn
+    // (e.g. right after Übernehmen) do not still see a stale pending flag.
+    inspectorPendingRef.current = next;
+    setInspectorPending(next);
   }, []);
   const [venue, setVenue] = useState<VenueGeometry>(boot.venue);
   const lastPlanPoint = useRef({ x: initial.venue.width / 2, y: initial.venue.depth / 2 });
@@ -219,7 +224,13 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
   const [recoveryMessage, setRecoveryMessage] = useState('');
   const [recovering, setRecovering] = useState(false);
   async function recoverDraft() {
-    const name = window.prompt('Name der Szenenvorlage', `${initial.name} – gesicherter Entwurf`);
+    const name = await askPrompt({
+      title: 'Entwurf als Szenenvorlage sichern',
+      message: 'Unter diesem Namen erscheint die Vorlage in der Übersicht.',
+      defaultValue: `${initial.name} – gesicherter Entwurf`,
+      inputLabel: 'Name der Szenenvorlage',
+      confirmLabel: 'Sichern',
+    });
     if (!name) return;
     setRecovering(true);
     try {
@@ -383,12 +394,24 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     commit({ ...current.current.present, stairs: (current.current.present.stairs ?? []).map(item => item.id === stair.id ? stair : item) });
   }
   function clearSelection(force = false) {
-    if (!force && !confirmDiscardPending(inspectorPendingRef.current)) return;
-    pickedRef.current = []; setPicked([]); setFixtureSelection(undefined);
+    if (force || pendingCount.current === 0) {
+      pickedRef.current = []; setPicked([]); setFixtureSelection(undefined);
+      return;
+    }
+    void confirmDiscardPending(true).then(ok => {
+      if (!ok) return;
+      pickedRef.current = []; setPicked([]); setFixtureSelection(undefined);
+    });
   }
   function setSelection(members: ClipboardMember[], force = false) {
-    if (!force && !confirmDiscardPending(inspectorPendingRef.current)) return;
-    pickedRef.current = members; setPicked(members); setFixtureSelection(undefined);
+    if (force || pendingCount.current === 0) {
+      pickedRef.current = members; setPicked(members); setFixtureSelection(undefined);
+      return;
+    }
+    void confirmDiscardPending(true).then(ok => {
+      if (!ok) return;
+      pickedRef.current = members; setPicked(members); setFixtureSelection(undefined);
+    });
   }
   function selection(): ClipboardMember[] {
     const present = current.current.present;
@@ -409,10 +432,18 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
   }
   function pickVenueFixture(fixture: VenueFixtureSelection) {
     if (busyGesture()) return;
-    if (!confirmDiscardPending(inspectorPendingRef.current)) return;
-    pickedRef.current = [];
-    setPicked([]);
-    setFixtureSelection(fixture);
+    if (pendingCount.current === 0) {
+      pickedRef.current = [];
+      setPicked([]);
+      setFixtureSelection(fixture);
+      return;
+    }
+    void confirmDiscardPending(true).then(ok => {
+      if (!ok) return;
+      pickedRef.current = [];
+      setPicked([]);
+      setFixtureSelection(fixture);
+    });
   }
   function remove() {
     if (busyGesture()) return;
@@ -898,7 +929,18 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
       <button onClick={downloadDraft}>Lokalen Entwurf herunterladen</button>{' '}
       <button disabled={recovering} onClick={() => void recoverDraft()}>Entwurf als Szenenvorlage sichern</button>
       {recoveryMessage && <p role="status">{recoveryMessage}</p>}
-      <button className="quiet" onClick={() => { if (window.confirm('Lokale Änderungen verwerfen und die gespeicherte Fassung laden?')) { saver.dispose(); onDirty(false); onClose(); } }}>Gespeicherte Fassung laden</button>
+      <button className="quiet" onClick={() => {
+        void askConfirm({
+          title: 'Gespeicherte Fassung laden?',
+          message: 'Lokale Änderungen verwerfen und die gespeicherte Fassung laden?',
+          confirmLabel: 'Gespeicherte Fassung laden',
+          cancelLabel: 'Abbrechen',
+          danger: true,
+        }).then(ok => {
+          if (!ok) return;
+          saver.dispose(); onDirty(false); onClose();
+        });
+      }}>Gespeicherte Fassung laden</button>
     </div>}
     {permissionReadOnly && onRequestEditing && <p role="status">Eine Bearbeitung ist möglich, sobald die bisherige Freigabe endet (spätestens 45 Sekunden nach dem letzten Lebenszeichen). <button onClick={onRequestEditing}>Bearbeitung erneut anfordern</button></p>}
     {!venueOpen && <div className="editor-grid" data-inspector-open={inspectorOpen} data-narrow={narrowEditor}><div className="editor-views" data-mode={activeView} style={activeView === 'split' ? { gridTemplateColumns: `minmax(0, ${viewShare}fr) minmax(0, ${100 - viewShare}fr)` } : { gridTemplateColumns: 'minmax(0, 1fr)' }}><div className="plan-canvas" hidden={activeView === 'stage'}>

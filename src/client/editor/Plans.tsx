@@ -7,6 +7,7 @@ import { copiedSceneName } from '../../shared/scenes.js';
 import type { Me } from '../../shared/contracts.js';
 import { can } from '../../shared/permissions.js';
 import { ApiError, request } from '../api.js';
+import { askConfirm } from '../ConfirmDialog.js';
 import { Editor } from './Editor.js';
 import { ExportWorkspace } from './ExportWorkspace.js';
 import { PlanPreview } from './PlanPreview.js';
@@ -246,13 +247,23 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
     } catch { setError('Die Spielstättenfassung konnte nicht übernommen werden.'); setBusy(false); }
   }
   async function removeScene(id: string, label: string) {
-    if (!window.confirm(`„${label}“ wirklich löschen? Diese Szene und abhängige Exporte werden entfernt.`)) return;
+    if (!await askConfirm({
+      title: 'Szene löschen?',
+      message: `„${label}“ wirklich löschen? Diese Szene und abhängige Exporte werden entfernt.`,
+      confirmLabel: 'Szene löschen',
+      danger: true,
+    })) return;
     setBusy(true); setError('');
     try { await request(`${base}/${id}`, undefined, 'DELETE'); setAttempt(value => value + 1); }
     catch (caught) { setError(caught instanceof ApiError ? caught.message : 'Die Szene konnte nicht gelöscht werden.'); setBusy(false); }
   }
   async function removeTemplate(id: string, label: string) {
-    if (!window.confirm(`Szenenvorlage „${label}“ wirklich löschen?`)) return;
+    if (!await askConfirm({
+      title: 'Szenenvorlage löschen?',
+      message: `Szenenvorlage „${label}“ wirklich löschen?`,
+      confirmLabel: 'Vorlage löschen',
+      danger: true,
+    })) return;
     setBusy(true); setError('');
     try { await request(`${templatesBase}/${id}`, undefined, 'DELETE'); setAttempt(value => value + 1); }
     catch (caught) { setError(caught instanceof ApiError ? caught.message : 'Die Szenenvorlage konnte nicht gelöscht werden.'); setBusy(false); }

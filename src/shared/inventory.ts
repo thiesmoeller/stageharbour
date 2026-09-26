@@ -84,6 +84,8 @@ export const inventorySchema = z.object({
   panels: z.array(inventoryPanelSchema),
 });
 export type Inventory = z.infer<typeof inventorySchema>;
+/** Create or replace a stocked wall-element type in the workspace catalog (Bestand). */
+export const upsertInventoryTypeSchema = wallTypeSchema;
 
 export type PlacementType = { id?: string; width: number; height: number; thickness: number; openings: Opening[] };
 export type InventoryWarning = {

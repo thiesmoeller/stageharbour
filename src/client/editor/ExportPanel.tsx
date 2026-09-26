@@ -7,6 +7,7 @@ import { ELEVATION_PROJECTION_NOTICE } from '../../shared/elevations.js';
 import type { Group } from '../../shared/groups.js';
 import type { Wall } from '../../shared/layout.js';
 import { ApiError, request } from '../api.js';
+import { askConfirm } from '../ConfirmDialog.js';
 
 const statusText = { pending: 'In Arbeit', ready: 'Fertig', failed: 'Fehlgeschlagen' };
 
@@ -81,7 +82,12 @@ export function PackageExport({ workspaceId, productionId, sceneId, scenes, read
     } catch { setError('Das Konstruktionspaket konnte nicht heruntergeladen werden.'); }
   }
   async function remove(id: string) {
-    if (!window.confirm('Dieses Konstruktionspaket endgültig löschen?')) return;
+    if (!await askConfirm({
+      title: 'Konstruktionspaket löschen?',
+      message: 'Dieses Konstruktionspaket endgültig löschen?',
+      confirmLabel: 'Paket löschen',
+      danger: true,
+    })) return;
     setGenerating(true); setError('');
     try {
       await request(`${base}/${id}`, undefined, 'DELETE');
@@ -206,7 +212,12 @@ export function ExportPanel({ workspaceId, sceneId, productionId, readOnly, free
     } catch { setError('Der Konstruktionsplan konnte nicht heruntergeladen werden.'); }
   }
   async function remove(id: string) {
-    if (!window.confirm('Diese Konstruktionsplan-Fassung endgültig löschen?')) return;
+    if (!await askConfirm({
+      title: 'Konstruktionsplan löschen?',
+      message: 'Diese Konstruktionsplan-Fassung endgültig löschen?',
+      confirmLabel: 'Fassung löschen',
+      danger: true,
+    })) return;
     setGenerating(true); setError('');
     try {
       await request(`${base}/${id}`, undefined, 'DELETE');

@@ -138,3 +138,42 @@ test('availability change keeps the scene reference and surfaces a warning', asy
   assert.equal(warnings.some(item => item.kind === 'unavailable' && item.panelId === panelId), true);
   assert.equal(reloaded.layout.walls.find(item => item.id === wall.id)?.panelId, panelId);
 });
+
+test('creates, updates and deletes stocked wall types under lease; geometry locks when panels use the type', async () => {
+  const stocked = { ...newWallType(randomUUID()), name: 'Bestand-Katalogtyp', width: 1100, height: 2400, thickness: 28, openings: [] };
+  assert.equal((await app.inject({ method: 'POST', url: `${inventoryUrl}/types`, headers, payload: stocked })).statusCode, 201);
+  const renamed = { ...stocked, name: 'Bestand-Katalogtyp umbenannt', width: 1150 };
+  const updated = await app.inject({ method: 'PUT', url: `${inventoryUrl}/types/${stocked.id}`, headers, payload: renamed });
+  assert.equal(updated.statusCode, 200, updated.body);
+  assert.equal(updated.json().name, 'Bestand-Katalogtyp umbenannt');
+  assert.equal(updated.json().width, 1150);
+
+  const panel = await app.inject({
+    method: 'POST', url: `${inventoryUrl}/panels`, headers,
+    payload: { label: 'Bestand-K01', type: renamed, note: null },
+  });
+  assert.equal(panel.statusCode, 201, panel.body);
+
+  const geometryChange = await app.inject({
+    method: 'PUT', url: `${inventoryUrl}/types/${stocked.id}`, headers,
+    payload: { ...renamed, width: 1300 },
+  });
+  assert.equal(geometryChange.statusCode, 409);
+
+  const nameOnly = await app.inject({
+    method: 'PUT', url: `${inventoryUrl}/types/${stocked.id}`, headers,
+    payload: { ...renamed, name: 'Bestand-Katalogtyp gesperrt' },
+  });
+  assert.equal(nameOnly.statusCode, 200, nameOnly.body);
+  assert.equal(nameOnly.json().name, 'Bestand-Katalogtyp gesperrt');
+
+  assert.equal((await app.inject({ method: 'DELETE', url: `${inventoryUrl}/types/${stocked.id}`, headers })).statusCode, 409);
+
+  const unused = { ...newWallType(randomUUID()), name: 'Bestand-Unbenutzt', ...EXAMPLE_PLAIN };
+  assert.equal((await app.inject({ method: 'POST', url: `${inventoryUrl}/types`, headers, payload: unused })).statusCode, 201);
+  assert.equal((await app.inject({ method: 'DELETE', url: `${inventoryUrl}/types/${unused.id}`, headers })).statusCode, 200);
+  assert.equal((await app.inject({ method: 'DELETE', url: `${inventoryUrl}/types/${unused.id}`, headers })).statusCode, 404);
+  assert.equal((await app.inject({
+    method: 'POST', url: `${inventoryUrl}/types`, headers, payload: { ...unused, id: stocked.id },
+  })).statusCode, 409);
+});

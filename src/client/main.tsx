@@ -5,10 +5,12 @@ import { invitationSchema, loginOptionsSchema, meSchema, membersSchema, invitati
 import { ApiError, request, upload } from './api.js';
 import { Venues } from './editor/Venues.js';
 import { Plans } from './editor/Plans.js';
+import { Bestand } from './editor/Bestand.js';
 import { Help } from './Help.js';
 import { can } from '../shared/permissions.js';
 import { AuditLog } from './AuditLog.js';
 import { parseWorkspaceLocation, workspaceHash, writeWorkspaceLocation, type WorkspaceLocation } from './workspaceRoutes.js';
+import { askConfirm, ConfirmHost } from './ConfirmDialog.js';
 import { shouldBlockDirtyRouteChange, UNSAVED_ROUTE_LEAVE_CONFIRM } from './dirtyRouteChange.js';
 import './style.css';
 import './workspace.css';
@@ -69,11 +71,21 @@ function App() {
       const next = readHash();
       const current = routeRef.current;
       if (shouldBlockDirtyRouteChange(dirtyRef.current, hashForRoute(current), hashForRoute(next))) {
-        if (!window.confirm(UNSAVED_ROUTE_LEAVE_CONFIRM)) {
-          suppressHashChange.current = true;
-          window.location.hash = hashForRoute(current);
-          return;
-        }
+        void askConfirm({
+          title: 'Ort wechseln?',
+          message: UNSAVED_ROUTE_LEAVE_CONFIRM,
+          confirmLabel: 'Verwerfen und wechseln',
+          cancelLabel: 'Hier bleiben',
+          danger: true,
+        }).then(ok => {
+          if (!ok) {
+            suppressHashChange.current = true;
+            window.location.hash = hashForRoute(current);
+            return;
+          }
+          setRoute(next);
+        });
+        return;
       }
       setRoute(next);
     };
@@ -138,6 +150,7 @@ function App() {
     {route.kind === 'app' && screen.kind === 'workspace' && <Workspace me={screen.me} branding={branding} onBranding={applyBranding} onDirty={setDirty} location={route.location} />}
     {route.kind === 'app' && screen.kind === 'error' && <main className="error-page"><p className="eyebrow">ARBEITSBEREICH</p><h1>{screen.denied ? 'Zugang erforderlich' : 'Verbindung unterbrochen'}</h1><p role="alert">{screen.message}</p><button onClick={() => void load()}>Erneut versuchen</button></main>}
     <footer>{branding.footerText}</footer>
+    <ConfirmHost />
   </div>;
 }
 
@@ -314,12 +327,14 @@ function Workspace({ me, branding, onBranding, onDirty, location }: {
     <nav className="workspace-navigation" aria-label="Arbeitsbereiche" hidden={editing}>
       <button className="quiet" aria-current={section === 'plans' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'plans' })}>Produktionen & Szenen<span>Szenen entwerfen und planen</span></button>
       <button className="quiet" aria-current={section === 'venues' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'venues' })}>Spielstätten & Bühnen<span>Räume, Grundrisse und feste Einrichtungen</span></button>
+      <button className="quiet" aria-current={section === 'bestand' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'bestand' })}>Bestand<span>Platten und Wandtypen</span></button>
       <button className="quiet" aria-current={section === 'help' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'help' })}>Hilfe<span>Werkzeuge, Kürzel und Oberflächen</span></button>
       <button className="quiet" aria-current={section === 'account' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'account' })}>Mein Konto<span>Verknüpfte Anmeldung</span></button>
       {isAdmin && <button className="quiet" aria-current={section === 'admin' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'admin' })}>Verwaltung<span>Mitglieder, Darstellung und Aktivität</span></button>}
     </nav>
     {section === 'plans' && <Plans me={me} onDirty={onDirty} sceneId={'sceneId' in location ? location.sceneId : undefined} />}
     {section === 'venues' && <Venues me={me} onDirty={onDirty} venueId={'venueId' in location ? location.venueId : undefined} />}
+    {section === 'bestand' && <Bestand me={me} />}
     {section === 'help' && <Help />}
     {section === 'account' && <div className="workspace-management"><LinkedAccounts /></div>}
     {section === 'admin' && isAdmin && <div className="workspace-management">

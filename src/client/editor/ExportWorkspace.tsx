@@ -14,6 +14,7 @@ import { REPORT_VIEW_LABELS, type ReportTemplate } from '../../shared/reportTemp
 import { StageView, type StageCaptureHandle } from './StageView.js';
 // StageCaptureHandle re-exported from StageView
 import { ApiError, request } from '../api.js';
+import { askConfirm } from '../ConfirmDialog.js';
 
 type Job = {
   id: string; status: string; stage: string; pageCount: number | null; error: string | null;
@@ -220,7 +221,12 @@ export function ExportWorkspace({
   }
 
   async function remove(id: string) {
-    if (!window.confirm('Diese Fassung endgültig löschen?')) return;
+    if (!await askConfirm({
+      title: 'Fassung löschen?',
+      message: 'Diese Fassung endgültig löschen?',
+      confirmLabel: 'Fassung löschen',
+      danger: true,
+    })) return;
     setError('');
     try {
       await request(`${historyBase}/${id}`, undefined, 'DELETE');
