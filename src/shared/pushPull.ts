@@ -9,12 +9,11 @@ import { snapStageDeckElevation, snapStageDeckSize, STAGE_DECK_STEP_MM } from '.
 
 export type Vec3 = { x: number; y: number; z: number };
 export type LocalFace = 'px' | 'nx' | 'py' | 'ny' | 'pz' | 'nz';
+export type OpeningEdge = 'left' | 'right' | 'top' | 'bottom';
 
-export type PushPullHandle = {
-  kind: 'wall' | 'platform' | 'overhead' | 'placeholder' | 'stair';
-  id: string;
-  face: LocalFace;
-};
+export type PushPullHandle =
+  | { kind: 'wall' | 'platform' | 'overhead' | 'placeholder' | 'stair'; id: string; face: LocalFace }
+  | { kind: 'wallOpening'; id: string; openingId: string; edge: OpeningEdge; face?: LocalFace };
 
 /** Grow size while keeping the opposite face fixed; faceSign is +1 for the +axis face. */
 export function growCentered(size: number, center: number, deltaOutward: number, faceSign: 1 | -1) {
@@ -44,6 +43,7 @@ export function localNormalFromWorld(world: Vec3, planRotationDeg: number, mirro
 }
 
 export function resolvePushPullFace(handle: PushPullHandle): PushPullHandle | undefined {
+  if (handle.kind === 'wallOpening') return handle;
   // Floor-anchored solids keep the bottom face fixed.
   if ((handle.kind === 'platform' || handle.kind === 'wall' || handle.kind === 'placeholder') && handle.face === 'ny') {
     return undefined;
@@ -78,23 +78,63 @@ function shiftPlan(point: { x: number; y: number }, axis: { x: number; y: number
   return { x: point.x + axis.x * amount, y: point.y + axis.y * amount };
 }
 
+function clampWallOpenings(wall: Wall): Wall {
+  if (!wall.openings?.length) return wall;
+  const openings = wall.openings.flatMap(opening => {
+    const left = Math.max(0, Math.min(opening.left, wall.width - 1));
+    const sill = Math.max(0, Math.min(opening.sill, wall.height - 1));
+    const width = Math.max(1, Math.min(opening.width, wall.width - left));
+    const height = Math.max(1, Math.min(opening.height, wall.height - sill));
+    if (left + width > wall.width || sill + height > wall.height) return [];
+    return [{ ...opening, left, sill, width, height }];
+  });
+  if (!openings.length) {
+    const { openings: _removed, ...rest } = wall;
+    return rest;
+  }
+  return { ...wall, openings };
+}
+
 function resizeWall(wall: Wall, face: LocalFace, delta: number): Wall {
   const axes = planAxes(wall.rotation);
   if (face === 'py' || face === 'ny') {
     // Floor-anchored height: only the top face grows; bottom stays on the supporting surface.
     if (face === 'ny') return wall;
-    return { ...wall, height: clampDim(wall.height + delta) };
+    return clampWallOpenings({ ...wall, height: clampDim(wall.height + delta) });
   }
   if (face === 'px' || face === 'nx') {
     const sign: 1 | -1 = face === 'px' ? 1 : -1;
     const next = growCentered(wall.width, 0, delta, sign);
     const centre = shiftPlan(wall, axes.width, sign * delta / 2);
-    return { ...wall, width: clampDim(next.size), x: centre.x, y: centre.y };
+    return clampWallOpenings({ ...wall, width: clampDim(next.size), x: centre.x, y: centre.y });
   }
   const sign: 1 | -1 = face === 'pz' ? 1 : -1;
   const next = growCentered(wall.thickness, 0, delta, sign);
   const centre = shiftPlan(wall, axes.depth, sign * delta / 2);
-  return { ...wall, thickness: clampDim(next.size), x: centre.x, y: centre.y };
+  return clampWallOpenings({ ...wall, thickness: clampDim(next.size), x: centre.x, y: centre.y });
+}
+
+/** Push/pull an opening edge: positive delta grows the cutout outward into the wall. */
+function resizeWallOpening(wall: Wall, openingId: string, edge: OpeningEdge, delta: number): Wall {
+  if (!wall.openings?.length) return wall;
+  const openings = wall.openings.map(opening => {
+    if (opening.id !== openingId) return opening;
+    if (edge === 'left') {
+      const left = Math.max(0, opening.left - delta);
+      const width = opening.width + (opening.left - left);
+      return { ...opening, left, width: Math.max(1, width) };
+    }
+    if (edge === 'right') {
+      return { ...opening, width: Math.max(1, opening.width + delta) };
+    }
+    if (edge === 'bottom') {
+      const sill = Math.max(0, opening.sill - delta);
+      const height = opening.height + (opening.sill - sill);
+      return { ...opening, sill, height: Math.max(1, height) };
+    }
+    return { ...opening, height: Math.max(1, opening.height + delta) };
+  });
+  return clampWallOpenings({ ...wall, openings });
 }
 
 function resizeOverhead(box: OverheadBox, face: LocalFace, delta: number): OverheadBox {
@@ -235,6 +275,13 @@ export function applyPushPull(venue: VenueGeometry, handle: PushPullHandle, delt
     switch (resolved.kind) {
       case 'wall':
         return { ...venue, walls: venue.walls?.map(item => item.id === resolved.id ? resizeWall(item, resolved.face, delta) : item) };
+      case 'wallOpening':
+        return {
+          ...venue,
+          walls: venue.walls?.map(item => item.id === resolved.id
+            ? resizeWallOpening(item, resolved.openingId, resolved.edge, delta)
+            : item),
+        };
       case 'platform': {
         const platform = venue.platforms?.find(item => item.id === resolved.id);
         return platform ? applyPlatformPushPull(venue, platform, resolved.face, delta) : venue;
@@ -254,7 +301,9 @@ export function applyPushPull(venue: VenueGeometry, handle: PushPullHandle, delt
 
 export function planRotationFor(venue: VenueGeometry, handle: PushPullHandle): number {
   switch (handle.kind) {
-    case 'wall': return venue.walls?.find(item => item.id === handle.id)?.rotation ?? 0;
+    case 'wall':
+    case 'wallOpening':
+      return venue.walls?.find(item => item.id === handle.id)?.rotation ?? 0;
     case 'overhead': return venue.overheadBoxes?.find(item => item.id === handle.id)?.rotation ?? 0;
     case 'placeholder': return venue.placeholders?.find(item => item.id === handle.id)?.rotation ?? 0;
     case 'stair': return venue.stairs?.find(item => item.id === handle.id)?.rotation ?? 0;

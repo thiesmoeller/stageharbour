@@ -1,33 +1,15 @@
 import { useMemo, useLayoutEffect } from 'react';
-import { BoxGeometry, ExtrudeGeometry, Path, Shape, type Material } from 'three';
+import { DoubleSide, type Material } from 'three';
 import type { WallSolid } from '../../shared/transforms.js';
+import { buildWallPanelGeometry } from '../../shared/wallMeshGeometry.js';
 import {
   DOOR_FRAME, DOOR_FRAME_COLOR, DOOR_LEAF, DOOR_LEAF_COLOR, doorOpenAngleDegrees, isDoorOpening,
+  type Opening,
 } from '../../shared/wall-types.js';
 
 const plywood = '#315d49', timber = '#d9c6a1', edge = '#5a6e52';
-function wallGeometry(wall: WallSolid) {
-  if (!wall.openings.length) return new BoxGeometry(wall.size.x, wall.size.y, wall.size.z);
-  const shape = new Shape();
-  const hw = wall.size.x / 2, hh = wall.size.y / 2;
-  shape.moveTo(-hw, -hh); shape.lineTo(hw, -hh); shape.lineTo(hw, hh); shape.lineTo(-hw, hh); shape.closePath();
-  for (const opening of wall.openings) {
-    const hole = new Path();
-    const x0 = -hw + opening.left, y0 = -hh + opening.sill;
-    hole.moveTo(x0, y0); hole.lineTo(x0, y0 + opening.height); hole.lineTo(x0 + opening.width, y0 + opening.height); hole.lineTo(x0 + opening.width, y0); hole.closePath();
-    shape.holes.push(hole);
-  }
-  const geometry = new ExtrudeGeometry(shape, { depth: wall.size.z, bevelEnabled: false, steps: 1 });
-  geometry.translate(0, 0, -wall.size.z / 2);
-  // Extrusion caps share material 0 by default; split by their actual face normal.
-  const normal = geometry.getAttribute('normal');
-  geometry.clearGroups();
-  for (let start = 0; start < normal.count; start += 3) {
-    const z = normal.getZ(start);
-    geometry.addGroup(start, 3, z < -0.5 ? 1 : z > 0.5 ? 2 : 0);
-  }
-  return geometry;
-}
+
+export type OpeningEdge = 'left' | 'right' | 'top' | 'bottom';
 
 function DoorFittings({ wall, lit }: { wall: WallSolid; lit: boolean }) {
   const Surface = lit ? 'meshStandardMaterial' : 'meshBasicMaterial';
@@ -71,48 +53,113 @@ function DoorFittings({ wall, lit }: { wall: WallSolid; lit: boolean }) {
   </>;
 }
 
-export function WallMesh({ wall, lit = false, frontMaterial, frontColor, backColor }: {
+/** Invisible pick targets: solid jambs for select/resize, and opening edges for cutout push-pull. */
+export function OpeningInteractionHandles({ wall, wallId, scope }: {
+  wall: WallSolid; wallId: string; scope: 'venue' | 'scene';
+}) {
+  const hw = wall.size.x / 2, hh = wall.size.y / 2;
+  const solids: { key: string; position: [number, number, number]; args: [number, number, number] }[] = [];
+  for (const opening of wall.openings) {
+    const x0 = -hw + opening.left, y0 = -hh + opening.sill;
+    const x1 = x0 + opening.width, y1 = y0 + opening.height;
+    if (opening.left > 1) solids.push({ key: `${opening.id}-L`, position: [(-hw + x0) / 2, 0, 0], args: [opening.left, wall.size.y, wall.size.z] });
+    if (wall.size.x - opening.left - opening.width > 1) {
+      solids.push({
+        key: `${opening.id}-R`,
+        position: [(x1 + hw) / 2, 0, 0],
+        args: [wall.size.x - opening.left - opening.width, wall.size.y, wall.size.z],
+      });
+    }
+    if (opening.sill > 1) solids.push({ key: `${opening.id}-B`, position: [(x0 + x1) / 2, (-hh + y0) / 2, 0], args: [opening.width, opening.sill, wall.size.z] });
+    if (wall.size.y - opening.sill - opening.height > 1) {
+      solids.push({
+        key: `${opening.id}-T`,
+        position: [(x0 + x1) / 2, (y1 + hh) / 2, 0],
+        args: [opening.width, wall.size.y - opening.sill - opening.height, wall.size.z],
+      });
+    }
+  }
+  return <>
+    {solids.map(solid => <mesh key={solid.key} position={solid.position}>
+      <boxGeometry args={solid.args} />
+      <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+    </mesh>)}
+    {wall.openings.map(opening => {
+      const x0 = -hw + opening.left, y0 = -hh + opening.sill;
+      const x1 = x0 + opening.width, y1 = y0 + opening.height;
+      const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+      const edges: { edge: OpeningEdge; position: [number, number, number]; args: [number, number, number] }[] = [
+        { edge: 'left', position: [x0, cy, 0], args: [48, opening.height, wall.size.z + 16] },
+        { edge: 'right', position: [x1, cy, 0], args: [48, opening.height, wall.size.z + 16] },
+        { edge: 'bottom', position: [cx, y0, 0], args: [opening.width, 48, wall.size.z + 16] },
+        { edge: 'top', position: [cx, y1, 0], args: [opening.width, 48, wall.size.z + 16] },
+      ];
+      return <group key={opening.id}>
+        {edges.map(({ edge, position, args }) => <mesh key={edge} position={position} userData={{
+          pushPull: { id: wallId, kind: 'wallOpening', openingId: opening.id, edge, scope },
+        }}>
+          <boxGeometry args={args} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+        </mesh>)}
+      </group>;
+    })}
+  </>;
+}
+
+export function WallMesh({ wall, lit = false, frontMaterial, frontColor, backColor, interactionScope = 'venue' }: {
   wall: WallSolid; lit?: boolean; frontMaterial?: Material; frontColor?: string; backColor?: string;
+  interactionScope?: 'venue' | 'scene';
 }) {
   const Surface = lit ? 'meshStandardMaterial' : 'meshBasicMaterial';
   const paintProps = lit ? { roughness: 0.72, metalness: 0.02 } : {};
-  const front = frontColor
-    ? <Surface attach="material-5" color={frontColor} {...paintProps} />
-    : frontMaterial
-      ? <primitive object={frontMaterial} attach="material-5" dispose={null} />
-      : <Surface attach="material-5" color={plywood} {...(lit ? paintProps : {})} />;
-  const frontExtrude = frontColor
-    ? <Surface attach="material-1" color={frontColor} {...paintProps} />
-    : frontMaterial
-      ? <primitive object={frontMaterial} attach="material-1" dispose={null} />
-      : <Surface attach="material-1" color={plywood} {...(lit ? paintProps : {})} />;
-  const back = backColor
-    ? <Surface attach="material-4" color={backColor} {...paintProps} />
-    : <Surface attach="material-4" color={timber} />;
-  const backExtrude = backColor
-    ? <Surface attach="material-2" color={backColor} {...paintProps} />
-    : <Surface attach="material-2" color={timber} />;
-  const geometry = useMemo(() => wall.openings.length ? wallGeometry(wall) : null, [wall.size.x, wall.size.y, wall.size.z, JSON.stringify(wall.openings)]);
-  useLayoutEffect(() => () => { geometry?.dispose(); }, [geometry]);
-  const body = !geometry
-    ? <mesh castShadow={lit} receiveShadow={lit} position={[wall.center.x, wall.center.y, wall.center.z]} rotation={[0, wall.rotationY, 0]}>
-      <boxGeometry args={[wall.size.x, wall.size.y, wall.size.z]} />
-      <Surface attach="material-0" color={edge} />
-      <Surface attach="material-1" color={edge} />
-      <Surface attach="material-2" color={edge} />
-      <Surface attach="material-3" color={edge} />
-      {back}
-      {front}
-    </mesh>
-    : <mesh castShadow={lit} receiveShadow={lit} geometry={geometry} position={[wall.center.x, wall.center.y, wall.center.z]} rotation={[0, wall.rotationY, 0]}>
-      <Surface attach="material-0" color={edge} />
-      {frontExtrude}
-      {backExtrude}
-    </mesh>;
+  const openingsKey = JSON.stringify(wall.openings);
+  const geometry = useMemo(
+    () => buildWallPanelGeometry(wall.size, wall.openings),
+    [wall.size.x, wall.size.y, wall.size.z, openingsKey],
+  );
+  useLayoutEffect(() => () => { geometry.dispose(); }, [geometry]);
   return <group>
-    {body}
+    <mesh castShadow={lit} receiveShadow={lit} geometry={geometry} position={[wall.center.x, wall.center.y, wall.center.z]} rotation={[0, wall.rotationY, 0]}>
+      <Surface attach="material-0" color={edge} side={DoubleSide} />
+      {frontColor
+        ? <Surface attach="material-1" color={frontColor} side={DoubleSide} {...paintProps} />
+        : frontMaterial
+          ? <primitive object={frontMaterial} attach="material-1" dispose={null} />
+          : <Surface attach="material-1" color={plywood} side={DoubleSide} {...(lit ? paintProps : {})} />}
+      {backColor
+        ? <Surface attach="material-2" color={backColor} side={DoubleSide} {...paintProps} />
+        : <Surface attach="material-2" color={timber} side={DoubleSide} />}
+    </mesh>
     <group position={[wall.center.x, wall.center.y, wall.center.z]} rotation={[0, wall.rotationY, 0]}>
       <DoorFittings wall={wall} lit={lit} />
+      {wall.openings.length > 0 && <OpeningInteractionHandles wall={wall} wallId={wall.id} scope={interactionScope} />}
     </group>
   </group>;
+}
+
+/** Pure helpers for Ausschnitt pick-handle geometry (unit-tested without R3F). */
+export function openingJambSolids(wall: Pick<WallSolid, 'size' | 'openings'>) {
+  const solids: { key: string; args: [number, number, number] }[] = [];
+  for (const opening of wall.openings) {
+    if (opening.left > 1) solids.push({ key: `${opening.id}-L`, args: [opening.left, wall.size.y, wall.size.z] });
+    if (wall.size.x - opening.left - opening.width > 1) {
+      solids.push({ key: `${opening.id}-R`, args: [wall.size.x - opening.left - opening.width, wall.size.y, wall.size.z] });
+    }
+    if (opening.sill > 1) solids.push({ key: `${opening.id}-B`, args: [opening.width, opening.sill, wall.size.z] });
+    if (wall.size.y - opening.sill - opening.height > 1) {
+      solids.push({ key: `${opening.id}-T`, args: [opening.width, wall.size.y - opening.sill - opening.height, wall.size.z] });
+    }
+  }
+  return solids;
+}
+
+export function openingEdgeHandles(opening: Opening, wallZ: number) {
+  return (['left', 'right', 'bottom', 'top'] as const).map(edge => ({
+    edge,
+    pushPullKind: 'wallOpening' as const,
+    openingId: opening.id,
+    thickness: edge === 'left' || edge === 'right' ? 48 : opening.width,
+    height: edge === 'top' || edge === 'bottom' ? 48 : opening.height,
+    depth: wallZ + 16,
+  }));
 }

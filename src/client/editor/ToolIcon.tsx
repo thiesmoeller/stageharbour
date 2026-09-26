@@ -18,6 +18,7 @@ const paths = {
   plus: 'M12 5v14M5 12h14',
   minus: 'M5 12h14',
   expand: 'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5',
+  edge: 'M4 12h16M8 8v8M16 8v8',
   settings: 'M4 7h16M4 17h16M8 4v6m8 4v6',
   help: 'M9 9a3 3 0 1 1 5 2c-2 1-2 2-2 3m0 3v.1M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0Z',
 };
