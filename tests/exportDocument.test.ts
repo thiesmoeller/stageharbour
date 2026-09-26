@@ -182,6 +182,7 @@ test('a plan crop keeps scale and several cameras each become a sheet', () => {
   const frozen = sceneWith([newWall(randomUUID(), 2000, 3000)]);
   const layout = composeDocument({
     spec: spec(frozen.sceneId, {
+      orientation: 'auto',
       planCrop: { minX: 1000, minY: 2000, maxX: 4000, maxY: 5000 },
       viewCameras: [
         { id: randomUUID(), label: 'Publikumssicht', camera: { projection: 'perspective', position: { x: 1, y: 2, z: 3 }, target: { x: 0, y: 1, z: 0 }, preset: 'audience' } },
@@ -192,6 +193,10 @@ test('a plan crop keeps scale and several cameras each become a sheet', () => {
   });
   assert.ok(layout.sheets.some(sheet => sheet.title === 'Übersicht'));
   assert.equal(layout.sheets.filter(sheet => sheet.title.startsWith('Raumsicht')).length, 2);
+  for (const sheet of layout.sheets.filter(item => item.title.startsWith('Raumsicht'))) {
+    assert.equal(sheet.orientation, 'landscape');
+    assert.ok(sheet.widthMm > sheet.heightMm);
+  }
   const plan = layout.sheets.find(sheet => sheet.title === 'Grundriss');
   assert.equal(plan?.frames[0]?.detail, true);
   assert.equal(plan?.scale, 50);

@@ -1,7 +1,10 @@
-import { UnsignedByteType, type Camera, type Scene } from 'three';
+import { UnsignedByteType, type Camera, type PerspectiveCamera, type Scene } from 'three';
 import { RenderTarget } from 'three/webgpu';
 
 export type StageCaptureHandle = { capturePng: () => Promise<string> };
+
+/** Long edge in pixels — enough for ~200 dpi on an A4 body. */
+export const CAPTURE_MAX_EDGE = 2400;
 
 type GpuRenderer = {
   domElement: HTMLCanvasElement;
@@ -26,6 +29,14 @@ function isWebGpuBackend(renderer: GpuRenderer) {
     || backend?.isWebGPUBackend
     || backend?.constructor?.name === 'WebGPUBackend',
   );
+}
+
+function captureSize(aspect: number, maxEdge: number) {
+  const safe = Math.max(0.2, Math.min(aspect, 5));
+  if (safe >= 1) {
+    return { width: maxEdge, height: Math.max(1, Math.round(maxEdge / safe)) };
+  }
+  return { width: Math.max(1, Math.round(maxEdge * safe)), height: maxEdge };
 }
 
 function pixelsToDataUrl(pixels: ArrayBufferView, width: number, height: number, webGpu: boolean) {
@@ -96,11 +107,31 @@ async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): P
   }
 }
 
+function withCameraAspect(camera: Camera, aspect: number, render: () => void) {
+  const perspective = camera as PerspectiveCamera;
+  const previous = perspective.aspect;
+  const canAdjust = typeof previous === 'number' && typeof perspective.updateProjectionMatrix === 'function';
+  if (canAdjust) {
+    perspective.aspect = aspect;
+    perspective.updateProjectionMatrix();
+  }
+  try {
+    render();
+  } finally {
+    if (canAdjust) {
+      perspective.aspect = previous;
+      perspective.updateProjectionMatrix();
+    }
+  }
+}
+
 function captureFromCanvas(gl: GpuRenderer, scene: Scene, camera: Camera, width: number, height: number) {
   // Same-tick read after an explicit present — required when the drawing buffer
-  // is not preserved across frames (Pascal / three default).
-  gl.setRenderTarget(null);
-  gl.render(scene, camera);
+  // is not preserved across frames (Pascal / three default). Low-res fallback only.
+  withCameraAspect(camera, width / height, () => {
+    gl.setRenderTarget(null);
+    gl.render(scene, camera);
+  });
   const url = canvasElementToDataUrl(gl.domElement, width, height);
   assertUsefulPng(url);
   return url;
@@ -117,8 +148,10 @@ async function captureFromRenderTarget(
   const previousAlpha = gl.getClearAlpha?.();
   try {
     gl.setClearAlpha?.(1);
-    gl.setRenderTarget(target);
-    gl.render(scene, camera);
+    withCameraAspect(camera, width / height, () => {
+      gl.setRenderTarget(target);
+      gl.render(scene, camera);
+    });
     await gl.backend?.device?.queue?.onSubmittedWorkDone?.();
     const pixels = await withTimeout(
       gl.readRenderTargetPixelsAsync(target, 0, 0, width, height),
@@ -137,41 +170,29 @@ async function captureFromRenderTarget(
 }
 
 /**
- * Capture a Pascal / three viewport to a PNG data URL.
- * Pascal forces the WebGL backend — prefer a same-tick canvas copy there.
- * True WebGPU needs render-target readback (canvas is blank).
+ * Capture a Pascal / three viewport to a PNG data URL at print-friendly resolution.
+ * Renders into an offscreen target sized from the live CSS aspect (not the tiny
+ * sidebar backing store), so PDF pages stay sharp and undistorted.
  */
 export async function captureViewportPng(
-  gl: GpuRenderer, scene: Scene, camera: Camera, maxEdge = 1280,
+  gl: GpuRenderer, scene: Scene, camera: Camera, maxEdge = CAPTURE_MAX_EDGE,
 ): Promise<string> {
   if (typeof gl.init === 'function') {
     await withTimeout(Promise.resolve(gl.init()), 8_000, 'Renderer-Initialisierung hängt');
   }
 
-  const sourceW = Math.max(1, gl.domElement.width || Math.round(gl.domElement.clientWidth * (window.devicePixelRatio || 1)));
-  const sourceH = Math.max(1, gl.domElement.height || Math.round(gl.domElement.clientHeight * (window.devicePixelRatio || 1)));
-  const scale = Math.min(1, maxEdge / Math.max(sourceW, sourceH));
-  const width = Math.max(1, Math.round(sourceW * scale));
-  const height = Math.max(1, Math.round(sourceH * scale));
+  const cssW = Math.max(1, gl.domElement.clientWidth || gl.domElement.width || 1);
+  const cssH = Math.max(1, gl.domElement.clientHeight || gl.domElement.height || 1);
+  const { width, height } = captureSize(cssW / cssH, maxEdge);
 
-  const webGpu = isWebGpuBackend(gl);
-  if (!webGpu) {
+  // Prefer render-target so we can upscale past the on-screen canvas.
+  if (typeof gl.readRenderTargetPixelsAsync === 'function') {
     try {
-      return captureFromCanvas(gl, scene, camera, width, height);
+      return await captureFromRenderTarget(gl, scene, camera, width, height);
     } catch {
-      // Fall through to RT readback if the canvas path yields a blank/failed frame.
+      // Fall through to same-tick canvas copy.
     }
   }
 
-  try {
-    return await captureFromRenderTarget(gl, scene, camera, width, height);
-  } catch (rtError) {
-    if (!webGpu) throw rtError;
-    // Last resort on WebGPU: try canvas anyway (may be blank, assertUsefulPng catches it).
-    try {
-      return captureFromCanvas(gl, scene, camera, width, height);
-    } catch {
-      throw rtError instanceof Error ? rtError : new Error('Die Raumsicht konnte nicht aufgenommen werden.');
-    }
-  }
+  return captureFromCanvas(gl, scene, camera, width, height);
 }
