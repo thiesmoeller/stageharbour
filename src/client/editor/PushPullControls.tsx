@@ -4,7 +4,7 @@ import { DoubleSide, Plane, Quaternion, Vector2, Vector3, type Object3D } from '
 import type { VenueGeometry } from '../../shared/layout.js';
 import {
   applyPushPull, classifyLocalFace, localNormalFromWorld, planRotationFor, resolvePushPullFace,
-  type PushPullHandle,
+  type OpeningEdge, type PushPullHandle,
 } from '../../shared/pushPull.js';
 
 type PushPullKind = PushPullHandle['kind'];
@@ -18,13 +18,36 @@ type DragState = {
   latest: VenueGeometry;
 };
 
-function kindFromNode(object: Object3D, scope: 'venue' | 'scene'): { id: string; kind: PushPullKind } | undefined {
+type NodeHit = { id: string; kind: PushPullKind; openingId?: string; edge?: OpeningEdge };
+
+function kindFromNode(object: Object3D, scope: 'venue' | 'scene'): NodeHit | undefined {
   let current: Object3D | null = object;
   while (current) {
-    const meta = current.userData?.pushPull as { id?: string; kind?: PushPullKind; scope?: string } | undefined;
-    if (meta?.id && meta.kind && meta.scope === scope) return { id: meta.id, kind: meta.kind };
+    const meta = current.userData?.pushPull as {
+      id?: string; kind?: PushPullKind; scope?: string; openingId?: string; edge?: OpeningEdge;
+    } | undefined;
+    if (meta?.kind === 'wallOpening' && meta.id && meta.openingId && meta.edge && meta.scope === scope) {
+      return { id: meta.id, kind: 'wallOpening', openingId: meta.openingId, edge: meta.edge };
+    }
+    if (meta?.id && meta.kind && meta.kind !== 'wallOpening' && meta.scope === scope) {
+      return { id: meta.id, kind: meta.kind };
+    }
     current = current.parent;
   }
+}
+
+/** World-space direction that grows the cutout when dragging an opening edge. */
+function openingGrowNormal(edge: OpeningEdge, planRotationDeg: number, mirroredX: boolean, target: Vector3) {
+  const local = edge === 'left' ? { x: -1, y: 0, z: 0 }
+    : edge === 'right' ? { x: 1, y: 0, z: 0 }
+      : edge === 'bottom' ? { x: 0, y: -1, z: 0 }
+        : { x: 0, y: 1, z: 0 };
+  const angle = planRotationDeg * Math.PI / 180;
+  const cos = Math.cos(angle), sin = Math.sin(angle);
+  let wx = local.x * cos - local.z * sin;
+  const wz = local.x * sin + local.z * cos;
+  if (mirroredX) wx = -wx;
+  return target.set(wx, local.y, wz).normalize();
 }
 
 export function PushPullControls({
@@ -84,10 +107,18 @@ export function PushPullControls({
     function handleFor(hit: { object: Object3D; face: { normal: Vector3 }; point: Vector3 }) {
       const meta = kindFromNode(hit.object, scope);
       if (!meta) return;
+      if (meta.kind === 'wallOpening' && meta.openingId && meta.edge) {
+        const handle: PushPullHandle = {
+          kind: 'wallOpening', id: meta.id, openingId: meta.openingId, edge: meta.edge,
+        };
+        const rotation = planRotationFor(venue, handle);
+        const normal = openingGrowNormal(meta.edge, rotation, true, new Vector3());
+        return { handle, point: hit.point.clone(), normal };
+      }
       const worldNormal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld).normalize();
-      const rotation = planRotationFor(venue, { ...meta, face: 'py' });
+      const rotation = planRotationFor(venue, { kind: meta.kind as Exclude<PushPullKind, 'wallOpening'>, id: meta.id, face: 'py' });
       const local = localNormalFromWorld({ x: worldNormal.x, y: worldNormal.y, z: worldNormal.z }, rotation, true);
-      const resolved = resolvePushPullFace({ ...meta, face: classifyLocalFace(local) });
+      const resolved = resolvePushPullFace({ kind: meta.kind as Exclude<PushPullKind, 'wallOpening'>, id: meta.id, face: classifyLocalFace(local) });
       if (!resolved) return;
       return { handle: resolved, point: hit.point.clone(), normal: worldNormal };
     }

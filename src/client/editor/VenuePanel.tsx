@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, lazy, Suspense, type DragEvent, type FormEvent, type PointerEvent } from 'react';
-import { newWall, applyVenueResultSchema, saveVenueResultSchema, venueGeometrySchema, type Layout, type VenueGeometry } from '../../shared/layout.js';
+import { newWall, applyVenueResultSchema, saveVenueResultSchema, venueGeometrySchema, type Layout, type VenueGeometry, type Wall } from '../../shared/layout.js';
 import { renameVenueSchema, venueRecordSchema } from '../../shared/venueLibrary.js';
 import {
   newCableRoutingCorridor, newConnectionPoint, type CableRoutingCorridor, type ConnectionKind, type ConnectionPoint,
@@ -9,7 +9,7 @@ import { VenueLevels } from './VenueLevels.js';
 import { CurtainMarks, OverheadMarks, TrussMarks, VenueOverhead } from './VenueOverhead.js';
 import { KeepClearMarks, KeepClearZones } from './KeepClearZones.js';
 import { commitDrawnKeepClear, nearFirstVertex, type KeepClearZone } from '../../shared/keepClear.js';
-import { calibrationSchema, insertOutlineVertex, measuredOutline, millimetresPerUnit, underlaySourceToPlan, type Calibration, type PlanPoint } from '../../shared/venue.js';
+import { calibrationSchema, insertOutlineVertex, measuredOutline, millimetresPerUnit, nearestOutlineEdge, offsetOutlineEdge, outlineEdgeOutwardNormal, underlaySourceToPlan, type Calibration, type PlanPoint } from '../../shared/venue.js';
 import { defaultPlanDisplay, type PlanDisplayOptions } from '../../shared/planDisplay.js';
 import { PlanDisplayToggles } from './PlanDisplayToggles.js';
 import { VenueUnderlayDialog } from './VenueUnderlayDialog.js';
@@ -37,6 +37,8 @@ import { transformVenueGesture } from '../../shared/plannerTransforms.js';
 import { useDocumentDraft } from './useDocumentDraft.js';
 import { StageView } from './StageView.js';
 import { ClipboardPanel } from './ClipboardPanel.js';
+import { WallTypePanel } from './WallTypePanel.js';
+import { doorOpenAngleDegrees, isDoorOpening, openingFromWallSpan, resolveWall, typesOf, wallAlongFromPlanPoint, type Opening, type WallElementType } from '../../shared/wall-types.js';
 import type { StageEditing } from './StageEditing.js';
 import { useViewportWheel } from './viewportWheel.js';
 import { ApiError, request, upload } from '../api.js';
@@ -47,13 +49,13 @@ import { defaultLighting, type StageLightingSettings } from '../../shared/lighti
 import { canvasModeForWidth, useNarrowEditor } from './useNarrowEditor.js';
 
 const MaterialPicker = lazy(() => import('./MaterialPicker.js'));
-type ClickMode = 'select' | 'vertex' | 'pin' | 'corridor' | 'draw-zone' | 'zone-vertex' | 'place' | 'draw-truss' | 'draw-curtain';
+type ClickMode = 'select' | 'vertex' | 'edge-parallel' | 'draw-opening' | 'pin' | 'corridor' | 'draw-zone' | 'zone-vertex' | 'place' | 'draw-truss' | 'draw-curtain';
 type PlaceKind = 'wall' | 'platform' | 'stair' | 'chair' | 'table' | 'person' | 'speaker' | 'box' | 'overhead' | 'power' | 'audio';
 const CENTRELINE_SELECTION = 'stage-centreline';
 type ViewMode = 'split' | 'plan' | 'stage';
 type VenueDraft = {
   lighting: StageLightingSettings;
-  walls: NonNullable<VenueGeometry['walls']>; vertices: PlanPoint[]; platforms: Platform[]; stairs: StairUnit[];
+  walls: NonNullable<VenueGeometry['walls']>; wallTypes: WallElementType[]; vertices: PlanPoint[]; platforms: Platform[]; stairs: StairUnit[];
   placeholders: Placeholder[];
   ceilingHeight: number | ''; overheadBoxes: OverheadBox[]; trusses: Truss[]; curtains: Curtain[];
   fileId: string | undefined; page: number; rotationDeg: number; calibration: Calibration;
@@ -65,7 +67,7 @@ type VenueDraft = {
 function draftFromVenue(venue: VenueGeometry, draft: VenueDraft): VenueDraft {
   return {
     ...draft,
-    walls: venue.walls ?? [], platforms: venue.platforms ?? [], stairs: venue.stairs ?? [],
+    walls: venue.walls ?? [], wallTypes: typesOf(venue), platforms: venue.platforms ?? [], stairs: venue.stairs ?? [],
     placeholders: venue.placeholders ?? [],
     overheadBoxes: venue.overheadBoxes ?? [], trusses: venue.trusses ?? [], curtains: venue.curtains ?? [],
     pins: venue.connectionPoints ?? [],
@@ -106,7 +108,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
 } & VenuePersistence) {
   const draft = useDocumentDraft({
     lighting: venue.lighting ?? defaultLighting,
-    walls: venue.walls ?? [], vertices: measuredOutline(venue), platforms: venue.platforms ?? [], stairs: venue.stairs ?? [],
+    walls: venue.walls ?? [], wallTypes: typesOf(venue), vertices: measuredOutline(venue), platforms: venue.platforms ?? [], stairs: venue.stairs ?? [],
     placeholders: venue.placeholders ?? [],
     ceilingHeight: (venue.ceilingHeight ?? '') as number | '', overheadBoxes: venue.overheadBoxes ?? [], trusses: venue.trusses ?? [],
     curtains: venue.curtains ?? [],
@@ -120,6 +122,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
   });
   const [lighting, setLighting] = draft.field('lighting');
   const [walls, setWalls] = draft.field('walls');
+  const [wallTypes, setWallTypes] = draft.field('wallTypes');
   const [vertices, setVertices] = draft.field('vertices');
   const [platforms, setPlatforms] = draft.field('platforms');
   const [stairs, setStairs] = draft.field('stairs');
@@ -145,6 +148,8 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
   const [placeKind, setPlaceKind] = useState<PlaceKind>('wall');
   const [pinKind, setPinKind] = useState<ConnectionKind>('power');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectedTypeId, setSelectedTypeId] = useState<string | undefined>();
+  const [placeTypeId, setPlaceTypeId] = useState<string | undefined>();
   const [clipboard, setClipboard] = useState<VenueClipboard>();
   const [marqueeBox, setMarqueeBox] = useState<PlanBounds>();
   const [drawingZone, setDrawingZone] = useState<PlanPoint[]>([]);
@@ -154,6 +159,10 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
   const [curtainDrawHover, setCurtainDrawHover] = useState<PlanPoint | undefined>();
   const selected = selectedIds[0];
   const vertexDrag = useRef<number | undefined>(undefined);
+  const edgeOffsetDrag = useRef<{ edgeIndex: number; origin: PlanPoint; start: PlanPoint[] } | undefined>(undefined);
+  const [hoverEdgeIndex, setHoverEdgeIndex] = useState<number | undefined>(undefined);
+  const openingDraw = useRef<{ wallId: string; startAlong: number; endAlong: number } | undefined>(undefined);
+  const [openingPreview, setOpeningPreview] = useState<{ wallId: string; left: number; width: number } | undefined>();
   const zoneVertexDrag = useRef<{ zoneId: string; index: number } | undefined>(undefined);
   const corridorVertexDrag = useRef<{ corridorId: string; index: number } | undefined>(undefined);
   const centrelineDrag = useRef<{ x: number; y: number; start: StageCentreline } | undefined>(undefined);
@@ -214,7 +223,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
     return { x: Math.round(value.x), y: Math.round(-value.y) };
   }
   function busyGesture() {
-    return draft.isActive() || !!panDrag.current || !!marqueeDrag.current || !!pastePlacement.current;
+    return draft.isActive() || !!panDrag.current || !!marqueeDrag.current || !!pastePlacement.current || !!openingDraw.current;
   }
   function cancelPastePlacement() {
     if (!pastePlacement.current) return;
@@ -259,8 +268,12 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
   }
   function placeAt(point: PlanPoint) {
     if (placeKind === 'wall') {
-      const wall = newWall(crypto.randomUUID(), point.x, point.y);
+      const type = placeTypeId ? wallTypes.find(item => item.id === placeTypeId) : undefined;
+      const wall: Wall = type
+        ? { ...newWall(crypto.randomUUID(), point.x, point.y), typeId: type.id, label: type.name, width: type.width, height: type.height, thickness: type.thickness }
+        : newWall(crypto.randomUUID(), point.x, point.y);
       setWalls(items => [...items, wall]); setSelectedIds([wall.id]);
+      setPlaceTypeId(undefined);
     } else if (placeKind === 'platform') {
       const platform = newPlatform(crypto.randomUUID(), point.x, point.y);
       setPlatforms(items => [...items, platform]); setSelectedIds([platform.id]);
@@ -313,6 +326,27 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
     if (click === 'vertex') {
       const next = insertOutlineVertex(vertices, point);
       if (next) setVertices(next);
+      return;
+    }
+    if (click === 'edge-parallel') {
+      const hit = nearestOutlineEdge(vertices, point);
+      if (!hit || readOnly) return;
+      edgeOffsetDrag.current = { edgeIndex: hit.index, origin: point, start: vertices.map(v => ({ ...v })) };
+      draft.begin();
+      setHoverEdgeIndex(hit.index);
+      setSnapStatus('Kante parallel verschieben · Escape abbricht');
+      svg.current?.setPointerCapture(event.pointerId);
+      return;
+    }
+    if (click === 'draw-opening') {
+      const wall = walls.find(item => item.id === selected);
+      if (!wall || wall.typeId || readOnly) return;
+      const along = wallAlongFromPlanPoint(wall, point);
+      openingDraw.current = { wallId: wall.id, startAlong: along, endAlong: along };
+      setOpeningPreview({ wallId: wall.id, left: along, width: 1 });
+      draft.begin();
+      setSnapStatus('Ausschnitt entlang der Wand ziehen · Escape abbricht');
+      svg.current?.setPointerCapture(event.pointerId);
       return;
     }
     if (click === 'place') { placeAt(point); return; }
@@ -482,7 +516,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
       schemaVersion: 1, width: venue.width, depth: venue.depth, outline: vertices, trace,
       connectionPoints: pins.map(pin => ({ ...pin, notes: optionalNotes(pin.notes) })),
       cableRoutingCorridors: corridors.map(corridor => ({ ...corridor, notes: optionalNotes(corridor.notes) })),
-      walls, wallTypes: venue.wallTypes, platforms, stairs, placeholders, lighting,
+      walls, wallTypes, platforms, stairs, placeholders, lighting,
       ...(ceilingHeight === '' ? {} : { ceilingHeight }),
       overheadBoxes, trusses, curtains, keepClearZones: zones, stageCentreline: centreline,
       ...(floorFinish ? { floorFinish } : {}),
@@ -541,7 +575,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
   const viewY = planTop + planHeight * (1 - 1 / zoom) / 2 - pan.y;
   const viewW = planWidth / zoom;
   const viewH = planHeight / zoom;
-  const candidate = venueGeometrySchema.safeParse({ ...venue, lighting, outline: vertices, walls, platforms, stairs, placeholders, overheadBoxes, trusses, curtains,
+  const candidate = venueGeometrySchema.safeParse({ ...venue, lighting, outline: vertices, walls, wallTypes, platforms, stairs, placeholders, overheadBoxes, trusses, curtains,
     ceilingHeight: ceilingHeight === '' ? undefined : ceilingHeight, keepClearZones: zones, connectionPoints: pins, cableRoutingCorridors: corridors, stageCentreline: centreline,
     ...(floorFinish ? { floorFinish } : { floorFinish: undefined }),
     reportTemplates,
@@ -560,11 +594,76 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
   });
   function sourceFromDraft(start: VenueDraft): VenueGeometry {
     return {
-      ...previewVenue, walls: start.walls, platforms: start.platforms, stairs: start.stairs, placeholders: start.placeholders,
+      ...previewVenue, walls: start.walls, wallTypes: start.wallTypes, platforms: start.platforms, stairs: start.stairs, placeholders: start.placeholders,
       overheadBoxes: start.overheadBoxes, trusses: start.trusses, curtains: start.curtains, connectionPoints: start.pins,
       cableRoutingCorridors: start.corridors, keepClearZones: start.zones, stageCentreline: start.centreline,
       reportTemplates: start.reportTemplates,
     };
+  }
+  function applyWallType(type: WallElementType) {
+    const known = wallTypes.some(item => item.id === type.id);
+    setWallTypes(known ? wallTypes.map(item => item.id === type.id ? type : item) : [...wallTypes, type]);
+    setWalls(items => items.map(wall => wall.typeId === type.id
+      ? { ...wall, width: type.width, height: type.height, thickness: type.thickness, label: wall.label || type.name }
+      : wall));
+    setSelectedTypeId(type.id);
+  }
+  function removeWallType(id: string) {
+    setWallTypes(wallTypes.filter(type => type.id !== id));
+    setWalls(items => items.map(wall => wall.typeId === id ? { ...wall, typeId: undefined } : wall));
+    if (selectedTypeId === id) setSelectedTypeId(undefined);
+    if (placeTypeId === id) setPlaceTypeId(undefined);
+  }
+  function placeWallType(type: WallElementType) {
+    if (readOnly || walls.length >= 250) return;
+    if (!wallTypes.some(item => item.id === type.id)) setWallTypes([...wallTypes, type]);
+    setSelectedTypeId(type.id);
+    setPlaceTypeId(type.id);
+    setPlaceKind('wall');
+    setClick('place');
+    setSnapStatus('Klicken zum Platzieren · Escape abbricht');
+  }
+  function assignWallType(wallId: string, typeId: string | undefined) {
+    const type = typeId ? wallTypes.find(item => item.id === typeId) : undefined;
+    setWalls(items => items.map(item => {
+      if (item.id !== wallId) return item;
+      if (!type) {
+        const { typeId: _removed, ...rest } = item;
+        return rest;
+      }
+      const { openings: _openings, ...rest } = item;
+      return { ...rest, typeId: type.id, width: type.width, height: type.height, thickness: type.thickness };
+    }));
+  }
+  function updateWallOpening(wallId: string, openingId: string, patch: Partial<Omit<Opening, 'hinge'>> & { hinge?: Opening['hinge'] | null }) {
+    setWalls(items => items.map(item => {
+      if (item.id !== wallId || item.typeId) return item;
+      const openings = (item.openings ?? []).map(opening => {
+        if (opening.id !== openingId) return opening;
+        if ('hinge' in patch && (patch.hinge === null || patch.hinge === undefined)) {
+          const { hinge: _removed, ...base } = { ...opening, ...patch };
+          return base;
+        }
+        return { ...opening, ...patch };
+      });
+      return { ...item, openings };
+    }));
+  }
+  function removeWallOpening(wallId: string, openingId: string) {
+    setWalls(items => items.map(item => {
+      if (item.id !== wallId) return item;
+      const openings = (item.openings ?? []).filter(opening => opening.id !== openingId);
+      if (!openings.length) {
+        const { openings: _removed, ...rest } = item;
+        return rest;
+      }
+      return { ...item, openings };
+    }));
+  }
+  function beginDrawOpening() {
+    if (readOnly || !selectedWall || selectedWall.typeId) return;
+    setClick('draw-opening');
+    setSnapStatus('Ausschnitt auf der Wand ziehen · Escape abbricht');
   }
   function onPlanMove(event: PointerEvent) {
     const panning = panDrag.current;
@@ -630,6 +729,35 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
     }
     if (click === 'draw-truss' && trussDrawStart) setTrussDrawHover(point);
     if (click === 'draw-curtain' && curtainDrawStart) setCurtainDrawHover(point);
+    const edgeDrag = edgeOffsetDrag.current;
+    if (edgeDrag) {
+      const normal = outlineEdgeOutwardNormal(edgeDrag.start, edgeDrag.edgeIndex);
+      if (!normal) return;
+      const delta = (point.x - edgeDrag.origin.x) * normal.x + (point.y - edgeDrag.origin.y) * normal.y;
+      const next = offsetOutlineEdge(edgeDrag.start, edgeDrag.edgeIndex, delta);
+      if (next) {
+        setVertices(next);
+        setSnapStatus(`Parallel · ${Math.round(delta)} mm`);
+      }
+      return;
+    }
+    const opening = openingDraw.current;
+    if (opening) {
+      const wall = opening.wallId === selected ? walls.find(item => item.id === opening.wallId) : walls.find(item => item.id === opening.wallId);
+      if (!wall) return;
+      const along = wallAlongFromPlanPoint(wall, point);
+      opening.endAlong = along;
+      const left = Math.min(opening.startAlong, along);
+      const width = Math.max(1, Math.abs(along - opening.startAlong));
+      setOpeningPreview({ wallId: wall.id, left, width });
+      setSnapStatus(`Ausschnitt · ${Math.round(width)} mm`);
+      return;
+    }
+    if (click === 'edge-parallel' && !busyGesture()) {
+      const hit = nearestOutlineEdge(vertices, point);
+      setHoverEdgeIndex(hit?.index);
+      return;
+    }
     if (vertexDrag.current === undefined) return;
     setVertices(current => current.map((v, i) => i === vertexDrag.current ? point : v));
   }
@@ -650,6 +778,28 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
     }
     if (objectRotate.current) { objectRotate.current = undefined; draft.finish(cancel); setGuides([]); setSnapStatus(undefined); return; }
     if (objectDrag.current) { objectDrag.current = undefined; draft.finish(cancel); setGuides([]); setSnapStatus(undefined); return; }
+    if (edgeOffsetDrag.current) {
+      edgeOffsetDrag.current = undefined;
+      draft.finish(cancel);
+      setSnapStatus(undefined);
+      return;
+    }
+    if (openingDraw.current) {
+      const gesture = openingDraw.current;
+      openingDraw.current = undefined;
+      setOpeningPreview(undefined);
+      if (cancel) { draft.finish(true); setSnapStatus(undefined); return; }
+      const wall = draft.value.walls.find(item => item.id === gesture.wallId);
+      const cut = wall ? openingFromWallSpan(crypto.randomUUID(), wall, gesture.startAlong, gesture.endAlong) : undefined;
+      if (!wall || !cut || wall.typeId) { draft.finish(true); setSnapStatus(undefined); return; }
+      setWalls(items => items.map(item => item.id === wall.id
+        ? { ...item, openings: [...(item.openings ?? []), cut] }
+        : item));
+      draft.finish();
+      setSnapStatus(undefined);
+      setClick('select');
+      return;
+    }
     if (centrelineDrag.current) { centrelineDrag.current = undefined; draft.finish(cancel); return; }
     if (zoneVertexDrag.current) { zoneVertexDrag.current = undefined; draft.finish(cancel); return; }
     if (corridorVertexDrag.current) { corridorVertexDrag.current = undefined; draft.finish(cancel); return; }
@@ -706,12 +856,12 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
       event.preventDefault();
       if (command === 'cancel') {
         if (pastePlacement.current) { cancelPastePlacement(); return; }
-        if (objectDrag.current || objectRotate.current || vertexDrag.current !== undefined || zoneVertexDrag.current || corridorVertexDrag.current || centrelineDrag.current || marqueeDrag.current || panDrag.current) endPlanGesture(true);
+        if (objectDrag.current || objectRotate.current || edgeOffsetDrag.current || openingDraw.current || vertexDrag.current !== undefined || zoneVertexDrag.current || corridorVertexDrag.current || centrelineDrag.current || marqueeDrag.current || panDrag.current) endPlanGesture(true);
         else if (drawingZone.length || trussDrawStart || curtainDrawStart) {
           setDrawingZone([]); setTrussDrawStart(undefined); setTrussDrawHover(undefined);
           setCurtainDrawStart(undefined); setCurtainDrawHover(undefined);
         }
-        else if (!transformStart.current) { setSelectedIds([]); setClick('select'); }
+        else if (!transformStart.current) { setSelectedIds([]); setClick('select'); setHoverEdgeIndex(undefined); }
         return;
       }
       if (event.key === 'Enter' && click === 'draw-zone' && drawingZone.length >= 3) {
@@ -790,9 +940,11 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
     </div>
     {sheetEditorOpen ? null : <div className="workspace-feedback" role="status">{snapStatus ?? ''}</div>}
     {!sheetEditorOpen && !readOnly && <div className="tool-rail" role="toolbar" aria-label="Spielstättenwerkzeuge" inert={busyGesture()}>
-      <button type="button" className="quiet" aria-pressed={click === 'select'} onClick={() => { setClick('select'); setDrawingZone([]); setTrussDrawStart(undefined); setCurtainDrawStart(undefined); }} title="Auswählen" aria-label="Auswählen"><ToolIcon name="settings" /><span>Auswahl</span></button>
+      <button type="button" className="quiet" aria-pressed={click === 'select'} onClick={() => { setClick('select'); setDrawingZone([]); setTrussDrawStart(undefined); setCurtainDrawStart(undefined); setHoverEdgeIndex(undefined); }} title="Auswählen" aria-label="Auswählen"><ToolIcon name="settings" /><span>Auswahl</span></button>
       <button type="button" className="quiet" aria-pressed={click === 'vertex'} onClick={() => setClick('vertex')} title="Eckpunkt auf eine Umrisskante setzen" aria-label="Eckpunkt hinzufügen"><ToolIcon name="plus" /><span>Eckpunkt</span></button>
-      <button type="button" className="quiet" aria-pressed={click === 'place' && placeKind === 'wall'} disabled={walls.length >= 250} onClick={() => { setPlaceKind('wall'); setClick('place'); }} title="Feste Wand setzen" aria-label="Feste Wand setzen"><ToolIcon name="wall" /><span>Wand</span></button>
+      <button type="button" className="quiet" aria-pressed={click === 'edge-parallel'} onClick={() => { setHoverEdgeIndex(undefined); setClick('edge-parallel'); }} title="Umrisskante parallel verschieben" aria-label="Kante parallel"><ToolIcon name="edge" /><span>Kante</span></button>
+      <button type="button" className="quiet" aria-pressed={click === 'draw-opening'} disabled={!selectedWall || !!selectedWall.typeId} onClick={() => beginDrawOpening()} title="Ausschnitt in feste Wand zeichnen" aria-label="Ausschnitt zeichnen"><ToolIcon name="expand" /><span>Ausschnitt</span></button>
+      <button type="button" className="quiet" aria-pressed={click === 'place' && placeKind === 'wall'} disabled={walls.length >= 250} onClick={() => { setPlaceKind('wall'); setPlaceTypeId(undefined); setClick('place'); }} title="Feste Wand setzen" aria-label="Feste Wand setzen"><ToolIcon name="wall" /><span>Wand</span></button>
       <button type="button" className="quiet" aria-pressed={click === 'place' && placeKind === 'platform'} disabled={platforms.length >= 250} onClick={() => { setPlaceKind('platform'); setClick('place'); }} title="Podest setzen" aria-label="Podest setzen"><ToolIcon name="platform" /><span>Podest</span></button>
       <button type="button" className="quiet" aria-pressed={click === 'place' && placeKind === 'stair'} disabled={!platforms[0] || stairs.length >= 250} onClick={() => { setPlaceKind('stair'); setClick('place'); }} title="Treppe setzen" aria-label="Treppe setzen"><ToolIcon name="stairs" /><span>Treppe</span></button>
       <button type="button" className="quiet" aria-pressed={click === 'place' && placeKind === 'chair'} disabled={placeholders.length >= 250} onClick={() => { setPlaceKind('chair'); setClick('place'); }} title="Stuhl setzen" aria-label="Stuhl setzen"><ToolIcon name="library" /><span>Stuhl</span></button>
@@ -824,11 +976,18 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
           </div></div>
           <svg ref={svg} role="img" aria-label="Umriss der Spielstätte" viewBox={`${viewX} ${viewY} ${viewW} ${viewH}`}
             className={pastePlacing ? 'placing-cursor' : undefined}
+            onPointerDownCapture={event => {
+              if (!pastePlacement.current || event.button !== 0 || readOnly) return;
+              updatePasteAt(planPoint(event), event.altKey || !snapEnabled);
+              commitPastePlacement();
+              event.preventDefault();
+              event.stopPropagation();
+            }}
             onPointerDown={onPlan}
             onPointerMove={onPlanMove}
             onPointerUp={() => endPlanGesture()}
             onPointerCancel={() => endPlanGesture(true)}
-            onLostPointerCapture={() => { if (panDrag.current || objectDrag.current || objectRotate.current || vertexDrag.current !== undefined || zoneVertexDrag.current || corridorVertexDrag.current || centrelineDrag.current || marqueeDrag.current) endPlanGesture(true); }}
+            onLostPointerCapture={() => { if (panDrag.current || objectDrag.current || objectRotate.current || edgeOffsetDrag.current || openingDraw.current || vertexDrag.current !== undefined || zoneVertexDrag.current || corridorVertexDrag.current || centrelineDrag.current || marqueeDrag.current) endPlanGesture(true); }}
             onAuxClick={event => event.preventDefault()}>
             <defs>
               <pattern id="venue-half-metre-grid" width="500" height="500" patternUnits="userSpaceOnUse">
@@ -864,6 +1023,11 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
                 event.stopPropagation();
                 onPlan(event);
               }} />
+            {click === 'edge-parallel' && hoverEdgeIndex !== undefined && (() => {
+              const a = vertices[hoverEdgeIndex]!, b = vertices[(hoverEdgeIndex + 1) % vertices.length]!;
+              return <line data-testid="venue-edge-highlight" x1={a.x} y1={-a.y} x2={b.x} y2={-b.y}
+                stroke="#b67c35" strokeWidth="8" strokeLinecap="round" vectorEffect="non-scaling-stroke" pointerEvents="none" />;
+            })()}
             <CentrelineMark centreline={centreline} selected={selectedIds.includes(CENTRELINE_SELECTION)} showLabel={planDisplay.showTexts}
               onPointerDown={readOnly ? undefined : event => {
                 if (click !== 'select' || busyGesture() || event.button !== 0) return;
@@ -911,12 +1075,42 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
                   onPointerDown={event => beginObjectDrag(event, stair.id)} />
               </g>;
             })}
-            {walls.map(wall => <g key={wall.id} data-testid={`venue-wall-${wall.id}`}
-              className={[readOnly ? '' : 'draggable-wall', overlapIds.has(wall.id) ? 'plan-overlap' : ''].filter(Boolean).join(' ') || undefined}
-              transform={`translate(${wall.x} ${-wall.y}) rotate(${-wall.rotation})`} onPointerDown={event => beginObjectDrag(event, wall.id)}>
-              <line x1={-wall.width / 2} x2={wall.width / 2} stroke="transparent" strokeWidth="18" vectorEffect="non-scaling-stroke" />
-              <rect x={-wall.width / 2} y={-wall.thickness / 2} width={wall.width} height={wall.thickness} fill={selectedIds.includes(wall.id) ? '#b67c35' : '#315d49'} stroke="#315d49" strokeWidth="5" vectorEffect="non-scaling-stroke" />
-            </g>)}
+            {walls.map(wall => {
+              const resolved = resolveWall(wall, wallTypes);
+              const preview = openingPreview?.wallId === wall.id ? openingPreview : undefined;
+              const openings = preview
+                ? [...resolved.openings, { id: 'preview', left: preview.left, sill: 0, width: preview.width, height: Math.max(1, resolved.height - 400) }]
+                : resolved.openings;
+              return <g key={wall.id} data-testid={`venue-wall-${wall.id}`}
+                className={[readOnly ? '' : 'draggable-wall', overlapIds.has(wall.id) ? 'plan-overlap' : ''].filter(Boolean).join(' ') || undefined}
+                transform={`translate(${wall.x} ${-wall.y}) rotate(${-wall.rotation})`} onPointerDown={event => beginObjectDrag(event, wall.id)}>
+                <line x1={-resolved.width / 2} x2={resolved.width / 2} stroke="transparent" strokeWidth="18" vectorEffect="non-scaling-stroke" />
+                <rect x={-resolved.width / 2} y={-resolved.thickness / 2} width={resolved.width} height={resolved.thickness}
+                  fill={selectedIds.includes(wall.id) ? '#b67c35' : '#315d49'} stroke="#315d49" strokeWidth="5" vectorEffect="non-scaling-stroke" />
+                {openings.map(opening => {
+                  const x0 = -resolved.width / 2 + opening.left;
+                  const open = isDoorOpening(opening) ? doorOpenAngleDegrees(wall.doorOpenPercent ?? 0) * Math.PI / 180 : 0;
+                  const hingeX = isDoorOpening(opening)
+                    ? (opening.hinge === 'left' ? x0 : x0 + opening.width)
+                    : x0;
+                  const dir = isDoorOpening(opening) && opening.hinge === 'right' ? -1 : 1;
+                  const leafEndX = hingeX + dir * opening.width * Math.cos(open);
+                  const leafEndY = opening.width * Math.sin(open);
+                  return <g key={opening.id}>
+                    <rect data-testid={opening.id === 'preview' ? 'venue-opening-preview' : `venue-plan-opening-${opening.id}`}
+                      data-width={opening.width} data-height={opening.height}
+                      data-left={opening.left} data-sill={opening.sill} data-hinge={opening.hinge ?? ''}
+                      x={x0} y={-resolved.thickness / 2} width={opening.width} height={resolved.thickness}
+                      fill={opening.id === 'preview' ? 'rgba(248,250,245,0.7)' : '#f8faf5'} stroke="#315d49" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+                    {isDoorOpening(opening) && <>
+                      <line x1={hingeX} y1={0} x2={leafEndX} y2={leafEndY}
+                        stroke="#c8c4b8" strokeWidth="28" strokeLinecap="square" vectorEffect="non-scaling-stroke" />
+                      <circle cx={hingeX} cy={0} r={18} fill="#986122" />
+                    </>}
+                  </g>;
+                })}
+              </g>;
+            })}
             <PlaceholderLayer placeholders={placeholders} selectedId={selectedIds.length === 1 ? selected : undefined} readOnly={readOnly}
               overlappingIds={overlapIds}
               groupedIds={new Set(selectedIds.map(id => `placeholder:${id}`))} display={planDisplay}
@@ -1024,7 +1218,49 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
           </select>
           {selectedWall && selectedWallIndex >= 0 ? <fieldset disabled={readOnly || busy || busyGesture()}>
             <label>Bezeichnung<input value={selectedWall.label} onChange={event => setWalls(items => items.map(item => item.id === selectedWall.id ? { ...item, label: event.target.value } : item))} /></label>
-            <div className="numeric-fields">{(['x', 'y', 'rotation', 'width', 'height', 'thickness'] as const).map(key => <label key={key}>{key}<input aria-label={`Feste Wand ${selectedWallIndex + 1} ${key}`} type="number" value={selectedWall[key]} onChange={event => setWalls(items => items.map(item => item.id === selectedWall.id ? { ...item, [key]: Number(event.target.value) } : item))} /></label>)}</div>
+            <label htmlFor="venue-wall-type">Wandtyp
+              <select id="venue-wall-type" aria-label={`Feste Wand ${selectedWallIndex + 1} Wandtyp`}
+                value={selectedWall.typeId ?? ''}
+                onChange={event => assignWallType(selectedWall.id, event.target.value || undefined)}>
+                <option value="">Ohne Typ (volle Platte)</option>
+                {wallTypes.map(type => <option key={type.id} value={type.id}>{type.name}</option>)}
+              </select>
+            </label>
+            {selectedWall.typeId && <p className="muted">Außenmaße und Öffnungen kommen vom Wandtyp.</p>}
+            {!selectedWall.typeId && <>
+              <h4>Ausschnitte</h4>
+              <p className="muted">Rechteckige Durchgänge/Fenster in dieser Wand. Im Grundriss mit „Ausschnitt“ entlang der Wand ziehen.</p>
+              {(selectedWall.openings ?? []).map((opening, index) => <div key={opening.id} className="opening-fields" data-testid={`venue-wall-opening-fields-${opening.id}`}>
+                <p>{index + 1}. Ausschnitt</p>
+                {([
+                  ['left', 'von links (mm)'], ['sill', 'von unten (mm)'],
+                  ['width', 'Breite (mm)'], ['height', 'Höhe (mm)'],
+                ] as const).map(([key, label]) => <label key={key}>{label}
+                  <input aria-label={`Feste Wand ${selectedWallIndex + 1} Ausschnitt ${index + 1} ${key}`} type="number" min={key === 'width' || key === 'height' ? 1 : 0}
+                    value={opening[key]}
+                    onChange={event => updateWallOpening(selectedWall.id, opening.id, { [key]: Number(event.target.value) })} />
+                </label>)}
+                <label>Türscharnier
+                  <select aria-label={`Feste Wand ${selectedWallIndex + 1} Ausschnitt ${index + 1} hinge`} value={opening.hinge ?? ''}
+                    onChange={event => {
+                      const value = event.target.value;
+                      if (value === 'left' || value === 'right') updateWallOpening(selectedWall.id, opening.id, { hinge: value });
+                      else updateWallOpening(selectedWall.id, opening.id, { hinge: null });
+                    }}>
+                    <option value="">Kein Türblatt (nur Ausschnitt)</option>
+                    <option value="left">Scharnier links</option>
+                    <option value="right">Scharnier rechts</option>
+                  </select>
+                </label>
+                <button type="button" className="quiet" onClick={() => removeWallOpening(selectedWall.id, opening.id)}>Ausschnitt entfernen</button>
+              </div>)}
+              <div className="form-actions">
+                <button type="button" className="quiet" aria-pressed={click === 'draw-opening'} onClick={() => beginDrawOpening()}>Ausschnitt zeichnen</button>
+              </div>
+            </>}
+            <div className="numeric-fields">{(['x', 'y', 'rotation', 'width', 'height', 'thickness'] as const).map(key => <label key={key}>{key}<input aria-label={`Feste Wand ${selectedWallIndex + 1} ${key}`} type="number" value={selectedWall[key]}
+              disabled={!!selectedWall.typeId && (key === 'width' || key === 'height' || key === 'thickness')}
+              onChange={event => setWalls(items => items.map(item => item.id === selectedWall.id ? { ...item, [key]: Number(event.target.value) } : item))} /></label>)}</div>
             <Suspense fallback={<p>Materialbibliothek wird geladen …</p>}>
               <MaterialPicker id="venue-wall-finish" value={selectedWall.finish} onChange={value => {
                 const finish = value || undefined;
@@ -1206,6 +1442,14 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
           <ClipboardPanel selection={selectedIds.map(id => ({ kind: 'wall', id }))} canPaste={!!clipboard} busy={busy} readOnly={readOnly}
             onCopy={copy} onCut={cut} onPaste={paste} />
         </div></details>
+        <details className="inspector-section"><summary>Wandtypen / Öffnungen</summary><div className="inspector-section-body">
+          <WallTypePanel types={wallTypes} selectedId={selectedTypeId} readOnly={readOnly}
+            onSelect={setSelectedTypeId}
+            onCreate={type => { applyWallType(type); }}
+            onApply={applyWallType}
+            onPlace={placeWallType}
+            onRemove={removeWallType} />
+        </div></details>
         <details className="inspector-section"><summary>Umriss</summary><div className="inspector-section-body">
           <fieldset disabled={readOnly || busy || busyGesture()}>
             {venueId && <>
@@ -1230,6 +1474,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
             </div>)}
             <div className="form-actions">
               <button type="button" className="quiet" aria-pressed={click === 'vertex'} onClick={() => setClick('vertex')}>Eckpunkt auf Kante setzen</button>
+              <button type="button" className="quiet" aria-pressed={click === 'edge-parallel'} onClick={() => { setHoverEdgeIndex(undefined); setClick('edge-parallel'); }}>Kante parallel verschieben</button>
               <button type="button" className="quiet" disabled={vertices.length <= 3} onClick={() => setVertices(current => current.slice(0, -1))}>Letzten Eckpunkt entfernen</button>
             </div>
           </fieldset>

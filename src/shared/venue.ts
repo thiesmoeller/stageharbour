@@ -127,3 +127,58 @@ export function insertOutlineVertex(
   next.splice(best.index + 1, 0, { x: Math.round(best.point.x), y: Math.round(best.point.y) });
   return venueOutlineSchema.safeParse(next).success ? next : undefined;
 }
+
+/** Click within this distance of an outline edge selects it for parallel offset. */
+export const OUTLINE_EDGE_HIT_MM = 400;
+
+/**
+ * Outward unit normal for edge `index → index+1`.
+ * Venue outlines use Cartesian +Y up-stage; CCW winding yields a positive signed area, so the
+ * clockwise perpendicular of the edge direction points outward.
+ */
+export function outlineEdgeOutwardNormal(outline: readonly PlanPoint[], edgeIndex: number): PlanPoint | undefined {
+  if (edgeIndex < 0 || edgeIndex >= outline.length) return undefined;
+  const start = outline[edgeIndex]!, end = outline[(edgeIndex + 1) % outline.length]!;
+  const dx = end.x - start.x, dy = end.y - start.y;
+  const length = Math.hypot(dx, dy);
+  if (!(length > 0)) return undefined;
+  // Clockwise perpendicular of (dx, dy) is (dy, -dx). Flip when winding is clockwise.
+  const outward = signedArea([...outline]) > 0 ? 1 : -1;
+  return { x: outward * dy / length, y: outward * -dx / length };
+}
+
+/** Nearest outline edge to `point`, or undefined when farther than `maxDistanceMm`. */
+export function nearestOutlineEdge(
+  outline: readonly PlanPoint[],
+  point: PlanPoint,
+  maxDistanceMm = OUTLINE_EDGE_HIT_MM,
+): { index: number; distance: number; point: PlanPoint } | undefined {
+  let best: { index: number; distance: number; point: PlanPoint } | undefined;
+  for (let index = 0; index < outline.length; index++) {
+    const start = outline[index]!, end = outline[(index + 1) % outline.length]!;
+    const hit = projectOnSegment(point, start, end);
+    if (!best || hit.distance < best.distance) best = { index, distance: hit.distance, point: hit.point };
+  }
+  if (!best || best.distance > maxDistanceMm) return undefined;
+  return best;
+}
+
+/**
+ * Move both endpoints of edge `edgeIndex` along the outward normal by `deltaMm` (positive grows the room).
+ * Returns undefined when the edge is invalid or the result would not be a valid venue outline.
+ */
+export function offsetOutlineEdge(
+  outline: readonly PlanPoint[],
+  edgeIndex: number,
+  deltaMm: number,
+): PlanPoint[] | undefined {
+  if (!Number.isFinite(deltaMm) || edgeIndex < 0 || edgeIndex >= outline.length) return undefined;
+  const normal = outlineEdgeOutwardNormal(outline, edgeIndex);
+  if (!normal) return undefined;
+  const i0 = edgeIndex, i1 = (edgeIndex + 1) % outline.length;
+  const next = outline.map(point => ({ ...point }));
+  const a = next[i0]!, b = next[i1]!;
+  next[i0] = { x: Math.round(a.x + normal.x * deltaMm), y: Math.round(a.y + normal.y * deltaMm) };
+  next[i1] = { x: Math.round(b.x + normal.x * deltaMm), y: Math.round(b.y + normal.y * deltaMm) };
+  return venueOutlineSchema.safeParse(next).success ? next : undefined;
+}

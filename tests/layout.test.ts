@@ -2,10 +2,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { execute, history, redo, undo } from '../src/shared/history.js';
-import { layoutSchema, newBrace, newWall, openingCorners, wallCorners, type Layout } from '../src/shared/layout.js';
+import { layoutSchema, newBrace, newWall, openingCorners, venueGeometrySchema, wallCorners, wallSchema, type Layout } from '../src/shared/layout.js';
 import { AUDIENCE_FLOOR_ID, newPlatform, newStair } from '../src/shared/levels.js';
 import { braceCorners } from '../src/shared/braceTransforms.js';
-import { newWallType, resolveWall, wallTypeSchema } from '../src/shared/wall-types.js';
+import {
+  openingFromWallSpan, resolveWall, VENUE_CUTOUT_LINTEL_MM, wallAlongFromPlanPoint, wallTypeSchema, newWallType,
+} from '../src/shared/wall-types.js';
 
 test('wall defaults, centre coordinates and rotation use millimetres consistently', () => {
   const wall = newWall(randomUUID(), 2000, 3000);
@@ -51,6 +53,37 @@ test('rejects openings that leave the panel and invalid type dimensions', () => 
   assert(!layoutSchema.safeParse({
     schemaVersion: 1, wallTypes: [newWallType(id)], walls: [{ ...newWall(randomUUID(), 0, 0), typeId: randomUUID() }],
   }).success);
+});
+
+test('venue geometry carries wall types so permanent walls resolve openings', () => {
+  const type = { ...newWallType(randomUUID()), name: 'Türwand', openings: [{ id: randomUUID(), left: 200, sill: 0, width: 800, height: 2000, hinge: 'left' as const }] };
+  const wall = { ...newWall(randomUUID(), 4000, 3000), typeId: type.id, label: type.name, width: 999, height: 999, thickness: 9 };
+  const venue = venueGeometrySchema.parse({
+    schemaVersion: 1, width: 8000, depth: 6000, walls: [wall], wallTypes: [type],
+  });
+  const resolved = resolveWall(venue.walls![0]!, venue.wallTypes ?? []);
+  assert.equal(resolved.width, 1200);
+  assert.equal(resolved.openings.length, 1);
+  assert.equal(resolved.openings[0]?.width, 800);
+  assert.equal(resolved.openings[0]?.hinge, 'left');
+});
+
+test('inline wall openings cut venue shells without a wall type', () => {
+  const opening = { id: randomUUID(), left: 841, sill: 0, width: 3000, height: 2589 };
+  const wall = { ...newWall(randomUUID(), 4000, 3000), width: 5000, height: 2989, thickness: 200, openings: [opening] };
+  const venue = venueGeometrySchema.parse({
+    schemaVersion: 1, width: 8000, depth: 6000, walls: [wall],
+  });
+  const resolved = resolveWall(venue.walls![0]!, []);
+  assert.equal(resolved.openings.length, 1);
+  assert.equal(resolved.openings[0]?.left, 841);
+  assert.equal(resolved.openings[0]?.width, 3000);
+  assert(!wallSchema.safeParse({ ...wall, typeId: randomUUID(), openings: [opening] }).success);
+  assert(!wallSchema.safeParse({ ...wall, openings: [{ ...opening, width: 5000 }] }).success);
+  const span = openingFromWallSpan(randomUUID(), wall, 841, 3841);
+  assert.equal(span?.width, 3000);
+  assert.equal(span?.height, wall.height - VENUE_CUTOUT_LINTEL_MM);
+  assert.equal(wallAlongFromPlanPoint({ x: 4000, y: 3000, rotation: 0, width: 5000 }, { x: 4000, y: 3000 }), 2500);
 });
 
 test('accepts multiple rectangular openings that stay inside the panel', () => {

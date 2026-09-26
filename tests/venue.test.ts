@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { venueGeometrySchema } from '../src/shared/layout.js';
 import {
-  calibrationSchema, insertOutlineVertex, measuredOutline, millimetresPerUnit, OUTLINE_VERTEX_INSERT_MM,
+  calibrationSchema, insertOutlineVertex, measuredOutline, millimetresPerUnit, nearestOutlineEdge,
+  offsetOutlineEdge, OUTLINE_EDGE_HIT_MM, OUTLINE_VERTEX_INSERT_MM, outlineEdgeOutwardNormal,
   planToUnderlaySource, underlaySourceToPlan, venueOutlineSchema,
 } from '../src/shared/venue.js';
 import { defaultPlanDisplay } from '../src/shared/planDisplay.js';
@@ -71,6 +72,27 @@ test('a click near an outline edge inserts a vertex on that edge, not at the end
   ]);
   assert.equal(insertOutlineVertex(outline, { x: 4000, y: OUTLINE_VERTEX_INSERT_MM + 50 }), undefined);
   assert.equal(insertOutlineVertex(outline, { x: 0, y: 0 }), undefined);
+});
+
+test('parallel outline edge offset grows or shrinks a rectangle while keeping adjacent corners joined', () => {
+  const outline = [{ x: 0, y: 0 }, { x: 8000, y: 0 }, { x: 8000, y: 6000 }, { x: 0, y: 6000 }];
+  // Bottom edge (index 0) outward is −Y; positive delta moves it down-stage (negative y).
+  assert.deepEqual(outlineEdgeOutwardNormal(outline, 0), { x: 0, y: -1 });
+  assert.deepEqual(offsetOutlineEdge(outline, 0, 500), [
+    { x: 0, y: -500 }, { x: 8000, y: -500 }, { x: 8000, y: 6000 }, { x: 0, y: 6000 },
+  ]);
+  // Right edge outward +X grows width.
+  assert.deepEqual(offsetOutlineEdge(outline, 1, 1000), [
+    { x: 0, y: 0 }, { x: 9000, y: 0 }, { x: 9000, y: 6000 }, { x: 0, y: 6000 },
+  ]);
+  // Shrink top edge (index 2, outward +Y) by moving it inward (negative delta).
+  assert.deepEqual(offsetOutlineEdge(outline, 2, -500), [
+    { x: 0, y: 0 }, { x: 8000, y: 0 }, { x: 8000, y: 5500 }, { x: 0, y: 5500 },
+  ]);
+  assert.equal(offsetOutlineEdge(outline, 0, -6000), undefined);
+  assert.equal(offsetOutlineEdge(outline, 4, 100), undefined);
+  assert.equal(nearestOutlineEdge(outline, { x: 4000, y: 50 })?.index, 0);
+  assert.equal(nearestOutlineEdge(outline, { x: 4000, y: OUTLINE_EDGE_HIT_MM + 50 }), undefined);
 });
 
 test('underlay source and plan coordinates round-trip through scale and rotation', () => {

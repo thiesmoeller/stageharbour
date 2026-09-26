@@ -67,6 +67,24 @@ test('push-pull on a rotated venue wall grows height, width and thickness from t
   assert.equal(thicker.walls![0]!.x, 3994);
 });
 
+test('push-pull resizes inline wall openings and keeps wall resize valid with cutouts', () => {
+  const openingId = randomUUID();
+  const wall = {
+    ...newWall(randomUUID(), 4000, 3000),
+    width: 5000, height: 2989, thickness: 200,
+    openings: [{ id: openingId, left: 1000, sill: 0, width: 2000, height: 2500 }],
+  };
+  const venue = { schemaVersion: 1 as const, width: 8000, depth: 6000, walls: [wall] };
+  const widerCut = applyPushPull(venue, { kind: 'wallOpening', id: wall.id, openingId, edge: 'right' }, 300);
+  assert.equal(widerCut.walls![0]!.openings?.[0]?.width, 2300);
+  const leftGrow = applyPushPull(venue, { kind: 'wallOpening', id: wall.id, openingId, edge: 'left' }, 200);
+  assert.equal(leftGrow.walls![0]!.openings?.[0]?.left, 800);
+  assert.equal(leftGrow.walls![0]!.openings?.[0]?.width, 2200);
+  const tallerWall = applyPushPull(venue, resolvePushPullFace({ kind: 'wall', id: wall.id, face: 'py' })!, 100);
+  assert.equal(tallerWall.walls![0]!.height, 3089);
+  assert.equal(tallerWall.walls![0]!.openings?.[0]?.height, 2500);
+});
+
 test('push-pull raises a podium and extrudes overhead / chair faces with opposite face fixed', () => {
   const platform = newPlatform(randomUUID(), 4000, 3000);
   platform.elevation = 400;

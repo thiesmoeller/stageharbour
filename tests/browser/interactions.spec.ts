@@ -110,8 +110,11 @@ test('venue plan drag, rubberband clipboard and escape cancel keep one draft his
   await page.getByRole('button', { name: 'Kopieren' }).click();
   await page.getByRole('button', { name: 'Einfügen' }).click();
   await expect(page.locator('[data-testid^="venue-wall-"]')).toHaveCount(2);
-  // Paste follows the pointer until a click commits the copy.
-  await page.mouse.click(at.x, at.y);
+  await expect(page.locator(`${svg}.placing-cursor`)).toHaveCount(1);
+  // Commit must work even when the click hits the floating paste (objects sit above place-target).
+  const placeAt = await point(page, 5500, 4000, svg);
+  await page.mouse.click(placeAt.x, placeAt.y);
+  await expect(page.locator(`${svg}.placing-cursor`)).toHaveCount(0);
   await expect(page.locator('[data-testid^="venue-wall-"]')).toHaveCount(2);
   await expect(page.getByRole('heading', { name: 'Feste Wand 2' })).toBeVisible();
   // Linux middle-click orbit fires a native paste event; it must not stamp another copy.
@@ -119,6 +122,89 @@ test('venue plan drag, rubberband clipboard and escape cancel keep one draft his
   await expect(page.locator('[data-testid^="venue-wall-"]')).toHaveCount(2);
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('venue-selection-marquee')).toHaveCount(0);
+});
+
+test('venue wall types author openings on permanent walls', async ({ page }) => {
+  await create(page);
+  await page.getByRole('button', { name: 'Spielstätte', exact: true }).click();
+  const svg = 'svg[aria-label="Umriss der Spielstätte"]';
+  await openInspector(page, 'Wandtypen / Öffnungen');
+  await page.locator('.venue-editor').getByRole('button', { name: 'Wandtyp anlegen' }).click();
+  await page.locator('.venue-editor').getByLabel('Wandtyp-Bezeichnung').fill('Türwand Spielstätte');
+  await page.locator('.venue-editor').getByRole('button', { name: 'Türöffnung hinzufügen' }).click();
+  await page.locator('.venue-editor').getByRole('button', { name: 'Wandtyp speichern' }).click();
+  await page.locator('.venue-editor').getByRole('button', { name: 'Wandtyp platzieren' }).click();
+  const at = await point(page, 4000, 3000, svg);
+  await page.mouse.click(at.x, at.y);
+  await expect(page.locator('[data-testid^="venue-wall-"]')).toHaveCount(1);
+  const opening = page.locator('[data-testid^="venue-plan-opening-"]');
+  await expect(opening).toHaveCount(1);
+  await expect(opening).toHaveAttribute('data-width', '800');
+  await expect(opening).toHaveAttribute('data-height', '2000');
+  await expect(opening).toHaveAttribute('data-hinge', 'left');
+  await expect(page.getByLabel('Feste Wand 1 Wandtyp')).toHaveValue(/.+/);
+  await expect(page.locator('[data-testid^="stage-wall-"]')).toHaveAttribute('data-opening-count', '1');
+  await expect(page.locator('[data-testid^="stage-wall-"]')).toHaveAttribute('data-opening-width', '800');
+});
+
+test('venue inline cutout is drawn on a permanent wall without a wall type', async ({ page }) => {
+  await create(page);
+  await page.getByRole('button', { name: 'Spielstätte', exact: true }).click();
+  const svg = 'svg[aria-label="Umriss der Spielstätte"]';
+  await page.getByRole('button', { name: 'Feste Wand setzen' }).click();
+  await page.mouse.click((await point(page, 4000, 3000, svg)).x, (await point(page, 4000, 3000, svg)).y);
+  await expect(page.locator('[data-testid^="venue-wall-"]')).toHaveCount(1);
+  await page.getByLabel('Feste Wand 1 width').fill('5000');
+  await page.getByLabel('Feste Wand 1 height').fill('2989');
+  await page.getByLabel('Feste Wand 1 thickness').fill('200');
+  await page.getByRole('button', { name: 'Ausschnitt zeichnen', exact: true }).first().click();
+  // Wall centre 4000,3000 width 5000 → span from 2500 to 4500 along X (along = 0…5000).
+  await drag(page, await point(page, 2500, 3000, svg), await point(page, 4500, 3000, svg));
+  const opening = page.locator('[data-testid^="venue-plan-opening-"]');
+  await expect(opening).toHaveCount(1);
+  await expect(opening).toHaveAttribute('data-width', '2000');
+  await expect(opening).toHaveAttribute('data-sill', '0');
+  await expect(opening).toHaveAttribute('data-hinge', '');
+  const stageWall = page.locator('[data-testid^="stage-wall-"]');
+  await expect(stageWall).toHaveAttribute('data-opening-count', '1');
+  await expect(stageWall).toHaveAttribute('data-opening-width', '2000');
+
+  // Delete cutout → plan gap gone, 3D wall solid again and still painted.
+  await page.getByRole('button', { name: 'Ausschnitt entfernen' }).click();
+  await expect(opening).toHaveCount(0);
+  await expect(stageWall).toHaveAttribute('data-opening-count', '0');
+  await page.getByRole('button', { name: 'Von oben', exact: true }).click();
+  const canvas = page.locator('[data-renderer="pascal"] canvas');
+  await canvas.scrollIntoViewIfNeeded();
+  await expect(async () => {
+    const png = await canvas.screenshot();
+    const painted = await page.evaluate(async base64 => {
+      const image = new Image();
+      image.src = `data:image/png;base64,${base64}`;
+      await image.decode();
+      const c = document.createElement('canvas');
+      c.width = image.width;
+      c.height = image.height;
+      const ctx = c.getContext('2d')!;
+      ctx.drawImage(image, 0, 0);
+      const { data } = ctx.getImageData(0, 0, image.width, image.height);
+      // Lit meshStandard plywood reads green-dominant; exact hex drifts under lights.
+      let hits = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i]!, g = data[i + 1]!, b = data[i + 2]!;
+        if (g > r + 15 && g > b + 10 && g > 40 && g < 180) hits++;
+      }
+      return hits;
+    }, png.toString('base64'));
+    expect(painted).toBeGreaterThan(200);
+  }).toPass();
+
+  // Re-draw after delete so the solid→cutout→solid→cutout cycle stays editable.
+  await page.getByRole('button', { name: 'Ausschnitt zeichnen', exact: true }).first().click();
+  await drag(page, await point(page, 2800, 3000, svg), await point(page, 4200, 3000, svg));
+  await expect(page.locator('[data-testid^="venue-plan-opening-"]')).toHaveCount(1);
+  await expect(stageWall).toHaveAttribute('data-opening-count', '1');
+  await expect(stageWall).toHaveAttribute('data-opening-width', '1400');
 });
 
 test('venue pins, exits, podiums and chairs can be selected, moved and rotated', async ({ page }) => {

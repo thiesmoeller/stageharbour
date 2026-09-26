@@ -56,10 +56,59 @@ export type ResolvedWall = {
 };
 export function resolveWall(wall: {
   id: string; label: string; x: number; y: number; rotation: number;
-  width: number; height: number; thickness: number; typeId?: string;
+  width: number; height: number; thickness: number; typeId?: string; openings?: Opening[];
 }, types: WallElementType[]): ResolvedWall {
   const type = wall.typeId ? types.find(item => item.id === wall.typeId) : undefined;
-  return { ...wall, width: type?.width ?? wall.width, height: type?.height ?? wall.height, thickness: type?.thickness ?? wall.thickness, openings: type?.openings ?? [] };
+  return {
+    ...wall,
+    width: type?.width ?? wall.width,
+    height: type?.height ?? wall.height,
+    thickness: type?.thickness ?? wall.thickness,
+    openings: type?.openings ?? wall.openings ?? [],
+  };
+}
+
+/** Default lintel when drawing a full-height venue cutout (mm). */
+export const VENUE_CUTOUT_LINTEL_MM = 400;
+
+/** Plan-space point → distance from the wall's left end along its width (0…width). */
+export function wallAlongFromPlanPoint(
+  wall: { x: number; y: number; rotation: number; width: number },
+  point: { x: number; y: number },
+): number {
+  const rad = wall.rotation * Math.PI / 180;
+  const dx = point.x - wall.x, dy = point.y - wall.y;
+  const along = dx * Math.cos(rad) + dy * Math.sin(rad);
+  return Math.max(0, Math.min(wall.width, along + wall.width / 2));
+}
+
+/**
+ * Build a rectangular cutout spanning `a`…`b` along the wall width.
+ * Sill is 0; height leaves a small lintel when the wall is tall enough.
+ */
+export function openingFromWallSpan(
+  id: string,
+  wall: { width: number; height: number },
+  alongA: number,
+  alongB: number,
+): Opening | undefined {
+  const left = Math.round(Math.min(alongA, alongB));
+  const right = Math.round(Math.max(alongA, alongB));
+  const width = right - left;
+  if (!(width >= 1)) return undefined;
+  const lintel = wall.height > VENUE_CUTOUT_LINTEL_MM + 1 ? VENUE_CUTOUT_LINTEL_MM : 0;
+  const height = Math.max(1, wall.height - lintel);
+  if (left + width > wall.width || height > wall.height) return undefined;
+  return { id, left, sill: 0, width, height };
+}
+
+export function openingsFitWall(
+  wall: { width: number; height: number },
+  openings: readonly Opening[],
+): boolean {
+  return openings.every(opening =>
+    opening.left + opening.width <= wall.width && opening.sill + opening.height <= wall.height
+  );
 }
 export function typesOf(layout: { wallTypes?: WallElementType[] }): WallElementType[] {
   return layout.wallTypes ?? [];

@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { stageLightingSchema } from './lighting.js';
 import { leaseHolderSchema } from './leases.js';
 import { AUDIENCE_FLOOR_ID, placementDiagnosticSchema, platformSchema, stairSchema, uniqueLevelIds } from './levels.js';
-import { type Opening, wallTypeSchema } from './wall-types.js';
+import { openingSchema, wallTypeSchema, type Opening } from './wall-types.js';
 import { cableRoutingCorridorsSchema, connectionPointsSchema } from './infrastructure.js';
 import { ceilingHeightSchema, overheadBoxesSchema, overheadWarningSchema } from './overhead.js';
 import { keepClearWarningSchema, keepClearZonesSchema } from './keepClear.js';
@@ -33,12 +33,14 @@ export const venueFixtureStateSchema = z.strictObject({
     .refine(items => !items || new Set(items.map(item => item.wallId)).size === items.length, 'Door fixture wall IDs must be unique'),
 });
 export type VenueFixtureState = z.infer<typeof venueFixtureStateSchema>;
-export const wallSchema = z.strictObject({
+export const wallFieldsSchema = z.strictObject({
   id: z.uuid(), label: name,
   x: coordinate, y: coordinate,
   rotation: z.number().finite().min(-360).max(360),
   width: dimension, height: dimension, thickness: dimension,
   typeId: z.uuid().optional(),
+  /** Inline cutouts when the wall has no wall type (permanent venue shell openings). */
+  openings: z.array(openingSchema).max(20).optional(),
   panelId: z.uuid().optional(),
   supportingSurfaceId: z.uuid().optional(),
   assemblyNumber: z.number().int().positive().max(250).optional(),
@@ -50,6 +52,12 @@ export const wallSchema = z.strictObject({
   /** Door leaf open amount for hinged openings on this wall (0 closed … 100 fully open). */
   doorOpenPercent: z.number().finite().min(0).max(100).optional(),
 });
+export const wallSchema = wallFieldsSchema
+  .refine(wall => !(wall.typeId && wall.openings?.length), 'Typed walls take openings from the wall type')
+  .refine(wall => !(wall.openings?.length) || wall.openings.every(opening =>
+    opening.left + opening.width <= wall.width && opening.sill + opening.height <= wall.height
+  ), 'Openings must lie inside the wall')
+  .refine(wall => !(wall.openings?.length) || new Set(wall.openings.map(opening => opening.id)).size === wall.openings.length, 'Opening IDs must be unique');
 export type Wall = z.infer<typeof wallSchema>;
 // Stützdreieck from 40×40 mm stock: wall stile 1200 mm, floor rail 500 mm.
 export const BRACE_TIMBER_MM = 40;
