@@ -51,7 +51,12 @@ function draw(doc: PDFKit.PDFDocument, item: Paint, images: ReadonlyMap<string, 
   }
   const image = images.get(item.frameId);
   if (image) {
-    doc.image(image, mm(item.x), mm(item.y), { width: mm(item.width), height: mm(item.height) });
+    // Fit inside the frame — never stretch. Raumsicht captures keep their camera aspect.
+    doc.image(image, mm(item.x), mm(item.y), {
+      fit: [mm(item.width), mm(item.height)],
+      align: 'center',
+      valign: 'center',
+    });
     return;
   }
   doc.rect(mm(item.x), mm(item.y), mm(item.width), mm(item.height)).lineWidth(0.4).stroke('#8b8478');

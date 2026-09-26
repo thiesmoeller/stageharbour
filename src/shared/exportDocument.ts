@@ -834,7 +834,8 @@ function composeView(
   scene: FrozenScene, spec: ExportDocumentSpec, input: { productionName: string; issuedAtLabel: string; spec: ExportDocumentSpec },
   measure: TextMeasure, sheets: DrawnSheet[], view?: { id: string; label: string },
 ) {
-  const orientation: SheetOrientation = spec.orientation === 'landscape' ? 'landscape' : 'portrait';
+  // Raumsicht fills like a photo — landscape by default (auto), portrait only when forced.
+  const orientation: SheetOrientation = spec.orientation === 'portrait' ? 'portrait' : 'landscape';
   const body = bodyRect(spec.paper, orientation);
   const size = sheetSizeMm(spec.paper, orientation);
   const frameId = view ? viewFrameId(scene.sceneId, view.id) : viewFrameId(scene.sceneId);

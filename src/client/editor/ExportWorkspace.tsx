@@ -360,7 +360,7 @@ export function ExportWorkspace({
             if (!active || !sceneIds[0]) return null;
             const frameKey = viewFrameId(sceneIds[0], active.id);
             return <div className="export-stage-aim" data-testid="export-stage-aim">
-              <p className="muted">Richten Sie die Kamera aus und übernehmen Sie den Blick für das PDF. Ohne Übernahme bleibt die Raumsicht-Seite leer.</p>
+              <p className="muted">Kamera ausrichten, dann für das PDF übernehmen.</p>
               <button type="button" data-testid="export-capture-view" disabled={readOnly} onClick={event => {
                 event.preventDefault();
                 void (async () => {
