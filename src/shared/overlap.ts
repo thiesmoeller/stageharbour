@@ -1,10 +1,18 @@
-import type { Layout } from './layout.js';
 import { braceCorners } from './braceTransforms.js';
-import { wallCorners } from './layout.js';
+import { wallCorners } from './wallPlan.js';
 import { placeholderCorners } from './placeholders.js';
 import { stairCorners } from './levels.js';
 
 type PlanPoint = { x: number; y: number };
+
+/** Minimal layout shape for overlap checks — avoids importing layout.ts (ESM cycle). */
+export type OverlapLayout = {
+  walls: { id: string; label: string; x: number; y: number; rotation: number; width: number; thickness: number }[];
+  braces?: { id: string; label: string; x: number; y: number; rotation: number; footprintWidth: number; footprintDepth: number }[];
+  stairs?: { id: string; label: string; x: number; y: number; rotation: number; width: number; run: number }[];
+  placeholders?: { id: string; label: string; x: number; y: number; rotation: number; width: number; depth: number }[];
+  platforms?: { id: string; label: string; outline: PlanPoint[] }[];
+};
 
 export type ObjectOverlap = {
   aId: string; aLabel: string; bId: string; bLabel: string;
@@ -117,7 +125,7 @@ export function polygonsInteriorOverlap(
 
 type Footprint = { id: string; label: string; kind: string; polygon: PlanPoint[] };
 
-function layoutFootprints(layout: Layout): Footprint[] {
+function layoutFootprints(layout: OverlapLayout): Footprint[] {
   return [
     ...layout.walls.map(wall => ({ id: wall.id, label: wall.label, kind: 'Wand', polygon: wallCorners(wall) })),
     ...(layout.braces ?? []).map(brace => ({ id: brace.id, label: brace.label, kind: 'Stütze', polygon: braceCorners(brace) })),
@@ -134,7 +142,7 @@ function footprintsCollide(a: Footprint, b: Footprint) {
 }
 
 /** Pairwise interior overlaps among stage objects (edge contact excluded). */
-export function objectOverlapWarnings(layout: Layout, ignoreIds: ReadonlySet<string> = new Set()): ObjectOverlap[] {
+export function objectOverlapWarnings<T extends OverlapLayout>(layout: T, ignoreIds: ReadonlySet<string> = new Set()): ObjectOverlap[] {
   const items = layoutFootprints(layout).filter(item => !ignoreIds.has(item.id));
   const found: ObjectOverlap[] = [];
   for (let i = 0; i < items.length; i++) {
@@ -151,7 +159,7 @@ export function objectOverlapWarnings(layout: Layout, ignoreIds: ReadonlySet<str
 }
 
 /** Ids of every object that participates in at least one interior overlap (for on-canvas tint). */
-export function overlappingObjectIds(layout: Layout, ignoreIds: ReadonlySet<string> = new Set()): Set<string> {
+export function overlappingObjectIds<T extends OverlapLayout>(layout: T, ignoreIds: ReadonlySet<string> = new Set()): Set<string> {
   const ids = new Set<string>();
   for (const item of objectOverlapWarnings(layout, ignoreIds)) {
     ids.add(item.aId);
@@ -161,7 +169,7 @@ export function overlappingObjectIds(layout: Layout, ignoreIds: ReadonlySet<stri
 }
 
 /** Whether placing `candidate` into `layout` (replacing same id if present) would interior-overlap anything else. */
-export function placementOverlaps(layout: Layout, candidate: Footprint): boolean {
+export function placementOverlaps<T extends OverlapLayout>(layout: T, candidate: Footprint): boolean {
   const others = layoutFootprints(layout).filter(item => item.id !== candidate.id);
   return others.some(item => footprintsCollide(candidate, item) && polygonsInteriorOverlap(candidate.polygon, item.polygon));
 }

@@ -1,9 +1,8 @@
-import { z } from 'zod';
 import { groupOf, groupPivot, membersPivot, transformGroup, transformMembers, type Group, type GroupPose } from './groups.js';
-import type { Brace } from './layout.js';
 import { polygonsInteriorOverlap } from './overlap.js';
+import { type StageCentreline } from './centreline.js';
 
-const coordinate = z.number().finite().min(-100000).max(100000);
+export { stageCentrelineSchema, centrelineSchema, defaultCentreline, type StageCentreline } from './centreline.js';
 
 /** Millimetres. An edge or centre closer than this to a wall edge or the centreline snaps onto it. Independent of screen zoom. */
 export const SNAP_DISTANCE_MM = 100;
@@ -17,16 +16,12 @@ export const SNAP_EDGE_FRACTIONS = [0, 1 / 3, 1 / 2, 2 / 3, 1] as const;
 export const COMMON_LAYOUT_ANGLES_DEG = Array.from({ length: 49 }, (_, i) => -360 + i * 15);
 export const SNAP_NOTICE = `Einrasttoleranz ${SNAP_DISTANCE_MM} mm · Vorderseite bei ⅓·½·⅔, Stirnseiten an Enden, Mittellinie und 15°-Winkel. Alt umgeht. Objektüberschneidungen werden angezeigt.`;
 
-export const stageCentrelineSchema = z.strictObject({
-  x: coordinate, y: coordinate,
-  rotation: z.number().finite().min(-360).max(360),
-});
-export type StageCentreline = z.infer<typeof stageCentrelineSchema>;
-export const centrelineSchema = stageCentrelineSchema;
-
-export function defaultCentreline(venue: { width: number; depth: number }): StageCentreline {
-  return { x: venue.width / 2, y: venue.depth / 2, rotation: 90 };
-}
+type BracePose = {
+  id: string; label: string;
+  x: number; y: number; rotation: number;
+  footprintWidth: number; footprintDepth: number; height: number;
+  supportingSurfaceId?: string;
+};
 
 export type SnapGuide = {
   kind: 'wall-edge' | 'centreline' | 'wall-anchor';
@@ -146,12 +141,12 @@ export function snapWallPose(wall: SnapWall, others: SnapWall[], centreline: Sta
   return { x: clean(posed.x + dx), y: clean(posed.y + dy), rotation, guides };
 }
 
-export function braceAsSnapWall(brace: Pick<Brace, 'id' | 'x' | 'y' | 'rotation' | 'footprintWidth' | 'footprintDepth'>): SnapWall {
+export function braceAsSnapWall(brace: Pick<BracePose, 'id' | 'x' | 'y' | 'rotation' | 'footprintWidth' | 'footprintDepth'>): SnapWall {
   return { id: brace.id, x: brace.x, y: brace.y, rotation: brace.rotation, width: brace.footprintWidth, thickness: brace.footprintDepth };
 }
 
 export function snapBracePose(
-  brace: Pick<Brace, 'id' | 'x' | 'y' | 'rotation' | 'footprintWidth' | 'footprintDepth'>,
+  brace: Pick<BracePose, 'id' | 'x' | 'y' | 'rotation' | 'footprintWidth' | 'footprintDepth'>,
   walls: SnapWall[],
   centreline: StageCentreline | undefined,
   options?: SnapOptions,
@@ -164,10 +159,10 @@ export function snapBracePose(
  * translate that face onto the edge when within SNAP_DISTANCE_MM (or always when force).
  */
 export function alignBraceToNearestWall(
-  brace: Brace,
+  brace: BracePose,
   walls: SnapWall[],
   options?: { force?: boolean; maxDistance?: number },
-): Brace | undefined {
+): BracePose | undefined {
   if (!walls.length) return;
   const maxDistance = options?.maxDistance ?? (options?.force ? 1e9 : SNAP_DISTANCE_MM);
   let best: { wall: SnapWall; edge: Edge; distance: number; wallAngle: number } | undefined;
@@ -209,7 +204,7 @@ export function alignBraceToNearestWall(
   };
 }
 
-export function tallFaceMidpoint(brace: Pick<Brace, 'x' | 'y' | 'rotation' | 'footprintWidth' | 'footprintDepth'>) {
+export function tallFaceMidpoint(brace: Pick<BracePose, 'x' | 'y' | 'rotation' | 'footprintWidth' | 'footprintDepth'>) {
   const angle = brace.rotation * Math.PI / 180;
   const localY = -brace.footprintDepth / 2;
   return {
@@ -220,17 +215,17 @@ export function tallFaceMidpoint(brace: Pick<Brace, 'x' | 'y' | 'rotation' | 'fo
 
 /** Keep the tall-face midpoint on `hinge` while changing rotation (wall/Stütze contact axis). */
 export function rotateBraceOnContact(
-  brace: Brace,
+  brace: BracePose,
   hinge: { x: number; y: number },
   rotation: number,
-): Brace {
+): BracePose {
   const next = { ...brace, rotation };
   const face = tallFaceMidpoint(next);
   return { ...next, x: clean(next.x + hinge.x - face.x), y: clean(next.y + hinge.y - face.y) };
 }
 
 /** When the tall face is within snap distance of a wall edge, return that contact point for hinge rotation. */
-export function braceContactHinge(brace: Brace, walls: SnapWall[]): { hinge: { x: number; y: number }; edge: { a: { x: number; y: number }; b: { x: number; y: number } } } | undefined {
+export function braceContactHinge(brace: BracePose, walls: SnapWall[]): { hinge: { x: number; y: number }; edge: { a: { x: number; y: number }; b: { x: number; y: number } } } | undefined {
   const face = tallFaceMidpoint(brace);
   let best: { hinge: { x: number; y: number }; edge: Edge; distance: number } | undefined;
   for (const wall of walls) {
