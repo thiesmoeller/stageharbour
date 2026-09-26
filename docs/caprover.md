@@ -96,7 +96,7 @@ Save and restart is fine; the first real container image arrives from GitHub Act
 
 ## 4. Allow CapRover to pull private GHCR images
 
-The deploy workflow pushes multi-arch images (`linux/amd64` and `linux/arm64`) to `ghcr.io/thiesmoeller/stage_planner`. Private repos create private packages by default. CapRover hosts that are ARM (for example many Hetzner CAX VMs) need the `linux/arm64` manifest.
+The deploy workflow builds `linux/amd64` and `linux/arm64` on native runners (no QEMU), then publishes a multi-arch manifest to `ghcr.io/thiesmoeller/stage_planner`. Private repos create private packages by default. CapRover hosts that are ARM (for example many Hetzner CAX VMs) pull the `linux/arm64` slice of that manifest.
 
 GitHub Packages / GHCR only accepts a **classic** PAT for registry login. A fine-grained token scoped to the repo will **not** show `read:packages` — that scope is not a repository permission, and fine-grained PATs are not supported for GHCR pulls.
 

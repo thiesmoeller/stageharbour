@@ -19,7 +19,8 @@
     "postinstall": "node scripts/patch-pascal-webgl.mjs",
     "test": "node --import tsx --test tests/*.test.ts",
     "test:integration": "node --import tsx --test --test-concurrency=1 tests/integration/*.test.ts",
-    "test:e2e": "npm run build && playwright test"
+    "test:e2e": "npm run build && playwright test",
+    "test:e2e:smoke": "npm run build && playwright test tests/browser/workspace.spec.ts tests/browser/branding.spec.ts"
   },
   "dependencies": {
     "@fastify/static": "10.1.3",
