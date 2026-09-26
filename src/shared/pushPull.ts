@@ -318,3 +318,29 @@ export function planRotationFor(venue: VenueGeometry, handle: PushPullHandle): n
     }
   }
 }
+
+/** Millimetre delta along the push/pull axis that places the dragged face through `hitPoint`. */
+export function inferenceDeltaMm(origin: Vec3, axisNormal: Vec3, hitPoint: Vec3): number {
+  return (
+    (hitPoint.x - origin.x) * axisNormal.x
+    + (hitPoint.y - origin.y) * axisNormal.y
+    + (hitPoint.z - origin.z) * axisNormal.z
+  ) * 1000;
+}
+
+/**
+ * Prefer SketchUp-style inference (flush to pointed geometry) over the grid when available.
+ * Alt / snap-off keeps the free pointer delta.
+ */
+export function resolveDragDeltaMm(
+  freeDeltaMm: number,
+  inferenceMm: number | undefined,
+  opts: { snapEnabled: boolean; bypass: boolean; gridMm?: number },
+): { deltaMm: number; inferred: boolean } {
+  if (opts.bypass || !opts.snapEnabled) return { deltaMm: freeDeltaMm, inferred: false };
+  if (inferenceMm !== undefined && Number.isFinite(inferenceMm)) {
+    return { deltaMm: inferenceMm, inferred: true };
+  }
+  const grid = opts.gridMm ?? 5;
+  return { deltaMm: Math.round(freeDeltaMm / grid) * grid, inferred: false };
+}

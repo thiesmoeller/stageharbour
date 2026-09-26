@@ -2,7 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import {
-  applyPushPull, classifyLocalFace, growCentered, localNormalFromWorld, resolvePushPullFace,
+  applyPushPull, classifyLocalFace, growCentered, inferenceDeltaMm, localNormalFromWorld, resolveDragDeltaMm,
+  resolvePushPullFace,
 } from '../src/shared/pushPull.js';
 import { newWall } from '../src/shared/layout.js';
 import { AUDIENCE_FLOOR_ID, newPlatform, newStair, stairSteps, supportingSurfaces } from '../src/shared/levels.js';
@@ -83,6 +84,17 @@ test('push-pull resizes inline wall openings and keeps wall resize valid with cu
   const tallerWall = applyPushPull(venue, resolvePushPullFace({ kind: 'wall', id: wall.id, face: 'py' })!, 100);
   assert.equal(tallerWall.walls![0]!.height, 3089);
   assert.equal(tallerWall.walls![0]!.openings?.[0]?.height, 2500);
+});
+
+test('push-pull inference snaps the dragged face flush to a pointed hit along the axis', () => {
+  // Scene units are metres; result is millimetres along the axis.
+  assert.equal(inferenceDeltaMm({ x: 0, y: 1, z: 0 }, { x: 0, y: 1, z: 0 }, { x: 3, y: 2.5, z: -2 }), 1500);
+  assert.equal(inferenceDeltaMm({ x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 }, { x: 0.4, y: 9, z: 9 }), 400);
+  const free = 1234;
+  assert.deepEqual(resolveDragDeltaMm(free, 1500, { snapEnabled: true, bypass: false }), { deltaMm: 1500, inferred: true });
+  assert.deepEqual(resolveDragDeltaMm(free, undefined, { snapEnabled: true, bypass: false }), { deltaMm: 1235, inferred: false });
+  assert.deepEqual(resolveDragDeltaMm(free, 1500, { snapEnabled: true, bypass: true }), { deltaMm: free, inferred: false });
+  assert.deepEqual(resolveDragDeltaMm(free, 1500, { snapEnabled: false, bypass: false }), { deltaMm: free, inferred: false });
 });
 
 test('push-pull can open an Ausschnitt flush to the left or right panel end', () => {
