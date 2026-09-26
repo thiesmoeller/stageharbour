@@ -1,7 +1,12 @@
-import type { Brace } from './layout.js';
-import { BRACE_TIMBER_MM } from './layout.js';
+/** Cross-section of 40×40 mm stock used for Stützdreieck members. */
+export const BRACE_TIMBER_MM = 40;
 
 type Vec3 = { x: number; y: number; z: number };
+type BracePose = {
+  id: string; label: string;
+  x: number; y: number; rotation: number;
+  footprintWidth: number; footprintDepth: number; height: number;
+};
 
 /** One 40×40 timber of the wall/floor/diagonal triangle, in brace-local millimetres. */
 export type BraceMember = {
@@ -22,7 +27,7 @@ export type BraceSolid = {
 
 // Millimetres, centre anchor, +x audience-right, +y away from the audience.
 // The tall (wall-side) face is the local -Y edge of the rectangular footprint.
-export function braceCorners(brace: Pick<Brace, 'x' | 'y' | 'rotation' | 'footprintWidth' | 'footprintDepth'>): { x: number; y: number }[] {
+export function braceCorners(brace: Pick<BracePose, 'x' | 'y' | 'rotation' | 'footprintWidth' | 'footprintDepth'>): { x: number; y: number }[] {
   const angle = brace.rotation * Math.PI / 180;
   return [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([x = 0, y = 0]) => {
     const dx = x * brace.footprintWidth / 2;
@@ -36,7 +41,7 @@ export function braceCorners(brace: Pick<Brace, 'x' | 'y' | 'rotation' | 'footpr
  * hypotenuse between their free ends. Coordinates are brace-local (origin at footprint
  * centre on the supporting surface); StageBraces applies world pose.
  */
-export function braceMembers(brace: Pick<Brace, 'footprintWidth' | 'footprintDepth' | 'height'>): BraceMember[] {
+export function braceMembers(brace: Pick<BracePose, 'footprintWidth' | 'footprintDepth' | 'height'>): BraceMember[] {
   const timber = BRACE_TIMBER_MM;
   const width = brace.footprintWidth;
   const depth = brace.footprintDepth;
@@ -70,7 +75,7 @@ export function braceMembers(brace: Pick<Brace, 'footprintWidth' | 'footprintDep
   ];
 }
 
-export function braceSolid(brace: Brace, elevation = 0): BraceSolid {
+export function braceSolid(brace: BracePose, elevation = 0): BraceSolid {
   const rotationY = -brace.rotation * Math.PI / 180;
   const [a, b, c, d] = braceCorners(brace);
   if (!a || !b || !c || !d) throw new Error('Brace footprint must resolve to four corners.');

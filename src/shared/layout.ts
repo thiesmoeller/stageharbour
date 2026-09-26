@@ -2,11 +2,12 @@ import { z } from 'zod';
 import { stageLightingSchema } from './lighting.js';
 import { leaseHolderSchema } from './leases.js';
 import { AUDIENCE_FLOOR_ID, placementDiagnosticSchema, platformSchema, stairSchema, uniqueLevelIds } from './levels.js';
-import { openingSchema, wallTypeSchema, type Opening } from './wall-types.js';
+import { openingSchema, wallTypeSchema } from './wall-types.js';
 import { cableRoutingCorridorsSchema, connectionPointsSchema } from './infrastructure.js';
 import { ceilingHeightSchema, overheadBoxesSchema, overheadWarningSchema } from './overhead.js';
 import { keepClearWarningSchema, keepClearZonesSchema } from './keepClear.js';
-import { snapDrawSegment, stageCentrelineSchema } from './snapping.js';
+import { snapDrawSegment } from './snapping.js';
+import { stageCentrelineSchema } from './centreline.js';
 import { venueOutlineSchema, venueTraceSchema } from './venue.js';
 import { placeholdersSchema } from './placeholders.js';
 import { panelConnectionSchema } from './assembly.js';
@@ -19,6 +20,7 @@ import { wallPicturesSchema } from './wallPictures.js';
 import { reportTemplatesSchema } from './reportTemplate.js';
 import { RAL_CODE_PATTERN } from './ral.js';
 import { migrateWallSurfaces, wallSurfacesSchema } from './surfaces.js';
+import { BRACE_TIMBER_MM } from './braceTransforms.js';
 
 const name = z.string().trim().min(1).max(120);
 const dimension = z.number().finite().min(1).max(100000);
@@ -89,7 +91,7 @@ export const wallSchema = z.codec(wallFieldsStoredSchema, wallFieldsSchema, {
   .refine(wall => !(wall.openings?.length) || new Set(wall.openings.map(opening => opening.id)).size === wall.openings.length, 'Opening IDs must be unique');
 export type Wall = z.infer<typeof wallSchema>;
 // Stützdreieck from 40×40 mm stock: wall stile 1200 mm, floor rail 500 mm.
-export const BRACE_TIMBER_MM = 40;
+export { BRACE_TIMBER_MM };
 export const EXAMPLE_BRACE_FOOTPRINT_WIDTH = BRACE_TIMBER_MM;
 export const EXAMPLE_BRACE_FOOTPRINT_DEPTH = 500;
 export const EXAMPLE_BRACE_HEIGHT = 1200;
@@ -288,19 +290,5 @@ export function newBrace(id: string, x: number, y: number): Brace {
   };
 }
 
-function planPoint(wall: Pick<Wall, 'x' | 'y' | 'rotation'>, dx: number, dy: number) {
-  const angle = wall.rotation * Math.PI / 180;
-  return { x: wall.x + dx * Math.cos(angle) - dy * Math.sin(angle), y: wall.y + dx * Math.sin(angle) + dy * Math.cos(angle) };
-}
-
-// Millimetres, centre anchor, +x audience-right, +y away from the audience.
-// Positive rotation is counterclockwise in the plan's Cartesian coordinates.
-export function wallCorners(wall: Pick<Wall, 'x' | 'y' | 'rotation' | 'width' | 'thickness'>): { x: number; y: number }[] {
-  return [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([x = 0, y = 0]) => planPoint(wall, x * wall.width / 2, y * wall.thickness / 2));
-}
-
-// Opening left is millimetres from the panel's left edge when facing the plywood front.
-export function openingCorners(wall: Pick<Wall, 'x' | 'y' | 'rotation' | 'width' | 'thickness'>, opening: Pick<Opening, 'left' | 'width'>): { x: number; y: number }[] {
-  const left = -wall.width / 2 + opening.left;
-  return [[left, -1], [left + opening.width, -1], [left + opening.width, 1], [left, 1]].map(([x = 0, y = 0]) => planPoint(wall, x, y * wall.thickness / 2));
-}
+// Re-export plan helpers from a cycle-free module (overlap/snapping must not import layout for these).
+export { wallCorners, openingCorners } from './wallPlan.js';
