@@ -6,7 +6,7 @@ import { openingSchema, wallTypeSchema, type Opening } from './wall-types.js';
 import { cableRoutingCorridorsSchema, connectionPointsSchema } from './infrastructure.js';
 import { ceilingHeightSchema, overheadBoxesSchema, overheadWarningSchema } from './overhead.js';
 import { keepClearWarningSchema, keepClearZonesSchema } from './keepClear.js';
-import { stageCentrelineSchema } from './snapping.js';
+import { snapDrawSegment, stageCentrelineSchema } from './snapping.js';
 import { venueOutlineSchema, venueTraceSchema } from './venue.js';
 import { placeholdersSchema } from './placeholders.js';
 import { panelConnectionSchema } from './assembly.js';
@@ -212,6 +212,42 @@ export const applyVenueResultSchema = sceneSchema.extend({
 
 export function newWall(id: string, x: number, y: number): Wall {
   return { id, label: 'Wand', x, y, rotation: 0, width: 1200, height: 2400, thickness: 28, supportingSurfaceId: AUDIENCE_FLOOR_ID };
+}
+
+/** Build a permanent wall from two plan points (click start → click end), with 15° angle snap. */
+export function wallFromDrawnSegment(
+  id: string,
+  start: { x: number; y: number },
+  end: { x: number; y: number },
+  options?: {
+    bypass?: boolean;
+    type?: { id: string; name: string; width: number; height: number; thickness: number };
+  },
+): Wall | undefined {
+  const segment = snapDrawSegment(start, end, { bypass: options?.bypass });
+  const type = options?.type;
+  if (type) {
+    const rad = segment.rotation * Math.PI / 180;
+    const mid = {
+      x: start.x + Math.cos(rad) * type.width / 2,
+      y: start.y + Math.sin(rad) * type.width / 2,
+    };
+    return {
+      ...newWall(id, mid.x, mid.y),
+      typeId: type.id,
+      label: type.name,
+      width: type.width,
+      height: type.height,
+      thickness: type.thickness,
+      rotation: segment.rotation,
+    };
+  }
+  if (!(segment.length >= 1)) return undefined;
+  return {
+    ...newWall(id, (start.x + segment.end.x) / 2, (start.y + segment.end.y) / 2),
+    width: Math.max(1, Math.round(segment.length)),
+    rotation: segment.rotation,
+  };
 }
 export function newBrace(id: string, x: number, y: number): Brace {
   return {

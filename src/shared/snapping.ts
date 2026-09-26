@@ -83,6 +83,36 @@ export function rotateToward(
   return { rotation, angleSnapped: Math.abs(wrapDelta(rotation - raw)) > 1e-9 };
 }
 
+/**
+ * Constrains a draw cursor to a 15° layout angle when within snap tolerance.
+ * Length follows the pointer; Alt/bypass keeps the free angle.
+ */
+export function snapDrawSegment(
+  start: { x: number; y: number },
+  cursor: { x: number; y: number },
+  options?: { bypass?: boolean },
+) {
+  const dx = cursor.x - start.x;
+  const dy = cursor.y - start.y;
+  const freeLength = Math.hypot(dx, dy);
+  const raw = planRotationAt(start, cursor);
+  if (options?.bypass || freeLength < 1e-9) {
+    return { end: { x: cursor.x, y: cursor.y }, rotation: raw, length: freeLength, snapped: false };
+  }
+  const rotation = snapRotation(raw);
+  const snapped = Math.abs(wrapDelta(rotation - raw)) > 1e-9;
+  const angle = snapped ? rotation : raw;
+  const rad = angle * Math.PI / 180;
+  // When angle-snapped, length is the axis projection so H/V drags keep the intended span.
+  const length = snapped ? Math.abs(dx * Math.cos(rad) + dy * Math.sin(rad)) : freeLength;
+  return {
+    end: { x: start.x + Math.cos(rad) * length, y: start.y + Math.sin(rad) * length },
+    rotation: normalizeDegrees(angle),
+    length,
+    snapped,
+  };
+}
+
 /** Handle beyond the object’s local +x end so drag rotates around the centre. */
 export function rotationHandlePoint(item: { x: number; y: number; rotation: number; width: number }, reachBeyond = 350) {
   const angle = item.rotation * Math.PI / 180;

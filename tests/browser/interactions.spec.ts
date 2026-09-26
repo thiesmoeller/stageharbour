@@ -95,13 +95,18 @@ test('venue plan drag, rubberband clipboard and escape cancel keep one draft his
   await openInspector(page, 'Zwischenablage');
   const svg = 'svg[aria-label="Umriss der Spielstätte"]';
   await page.getByRole('button', { name: 'Feste Wand setzen' }).click();
-  const at = await point(page, 4000, 3000, svg);
-  await page.mouse.click(at.x, at.y);
+  await page.mouse.click((await point(page, 3400, 3000, svg)).x, (await point(page, 3400, 3000, svg)).y);
+  const end = await point(page, 4600, 3000, svg);
+  await page.mouse.move(end.x, end.y);
+  await expect(page.getByTestId('venue-wall-draw-preview')).toBeVisible();
+  await page.mouse.click(end.x, end.y);
   const wallX = page.getByLabel('Feste Wand 1 x');
   await expect(wallX).toHaveValue('4000');
+  await expect(page.getByLabel('Feste Wand 1 width')).toHaveValue('1200');
   await drag(page, await point(page, 4000, 3000, svg), await point(page, 4500, 3200, svg));
   await expect(wallX).toHaveValue('4500');
   await expect(page.getByLabel('Feste Wand 1 y')).toHaveValue('3200');
+  // Rubber band selects only fully enclosed footprints (wall ~3900–5100 after move × thickness).
   await page.getByRole('button', { name: 'Spielstätte rückgängig' }).click();
   await expect(wallX).toHaveValue('4000');
   // Rubber band selects only fully enclosed footprints (wall ~3400–4600 × 2986–3014).
@@ -134,8 +139,8 @@ test('venue wall types author openings on permanent walls', async ({ page }) => 
   await page.locator('.venue-editor').getByRole('button', { name: 'Türöffnung hinzufügen' }).click();
   await page.locator('.venue-editor').getByRole('button', { name: 'Wandtyp speichern' }).click();
   await page.locator('.venue-editor').getByRole('button', { name: 'Wandtyp platzieren' }).click();
-  const at = await point(page, 4000, 3000, svg);
-  await page.mouse.click(at.x, at.y);
+  await page.mouse.click((await point(page, 4000, 3000, svg)).x, (await point(page, 4000, 3000, svg)).y);
+  await page.mouse.click((await point(page, 5500, 3000, svg)).x, (await point(page, 5500, 3000, svg)).y);
   await expect(page.locator('[data-testid^="venue-wall-"]')).toHaveCount(1);
   const opening = page.locator('[data-testid^="venue-plan-opening-"]');
   await expect(opening).toHaveCount(1);
@@ -152,14 +157,20 @@ test('venue inline cutout is drawn on a permanent wall without a wall type', asy
   await page.getByRole('button', { name: 'Spielstätte', exact: true }).click();
   const svg = 'svg[aria-label="Umriss der Spielstätte"]';
   await page.getByRole('button', { name: 'Feste Wand setzen' }).click();
-  await page.mouse.click((await point(page, 4000, 3000, svg)).x, (await point(page, 4000, 3000, svg)).y);
+  await page.mouse.click((await point(page, 1500, 3000, svg)).x, (await point(page, 1500, 3000, svg)).y);
+  await page.mouse.click((await point(page, 6500, 3000, svg)).x, (await point(page, 6500, 3000, svg)).y);
   await expect(page.locator('[data-testid^="venue-wall-"]')).toHaveCount(1);
   await page.getByLabel('Feste Wand 1 width').fill('5000');
   await page.getByLabel('Feste Wand 1 height').fill('2989');
   await page.getByLabel('Feste Wand 1 thickness').fill('200');
+  await page.getByLabel('Feste Wand 1 x').fill('4000');
+  await page.getByLabel('Feste Wand 1 y').fill('3000');
   await page.getByRole('button', { name: 'Ausschnitt zeichnen', exact: true }).first().click();
   // Wall centre 4000,3000 width 5000 → span from 2500 to 4500 along X (along = 0…5000).
-  await drag(page, await point(page, 2500, 3000, svg), await point(page, 4500, 3000, svg));
+  const cutStart = await point(page, 2500, 3000, svg);
+  await page.mouse.move(cutStart.x, cutStart.y);
+  await expect(page.getByTestId('venue-opening-cut-guide')).toBeVisible();
+  await drag(page, cutStart, await point(page, 4500, 3000, svg));
   const opening = page.locator('[data-testid^="venue-plan-opening-"]');
   await expect(opening).toHaveCount(1);
   await expect(opening).toHaveAttribute('data-width', '2000');
@@ -330,10 +341,13 @@ test('venue Shift toggles without dragging; mixed rotation and cancel preserve s
   await openInspector(page, 'Zwischenablage');
   const svg = 'svg[aria-label="Umriss der Spielstätte"]';
   await page.getByRole('button', { name: 'Feste Wand setzen' }).click();
-  const a = await point(page, 4000, 3000, svg), b = await point(page, 4400, 3200, svg);
+  const a = await point(page, 3400, 3000, svg), b = await point(page, 4600, 3000, svg);
   await page.mouse.click(a.x, a.y);
+  await page.mouse.click(b.x, b.y);
+  await expect(page.locator('[data-testid^="venue-wall-"]')).toHaveAttribute('transform', 'translate(4000 -3000) rotate(0)');
+  const wallAt = await point(page, 4000, 3000, svg);
   await page.keyboard.down('Shift');
-  await drag(page, a, b);
+  await drag(page, wallAt, await point(page, 4400, 3200, svg));
   await page.keyboard.up('Shift');
   await expect(page.locator('[data-testid^="venue-wall-"]')).toHaveAttribute('transform', 'translate(4000 -3000) rotate(0)');
   await expect(page.getByRole('button', { name: 'Kopieren', exact: true })).toBeDisabled();
