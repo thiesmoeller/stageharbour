@@ -1,6 +1,7 @@
-import { layoutSchema, type Layout } from './layout.js';
+import { layoutSchema, type Layout, type Wall } from './layout.js';
 import { platformCentroid, type Platform } from './levels.js';
 import type { SelectableMember } from './selection.js';
+import { patchWallSurfaces, type WallSurfaces } from './surfaces.js';
 
 export type PlanTransform = { x: number; y: number; rotation: number };
 /** Sentinel for CAD-style multi-edit: selected objects disagree (Figma/Blender “—”). */
@@ -34,9 +35,16 @@ export function applyWallFinish(layout: Layout, wallIds: readonly string[], fini
   if (!ids.size) return layout;
   const walls = layout.walls.map(wall => {
     if (!ids.has(wall.id)) return wall;
-    if (finish) return { ...wall, finish };
-    const { finish: _removed, ...rest } = wall;
-    return rest;
+    const surfaces = patchWallSurfaces(wall.surfaces, 'front', {
+      mode: 'full',
+      full: finish ? { kind: 'library', ref: finish } : null,
+    });
+    const { finish: _legacyFinish, frontRal: _fr, ...rest } = wall as Wall & { finish?: string; frontRal?: string };
+    if (!surfaces) {
+      const { surfaces: _s, ...cleared } = rest;
+      return cleared;
+    }
+    return { ...rest, surfaces };
   });
   return { ...layout, walls };
 }
@@ -78,16 +86,46 @@ export function applyWallRal(
   if (!ids.size) return layout;
   const walls = layout.walls.map(wall => {
     if (!ids.has(wall.id)) return wall;
-    let next = { ...wall };
+    let surfaces = wall.surfaces;
     if ('frontRal' in paint) {
-      if (paint.frontRal) next.frontRal = paint.frontRal;
-      else { const { frontRal: _f, ...rest } = next; next = rest; }
+      surfaces = patchWallSurfaces(surfaces, 'front', {
+        mode: 'full',
+        full: paint.frontRal ? { kind: 'paint', ral: paint.frontRal } : null,
+      });
     }
     if ('backRal' in paint) {
-      if (paint.backRal) next.backRal = paint.backRal;
-      else { const { backRal: _b, ...rest } = next; next = rest; }
+      surfaces = patchWallSurfaces(surfaces, 'back', {
+        mode: 'full',
+        full: paint.backRal ? { kind: 'paint', ral: paint.backRal } : null,
+      });
     }
-    return next;
+    const { finish: _f, frontRal: _fr, backRal: _br, ...rest } = wall as Wall & {
+      finish?: string; frontRal?: string; backRal?: string;
+    };
+    if (!surfaces) {
+      const { surfaces: _s, ...cleared } = rest;
+      return cleared;
+    }
+    return { ...rest, surfaces };
+  });
+  return { ...layout, walls };
+}
+
+/** Replace or clear one face of wall surfacing on every listed wall. */
+export function applyWallSurfaces(
+  layout: Layout,
+  wallIds: readonly string[],
+  surfaces: WallSurfaces | undefined,
+): Layout {
+  const ids = new Set(wallIds);
+  if (!ids.size) return layout;
+  const walls = layout.walls.map(wall => {
+    if (!ids.has(wall.id)) return wall;
+    const { finish: _f, frontRal: _fr, backRal: _br, surfaces: _old, ...rest } = wall as Wall & {
+      finish?: string; frontRal?: string; backRal?: string;
+    };
+    if (!surfaces) return rest;
+    return { ...rest, surfaces };
   });
   return { ...layout, walls };
 }

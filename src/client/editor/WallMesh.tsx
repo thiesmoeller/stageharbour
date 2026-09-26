@@ -1,13 +1,21 @@
 import { useMemo, useLayoutEffect } from 'react';
 import { DoubleSide, type Material } from 'three';
 import type { WallSolid } from '../../shared/transforms.js';
-import { buildWallPanelGeometry, openingFlushSides, wallShadowVolumes } from '../../shared/wallMeshGeometry.js';
+import {
+  buildWallPanelGeometry, openingFlushSides, wallShadowVolumes,
+  WALL_MAT_BACK_LOWER, WALL_MAT_BACK_UPPER, WALL_MAT_EDGE,
+  WALL_MAT_FRONT_LOWER, WALL_MAT_FRONT_UPPER,
+} from '../../shared/wallMeshGeometry.js';
 import {
   DOOR_FRAME, DOOR_FRAME_COLOR, DOOR_LEAF, DOOR_LEAF_COLOR, doorOpenAngleDegrees, isDoorOpening,
   type Opening,
 } from '../../shared/wall-types.js';
+import {
+  faceSplitMm, resolveFaceBand, type SurfaceFinish, type WallSurfaces,
+} from '../../shared/surfaces.js';
+import { createSurfaceMaterial, disposeSurfaceMaterial } from './surfaceMaterials.js';
 
-const plywood = '#315d49', timber = '#d9c6a1', edge = '#5a6e52';
+const plywood = '#315d49', timber = '#d9c6a1', edgeDefault = '#5a6e52';
 
 export type OpeningEdge = 'left' | 'right' | 'top' | 'bottom';
 
@@ -111,39 +119,83 @@ export function OpeningInteractionHandles({ wall, wallId, scope }: {
   </>;
 }
 
-export function WallMesh({ wall, lit = false, frontMaterial, frontColor, backColor, interactionScope = 'venue' }: {
-  wall: WallSolid; lit?: boolean; frontMaterial?: Material; frontColor?: string; backColor?: string;
-  interactionScope?: 'venue' | 'scene';
+function useBandMaterial(
+  finish: SurfaceFinish | undefined,
+  faceWidthMm: number,
+  faceHeightMm: number,
+  lit: boolean,
+  fallback: string,
+) {
+  const key = JSON.stringify(finish ?? null);
+  const material = useMemo(() => {
+    if (!lit) return null;
+    return createSurfaceMaterial(finish, { faceWidthMm, faceHeightMm, shading: 'rendered' });
+  }, [key, faceWidthMm, faceHeightMm, lit]);
+  useLayoutEffect(() => () => { disposeSurfaceMaterial(material); }, [material]);
+  return { material, fallback };
+}
+
+function SlotMaterial({
+  attach, lit, material, fallback, paintProps,
+}: {
+  attach: string; lit: boolean; material: Material | null; fallback: string;
+  paintProps?: { roughness: number; metalness: number };
 }) {
   const Surface = lit ? 'meshStandardMaterial' : 'meshBasicMaterial';
-  const paintProps = lit ? { roughness: 0.72, metalness: 0.02 } : {};
+  if (material) return <primitive object={material} attach={attach} dispose={null} />;
+  return <Surface attach={attach} color={fallback} side={DoubleSide} {...(paintProps ?? {})} />;
+}
+
+export function WallMesh({ wall, lit = false, surfaces, interactionScope = 'venue' }: {
+  wall: WallSolid; lit?: boolean; surfaces?: WallSurfaces;
+  interactionScope?: 'venue' | 'scene';
+}) {
+  const paintProps = lit ? { roughness: 0.72, metalness: 0.02 } as const : undefined;
   const openingsKey = JSON.stringify(wall.openings);
+  const frontSplit = faceSplitMm(surfaces?.front, wall.size.y);
+  const backSplit = faceSplitMm(surfaces?.back, wall.size.y);
   const geometry = useMemo(
-    () => buildWallPanelGeometry(wall.size, wall.openings),
-    [wall.size.x, wall.size.y, wall.size.z, openingsKey],
+    () => buildWallPanelGeometry(wall.size, wall.openings, {
+      frontMm: frontSplit, backMm: backSplit,
+    }),
+    [wall.size.x, wall.size.y, wall.size.z, openingsKey, frontSplit, backSplit],
   );
   const shadowVolumes = useMemo(
     () => (lit && wall.openings.length ? wallShadowVolumes(wall.size, wall.openings) : []),
     [lit, wall.size.x, wall.size.y, wall.size.z, openingsKey],
   );
   useLayoutEffect(() => () => { geometry.dispose(); }, [geometry]);
+
+  const frontLowerFinish = resolveFaceBand(surfaces?.front, frontSplit !== undefined ? 'lower' : 'full');
+  const frontUpperFinish = resolveFaceBand(surfaces?.front, frontSplit !== undefined ? 'upper' : 'full');
+  const backLowerFinish = resolveFaceBand(surfaces?.back, backSplit !== undefined ? 'lower' : 'full');
+  const backUpperFinish = resolveFaceBand(surfaces?.back, backSplit !== undefined ? 'upper' : 'full');
+  const edgeFinish = surfaces?.edge;
+
+  const frontLowerH = frontSplit ?? wall.size.y;
+  const frontUpperH = frontSplit !== undefined ? wall.size.y - frontSplit : wall.size.y;
+  const backLowerH = backSplit ?? wall.size.y;
+  const backUpperH = backSplit !== undefined ? wall.size.y - backSplit : wall.size.y;
+
+  const edge = useBandMaterial(edgeFinish, wall.size.z, wall.size.y, lit, edgeDefault);
+  const frontLower = useBandMaterial(frontLowerFinish, wall.size.x, frontLowerH, lit, plywood);
+  const frontUpper = useBandMaterial(frontUpperFinish, wall.size.x, frontUpperH, lit, plywood);
+  const backLower = useBandMaterial(backLowerFinish, wall.size.x, backLowerH, lit, timber);
+  const backUpper = useBandMaterial(backUpperFinish, wall.size.x, backUpperH, lit, timber);
+
   return <group position={[wall.center.x, wall.center.y, wall.center.z]} rotation={[0, wall.rotationY, 0]}>
-    {/* Extrude notches cast filled ghost shadows under the mirrored stage graph — boxes cast cleanly. */}
     {shadowVolumes.map((volume, index) => <mesh key={`shadow-${index}`} castShadow receiveShadow={false}
       position={volume.position} frustumCulled={false} raycast={() => {}}>
       <boxGeometry args={volume.size} />
       <meshBasicMaterial colorWrite={false} depthWrite={false} />
     </mesh>)}
-    <mesh castShadow={lit && shadowVolumes.length === 0} receiveShadow={lit} geometry={geometry}>
-      <Surface attach="material-0" color={edge} side={DoubleSide} />
-      {frontColor
-        ? <Surface attach="material-1" color={frontColor} side={DoubleSide} {...paintProps} />
-        : frontMaterial
-          ? <primitive object={frontMaterial} attach="material-1" dispose={null} />
-          : <Surface attach="material-1" color={plywood} side={DoubleSide} {...(lit ? paintProps : {})} />}
-      {backColor
-        ? <Surface attach="material-2" color={backColor} side={DoubleSide} {...paintProps} />
-        : <Surface attach="material-2" color={timber} side={DoubleSide} />}
+    <mesh castShadow={lit && shadowVolumes.length === 0} receiveShadow={lit} geometry={geometry}
+      userData={{ wallMaterialSlots: true }}>
+      <SlotMaterial attach={`material-${WALL_MAT_EDGE}`} lit={lit} material={edge.material} fallback={edge.fallback} paintProps={paintProps} />
+      <SlotMaterial attach={`material-${WALL_MAT_FRONT_LOWER}`} lit={lit} material={frontLower.material} fallback={frontLower.fallback} paintProps={paintProps} />
+      <SlotMaterial attach={`material-${WALL_MAT_FRONT_UPPER}`} lit={lit} material={frontUpper.material} fallback={frontUpper.fallback} paintProps={paintProps} />
+      <SlotMaterial attach={`material-${WALL_MAT_BACK_LOWER}`} lit={lit} material={backLower.material} fallback={backLower.fallback} paintProps={paintProps} />
+      <SlotMaterial attach={`material-${WALL_MAT_BACK_UPPER}`} lit={lit} material={backUpper.material} fallback={backUpper.fallback} paintProps={paintProps} />
     </mesh>
     <DoorFittings wall={wall} lit={lit} />
     {wall.openings.length > 0 && <OpeningInteractionHandles wall={wall} wallId={wall.id} scope={interactionScope} />}

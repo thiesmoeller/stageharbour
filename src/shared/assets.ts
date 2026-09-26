@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { wallFieldsSchema, braceSchema } from './layout.js';
+import { wallFieldsStoredSchema, braceSchema } from './layout.js';
 
 /** Uploaded GLB files stay under this limit so every workspace member can load them. */
 export const MAX_MODEL_BYTES = 50 * 1024 * 1024;
@@ -40,7 +40,7 @@ export const modelSourceSchema = z.discriminatedUnion('kind', [
   }),
 ]);
 export const assetDefinitionSchema = z.discriminatedUnion('kind', [
-  z.strictObject({ kind: z.literal('wall'), template: wallFieldsSchema.omit({ id: true, label: true, x: true, y: true, rotation: true }) }),
+  z.strictObject({ kind: z.literal('wall'), template: wallFieldsStoredSchema.omit({ id: true, label: true, x: true, y: true, rotation: true }) }),
   z.strictObject({ kind: z.literal('brace'), template: braceSchema.omit({ id: true, label: true, x: true, y: true, rotation: true }) }),
   z.strictObject({ kind: z.literal('model'), width: dimension, height: dimension, depth: dimension, source: modelSourceSchema }),
 ]);

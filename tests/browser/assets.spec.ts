@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { commitWallPlacement, commitObjectPlacement } from '../helpers/inspector.js';
+import { commitWallPlacement, commitObjectPlacement, planWalls } from '../helpers/inspector.js';
 import { cubeGlb } from '../helpers/model.js';
 import { createProduction, signInToPlans } from '../helpers/plans.js';
 
@@ -21,13 +21,14 @@ test('inventory, GLB models and Pascal catalogue items participate in placement,
   const wallCard = library.locator('article').filter({ hasText: 'Standardkulisse' });
   await wallCard.getByRole('button', { name: 'Platzieren' }).click();
   await commitWallPlacement(page);
-  await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(1);
+  await expect(planWalls(page)).toHaveCount(1);
   await expect(page.getByLabel('Dicke (mm)')).toHaveValue('28');
-  const material = page.locator('#wall-finish');
-  await expect(material).toBeVisible({ timeout: 15_000 });
-  await expect.poll(async () => material.locator('option').count(), { timeout: 15_000 }).toBeGreaterThan(1);
-  const finish = await material.locator('option').nth(1).getAttribute('value');
-  await material.selectOption(finish!);
+  const surfaces = page.getByTestId('surface-editor');
+  await expect(surfaces).toBeVisible({ timeout: 15_000 });
+  await surfaces.locator('summary').filter({ hasText: 'Vorderseite' }).click();
+  await page.getByLabel('surface-front-full Art').selectOption('library');
+  await expect(page.getByLabel('surface-front-full Bibliothek')).toBeVisible();
+  await page.getByLabel('surface-front-full Bibliothek').selectOption({ index: 1 });
   await page.getByRole('button', { name: 'Übernehmen', exact: true }).click();
   await expect(page.locator('.save-status')).toHaveText('Gespeichert', { timeout: 15_000 });
 

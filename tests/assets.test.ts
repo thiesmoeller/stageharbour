@@ -22,7 +22,11 @@ test('one known millimetre length scales a GLB bounding box uniformly', () => {
   assert.throws(() => modelDimensionsFromReference({ x: 0, y: 1, z: 1 }, 'width', 1000));
 });
 test('Pascal projection retains physical panel dimensions, IDs and freely rotated model footprints', () => {
-  const wall = { ...newWall(randomUUID(), 2500, 3000), rotation: 37, finish: 'library:color-white' };
+  const wall = {
+    ...newWall(randomUUID(), 2500, 3000),
+    rotation: 37,
+    surfaces: { front: { full: { kind: 'library' as const, ref: 'library:color-white' } } },
+  };
   const prop = { id: randomUUID(), assetId: randomUUID(), label: 'Tisch', x: 4000, y: 3000, kind: 'box' as const, rotation: 90, width: 2000, depth: 1000, height: 800 };
   const layout = { schemaVersion: 1 as const, walls: [wall], braces: [], placeholders: [prop] };
   const before = structuredClone(layout), projected = pascalScene(layout);

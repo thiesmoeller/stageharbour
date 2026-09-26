@@ -1,4 +1,4 @@
-import { openInspector, placeNamedObjectAt, placeWallAt } from '../helpers/inspector.js';
+import { openInspector, placeNamedObjectAt, placeWallAt, planWalls } from '../helpers/inspector.js';
 import { test, expect, type Page } from '@playwright/test';
 import { createProduction, signInToPlans } from '../helpers/plans.js';
 
@@ -24,7 +24,7 @@ test('edits in the plan update the linked 3D view, including front orientation a
   await expect(page.getByRole('button', { name: /Licht|Leuchte|Scheinwerfer/ })).toHaveCount(0);
 
   await placeWallAt(page);
-  const planWall = page.locator('[data-testid^="wall-"]');
+  const planWall = planWalls(page);
   const stageWall = page.locator('[data-testid^="stage-wall-"]');
   await expect(planWall).toHaveCount(1);
   await expect(stageWall).toHaveCount(1);
@@ -166,9 +166,9 @@ test('edits in the plan update the linked 3D view, including front orientation a
   await expect(page.locator('[data-testid^="stage-placeholder-"]')).toHaveAttribute('data-depth', '800');
 
   await placeWallAt(page);
-  await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(2);
+  await expect(planWalls(page)).toHaveCount(2);
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
-  await page.locator('[data-testid^="wall-"]').nth(1).click({ modifiers: ['Shift'] });
+  await planWalls(page).nth(1).click({ modifiers: ['Shift'] });
   await page.getByRole('button', { name: 'Gruppieren' }).click();
   await page.getByLabel('Drehpunkt X (mm)').fill('4250');
   await page.locator('.group-panel').getByRole('button', { name: 'Übernehmen' }).click();

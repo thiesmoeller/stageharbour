@@ -15,7 +15,6 @@ import { StageLevels } from './StageLevels.js';
 import { StagePlaceholders } from './StagePlaceholders.js';
 import { StageBraces } from './StageBraces.js';
 import { pascalScene, stageNodeSchema, type StageNode } from './pascalScene.js';
-import { ralHex } from '../../shared/ral.js';
 
 export const StageInteraction = createContext<{ assets: Asset[]; workspaceId: string; mirrorWidth: number; venueEditable?: boolean; model?: StageModel; selectedIds: string[]; onSelect?: (id: string, additive: boolean) => void; onClearSelection?: () => void }>({ assets: [], workspaceId: '', mirrorWidth: 0, selectedIds: [] });
 
@@ -76,15 +75,12 @@ function ModelMesh({ prop, definition }: { prop: Prop; definition: Extract<Asset
   </group>;
 }
 
-function FinishedWall({ wall, finish, frontRal, backRal, interactionScope }: {
-  wall: import('../../shared/transforms.js').WallSolid; finish?: string; frontRal?: string; backRal?: string;
+function FinishedWall({ wall, surfaces, interactionScope }: {
+  wall: import('../../shared/transforms.js').WallSolid;
+  surfaces?: import('../../shared/surfaces.js').WallSurfaces;
   interactionScope: 'venue' | 'scene';
 }) {
-  const frontHex = ralHex(frontRal);
-  const backHex = ralHex(backRal);
-  const material = useMemo(() => frontHex ? null : createMaterialFromPresetRef(finish), [finish, frontHex]);
-  useLayoutEffect(() => () => { material?.dispose(); }, [material]);
-  return <WallMesh wall={wall} lit frontMaterial={material ?? undefined} frontColor={frontHex} backColor={backHex} interactionScope={interactionScope} />;
+  return <WallMesh wall={wall} lit surfaces={surfaces} interactionScope={interactionScope} />;
 }
 
 function StageNodeRenderer({ node }: { node: StageNode }) {
@@ -97,7 +93,7 @@ function StageNodeRenderer({ node }: { node: StageNode }) {
   const content = (() => {
     if (element.kind === 'wall') {
       const wall = model.walls.find(item => item.id === element.value.id);
-      return wall && <group scale={0.001}><FinishedWall wall={wall} finish={element.value.finish} frontRal={element.value.frontRal} backRal={element.value.backRal} interactionScope={node.scope} /></group>;
+      return wall && <group scale={0.001}><FinishedWall wall={wall} surfaces={element.value.surfaces} interactionScope={node.scope} /></group>;
     }
     if (element.kind === 'brace') return <group scale={0.001}><StageBraces braces={model.braces.filter(item => item.id === element.value.id)} lit /></group>;
     if (element.kind === 'platform' || element.kind === 'stair') return <group scale={0.001}><StageLevels lit model={{ ...model, platforms: model.platforms.filter(item => item.id === element.value.id), stairs: model.stairs.filter(item => item.id === element.value.id) }} peerPlatforms={model.platforms} /></group>;
