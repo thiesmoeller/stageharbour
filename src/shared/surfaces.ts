@@ -78,7 +78,10 @@ export function migrateWallSurfaces<T extends {
   }
   const surfaces: WallSurfaces = {};
   if (finish) {
-    surfaces.front = { full: { kind: 'library', ref: finish } };
+    const full = { kind: 'library' as const, ref: finish };
+    surfaces.front = { full };
+    surfaces.back = { full };
+    surfaces.edge = full;
   } else if (frontRal) {
     surfaces.front = { full: { kind: 'paint', ral: frontRal } };
   }
@@ -202,4 +205,49 @@ export function patchWallSurfaces(
   }
   next[face] = facePatch;
   return next;
+}
+
+/** Structural equality for finishes (defaults for omitted scale / rotation). */
+export function finishesEqual(a: SurfaceFinish | undefined, b: SurfaceFinish | undefined): boolean {
+  if (!a && !b) return true;
+  if (!a || !b || a.kind !== b.kind) return false;
+  if (a.kind === 'paint' && b.kind === 'paint') return a.ral === b.ral;
+  if (a.kind === 'library' && b.kind === 'library') {
+    return a.ref === b.ref
+      && (a.scaleMm ?? DEFAULT_LIBRARY_SCALE_MM) === (b.scaleMm ?? DEFAULT_LIBRARY_SCALE_MM)
+      && (a.rotationDeg ?? 0) === (b.rotationDeg ?? 0);
+  }
+  return false;
+}
+
+/** Preferred finish when treating the wall as one material on every face. */
+export function resolveUniformFinish(surfaces: WallSurfaces | undefined): SurfaceFinish | undefined {
+  return resolveFaceBand(surfaces?.front, 'full')
+    ?? resolveFaceBand(surfaces?.back, 'full')
+    ?? surfaces?.edge;
+}
+
+/**
+ * True when faces differ or any face is banded — the per-face editor is needed.
+ * Empty or single-face (or identical full faces) stay in the simple uniform mode.
+ */
+export function surfacesArePerFace(surfaces: WallSurfaces | undefined): boolean {
+  if (!surfaces) return false;
+  if (faceIsBanded(surfaces.front) || faceIsBanded(surfaces.back)) return true;
+  const front = resolveFaceBand(surfaces.front, 'full');
+  const back = resolveFaceBand(surfaces.back, 'full');
+  const edge = surfaces.edge;
+  const defined = [front, back, edge].filter((finish): finish is SurfaceFinish => finish !== undefined);
+  if (defined.length <= 1) return false;
+  return !(finishesEqual(front, back) && finishesEqual(front ?? back, edge));
+}
+
+/** Write the same full-face finish onto front, back and edge (clears bands). */
+export function applyUniformFinish(finish: SurfaceFinish | undefined): WallSurfaces | undefined {
+  if (!finish) return undefined;
+  return {
+    front: { full: finish },
+    back: { full: finish },
+    edge: finish,
+  };
 }

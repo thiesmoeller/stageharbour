@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { MATERIAL_CATALOG, toLibraryMaterialRef } from '@pascal-app/core';
 import {
   DEFAULT_LIBRARY_SCALE_MM, DEFAULT_SURFACE_SPLIT_MM, SURFACE_ROTATIONS_DEG,
-  faceIsBanded, patchWallSurfaces, resolveFaceBand,
+  applyUniformFinish, faceIsBanded, patchWallSurfaces, resolveFaceBand, resolveUniformFinish,
+  surfacesArePerFace,
   type FaceBandId, type SurfaceFinish, type SurfaceRotationDeg, type WallFaceId, type WallSurfaces,
 } from '../../shared/surfaces.js';
 import { RAL_PAINT_SWATCHES, ralLabel } from '../../shared/ral.js';
@@ -78,22 +80,19 @@ function FinishEditor({
   </div>;
 }
 
-export function WallSurfaceEditor({
-  surfaces, panelHeight, onChange, readOnly = false,
+function FaceEditors({
+  surfaces, panelHeight, onChange,
 }: {
   surfaces: WallSurfaces | undefined;
   panelHeight: number;
   onChange: (next: WallSurfaces | undefined) => void;
-  readOnly?: boolean;
 }) {
   const faces: { id: WallFaceId; label: string }[] = [
     { id: 'front', label: 'Vorderseite' },
     { id: 'back', label: 'Rückseite' },
     { id: 'edge', label: 'Kante' },
   ];
-  return <fieldset className="wall-surface-editor" disabled={readOnly} data-testid="surface-editor">
-    <legend>Oberflächen</legend>
-    <p className="muted">Farbe oder Bibliotheksmaterial je Seite — optional zwei Streifen (unten/oben).</p>
+  return <>
     {faces.map(face => {
       if (face.id === 'edge') {
         const edge = surfaces?.edge;
@@ -141,5 +140,43 @@ export function WallSurfaceEditor({
         </div>)}
       </details>;
     })}
+  </>;
+}
+
+export function WallSurfaceEditor({
+  surfaces, panelHeight, onChange, readOnly = false,
+}: {
+  surfaces: WallSurfaces | undefined;
+  panelHeight: number;
+  onChange: (next: WallSurfaces | undefined) => void;
+  readOnly?: boolean;
+}) {
+  const dataNeedsPerFace = surfacesArePerFace(surfaces);
+  const [forcePerFace, setForcePerFace] = useState(dataNeedsPerFace);
+  const perFace = forcePerFace || dataNeedsPerFace;
+  return <fieldset className="wall-surface-editor" disabled={readOnly} data-testid="surface-editor">
+    <legend>Oberflächen</legend>
+    <label>
+      Zuweisung
+      <select aria-label="Oberflächen-Zuweisung" data-testid="surface-assignment-mode"
+        value={perFace ? 'perFace' : 'uniform'}
+        onChange={event => {
+          const next = event.target.value === 'perFace';
+          setForcePerFace(next);
+          if (!next) onChange(applyUniformFinish(resolveUniformFinish(surfaces)));
+        }}>
+        <option value="uniform">Alle Seiten gleich</option>
+        <option value="perFace">Pro Seite (Vorderseite / Rückseite / Kante)</option>
+      </select>
+    </label>
+    {!perFace && <>
+      <p className="muted">Ein Material für Vorderseite, Rückseite und Kante.</p>
+      <FinishEditor id="surface-uniform" finish={resolveUniformFinish(surfaces)} faceHeightMm={panelHeight}
+        onChange={next => onChange(applyUniformFinish(next))} />
+    </>}
+    {perFace && <>
+      <p className="muted">Farbe oder Bibliotheksmaterial je Seite — optional zwei Streifen (unten/oben).</p>
+      <FaceEditors surfaces={surfaces} panelHeight={panelHeight} onChange={onChange} />
+    </>}
   </fieldset>;
 }

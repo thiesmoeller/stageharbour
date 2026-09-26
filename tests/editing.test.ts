@@ -56,6 +56,8 @@ test('applyWallFinish paints or clears the same surface on every selected wall',
   assert.equal(leftFront?.kind, 'library');
   assert.equal(leftFront?.kind === 'library' ? leftFront.ref : undefined, 'library:color-black');
   assert.equal(rightFront?.kind === 'library' ? rightFront.ref : undefined, 'library:color-black');
+  assert.deepEqual(painted.walls.find(wall => wall.id === left.id)?.surfaces?.back?.full, leftFront);
+  assert.deepEqual(painted.walls.find(wall => wall.id === left.id)?.surfaces?.edge, leftFront);
   assert.equal(painted.walls.find(wall => wall.id === other.id)?.surfaces, undefined);
   const cleared = applyWallFinish(painted, [left.id, right.id], undefined);
   assert.equal(cleared.walls.find(wall => wall.id === left.id)?.surfaces, undefined);

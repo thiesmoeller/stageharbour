@@ -1259,7 +1259,7 @@ function WallForm({ wall, openings, typed, surfaces, readOnly, bulkWallCount = 1
       <input id="wall-door-open" name="doorOpenPercent" type="number" min={0} max={100} step={1} defaultValue={wall.doorOpenPercent ?? 0} />
       <p className="muted">Scharnier {doors.map(door => door.hinge === 'left' ? 'links' : 'rechts').join(', ')} · Blatt weiß · Zarge weiß. 0 % geschlossen, 100 % = 90° offen.</p>
     </>}
-    <WallSurfaceEditor surfaces={wallSurfaces} panelHeight={wall.height} readOnly={readOnly}
+    <WallSurfaceEditor key={wall.id} surfaces={wallSurfaces} panelHeight={wall.height} readOnly={readOnly}
       onChange={next => { setWallSurfaces(next); markPending(); }} />
     <p className="muted">{typed ? 'Außenmaße und Öffnungen kommen vom Wandtyp.' : 'X/Y beziehen sich auf die Wandmitte. Ursprung: vordere linke Ecke der Spielstätte.'}</p>
     {error && <p role="alert" className="error">{error}</p>}

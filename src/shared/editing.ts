@@ -1,7 +1,7 @@
 import { layoutSchema, type Layout, type Wall } from './layout.js';
 import { platformCentroid, type Platform } from './levels.js';
 import type { SelectableMember } from './selection.js';
-import { patchWallSurfaces, type WallSurfaces } from './surfaces.js';
+import { applyUniformFinish, patchWallSurfaces, type WallSurfaces } from './surfaces.js';
 
 export type PlanTransform = { x: number; y: number; rotation: number };
 /** Sentinel for CAD-style multi-edit: selected objects disagree (Figma/Blender “—”). */
@@ -29,16 +29,13 @@ export function mixedPropertyValue(values: readonly (string | undefined)[]): str
   return normalized.every(value => value === first) ? first : MIXED_PROPERTY;
 }
 
-/** Paint the same Pascal library finish onto every listed wall id (or clear it). */
+/** Paint the same Pascal library finish onto every listed wall (front, back, edge). */
 export function applyWallFinish(layout: Layout, wallIds: readonly string[], finish: string | undefined): Layout {
   const ids = new Set(wallIds);
   if (!ids.size) return layout;
   const walls = layout.walls.map(wall => {
     if (!ids.has(wall.id)) return wall;
-    const surfaces = patchWallSurfaces(wall.surfaces, 'front', {
-      mode: 'full',
-      full: finish ? { kind: 'library', ref: finish } : null,
-    });
+    const surfaces = applyUniformFinish(finish ? { kind: 'library', ref: finish } : undefined);
     const { finish: _legacyFinish, frontRal: _fr, ...rest } = wall as Wall & { finish?: string; frontRal?: string };
     if (!surfaces) {
       const { surfaces: _s, ...cleared } = rest;

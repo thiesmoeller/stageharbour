@@ -4,9 +4,12 @@ import test from 'node:test';
 import { layoutSchema, newWall } from '../src/shared/layout.js';
 import {
   DEFAULT_SURFACE_SPLIT_MM,
+  applyUniformFinish,
   migrateWallSurfaces,
   patchWallSurfaces,
   resolveFaceBand,
+  resolveUniformFinish,
+  surfacesArePerFace,
 } from '../src/shared/surfaces.js';
 import {
   buildWallPanelGeometry,
@@ -25,6 +28,8 @@ test('migrateWallSurfaces lifts finish and RAL into surfaces', () => {
     id: 'a', finish: 'library:wood-finewood27',
   });
   assert.deepEqual(fromFinish.surfaces?.front?.full, { kind: 'library', ref: 'library:wood-finewood27' });
+  assert.deepEqual(fromFinish.surfaces?.back?.full, fromFinish.surfaces?.front?.full);
+  assert.deepEqual(fromFinish.surfaces?.edge, fromFinish.surfaces?.front?.full);
   assert.equal('finish' in fromFinish, false);
 
   const fromRal = migrateWallSurfaces({
@@ -40,6 +45,7 @@ test('migrateWallSurfaces lifts finish and RAL into surfaces', () => {
     braces: [],
   });
   assert.deepEqual(layout.walls[0]!.surfaces?.front?.full, { kind: 'library', ref: 'library:color-white' });
+  assert.deepEqual(layout.walls[0]!.surfaces?.edge, layout.walls[0]!.surfaces?.front?.full);
 });
 
 test('layoutSchema.encode migrates legacy finish so Fastify can serialize raw DB rows', () => {
@@ -71,6 +77,27 @@ test('patchWallSurfaces supports full face and two bands', () => {
   assert.equal(banded?.front?.splitMm, DEFAULT_SURFACE_SPLIT_MM);
   assert.equal(resolveFaceBand(banded?.front, 'lower')?.kind, 'library');
   assert.equal(resolveFaceBand(banded?.front, 'upper')?.kind, 'paint');
+});
+
+test('uniform finish applies to front, back and edge; per-face detects bands and mismatches', () => {
+  assert.equal(surfacesArePerFace(undefined), false);
+  assert.equal(surfacesArePerFace({ front: { full: { kind: 'paint', ral: '9010' } } }), false);
+
+  const uniform = applyUniformFinish({ kind: 'library', ref: 'library:wood-finewood27', rotationDeg: 90 });
+  assert.deepEqual(uniform?.front?.full, { kind: 'library', ref: 'library:wood-finewood27', rotationDeg: 90 });
+  assert.deepEqual(uniform?.back?.full, uniform?.front?.full);
+  assert.deepEqual(uniform?.edge, uniform?.front?.full);
+  assert.equal(surfacesArePerFace(uniform), false);
+  assert.deepEqual(resolveUniformFinish(uniform), uniform?.front?.full);
+
+  assert.equal(surfacesArePerFace({
+    front: { full: { kind: 'paint', ral: '9010' } },
+    back: { full: { kind: 'paint', ral: '7016' } },
+  }), true);
+  assert.equal(surfacesArePerFace({
+    front: { splitMm: 1200, lower: { kind: 'paint', ral: '9010' }, upper: { kind: 'paint', ral: '7016' } },
+  }), true);
+  assert.equal(applyUniformFinish(undefined), undefined);
 });
 
 test('libraryPresetWithSurface applies rotation and scale to mapProperties', () => {

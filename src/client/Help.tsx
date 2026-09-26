@@ -81,8 +81,8 @@ export function Help() {
       <h2>Wandoberflächen</h2>
       <p>Unter <strong>Oberflächen</strong> in den Eigenschaften einer Wand (Szene oder feste Spielstättenwand):</p>
       <ul>
-        <li><strong>Vorderseite / Rückseite / Kante</strong> — je Seite unabhängig.</li>
-        <li><strong>Ganzflächig</strong> oder <strong>Zwei Streifen</strong> (Teilungshöhe von unten, Standard 1200&nbsp;mm).</li>
+        <li><strong>Alle Seiten gleich</strong> (Standard) — ein Material für Vorderseite, Rückseite und Kante.</li>
+        <li><strong>Pro Seite</strong> — Vorderseite / Rückseite / Kante getrennt; optional <strong>Zwei Streifen</strong> (Teilungshöhe von unten, Standard 1200&nbsp;mm).</li>
         <li><strong>RAL-Wandfarbe</strong> — matte Theaterfarbe aus den Swatches.</li>
         <li><strong>Bibliothek</strong> — Holz, Stoff, Stein, … aus dem Pascal-Katalog (ohne flache Farb-Presets).</li>
         <li><strong>Mustermaß</strong> — ungefähre Kachelbreite auf der Fläche in mm.</li>

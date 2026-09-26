@@ -25,10 +25,9 @@ test('inventory, GLB models and Pascal catalogue items participate in placement,
   await expect(page.getByLabel('Dicke (mm)')).toHaveValue('28');
   const surfaces = page.getByTestId('surface-editor');
   await expect(surfaces).toBeVisible({ timeout: 15_000 });
-  await surfaces.locator('summary').filter({ hasText: 'Vorderseite' }).click();
-  await page.getByLabel('surface-front-full Art').selectOption('library');
-  await expect(page.getByLabel('surface-front-full Bibliothek')).toBeVisible();
-  await page.getByLabel('surface-front-full Bibliothek').selectOption({ index: 1 });
+  await page.getByLabel('surface-uniform Art').selectOption('library');
+  await expect(page.getByLabel('surface-uniform Bibliothek')).toBeVisible();
+  await page.getByLabel('surface-uniform Bibliothek').selectOption({ index: 1 });
   await page.getByRole('button', { name: 'Übernehmen', exact: true }).click();
   await expect(page.locator('.save-status')).toHaveText('Gespeichert', { timeout: 15_000 });
 
