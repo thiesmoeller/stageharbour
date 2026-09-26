@@ -48,6 +48,17 @@ _Avoid_: Auto-group
 **Wall element**:
 A physical panel used to construct a stage arrangement. The group's existing wall elements measure 1.20 × 2.40 metres.
 
+**Surface finish**:
+How a wall face is clad in the Raumsicht: matte RAL paint, or a Pascal library surface (wood, fabric, stone, …) with optional scale and grain direction. Not a Three.js material object.
+_Avoid_: Material (alone)
+
+**Face surfacing**:
+The finish assignment for one wall face (audience front, back/Rahmen, or thickness edge). A face may be whole or split into a lower and upper band at a height from the panel floor.
+_Avoid_: Texture slot
+
+**Grain direction**:
+The rotation of a patterned library surface on a face (0° / 90° / 180° / 270°), used so wood planks and similar patterns run the intended way.
+
 **Wall element type**:
 A definition of a kind of wall element, including distinguishing features such as a window opening.
 

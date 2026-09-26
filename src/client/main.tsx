@@ -5,6 +5,7 @@ import { invitationSchema, loginOptionsSchema, meSchema, membersSchema, invitati
 import { ApiError, request, upload } from './api.js';
 import { Venues } from './editor/Venues.js';
 import { Plans } from './editor/Plans.js';
+import { Help } from './Help.js';
 import { can } from '../shared/permissions.js';
 import { AuditLog } from './AuditLog.js';
 import { parseWorkspaceLocation, workspaceHash, writeWorkspaceLocation, type WorkspaceLocation } from './workspaceRoutes.js';
@@ -313,11 +314,13 @@ function Workspace({ me, branding, onBranding, onDirty, location }: {
     <nav className="workspace-navigation" aria-label="Arbeitsbereiche" hidden={editing}>
       <button className="quiet" aria-current={section === 'plans' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'plans' })}>Produktionen & Szenen<span>Szenen entwerfen und planen</span></button>
       <button className="quiet" aria-current={section === 'venues' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'venues' })}>Spielstätten & Bühnen<span>Räume, Grundrisse und feste Einrichtungen</span></button>
+      <button className="quiet" aria-current={section === 'help' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'help' })}>Hilfe<span>Werkzeuge, Kürzel und Oberflächen</span></button>
       <button className="quiet" aria-current={section === 'account' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'account' })}>Mein Konto<span>Verknüpfte Anmeldung</span></button>
       {isAdmin && <button className="quiet" aria-current={section === 'admin' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'admin' })}>Verwaltung<span>Mitglieder, Darstellung und Aktivität</span></button>}
     </nav>
     {section === 'plans' && <Plans me={me} onDirty={onDirty} sceneId={'sceneId' in location ? location.sceneId : undefined} />}
     {section === 'venues' && <Venues me={me} onDirty={onDirty} venueId={'venueId' in location ? location.venueId : undefined} />}
+    {section === 'help' && <Help />}
     {section === 'account' && <div className="workspace-management"><LinkedAccounts /></div>}
     {section === 'admin' && isAdmin && <div className="workspace-management">
       <SiteBranding workspaceId={me.workspace.id} branding={branding} onBranding={onBranding} />

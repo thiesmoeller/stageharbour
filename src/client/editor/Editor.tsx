@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type PointerEvent } from 'react';
 import { z } from 'zod';
-import { applyPlatformFinish, applyWallFinish, applyWallRal, memberIdsByKind, mixedPropertyValue, MIXED_PROPERTY, selectionPivot } from '../../shared/editing.js';
+import { applyPlatformFinish, applyWallSurfaces, memberIdsByKind, mixedPropertyValue, MIXED_PROPERTY, selectionPivot } from '../../shared/editing.js';
 import { navigatePlan } from './planNavigation.js';
 import { sceneResizeDocument, resizedScene } from '../../shared/sceneResize.js';
 import { editorCommand } from './interactionKeys.js';
@@ -41,7 +41,7 @@ import { Autosave, SaveConflict } from './autosave.js';
 import { BraceInspector } from './BraceInspector.js';
 import { BraceLayer } from './BraceLayer.js';
 import { PlatformInspector, StairInspector } from './PlatformInspector.js';
-import { RalPicker } from './RalPicker.js';
+import { WallSurfaceEditor } from './WallSurfaceEditor.js';
 import { liftReportTemplatesToVenue, stripLayoutReportTemplates } from '../../shared/reportTemplate.js';
 import { saveVenueResultSchema } from '../../shared/layout.js';
 import { MeasureLayer } from './MeasureLayer.js';
@@ -281,9 +281,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     const withPrimary = { ...present, walls: present.walls.map(item => item.id === wall.id ? wall : item) };
     const wallIds = memberIdsByKind(selection(), 'wall');
     const targets = wallIds.includes(wall.id) ? wallIds : [wall.id];
-    let next = applyWallFinish(withPrimary, targets, wall.finish);
-    next = applyWallRal(next, targets, { frontRal: wall.frontRal, backRal: wall.backRal });
-    commit(next);
+    commit(applyWallSurfaces(withPrimary, targets, wall.surfaces));
   }
   function applyPlatform(platform: Platform) {
     const present = current.current.present;
@@ -1179,9 +1177,6 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
           : selectedWall ? <WallForm key={JSON.stringify(selectedWall)} wall={selectedWall}
               openings={resolveWall(selectedWall, wallTypes).openings} typed={!!selectedWall.typeId} surfaces={surfaces}
               readOnly={readOnly} bulkWallCount={selectedWallCount}
-              finishMixed={mixedPropertyValue(selection().flatMap(item => item.kind === 'wall' ? [state.present.walls.find(wall => wall.id === item.id)?.finish] : [])) === MIXED_PROPERTY}
-              frontRalMixed={mixedPropertyValue(selection().flatMap(item => item.kind === 'wall' ? [state.present.walls.find(wall => wall.id === item.id)?.frontRal] : [])) === MIXED_PROPERTY}
-              backRalMixed={mixedPropertyValue(selection().flatMap(item => item.kind === 'wall' ? [state.present.walls.find(wall => wall.id === item.id)?.backRal] : [])) === MIXED_PROPERTY}
               onPendingChange={reportInspectorPending} onApply={applyWall} onRemove={remove} />
         : selectedBraceItem ? <BraceInspector key={JSON.stringify(selectedBraceItem)} brace={selectedBraceItem} surfaces={surfaces} readOnly={readOnly}
             onPendingChange={reportInspectorPending} onApply={replaceBrace} onRemove={remove}
@@ -1213,18 +1208,21 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
       </div></details>}
     </aside></div>}
     <div className="workspace-statusbar"><span><span className="status-dot" />{venueOpen ? 'Spielstättenentwurf' : 'Szene'} · {state.present.walls.length} Wände</span><span className="status-hint">Klicken zum Auswählen · Ziehen zum Verschieben · Strg+Z rückgängig</span><button className="quiet" aria-expanded={helpOpen} onClick={() => setHelpOpen(open => !open)}><ToolIcon name="help" /> Bedienung</button><span>Maße in mm</span></div>
-    {helpOpen && <div className="workspace-help"><h3>Arbeiten im Grundriss</h3>      <p className="muted viewport-hint">Raster: 1 m / 50 cm · Zwei-Finger-Scroll oder Mittelklick verschieben · Pinch / Strg+Scroll zoomen · Auf dem Boden ziehen: Mehrfachauswahl (nur vollständig umschlossene Objekte) · Orange ↻ dreht · Stützen an Wänden · {SNAP_NOTICE}</p><p>Strg/Cmd+C kopiert die Auswahl, Strg/Cmd+V hängt die Kopie an den Zeiger — Klick setzt, Escape bricht ab. Entf löscht ausgewählte Objekte. Escape bricht Platzieren und Bewegungen ab oder hebt die Auswahl auf (auch in der Raumsicht · Klick in freien Raum). Überschneidungen erscheinen rot auf dem Grundriss.</p></div>}
+    {helpOpen && <div className="workspace-help"><h3>Arbeiten im Grundriss</h3>
+      <p className="muted viewport-hint">Raster: 1 m / 50 cm · Zwei-Finger-Scroll oder Mittelklick verschieben · Pinch / Strg+Scroll zoomen · Auf dem Boden ziehen: Mehrfachauswahl (nur vollständig umschlossene Objekte) · Orange ↻ dreht · Stützen an Wänden · {SNAP_NOTICE}</p>
+      <p>Strg/Cmd+C kopiert die Auswahl, Strg/Cmd+V hängt die Kopie an den Zeiger — Klick setzt, Escape bricht ab. Entf löscht ausgewählte Objekte. Escape bricht Platzieren und Bewegungen ab oder hebt die Auswahl auf (auch in der Raumsicht · Klick in freien Raum). Überschneidungen erscheinen rot auf dem Grundriss.</p>
+      <p><a href="#/hilfe">Zur vollständigen Hilfe</a> — Werkzeuge, Tastatur und Wandoberflächen.</p>
+    </div>}
   </section>;
 }
 
-function WallForm({ wall, openings, typed, surfaces, readOnly, bulkWallCount = 1, finishMixed = false, frontRalMixed = false, backRalMixed = false, onPendingChange, onApply, onRemove }: {
+function WallForm({ wall, openings, typed, surfaces, readOnly, bulkWallCount = 1, onPendingChange, onApply, onRemove }: {
   wall: Wall; openings: Opening[]; typed: boolean; surfaces: ReturnType<typeof supportingSurfaces>; readOnly: boolean;
-  bulkWallCount?: number; finishMixed?: boolean; frontRalMixed?: boolean; backRalMixed?: boolean;
+  bulkWallCount?: number;
   onPendingChange?: (pending: boolean) => void; onApply: (wall: Wall) => void; onRemove: () => void;
 }) {
   const [error, setError] = useState('');
-  const [frontRal, setFrontRal] = useState(wall.frontRal);
-  const [backRal, setBackRal] = useState(wall.backRal);
+  const [wallSurfaces, setWallSurfaces] = useState(wall.surfaces);
   const { pending, resetKey, markPending, clearPending, discard, formProps } = usePendingApplyForm(onPendingChange);
   const doors = openings.filter(isDoorOpening);
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -1233,12 +1231,9 @@ function WallForm({ wall, openings, typed, surfaces, readOnly, bulkWallCount = 1
     const keys = typed ? ['x', 'y', 'rotation'] : ['x', 'y', 'rotation', 'width', 'height', 'thickness'];
     const doorRaw = data.get('doorOpenPercent');
     const assemblyRaw = data.get('assemblyNumber');
-    const finishRaw = String(data.get('finish') ?? '');
     const result = wallSchema.safeParse({
       ...wall,
-      finish: finishMixed && (!finishRaw || finishRaw === MIXED_PROPERTY) ? wall.finish : (finishRaw || undefined),
-      frontRal: frontRalMixed && frontRal === undefined ? wall.frontRal : frontRal,
-      backRal: backRalMixed && backRal === undefined ? wall.backRal : backRal,
+      surfaces: wallSurfaces,
       label: data.get('label'),
       assemblyNumber: assemblyRaw === '' || assemblyRaw == null ? undefined : Number(assemblyRaw),
       ...Object.fromEntries(keys.map(key => [key, Number(data.get(key))])),
@@ -1248,7 +1243,7 @@ function WallForm({ wall, openings, typed, surfaces, readOnly, bulkWallCount = 1
     setError(''); clearPending(); onApply(result.data);
   }
   return <form key={resetKey} onSubmit={submit} {...formProps}><fieldset disabled={readOnly}>
-    {bulkWallCount > 1 && <p className="muted bulk-selection-hint">{bulkWallCount} Wände ausgewählt. Oberfläche und RAL gelten für alle; übrige Felder nur für die hervorgehobene Wand.</p>}
+    {bulkWallCount > 1 && <p className="muted bulk-selection-hint">{bulkWallCount} Wände ausgewählt. Oberflächen gelten für alle; übrige Felder nur für die hervorgehobene Wand.</p>}
     <label htmlFor="wall-label">Bezeichnung</label><input id="wall-label" name="label" defaultValue={wall.label} maxLength={120} required />
     <label htmlFor="wall-assembly">Position (Montagenummer)</label>
     <input id="wall-assembly" name="assemblyNumber" type="number" min={1} max={250} step={1} defaultValue={wall.assemblyNumber ?? ''} placeholder="z. B. 3" />
@@ -1264,19 +1259,13 @@ function WallForm({ wall, openings, typed, surfaces, readOnly, bulkWallCount = 1
       <input id="wall-door-open" name="doorOpenPercent" type="number" min={0} max={100} step={1} defaultValue={wall.doorOpenPercent ?? 0} />
       <p className="muted">Scharnier {doors.map(door => door.hinge === 'left' ? 'links' : 'rechts').join(', ')} · Blatt weiß · Zarge weiß. 0 % geschlossen, 100 % = 90° offen.</p>
     </>}
-    <Suspense fallback={<p>Materialbibliothek wird geladen …</p>}>
-      <MaterialPicker id="wall-finish" value={wall.finish} mixed={finishMixed} />
-    </Suspense>
-    <RalPicker id="wall-front-ral" name="frontRal" label="Vorderseite · RAL-Wandfarbe" value={frontRal} mixed={frontRalMixed}
-      onChange={code => { setFrontRal(code); markPending(); }} />
-    <RalPicker id="wall-back-ral" name="backRal" label="Rückseite · RAL-Wandfarbe" value={backRal} mixed={backRalMixed}
-      onChange={code => { setBackRal(code); markPending(); }} />
-    <p className="muted">RAL ist matte Dispersionsfarbe (rau durch Schichtaufbau). Pascal-Material bleibt optional für Sperrholz-Optik.</p>
+    <WallSurfaceEditor surfaces={wallSurfaces} panelHeight={wall.height} readOnly={readOnly}
+      onChange={next => { setWallSurfaces(next); markPending(); }} />
     <p className="muted">{typed ? 'Außenmaße und Öffnungen kommen vom Wandtyp.' : 'X/Y beziehen sich auf die Wandmitte. Ursprung: vordere linke Ecke der Spielstätte.'}</p>
     {error && <p role="alert" className="error">{error}</p>}
     {!readOnly && <div className="form-actions">
       <button type="submit">Übernehmen</button>
-      {pending && <button className="quiet" type="button" onClick={() => { setFrontRal(wall.frontRal); setBackRal(wall.backRal); discard(); }}>Verwerfen</button>}
+      {pending && <button className="quiet" type="button" onClick={() => { setWallSurfaces(wall.surfaces); discard(); }}>Verwerfen</button>}
       <button className="quiet" type="button" onClick={onRemove}>Wand löschen</button>
     </div>}
   </fieldset></form>;

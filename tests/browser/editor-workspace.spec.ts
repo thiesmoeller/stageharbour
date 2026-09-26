@@ -65,6 +65,7 @@ test('editor keeps the canvas in view, preserves tray drafts, and adapts to smal
   await expect(page.locator('[data-renderer="pascal"] canvas')).toBeVisible();
   await page.getByRole('button', { name: 'Bedienung', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Arbeiten im Grundriss' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Zur vollständigen Hilfe' })).toHaveAttribute('href', '#/hilfe');
   await page.getByRole('button', { name: 'Bedienung', exact: true }).click();
   // Allow the remounted WebGL viewer to draw before capturing the visual artifact.
   await page.waitForTimeout(1000);

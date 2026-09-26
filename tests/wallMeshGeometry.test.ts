@@ -12,16 +12,17 @@ const size = { x: 5000, y: 2989, z: 200 };
 const cut = { id: randomUUID(), left: 1000, sill: 0, width: 2000, height: 2500 };
 
 function rayHits(geometry: ReturnType<typeof buildWallPanelGeometry>, origin: Vector3, direction = new Vector3(0, 0, 1)) {
-  const materials = [0, 1, 2].map(() => new MeshBasicMaterial());
+  const materials = [0, 1, 2, 3, 4].map(() => new MeshBasicMaterial());
   const mesh = new Mesh(geometry, materials);
   return new Raycaster(origin, direction).intersectObject(mesh).length;
 }
 
-test('solid wall panel geometry covers every triangle with three material slots', () => {
+test('solid wall panel geometry covers every triangle with five material slots', () => {
   const geometry = buildWallPanelGeometry(size, []);
   const coverage = wallGeometryGroupCoverage(geometry);
   assert.equal(coverage.complete, true);
-  assert(geometry.groups.every(group => group.materialIndex === 0 || group.materialIndex === 1 || group.materialIndex === 2));
+  assert.equal(geometry.groups.length, 5);
+  assert(geometry.groups.every(group => (group.materialIndex ?? -1) >= 0 && (group.materialIndex ?? -1) <= 4));
   assert(rayHits(geometry, new Vector3(0, 0, -1000)) > 0, 'solid wall must be hit through the face centre');
   geometry.dispose();
 });

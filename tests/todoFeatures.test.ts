@@ -42,10 +42,11 @@ test('applyWallRal sets front and back paint on every selected wall', () => {
   const right = newWall(randomUUID(), 4000, 2000);
   const layout: Layout = { schemaVersion: 1, walls: [left, right], braces: [] };
   const painted = applyWallRal(layout, [left.id, right.id], { frontRal: '7016', backRal: '9010' });
-  assert.equal(painted.walls[0]!.frontRal, '7016');
-  assert.equal(painted.walls[1]!.backRal, '9010');
+  assert.deepEqual(painted.walls[0]!.surfaces?.front?.full, { kind: 'paint', ral: '7016' });
+  assert.deepEqual(painted.walls[1]!.surfaces?.back?.full, { kind: 'paint', ral: '9010' });
   const cleared = applyWallRal(painted, [left.id], { frontRal: undefined });
-  assert.equal('frontRal' in (cleared.walls.find(wall => wall.id === left.id) ?? {}), false);
+  assert.equal(cleared.walls.find(wall => wall.id === left.id)?.surfaces?.front, undefined);
+  assert.deepEqual(cleared.walls.find(wall => wall.id === left.id)?.surfaces?.back?.full, { kind: 'paint', ral: '9010' });
 });
 
 test('memberIdsByKind extracts multi-select targets', () => {
@@ -111,7 +112,9 @@ test('layout accepts measure lines, wall pictures, report templates and RAL', ()
     wallPictures: [picture],
     reportTemplates: [template],
   });
-  assert.equal(layout.walls[0]!.frontRal, '7016');
+  assert.deepEqual(layout.walls[0]!.surfaces?.front?.full, { kind: 'paint', ral: '7016' });
+  assert.deepEqual(layout.walls[0]!.surfaces?.back?.full, { kind: 'paint', ral: '9010' });
+  assert.equal('frontRal' in layout.walls[0]!, false);
   assert.equal(layout.measureLines?.length, 1);
   assert.equal(layout.wallPictures?.[0]!.note, 'Auf Angelschnur');
   assert.equal(layout.reportTemplates?.[0]!.pages[0]!.frames[0]!.kind, 'plan');
@@ -158,5 +161,12 @@ test('applyWallFinish still bulk-paints walls', () => {
   const a = newWall(randomUUID(), 1000, 1000);
   const b = newWall(randomUUID(), 3000, 1000);
   const layout: Layout = { schemaVersion: 1, walls: [a, b], braces: [] };
-  assert.equal(applyWallFinish(layout, [a.id, b.id], 'library:color-black').walls[1]!.finish, 'library:color-black');
+  const painted = applyWallFinish(layout, [a.id, b.id], 'library:color-black');
+  assert.equal(painted.walls[1]!.surfaces?.front?.full?.kind, 'library');
+  assert.equal(
+    painted.walls[1]!.surfaces?.front?.full?.kind === 'library'
+      ? painted.walls[1]!.surfaces!.front!.full!.ref
+      : undefined,
+    'library:color-black',
+  );
 });

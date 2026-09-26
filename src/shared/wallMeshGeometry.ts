@@ -1,4 +1,4 @@
-import { ExtrudeGeometry, Path, Shape } from 'three';
+import { ExtrudeGeometry, Float32BufferAttribute, Path, Shape } from 'three';
 import type { Opening } from './wall-types.js';
 
 export type OpeningFlush = { left: boolean; right: boolean; bottom: boolean; top: boolean };
@@ -203,13 +203,29 @@ function openingHole(opening: Opening, hw: number, hh: number) {
 }
 
 /**
+ * Material group indices for wall panels (stable across opening edits):
+ * 0 edge · 1 front lower · 2 front upper · 3 back lower · 4 back upper.
+ * Without a split, lower and upper groups still exist but cover the full face heights.
+ */
+export const WALL_MAT_EDGE = 0;
+export const WALL_MAT_FRONT_LOWER = 1;
+export const WALL_MAT_FRONT_UPPER = 2;
+export const WALL_MAT_BACK_LOWER = 3;
+export const WALL_MAT_BACK_UPPER = 4;
+export const WALL_MATERIAL_SLOT_COUNT = 5;
+
+/**
  * Build wall panel geometry (always ExtrudeGeometry so material slots stay stable
  * when openings are added or removed).
  *
  * Openings that touch a panel edge become notches in the outer contour; fully inset
- * openings remain Shape holes.
+ * openings remain Shape holes. Optional horizontal splits band front/back faces.
  */
-export function buildWallPanelGeometry(size: { x: number; y: number; z: number }, openings: readonly Opening[] = []) {
+export function buildWallPanelGeometry(
+  size: { x: number; y: number; z: number },
+  openings: readonly Opening[] = [],
+  splits?: { frontMm?: number; backMm?: number },
+) {
   const hw = size.x / 2, hh = size.y / 2;
   const flush: Opening[] = [];
   const inset: Opening[] = [];
@@ -226,16 +242,69 @@ export function buildWallPanelGeometry(size: { x: number; y: number; z: number }
   for (const opening of inset) shape.holes.push(openingHole(opening, hw, hh));
   const geometry = new ExtrudeGeometry(shape, { depth: size.z, bevelEnabled: false, steps: 1 });
   geometry.translate(0, 0, -size.z / 2);
+  applyWallPanelUVs(geometry, size);
   const normal = geometry.getAttribute('normal');
+  const position = geometry.getAttribute('position');
   const index = geometry.getIndex();
   geometry.clearGroups();
-  const triCount = index ? index.count : normal.count;
+  const frontSplitY = splits?.frontMm !== undefined ? -hh + Math.max(1, Math.min(size.y - 1, splits.frontMm)) : undefined;
+  const backSplitY = splits?.backMm !== undefined ? -hh + Math.max(1, Math.min(size.y - 1, splits.backMm)) : undefined;
+  const triCount = index ? index.count : position.count;
+  const buckets: number[][] = Array.from({ length: WALL_MATERIAL_SLOT_COUNT }, () => []);
   for (let start = 0; start < triCount; start += 3) {
-    const vertex = index ? index.getX(start) : start;
-    const z = normal.getZ(vertex);
-    geometry.addGroup(start, 3, z < -0.5 ? 1 : z > 0.5 ? 2 : 0);
+    const i0 = index ? index.getX(start) : start;
+    const i1 = index ? index.getX(start + 1) : start + 1;
+    const i2 = index ? index.getX(start + 2) : start + 2;
+    const nz = (normal.getZ(i0) + normal.getZ(i1) + normal.getZ(i2)) / 3;
+    const cy = (position.getY(i0) + position.getY(i1) + position.getY(i2)) / 3;
+    let slot = WALL_MAT_EDGE;
+    if (nz < -0.5) {
+      slot = frontSplitY === undefined || cy < frontSplitY ? WALL_MAT_FRONT_LOWER : WALL_MAT_FRONT_UPPER;
+    } else if (nz > 0.5) {
+      slot = backSplitY === undefined || cy < backSplitY ? WALL_MAT_BACK_LOWER : WALL_MAT_BACK_UPPER;
+    }
+    buckets[slot]!.push(i0, i1, i2);
   }
+  const ordered: number[] = [];
+  for (let slot = 0; slot < WALL_MATERIAL_SLOT_COUNT; slot++) {
+    const tris = buckets[slot]!;
+    if (!tris.length) {
+      // Keep an empty group so material slot indices stay stable for WallMesh.
+      geometry.addGroup(ordered.length, 0, slot);
+      continue;
+    }
+    const groupStart = ordered.length;
+    ordered.push(...tris);
+    geometry.addGroup(groupStart, tris.length, slot);
+  }
+  geometry.setIndex(ordered);
   return geometry;
+}
+
+/** Planar UVs in panel millimetres: u along width, v along height (0 at floor-left). */
+export function applyWallPanelUVs(geometry: ExtrudeGeometry, size: { x: number; y: number; z: number }) {
+  const hw = size.x / 2, hh = size.y / 2, hz = size.z / 2;
+  const position = geometry.getAttribute('position');
+  const normal = geometry.getAttribute('normal');
+  const uvs = new Float32Array(position.count * 2);
+  for (let i = 0; i < position.count; i++) {
+    const x = position.getX(i), y = position.getY(i), z = position.getZ(i);
+    const nx = Math.abs(normal.getX(i)), ny = Math.abs(normal.getY(i)), nz = Math.abs(normal.getZ(i));
+    let u: number, v: number;
+    if (nz >= nx && nz >= ny) {
+      u = (x + hw) / size.x;
+      v = (y + hh) / size.y;
+    } else if (ny >= nx) {
+      u = (x + hw) / size.x;
+      v = (z + hz) / size.z;
+    } else {
+      u = (z + hz) / size.z;
+      v = (y + hh) / size.y;
+    }
+    uvs[i * 2] = u;
+    uvs[i * 2 + 1] = v;
+  }
+  geometry.setAttribute('uv', new Float32BufferAttribute(uvs, 2));
 }
 
 /** How many index/vertex elements the material groups cover (for tests). */

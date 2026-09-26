@@ -47,6 +47,7 @@ import { type ReportTemplate } from '../../shared/reportTemplate.js';
 import { ToolIcon } from './ToolIcon.js';
 import { defaultLighting, type StageLightingSettings } from '../../shared/lighting.js';
 import { canvasModeForWidth, useNarrowEditor } from './useNarrowEditor.js';
+import { WallSurfaceEditor } from './WallSurfaceEditor.js';
 
 const MaterialPicker = lazy(() => import('./MaterialPicker.js'));
 type ClickMode = 'select' | 'vertex' | 'edge-parallel' | 'draw-opening' | 'pin' | 'corridor' | 'draw-zone' | 'zone-vertex' | 'place' | 'draw-wall' | 'draw-truss' | 'draw-curtain';
@@ -1339,20 +1340,20 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
             <div className="numeric-fields">{(['x', 'y', 'rotation', 'width', 'height', 'thickness'] as const).map(key => <label key={key}>{key}<input aria-label={`Feste Wand ${selectedWallIndex + 1} ${key}`} type="number" value={selectedWall[key]}
               disabled={!!selectedWall.typeId && (key === 'width' || key === 'height' || key === 'thickness')}
               onChange={event => setWalls(items => items.map(item => item.id === selectedWall.id ? { ...item, [key]: Number(event.target.value) } : item))} /></label>)}</div>
-            <Suspense fallback={<p>Materialbibliothek wird geladen …</p>}>
-              <MaterialPicker id="venue-wall-finish" value={selectedWall.finish} onChange={value => {
-                const finish = value || undefined;
+            <WallSurfaceEditor surfaces={selectedWall.surfaces} panelHeight={selectedWall.height} readOnly={readOnly || busy || busyGesture()}
+              onChange={next => {
                 const targets = selectedIds.filter(id => walls.some(wall => wall.id === id));
                 const ids = targets.length > 1 ? targets : [selectedWall.id];
                 setWalls(items => items.map(item => {
                   if (!ids.includes(item.id)) return item;
-                  if (finish) return { ...item, finish };
-                  const { finish: _removed, ...rest } = item;
-                  return rest;
+                  const { finish: _f, frontRal: _fr, backRal: _br, surfaces: _old, ...rest } = item as typeof item & {
+                    finish?: string; frontRal?: string; backRal?: string;
+                  };
+                  if (!next) return rest;
+                  return { ...rest, surfaces: next };
                 }));
               }} />
-            </Suspense>
-            {selectedIds.filter(id => walls.some(wall => wall.id === id)).length > 1 && <p className="muted">Oberfläche gilt für alle ausgewählten festen Wände.</p>}
+            {selectedIds.filter(id => walls.some(wall => wall.id === id)).length > 1 && <p className="muted">Oberflächen gelten für alle ausgewählten festen Wände.</p>}
             <div className="form-actions">
               <button type="button" className="quiet" onClick={() => { setWalls(items => items.filter(item => item.id !== selectedWall.id)); setSelectedIds([]); }}>Feste Wand entfernen</button>
               <button type="button" className="quiet" onClick={() => remove()}>Löschen</button>
@@ -1640,6 +1641,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
     {helpOpen && !sheetEditorOpen && <div className="workspace-help"><h3>Spielstätte gestalten</h3>
       <p className="muted">Werkzeuge links setzen Objekte per Klick. Freihaltezonen und Traversen werden gezeichnet (Eckpunkte bzw. Start/Ende). Zoneneckpunkte ziehen. Einrasten wie im Bühnenbild (Alt umgeht). Zwei-Finger-Scroll oder Mittelklick verschieben · Pinch / Strg+Scroll zoomen.</p>
       <p>Entf entfernt die Auswahl. Traversen modellieren Hängehöhen für spätere Lichtplanung. Speichern schreibt eine neue Spielstättenfassung.</p>
+      <p><a href="#/hilfe">Zur vollständigen Hilfe</a> — Werkzeuge, Tastatur und Wandoberflächen.</p>
     </div>}
   </section>;
 }

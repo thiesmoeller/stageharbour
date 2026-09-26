@@ -18,12 +18,14 @@ import { playDimensionsSchema } from './dimensionSchema.js';
 import { wallPicturesSchema } from './wallPictures.js';
 import { reportTemplatesSchema } from './reportTemplate.js';
 import { RAL_CODE_PATTERN } from './ral.js';
+import { migrateWallSurfaces, wallSurfacesSchema } from './surfaces.js';
 
 const name = z.string().trim().min(1).max(120);
 const dimension = z.number().finite().min(1).max(100000);
 const coordinate = z.number().finite().min(-100000).max(100000);
 const openPercent = z.number().finite().min(0).max(100);
 const ralCode = z.string().regex(RAL_CODE_PATTERN);
+const libraryRef = z.string().regex(/^library:[a-zA-Z0-9_-]+$/).max(180);
 
 /** Per-scene opening overrides for fixed venue soft goods and permanent doors. */
 export const venueFixtureStateSchema = z.strictObject({
@@ -33,7 +35,9 @@ export const venueFixtureStateSchema = z.strictObject({
     .refine(items => !items || new Set(items.map(item => item.wallId)).size === items.length, 'Door fixture wall IDs must be unique'),
 });
 export type VenueFixtureState = z.infer<typeof venueFixtureStateSchema>;
-export const wallFieldsSchema = z.strictObject({
+
+/** Stored wall shape — may still carry legacy finish / RAL keys until migrateWallSurfaces runs. */
+export const wallFieldsStoredSchema = z.strictObject({
   id: z.uuid(), label: name,
   x: coordinate, y: coordinate,
   rotation: z.number().finite().min(-360).max(360),
@@ -44,15 +48,40 @@ export const wallFieldsSchema = z.strictObject({
   panelId: z.uuid().optional(),
   supportingSurfaceId: z.uuid().optional(),
   assemblyNumber: z.number().int().positive().max(250).optional(),
-  finish: z.string().regex(/^library:[a-zA-Z0-9_-]+$/).max(180).optional(),
-  /** Matte RAL wall paint on the audience-facing side. */
+  /** @deprecated Prefer surfaces.front — kept for load migration. */
+  finish: libraryRef.optional(),
+  /** @deprecated Prefer surfaces.front paint — kept for load migration. */
   frontRal: ralCode.optional(),
-  /** Matte RAL wall paint on the back / Rahmen side. */
+  /** @deprecated Prefer surfaces.back paint — kept for load migration. */
   backRal: ralCode.optional(),
+  surfaces: wallSurfacesSchema.optional(),
   /** Door leaf open amount for hinged openings on this wall (0 closed … 100 fully open). */
   doorOpenPercent: z.number().finite().min(0).max(100).optional(),
 });
-export const wallSchema = wallFieldsSchema
+
+/** Canonical wall fields after legacy finish / RAL migration (no deprecated keys). */
+export const wallFieldsSchema = z.strictObject({
+  id: z.uuid(), label: name,
+  x: coordinate, y: coordinate,
+  rotation: z.number().finite().min(-360).max(360),
+  width: dimension, height: dimension, thickness: dimension,
+  typeId: z.uuid().optional(),
+  openings: z.array(openingSchema).max(20).optional(),
+  panelId: z.uuid().optional(),
+  supportingSurfaceId: z.uuid().optional(),
+  assemblyNumber: z.number().int().positive().max(250).optional(),
+  surfaces: wallSurfacesSchema.optional(),
+  doorOpenPercent: z.number().finite().min(0).max(100).optional(),
+});
+
+/**
+ * Bidirectional wall schema: decode migrates legacy finish/RAL; encode writes the
+ * clean shape (Fastify response serialization requires encodeable schemas).
+ */
+export const wallSchema = z.codec(wallFieldsStoredSchema, wallFieldsSchema, {
+  decode: wall => migrateWallSurfaces(wall),
+  encode: wall => wall,
+})
   .refine(wall => !(wall.typeId && wall.openings?.length), 'Typed walls take openings from the wall type')
   .refine(wall => !(wall.openings?.length) || wall.openings.every(opening =>
     opening.left + opening.width <= wall.width && opening.sill + opening.height <= wall.height

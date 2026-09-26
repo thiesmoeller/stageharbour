@@ -44,17 +44,23 @@ test('invalid transforms preserve the previous document and repeated rotations n
 
 test('applyWallFinish paints or clears the same surface on every selected wall', () => {
   const left = newWall(randomUUID(), 1000, 2000);
-  const right = { ...newWall(randomUUID(), 4000, 2000), finish: 'library:color-white' as const };
+  const right = {
+    ...newWall(randomUUID(), 4000, 2000),
+    surfaces: { front: { full: { kind: 'library' as const, ref: 'library:color-white' } } },
+  };
   const other = newWall(randomUUID(), 7000, 2000);
   const layout: Layout = { schemaVersion: 1, walls: [left, right, other], braces: [] };
   const painted = applyWallFinish(layout, [left.id, right.id], 'library:color-black');
-  assert.equal(painted.walls.find(wall => wall.id === left.id)?.finish, 'library:color-black');
-  assert.equal(painted.walls.find(wall => wall.id === right.id)?.finish, 'library:color-black');
-  assert.equal(painted.walls.find(wall => wall.id === other.id)?.finish, undefined);
+  const leftFront = painted.walls.find(wall => wall.id === left.id)?.surfaces?.front?.full;
+  const rightFront = painted.walls.find(wall => wall.id === right.id)?.surfaces?.front?.full;
+  assert.equal(leftFront?.kind, 'library');
+  assert.equal(leftFront?.kind === 'library' ? leftFront.ref : undefined, 'library:color-black');
+  assert.equal(rightFront?.kind === 'library' ? rightFront.ref : undefined, 'library:color-black');
+  assert.equal(painted.walls.find(wall => wall.id === other.id)?.surfaces, undefined);
   const cleared = applyWallFinish(painted, [left.id, right.id], undefined);
-  assert.equal('finish' in (cleared.walls.find(wall => wall.id === left.id) ?? {}), false);
-  assert.equal('finish' in (cleared.walls.find(wall => wall.id === right.id) ?? {}), false);
-  assert.equal(left.finish, undefined);
+  assert.equal(cleared.walls.find(wall => wall.id === left.id)?.surfaces, undefined);
+  assert.equal(cleared.walls.find(wall => wall.id === right.id)?.surfaces, undefined);
+  assert.equal(left.surfaces, undefined);
 });
 
 test('permanent venue walls and platforms transform together without altering the saved source', () => {
