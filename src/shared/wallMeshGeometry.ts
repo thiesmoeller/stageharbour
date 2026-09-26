@@ -245,25 +245,62 @@ export function buildWallPanelGeometry(
   applyWallPanelUVs(geometry, size);
   const normal = geometry.getAttribute('normal');
   const position = geometry.getAttribute('position');
+  const uv = geometry.getAttribute('uv');
   const index = geometry.getIndex();
   geometry.clearGroups();
   const frontSplitY = splits?.frontMm !== undefined ? -hh + Math.max(1, Math.min(size.y - 1, splits.frontMm)) : undefined;
   const backSplitY = splits?.backMm !== undefined ? -hh + Math.max(1, Math.min(size.y - 1, splits.backMm)) : undefined;
   const triCount = index ? index.count : position.count;
   const buckets: number[][] = Array.from({ length: WALL_MATERIAL_SLOT_COUNT }, () => []);
+  const extraPos: number[] = [];
+  const extraNormal: number[] = [];
+  const extraUv: number[] = [];
+  const readVert = (i: number): BandVert => ({
+    x: position.getX(i), y: position.getY(i), z: position.getZ(i),
+    nx: normal.getX(i), ny: normal.getY(i), nz: normal.getZ(i),
+    u: uv.getX(i), v: uv.getY(i),
+  });
+  const pushVert = (vert: BandVert): number => {
+    const i = position.count + extraPos.length / 3;
+    extraPos.push(vert.x, vert.y, vert.z);
+    extraNormal.push(vert.nx, vert.ny, vert.nz);
+    extraUv.push(vert.u, vert.v);
+    return i;
+  };
+  const emitTri = (slot: number, a: BandVert, b: BandVert, c: BandVert, reuse: [number, number, number] | null) => {
+    if (reuse) {
+      buckets[slot]!.push(...reuse);
+      return;
+    }
+    buckets[slot]!.push(pushVert(a), pushVert(b), pushVert(c));
+  };
   for (let start = 0; start < triCount; start += 3) {
     const i0 = index ? index.getX(start) : start;
     const i1 = index ? index.getX(start + 1) : start + 1;
     const i2 = index ? index.getX(start + 2) : start + 2;
-    const nz = (normal.getZ(i0) + normal.getZ(i1) + normal.getZ(i2)) / 3;
-    const cy = (position.getY(i0) + position.getY(i1) + position.getY(i2)) / 3;
-    let slot = WALL_MAT_EDGE;
+    const v0 = readVert(i0), v1 = readVert(i1), v2 = readVert(i2);
+    const nz = (v0.nz + v1.nz + v2.nz) / 3;
     if (nz < -0.5) {
-      slot = frontSplitY === undefined || cy < frontSplitY ? WALL_MAT_FRONT_LOWER : WALL_MAT_FRONT_UPPER;
+      assignBandedFace(WALL_MAT_FRONT_LOWER, WALL_MAT_FRONT_UPPER, frontSplitY, v0, v1, v2, [i0, i1, i2], emitTri);
     } else if (nz > 0.5) {
-      slot = backSplitY === undefined || cy < backSplitY ? WALL_MAT_BACK_LOWER : WALL_MAT_BACK_UPPER;
+      assignBandedFace(WALL_MAT_BACK_LOWER, WALL_MAT_BACK_UPPER, backSplitY, v0, v1, v2, [i0, i1, i2], emitTri);
+    } else {
+      buckets[WALL_MAT_EDGE]!.push(i0, i1, i2);
     }
-    buckets[slot]!.push(i0, i1, i2);
+  }
+  if (extraPos.length) {
+    const mergedPos = new Float32Array(position.count * 3 + extraPos.length);
+    mergedPos.set(position.array as Float32Array);
+    mergedPos.set(extraPos, position.count * 3);
+    const mergedNormal = new Float32Array(normal.count * 3 + extraNormal.length);
+    mergedNormal.set(normal.array as Float32Array);
+    mergedNormal.set(extraNormal, normal.count * 3);
+    const mergedUv = new Float32Array(uv.count * 2 + extraUv.length);
+    mergedUv.set(uv.array as Float32Array);
+    mergedUv.set(extraUv, uv.count * 2);
+    geometry.setAttribute('position', new Float32BufferAttribute(mergedPos, 3));
+    geometry.setAttribute('normal', new Float32BufferAttribute(mergedNormal, 3));
+    geometry.setAttribute('uv', new Float32BufferAttribute(mergedUv, 2));
   }
   const ordered: number[] = [];
   for (let slot = 0; slot < WALL_MATERIAL_SLOT_COUNT; slot++) {
@@ -279,6 +316,77 @@ export function buildWallPanelGeometry(
   }
   geometry.setIndex(ordered);
   return geometry;
+}
+
+type BandVert = { x: number; y: number; z: number; nx: number; ny: number; nz: number; u: number; v: number };
+
+function lerpBandVert(a: BandVert, b: BandVert, t: number): BandVert {
+  return {
+    x: a.x + (b.x - a.x) * t,
+    y: a.y + (b.y - a.y) * t,
+    z: a.z + (b.z - a.z) * t,
+    nx: a.nx + (b.nx - a.nx) * t,
+    ny: a.ny + (b.ny - a.ny) * t,
+    nz: a.nz + (b.nz - a.nz) * t,
+    u: a.u + (b.u - a.u) * t,
+    v: a.v + (b.v - a.v) * t,
+  };
+}
+
+function clipPolygonAtY(poly: BandVert[], splitY: number, keepBelow: boolean): BandVert[] {
+  if (!poly.length) return [];
+  const out: BandVert[] = [];
+  const inside = (y: number) => (keepBelow ? y <= splitY : y >= splitY);
+  for (let i = 0; i < poly.length; i++) {
+    const cur = poly[i]!, prev = poly[(i + poly.length - 1) % poly.length]!;
+    const curIn = inside(cur.y), prevIn = inside(prev.y);
+    if (curIn !== prevIn) {
+      const t = (splitY - prev.y) / (cur.y - prev.y);
+      out.push(lerpBandVert(prev, cur, t));
+    }
+    if (curIn) out.push(cur);
+  }
+  return out;
+}
+
+function fanTriangles(poly: BandVert[]): BandVert[][] {
+  if (poly.length < 3) return [];
+  const tris: BandVert[][] = [];
+  for (let i = 1; i < poly.length - 1; i++) tris.push([poly[0]!, poly[i]!, poly[i + 1]!]);
+  return tris;
+}
+
+function assignBandedFace(
+  lowerSlot: number,
+  upperSlot: number,
+  splitY: number | undefined,
+  v0: BandVert, v1: BandVert, v2: BandVert,
+  indices: [number, number, number],
+  emitTri: (
+    slot: number, a: BandVert, b: BandVert, c: BandVert, reuse: [number, number, number] | null,
+  ) => void,
+) {
+  if (splitY === undefined) {
+    emitTri(lowerSlot, v0, v1, v2, indices);
+    return;
+  }
+  const maxY = Math.max(v0.y, v1.y, v2.y);
+  const minY = Math.min(v0.y, v1.y, v2.y);
+  if (maxY <= splitY) {
+    emitTri(lowerSlot, v0, v1, v2, indices);
+    return;
+  }
+  if (minY >= splitY) {
+    emitTri(upperSlot, v0, v1, v2, indices);
+    return;
+  }
+  const tri = [v0, v1, v2];
+  for (const part of fanTriangles(clipPolygonAtY(tri, splitY, true))) {
+    emitTri(lowerSlot, part[0]!, part[1]!, part[2]!, null);
+  }
+  for (const part of fanTriangles(clipPolygonAtY(tri, splitY, false))) {
+    emitTri(upperSlot, part[0]!, part[1]!, part[2]!, null);
+  }
 }
 
 /** Planar UVs in panel millimetres: u along width, v along height (0 at floor-left). */

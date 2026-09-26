@@ -77,19 +77,22 @@ export const wallFieldsSchema = z.strictObject({
 });
 
 /**
- * Bidirectional wall schema: decode migrates legacy finish/RAL; encode writes the
- * clean shape (Fastify response serialization requires encodeable schemas).
+ * Bidirectional wall schema: migrate legacy finish/RAL on both decode and encode.
+ * Fastify response serialization calls encode on raw DB rows (which may still
+ * carry deprecated keys), so both codec sides must accept the stored shape —
+ * migrating only on decode leaves GET /scenes/:id with FST_ERR_RESPONSE_SERIALIZATION.
  */
-export const wallSchema = z.codec(wallFieldsStoredSchema, wallFieldsSchema, {
+export const wallSchema = z.codec(wallFieldsStoredSchema, wallFieldsStoredSchema, {
   decode: wall => migrateWallSurfaces(wall),
-  encode: wall => wall,
+  encode: wall => migrateWallSurfaces(wall),
 })
   .refine(wall => !(wall.typeId && wall.openings?.length), 'Typed walls take openings from the wall type')
   .refine(wall => !(wall.openings?.length) || wall.openings.every(opening =>
     opening.left + opening.width <= wall.width && opening.sill + opening.height <= wall.height
   ), 'Openings must lie inside the wall')
   .refine(wall => !(wall.openings?.length) || new Set(wall.openings.map(opening => opening.id)).size === wall.openings.length, 'Opening IDs must be unique');
-export type Wall = z.infer<typeof wallSchema>;
+/** Canonical wall after migration (no deprecated finish / RAL keys). */
+export type Wall = z.infer<typeof wallFieldsSchema>;
 // Stützdreieck from 40×40 mm stock: wall stile 1200 mm, floor rail 500 mm.
 export { BRACE_TIMBER_MM };
 export const EXAMPLE_BRACE_FOOTPRINT_WIDTH = BRACE_TIMBER_MM;
