@@ -1340,7 +1340,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
             <div className="numeric-fields">{(['x', 'y', 'rotation', 'width', 'height', 'thickness'] as const).map(key => <label key={key}>{key}<input aria-label={`Feste Wand ${selectedWallIndex + 1} ${key}`} type="number" value={selectedWall[key]}
               disabled={!!selectedWall.typeId && (key === 'width' || key === 'height' || key === 'thickness')}
               onChange={event => setWalls(items => items.map(item => item.id === selectedWall.id ? { ...item, [key]: Number(event.target.value) } : item))} /></label>)}</div>
-            <WallSurfaceEditor surfaces={selectedWall.surfaces} panelHeight={selectedWall.height} readOnly={readOnly || busy || busyGesture()}
+            <WallSurfaceEditor key={selectedWall.id} surfaces={selectedWall.surfaces} panelHeight={selectedWall.height} readOnly={readOnly || busy || busyGesture()}
               onChange={next => {
                 const targets = selectedIds.filter(id => walls.some(wall => wall.id === id));
                 const ids = targets.length > 1 ? targets : [selectedWall.id];

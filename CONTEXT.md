@@ -53,7 +53,7 @@ How a wall face is clad in the Raumsicht: matte RAL paint, or a Pascal library s
 _Avoid_: Material (alone)
 
 **Face surfacing**:
-The finish assignment for one wall face (audience front, back/Rahmen, or thickness edge). A face may be whole or split into a lower and upper band at a height from the panel floor.
+The finish assignment for one wall face (audience front, back/Rahmen, or thickness edge). A face may be whole or split into a lower and upper band at a height from the panel floor. By default all three faces share one finish; crews may switch to per-face assignment when sides differ or bands are needed.
 _Avoid_: Texture slot
 
 **Grain direction**:
