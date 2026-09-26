@@ -5,7 +5,7 @@ import { Mesh, MeshBasicMaterial, Raycaster, Vector3 } from 'three';
 import { newWall, venueGeometrySchema } from '../src/shared/layout.js';
 import { resolveWall } from '../src/shared/wall-types.js';
 import { wallSolid } from '../src/shared/transforms.js';
-import { buildWallPanelGeometry, wallGeometryGroupCoverage } from '../src/shared/wallMeshGeometry.js';
+import { buildWallPanelGeometry, openingFlushSides, openingTouchesBoundary, wallGeometryGroupCoverage } from '../src/shared/wallMeshGeometry.js';
 import { openingEdgeHandles, openingJambSolids } from '../src/client/editor/WallMesh.js';
 
 const size = { x: 5000, y: 2989, z: 200 };
@@ -69,6 +69,46 @@ test('removing the last inline opening clears the field and resolveWall stays so
   const geometry = buildWallPanelGeometry(solid.size, solid.openings);
   assert(rayHits(geometry, new Vector3(0, 0, -1000)) > 0);
   geometry.dispose();
+});
+
+test('flush-left end opening notches the outer contour and stays raycastable', () => {
+  const openLeft = { id: randomUUID(), left: 0, sill: 0, width: 1500, height: 2500 };
+  const geometry = buildWallPanelGeometry(size, [openLeft]);
+  assert.equal(wallGeometryGroupCoverage(geometry).complete, true);
+  assert.equal(rayHits(geometry, new Vector3(-size.x / 2 + 750, -hh(openLeft), -1000)), 0, 'open end must miss');
+  assert(rayHits(geometry, new Vector3(size.x / 2 - 100, 0, -1000)) > 0, 'remaining solid must hit');
+  assert.deepEqual(openingFlushSides(openLeft, size), { left: true, right: false, bottom: true, top: false });
+  assert.deepEqual(openingJambSolids({ size, openings: [openLeft] }).map(j => j.key).sort(), [`${openLeft.id}-R`, `${openLeft.id}-T`].sort());
+  geometry.dispose();
+});
+
+test('flush-right end opening notches the outer contour and stays raycastable', () => {
+  const openRight = { id: randomUUID(), left: 3500, sill: 0, width: 1500, height: 2500 };
+  const geometry = buildWallPanelGeometry(size, [openRight]);
+  assert.equal(wallGeometryGroupCoverage(geometry).complete, true);
+  assert.equal(rayHits(geometry, new Vector3(size.x / 2 - 750, -hh(openRight), -1000)), 0, 'open end must miss');
+  assert(rayHits(geometry, new Vector3(-size.x / 2 + 100, 0, -1000)) > 0, 'remaining solid must hit');
+  assert.equal(openingFlushSides(openRight, size).right, true);
+  assert.deepEqual(openingJambSolids({ size, openings: [openRight] }).map(j => j.key).sort(), [`${openRight.id}-L`, `${openRight.id}-T`].sort());
+  geometry.dispose();
+});
+
+test('fully inset opening still uses an interior hole', () => {
+  const window = { id: randomUUID(), left: 1000, sill: 800, width: 1200, height: 1000 };
+  assert.equal(openingTouchesBoundary(window, size), false);
+  const geometry = buildWallPanelGeometry(size, [window]);
+  assert.equal(wallGeometryGroupCoverage(geometry).complete, true);
+  assert.equal(rayHits(geometry, new Vector3(-size.x / 2 + 1600, -size.y / 2 + 1300, -1000)), 0);
+  assert(rayHits(geometry, new Vector3(0, 0, -1000)) > 0);
+  geometry.dispose();
+});
+
+test('flush-left cutout can be removed and the full face returns', () => {
+  const openLeft = { id: randomUUID(), left: 0, sill: 0, width: 2000, height: 2500 };
+  buildWallPanelGeometry(size, [openLeft]).dispose();
+  const solid = buildWallPanelGeometry(size, []);
+  assert(rayHits(solid, new Vector3(-size.x / 2 + 1000, -hh(openLeft), -1000)) > 0);
+  solid.dispose();
 });
 
 function hh(opening: { sill: number; height: number }) {

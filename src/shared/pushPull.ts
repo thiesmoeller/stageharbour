@@ -83,8 +83,13 @@ function clampWallOpenings(wall: Wall): Wall {
   const openings = wall.openings.flatMap(opening => {
     const left = Math.max(0, Math.min(opening.left, wall.width - 1));
     const sill = Math.max(0, Math.min(opening.sill, wall.height - 1));
-    const width = Math.max(1, Math.min(opening.width, wall.width - left));
-    const height = Math.max(1, Math.min(opening.height, wall.height - sill));
+    // Flush left/right ends are allowed (left === 0, left + width === wall.width).
+    let width = Math.max(1, Math.min(opening.width, wall.width - left));
+    let height = Math.max(1, Math.min(opening.height, wall.height - sill));
+    // Keep at least 1 mm of solid so the panel cannot vanish entirely.
+    if (width >= wall.width && height >= wall.height) {
+      height = Math.max(1, wall.height - 1);
+    }
     if (left + width > wall.width || sill + height > wall.height) return [];
     return [{ ...opening, left, sill, width, height }];
   });

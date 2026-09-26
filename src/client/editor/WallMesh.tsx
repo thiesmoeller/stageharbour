@@ -1,7 +1,7 @@
 import { useMemo, useLayoutEffect } from 'react';
 import { DoubleSide, type Material } from 'three';
 import type { WallSolid } from '../../shared/transforms.js';
-import { buildWallPanelGeometry } from '../../shared/wallMeshGeometry.js';
+import { buildWallPanelGeometry, openingFlushSides } from '../../shared/wallMeshGeometry.js';
 import {
   DOOR_FRAME, DOOR_FRAME_COLOR, DOOR_LEAF, DOOR_LEAF_COLOR, doorOpenAngleDegrees, isDoorOpening,
   type Opening,
@@ -60,18 +60,23 @@ export function OpeningInteractionHandles({ wall, wallId, scope }: {
   const hw = wall.size.x / 2, hh = wall.size.y / 2;
   const solids: { key: string; position: [number, number, number]; args: [number, number, number] }[] = [];
   for (const opening of wall.openings) {
+    const flush = openingFlushSides(opening, wall.size);
     const x0 = -hw + opening.left, y0 = -hh + opening.sill;
     const x1 = x0 + opening.width, y1 = y0 + opening.height;
-    if (opening.left > 1) solids.push({ key: `${opening.id}-L`, position: [(-hw + x0) / 2, 0, 0], args: [opening.left, wall.size.y, wall.size.z] });
-    if (wall.size.x - opening.left - opening.width > 1) {
+    if (!flush.left && opening.left > 1) {
+      solids.push({ key: `${opening.id}-L`, position: [(-hw + x0) / 2, 0, 0], args: [opening.left, wall.size.y, wall.size.z] });
+    }
+    if (!flush.right && wall.size.x - opening.left - opening.width > 1) {
       solids.push({
         key: `${opening.id}-R`,
         position: [(x1 + hw) / 2, 0, 0],
         args: [wall.size.x - opening.left - opening.width, wall.size.y, wall.size.z],
       });
     }
-    if (opening.sill > 1) solids.push({ key: `${opening.id}-B`, position: [(x0 + x1) / 2, (-hh + y0) / 2, 0], args: [opening.width, opening.sill, wall.size.z] });
-    if (wall.size.y - opening.sill - opening.height > 1) {
+    if (!flush.bottom && opening.sill > 1) {
+      solids.push({ key: `${opening.id}-B`, position: [(x0 + x1) / 2, (-hh + y0) / 2, 0], args: [opening.width, opening.sill, wall.size.z] });
+    }
+    if (!flush.top && wall.size.y - opening.sill - opening.height > 1) {
       solids.push({
         key: `${opening.id}-T`,
         position: [(x0 + x1) / 2, (y1 + hh) / 2, 0],
@@ -141,12 +146,13 @@ export function WallMesh({ wall, lit = false, frontMaterial, frontColor, backCol
 export function openingJambSolids(wall: Pick<WallSolid, 'size' | 'openings'>) {
   const solids: { key: string; args: [number, number, number] }[] = [];
   for (const opening of wall.openings) {
-    if (opening.left > 1) solids.push({ key: `${opening.id}-L`, args: [opening.left, wall.size.y, wall.size.z] });
-    if (wall.size.x - opening.left - opening.width > 1) {
+    const flush = openingFlushSides(opening, wall.size);
+    if (!flush.left && opening.left > 1) solids.push({ key: `${opening.id}-L`, args: [opening.left, wall.size.y, wall.size.z] });
+    if (!flush.right && wall.size.x - opening.left - opening.width > 1) {
       solids.push({ key: `${opening.id}-R`, args: [wall.size.x - opening.left - opening.width, wall.size.y, wall.size.z] });
     }
-    if (opening.sill > 1) solids.push({ key: `${opening.id}-B`, args: [opening.width, opening.sill, wall.size.z] });
-    if (wall.size.y - opening.sill - opening.height > 1) {
+    if (!flush.bottom && opening.sill > 1) solids.push({ key: `${opening.id}-B`, args: [opening.width, opening.sill, wall.size.z] });
+    if (!flush.top && wall.size.y - opening.sill - opening.height > 1) {
       solids.push({ key: `${opening.id}-T`, args: [opening.width, wall.size.y - opening.sill - opening.height, wall.size.z] });
     }
   }

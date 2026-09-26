@@ -85,6 +85,34 @@ test('push-pull resizes inline wall openings and keeps wall resize valid with cu
   assert.equal(tallerWall.walls![0]!.openings?.[0]?.height, 2500);
 });
 
+test('push-pull can open an Ausschnitt flush to the left or right panel end', () => {
+  const openingId = randomUUID();
+  const wall = {
+    ...newWall(randomUUID(), 4000, 3000),
+    width: 5000, height: 2989, thickness: 200,
+    openings: [{ id: openingId, left: 500, sill: 0, width: 2000, height: 2500 }],
+  };
+  const venue = { schemaVersion: 1 as const, width: 8000, depth: 6000, walls: [wall] };
+  const toLeft = applyPushPull(venue, { kind: 'wallOpening', id: wall.id, openingId, edge: 'left' }, 500);
+  assert.equal(toLeft.walls![0]!.openings?.[0]?.left, 0);
+  assert.equal(toLeft.walls![0]!.openings?.[0]?.width, 2500);
+  const toRight = applyPushPull(venue, { kind: 'wallOpening', id: wall.id, openingId, edge: 'right' }, 2500);
+  assert.equal(toRight.walls![0]!.openings?.[0]?.left, 500);
+  assert.equal(toRight.walls![0]!.openings?.[0]?.width, 4500);
+  assert.equal(toRight.walls![0]!.openings?.[0]?.left! + toRight.walls![0]!.openings?.[0]?.width!, 5000);
+  // Consuming the full panel height and width still leaves 1 mm of solid.
+  const full = applyPushPull(
+    { schemaVersion: 1 as const, width: 8000, depth: 6000, walls: [{
+      ...wall, openings: [{ id: openingId, left: 0, sill: 0, width: 5000, height: 2988 }],
+    }] },
+    { kind: 'wallOpening', id: wall.id, openingId, edge: 'top' },
+    10,
+  );
+  const cut = full.walls![0]!.openings?.[0];
+  assert.ok(cut);
+  assert.ok(cut.width * cut.height < 5000 * 2989);
+});
+
 test('push-pull raises a podium and extrudes overhead / chair faces with opposite face fixed', () => {
   const platform = newPlatform(randomUUID(), 4000, 3000);
   platform.elevation = 400;
