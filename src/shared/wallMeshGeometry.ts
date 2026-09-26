@@ -1,6 +1,142 @@
 import { ExtrudeGeometry, Path, Shape } from 'three';
 import type { Opening } from './wall-types.js';
 
+export type OpeningFlush = { left: boolean; right: boolean; bottom: boolean; top: boolean };
+
+const FLUSH_EPS = 0.5;
+
+/** Which panel edges this opening sits flush against (implicit open sides). */
+export function openingFlushSides(opening: Opening, size: { x: number; y: number }, eps = FLUSH_EPS): OpeningFlush {
+  return {
+    left: opening.left <= eps,
+    right: opening.left + opening.width >= size.x - eps,
+    bottom: opening.sill <= eps,
+    top: opening.sill + opening.height >= size.y - eps,
+  };
+}
+
+export function openingTouchesBoundary(opening: Opening, size: { x: number; y: number }, eps = FLUSH_EPS) {
+  const flush = openingFlushSides(opening, size, eps);
+  return flush.left || flush.right || flush.bottom || flush.top;
+}
+
+type Rect = { x0: number; y0: number; x1: number; y1: number };
+type Pt = { x: number; y: number };
+
+function openingRect(opening: Opening, hw: number, hh: number): Rect {
+  return {
+    x0: -hw + opening.left,
+    y0: -hh + opening.sill,
+    x1: -hw + opening.left + opening.width,
+    y1: -hh + opening.sill + opening.height,
+  };
+}
+
+function uniqueSorted(values: number[]) {
+  return [...new Set(values.map(v => Math.round(v * 1000) / 1000))].sort((a, b) => a - b);
+}
+
+/**
+ * Orthogonal outer contour of a panel rectangle minus flush openings (CCW, solid on the left).
+ * Interior-only openings must not be passed here — they become Shape holes instead.
+ */
+export function panelOuterContour(size: { x: number; y: number }, flushOpenings: readonly Opening[]): Pt[] {
+  const hw = size.x / 2, hh = size.y / 2;
+  if (!flushOpenings.length) {
+    return [{ x: -hw, y: -hh }, { x: hw, y: -hh }, { x: hw, y: hh }, { x: -hw, y: hh }];
+  }
+  const voids = flushOpenings.map(opening => openingRect(opening, hw, hh));
+  const xs = uniqueSorted([-hw, hw, ...voids.flatMap(v => [v.x0, v.x1])]);
+  const ys = uniqueSorted([-hh, hh, ...voids.flatMap(v => [v.y0, v.y1])]);
+  const cols = xs.length - 1, rows = ys.length - 1;
+  if (cols < 1 || rows < 1) {
+    return [{ x: -hw, y: -hh }, { x: hw, y: -hh }, { x: hw, y: hh }, { x: -hw, y: hh }];
+  }
+  const solid: boolean[][] = Array.from({ length: cols }, (_, i) => Array.from({ length: rows }, (_, j) => {
+    const cx = (xs[i]! + xs[i + 1]!) / 2;
+    const cy = (ys[j]! + ys[j + 1]!) / 2;
+    return !voids.some(v => cx > v.x0 && cx < v.x1 && cy > v.y0 && cy < v.y1);
+  }));
+  if (!solid.some(col => col.some(Boolean))) {
+    // Degenerate: nothing left — fall back to a thin lintel strip so ExtrudeGeometry stays valid.
+    const lintel = Math.min(1, size.y);
+    return [
+      { x: -hw, y: hh - lintel }, { x: hw, y: hh - lintel }, { x: hw, y: hh }, { x: -hw, y: hh },
+    ];
+  }
+  return traceSolidOutline(xs, ys, solid);
+}
+
+function key(x: number, y: number) {
+  return `${x},${y}`;
+}
+
+/** Chain axis-aligned boundary edges of solid cells into one CCW loop. */
+function traceSolidOutline(xs: number[], ys: number[], solid: boolean[][]): Pt[] {
+  type Edge = { x0: number; y0: number; x1: number; y1: number };
+  const edges: Edge[] = [];
+  const cols = solid.length, rows = solid[0]!.length;
+  for (let i = 0; i < cols; i++) {
+    for (let j = 0; j < rows; j++) {
+      if (!solid[i]![j]) continue;
+      // Bottom: walk left → right
+      if (j === 0 || !solid[i]![j - 1]) edges.push({ x0: xs[i]!, y0: ys[j]!, x1: xs[i + 1]!, y1: ys[j]! });
+      // Right: walk bottom → top
+      if (i === cols - 1 || !solid[i + 1]![j]) edges.push({ x0: xs[i + 1]!, y0: ys[j]!, x1: xs[i + 1]!, y1: ys[j + 1]! });
+      // Top: walk right → left
+      if (j === rows - 1 || !solid[i]![j + 1]) edges.push({ x0: xs[i + 1]!, y0: ys[j + 1]!, x1: xs[i]!, y1: ys[j + 1]! });
+      // Left: walk top → bottom
+      if (i === 0 || !solid[i - 1]![j]) edges.push({ x0: xs[i]!, y0: ys[j + 1]!, x1: xs[i]!, y1: ys[j]! });
+    }
+  }
+  const byStart = new Map<string, Edge[]>();
+  for (const edge of edges) {
+    const k = key(edge.x0, edge.y0);
+    const list = byStart.get(k) ?? [];
+    list.push(edge);
+    byStart.set(k, list);
+  }
+  // Prefer starting at the overall bottom-left corner of the outline.
+  let start = edges[0]!;
+  for (const edge of edges) {
+    if (edge.y0 < start.y0 - 1e-9 || (Math.abs(edge.y0 - start.y0) < 1e-9 && edge.x0 < start.x0)) start = edge;
+  }
+  const loop: Pt[] = [{ x: start.x0, y: start.y0 }];
+  let current = start;
+  const used = new Set<Edge>();
+  for (let n = 0; n < edges.length + 2; n++) {
+    used.add(current);
+    loop.push({ x: current.x1, y: current.y1 });
+    if (Math.abs(current.x1 - start.x0) < 1e-9 && Math.abs(current.y1 - start.y0) < 1e-9) break;
+    const nexts = (byStart.get(key(current.x1, current.y1)) ?? []).filter(edge => !used.has(edge));
+    const next = nexts[0];
+    if (!next) break;
+    current = next;
+  }
+  // Drop duplicate closing point if present.
+  if (loop.length > 1) {
+    const a = loop[0]!, b = loop[loop.length - 1]!;
+    if (Math.abs(a.x - b.x) < 1e-9 && Math.abs(a.y - b.y) < 1e-9) loop.pop();
+  }
+  return mergeCollinear(loop);
+}
+
+function mergeCollinear(points: Pt[]): Pt[] {
+  if (points.length < 3) return points;
+  const out: Pt[] = [];
+  for (let i = 0; i < points.length; i++) {
+    const prev = points[(i - 1 + points.length) % points.length]!;
+    const cur = points[i]!;
+    const next = points[(i + 1) % points.length]!;
+    const ax = cur.x - prev.x, ay = cur.y - prev.y;
+    const bx = next.x - cur.x, by = next.y - cur.y;
+    // Drop middle point when direction does not turn.
+    if (Math.abs(ax * by - ay * bx) < 1e-6) continue;
+    out.push(cur);
+  }
+  return out.length >= 3 ? out : points;
+}
+
 /** Clockwise hole so Three.js cuts it out of a CCW outer contour. */
 function openingHole(opening: Opening, hw: number, hh: number) {
   const hole = new Path();
@@ -13,12 +149,25 @@ function openingHole(opening: Opening, hw: number, hh: number) {
 /**
  * Build wall panel geometry (always ExtrudeGeometry so material slots stay stable
  * when openings are added or removed).
+ *
+ * Openings that touch a panel edge become notches in the outer contour; fully inset
+ * openings remain Shape holes.
  */
 export function buildWallPanelGeometry(size: { x: number; y: number; z: number }, openings: readonly Opening[] = []) {
-  const shape = new Shape();
   const hw = size.x / 2, hh = size.y / 2;
-  shape.moveTo(-hw, -hh); shape.lineTo(hw, -hh); shape.lineTo(hw, hh); shape.lineTo(-hw, hh); shape.closePath();
-  for (const opening of openings) shape.holes.push(openingHole(opening, hw, hh));
+  const flush: Opening[] = [];
+  const inset: Opening[] = [];
+  for (const opening of openings) {
+    if (openingTouchesBoundary(opening, size)) flush.push(opening);
+    else inset.push(opening);
+  }
+  const shape = new Shape();
+  const contour = panelOuterContour(size, flush);
+  const first = contour[0]!;
+  shape.moveTo(first.x, first.y);
+  for (let i = 1; i < contour.length; i++) shape.lineTo(contour[i]!.x, contour[i]!.y);
+  shape.closePath();
+  for (const opening of inset) shape.holes.push(openingHole(opening, hw, hh));
   const geometry = new ExtrudeGeometry(shape, { depth: size.z, bevelEnabled: false, steps: 1 });
   geometry.translate(0, 0, -size.z / 2);
   const normal = geometry.getAttribute('normal');
