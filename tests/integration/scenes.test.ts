@@ -287,3 +287,34 @@ test('viewer cannot copy across productions; foreign workspace is hidden', async
   assert.equal((await app.inject({ method: 'POST', url: `${base}/${source.id}/copy`, headers: viewer, payload })).statusCode, 403);
   assert.equal((await app.inject({ method: 'POST', url: `${base}/${source.id}/copy`, headers: { origin: fixture.config.APP_ORIGIN }, payload })).statusCode, 401);
 });
+
+test('renames a duplicated scene and its production', async () => {
+  const created = await app.inject({
+    method: 'POST', url: base, headers,
+    payload: { productionName: 'Umbenennproduktion', venueName: 'Umbenennsaal', sceneName: 'Ursprung', width: 8000, depth: 6000 },
+  });
+  assert.equal(created.statusCode, 201, created.body);
+  const origin = created.json<Scene>();
+  const duplicated = await app.inject({ method: 'POST', url: `${base}/${origin.id}/duplicate`, headers, payload: {} });
+  assert.equal(duplicated.statusCode, 201, duplicated.body);
+  const copy = duplicated.json<Scene>();
+  assert.equal(copy.name, 'Ursprung (Kopie)');
+  const renamed = await app.inject({
+    method: 'PATCH', url: `${base}/${copy.id}`, headers, payload: { name: 'Zweite Fassung' },
+  });
+  assert.equal(renamed.statusCode, 200, renamed.body);
+  assert.equal(renamed.json().name, 'Zweite Fassung');
+  assert.equal(renamed.json().revision, 0);
+  assert.equal((await app.inject({ url: `${base}/${copy.id}`, headers })).json<Scene>().name, 'Zweite Fassung');
+  assert.equal((await app.inject({
+    method: 'PATCH', url: `${base}/${copy.id}`, headers, payload: { name: '   ' },
+  })).statusCode, 400);
+  const production = await app.inject({
+    method: 'PATCH', url: `/api/workspaces/${fixture.config.WORKSPACE_ID}/productions/${origin.productionId}`,
+    headers, payload: { name: 'Umbenanntes Stück' },
+  });
+  assert.equal(production.statusCode, 200, production.body);
+  assert.equal(production.json().name, 'Umbenanntes Stück');
+  assert.equal((await app.inject({ url: `${base}/${origin.id}`, headers })).json<Scene>().productionName, 'Umbenanntes Stück');
+  assert.equal((await app.inject({ url: `${base}/${copy.id}`, headers })).json<Scene>().productionName, 'Umbenanntes Stück');
+});

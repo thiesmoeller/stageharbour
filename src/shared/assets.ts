@@ -45,6 +45,7 @@ export const assetDefinitionSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('model'), width: dimension, height: dimension, depth: dimension, source: modelSourceSchema }),
 ]);
 export const createAssetSchema = z.strictObject({ name: z.string().trim().min(1).max(120), definition: assetDefinitionSchema });
+export const renameAssetSchema = z.strictObject({ name: z.string().trim().min(1).max(120) });
 export const assetSchema = createAssetSchema.extend({ id: z.uuid(), archived: z.boolean() });
 export const assetListSchema = z.array(assetSchema);
 export type Asset = z.infer<typeof assetSchema>;

@@ -86,6 +86,24 @@ test('capturing a named scene template clones layout including wall types', asyn
   assert.equal(listing.some(item => item.id === template.id && item.name === 'Grundriss A'), true);
 });
 
+test('renames a scene template', async () => {
+  const captured = await app.inject({
+    method: 'POST', url: `${scenes}/${source.id}/templates`, headers,
+    payload: { name: 'Umbenennvorlage' },
+  });
+  assert.equal(captured.statusCode, 201, captured.body);
+  const template = captured.json<SceneTemplate>();
+  const renamed = await app.inject({
+    method: 'PATCH', url: `${templates}/${template.id}`, headers, payload: { name: 'Umbenennvorlage korrigiert' },
+  });
+  assert.equal(renamed.statusCode, 200, renamed.body);
+  assert.equal(renamed.json().name, 'Umbenennvorlage korrigiert');
+  assert.equal((await app.inject({ url: `${templates}/${template.id}`, headers })).json().name, 'Umbenennvorlage korrigiert');
+  assert.equal((await app.inject({
+    method: 'PATCH', url: `${templates}/${template.id}`, headers, payload: { name: '  ' },
+  })).statusCode, 400);
+});
+
 test('source layout PUT after capture leaves the stored template unchanged', async () => {
   const loaded = (await app.inject({ url: `${templates}/${(await app.inject({ url: templates, headers })).json<Array<{ id: string }>>()[0]!.id}`, headers })).json<SceneTemplate>();
   const edited: Layout = {
