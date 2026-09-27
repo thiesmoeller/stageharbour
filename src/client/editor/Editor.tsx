@@ -29,6 +29,7 @@ import { WallIdentity } from './ConstructionMarks.js';
 import { DimensionLayer } from './DimensionLayer.js';
 import { dimensionFromPlacement, dimensionSnapPoints, dimensionValue, nearestSnap, resolveDimension, type SnapAnchor } from '../../shared/dimensions.js';
 import { doorOpenAngleDegrees, isDoorOpening, resolveWall, typesOf, type Opening, type WallElementType } from '../../shared/wall-types.js';
+import { sameGeometry } from '../../shared/inventory.js';
 import { measuredOutline } from '../../shared/venue.js';
 import { defaultPlanDisplay, type PlanDisplayOptions } from '../../shared/planDisplay.js';
 import { fullPlanPreview } from './PlanPreview.js';
@@ -340,8 +341,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     let wall: Wall;
     if (type) {
       const known = types.find(item => item.id === type.id)
-        ?? types.find(item => item.name === type.name && item.width === type.width && item.height === type.height && item.thickness === type.thickness
-          && item.openings.length === type.openings.length);
+        ?? types.find(item => sameGeometry(item, type));
       const resolved = known ?? type;
       pendingType = known ? undefined : resolved;
       wall = {
