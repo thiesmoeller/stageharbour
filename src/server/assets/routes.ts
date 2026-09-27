@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { assetListSchema, assetSchema, createAssetSchema } from '../../shared/assets.js';
+import { assetListSchema, assetSchema, createAssetSchema, renameAssetSchema } from '../../shared/assets.js';
 import { errorSchema, workspaceParamsSchema } from '../../shared/contracts.js';
 import type { Database } from '../db/connection.js';
 import { assetFile, inventoryAsset } from '../db/schema.js';
@@ -44,6 +44,21 @@ export function registerAssetRoutes(app: FastifyInstance, db: Database, access: 
       return asset;
     });
     return reply.code(201).send(asset!);
+  });
+  api.patch(`${path}/:assetId`, { schema: { params, body: renameAssetSchema, response: { 200: assetSchema, ...errors } } }, async request => {
+    const { user } = await editor(request, request.params.workspaceId);
+    return db.transaction(async tx => {
+      await leases.requireHeld(tx, request.params.workspaceId, 'inventory', request.params.workspaceId, user.id);
+      const rows = await tx.update(inventoryAsset).set({ name: request.body.name })
+        .where(and(
+          eq(inventoryAsset.workspaceId, request.params.workspaceId),
+          eq(inventoryAsset.id, request.params.assetId),
+          eq(inventoryAsset.archived, false),
+        ))
+        .returning(fields);
+      if (!rows.length) throw new AccessError(404, 'Inventarobjekt nicht verfügbar.');
+      return rows[0]!;
+    });
   });
   api.delete(`${path}/:assetId`, { schema: { params, response: { 200: z.object({ ok: z.literal(true) }), ...errors } } }, async request => {
     const { user } = await editor(request, request.params.workspaceId);

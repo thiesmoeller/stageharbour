@@ -210,6 +210,9 @@ export const copySceneSchema = z.strictObject({
   surfaceMap: z.record(z.uuid(), z.uuid()).optional(),
 });
 export const captureTemplateSchema = z.strictObject({ name });
+export const renameSceneSchema = z.strictObject({ name });
+export const renameProductionSchema = z.strictObject({ name });
+export const renameSceneTemplateSchema = z.strictObject({ name });
 export const instantiateTemplateSchema = copySceneSchema;
 export const templateSurfaceSchema = z.strictObject({ id: z.uuid(), label: name });
 export const sceneTemplateSummarySchema = z.object({ id: z.uuid(), name });

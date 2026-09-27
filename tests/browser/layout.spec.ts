@@ -377,8 +377,15 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   expect((await duplicated).ok()).toBeTruthy();
   await expect(page.getByRole('button', { name: /LayoutSzene \(Kopie\)/ })).toBeVisible();
   await expect(page.getByRole('button', { name: 'LayoutJourney · LayoutSzene LayoutSaal' })).toBeVisible();
-  await page.getByRole('button', { name: /LayoutSzene \(Kopie\)/ }).click();
-  await expect(page.getByRole('heading', { name: 'LayoutSzene (Kopie)' })).toBeVisible();
+  const copyCard = page.locator('.scene-card').filter({ has: page.getByRole('button', { name: /LayoutSzene \(Kopie\)/ }) });
+  await copyCard.getByRole('button', { name: 'Umbenennen', exact: true }).click();
+  await copyCard.getByLabel('Neuer Name').fill('LayoutSzene Zwei');
+  const renamed = page.waitForResponse(response => /\/scenes\/[^/]+$/.test(new URL(response.url()).pathname) && response.request().method() === 'PATCH');
+  await copyCard.getByRole('button', { name: 'Umbenennen', exact: true }).click();
+  expect((await renamed).ok()).toBeTruthy();
+  await expect(page.getByRole('button', { name: /LayoutSzene Zwei/ })).toBeVisible();
+  await page.getByRole('button', { name: /LayoutSzene Zwei/ }).click();
+  await expect(page.getByRole('heading', { name: 'LayoutSzene Zwei' })).toBeVisible();
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await expect(page.getByText('Zugewiesen: Beispiel-P01')).toBeVisible();
   await page.getByLabel('X (mm)', { exact: true }).fill('2200');

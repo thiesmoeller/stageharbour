@@ -1,7 +1,7 @@
 import { lazy, Suspense, useState, type FormEvent } from 'react';
 import { z } from 'zod';
 import {
-  assetSchema, MAX_MODEL_BYTES, MAX_MODEL_MB, modelAxisSchema, modelDimensionsFromReference,
+  assetSchema, MAX_MODEL_BYTES, MAX_MODEL_MB, modelAxisSchema, modelDimensionsFromReference, renameAssetSchema,
   type Asset, type AssetDefinition, type ModelAxis,
 } from '../../shared/assets.js';
 import { newBrace, newWall, type Brace, type Layout, type Wall } from '../../shared/layout.js';
@@ -16,11 +16,11 @@ const PascalCatalog = lazy(() => import('./PascalCatalog.js'));
 const axisLabels: Record<ModelAxis, string> = { width: 'Breite', height: 'Höhe', depth: 'Tiefe' };
 type LibraryTab = 'inventory' | 'panels' | 'wallTypes' | 'import' | 'catalog';
 
-export function AssetLibrary({ workspaceId, assets, layout, readOnly, selected, wallTypes, selectedTypeId, onCreated, onArchive, onPlace,
+export function AssetLibrary({ workspaceId, assets, layout, readOnly, selected, wallTypes, selectedTypeId, onCreated, onArchive, onRenamed, onPlace,
   onWallTypeSelect, onWallTypeCreate, onWallTypeApply, onWallTypePlace, onWallTypeRemove, onPendingChange, onPanels }: {
   workspaceId: string; assets: Asset[]; layout: Layout; readOnly: boolean; selected?: Wall | Brace;
   wallTypes: WallElementType[]; selectedTypeId?: string;
-  onCreated: (asset: Asset) => void; onArchive: (id: string) => void; onPlace: (asset: Asset) => void;
+  onCreated: (asset: Asset) => void; onArchive: (id: string) => void; onRenamed?: (asset: Asset) => void; onPlace: (asset: Asset) => void;
   onWallTypeSelect: (id?: string) => void;
   onWallTypeCreate: (type: WallElementType) => void;
   onWallTypeApply: (type: WallElementType) => void;
@@ -33,6 +33,7 @@ export function AssetLibrary({ workspaceId, assets, layout, readOnly, selected, 
   const [search, setSearch] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [renamingId, setRenamingId] = useState<string>();
   const [bounds, setBounds] = useState<{ x: number; y: number; z: number } | null>(null);
   const [axis, setAxis] = useState<ModelAxis>('height');
   const [lengthMm, setLengthMm] = useState('1000');
@@ -105,7 +106,30 @@ export function AssetLibrary({ workspaceId, assets, layout, readOnly, selected, 
       <label htmlFor="asset-search">Objektvorlagen durchsuchen</label><input id="asset-search" value={search} onChange={event => setSearch(event.target.value)} />
       <div className="asset-grid">{assets.filter(asset => !asset.archived && asset.name.toLocaleLowerCase().includes(search.toLocaleLowerCase())).map(asset => <article className="asset-card" key={asset.id}>
         <strong>{asset.name}</strong><span>{asset.definition.kind === 'wall' ? 'Wandelement' : asset.definition.kind === 'brace' ? 'Gewichtete Stütze' : '3D-Modell'}</span>
+        {renamingId === asset.id && <form onSubmit={event => {
+          event.preventDefault();
+          const parsed = renameAssetSchema.safeParse({ name: new FormData(event.currentTarget).get('name') });
+          if (!parsed.success) { setError('Bitte geben Sie einen gültigen Namen ein.'); return; }
+          void (async () => {
+            setBusy(true); setError('');
+            try {
+              await requireLease();
+              const updated = assetSchema.parse(await request(`${base}/${asset.id}`, parsed.data, 'PATCH'));
+              onRenamed?.(updated);
+              setRenamingId(undefined);
+            } catch { setError('Das Objekt konnte nicht umbenannt werden.'); }
+            finally { setBusy(false); }
+          })();
+        }}>
+          <label htmlFor={`rename-asset-${asset.id}`}>Neuer Name</label>
+          <input id={`rename-asset-${asset.id}`} name="name" required maxLength={120} defaultValue={asset.name} autoFocus />
+          <div className="form-actions">
+            <button type="submit" disabled={busy}>Umbenennen</button>
+            <button type="button" className="quiet" disabled={busy} onClick={() => setRenamingId(undefined)}>Abbrechen</button>
+          </div>
+        </form>}
         <button type="button" disabled={readOnly || busy} onClick={() => onPlace(asset)}>Platzieren</button>
+        {!readOnly && renamingId !== asset.id && <button className="quiet" type="button" disabled={busy} onClick={() => setRenamingId(asset.id)}>Umbenennen</button>}
         {!readOnly && <button className="quiet" type="button" disabled={busy} onClick={async () => {
           setBusy(true); setError('');
           try { await requireLease(); await request(`${base}/${asset.id}`, undefined, 'DELETE'); onArchive(asset.id); }

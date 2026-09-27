@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { captureTemplateSchema, copySceneSchema, createSceneSchema, instantiateTemplateSchema, sceneListSchema, sceneSchema, sceneTemplateListSchema, sceneTemplateSchema, type Scene, type SceneTemplate, type VenueGeometry } from '../../shared/layout.js';
+import { captureTemplateSchema, copySceneSchema, createSceneSchema, instantiateTemplateSchema, renameProductionSchema, renameSceneSchema, renameSceneTemplateSchema, sceneListSchema, sceneSchema, sceneTemplateListSchema, sceneTemplateSchema, sceneTemplateSummarySchema, type Scene, type SceneTemplate, type VenueGeometry } from '../../shared/layout.js';
 import { venueListSchema, venueRecordSchema } from '../../shared/venueLibrary.js';
 import { leaseHolderSchema } from '../../shared/leases.js';
 import { AUDIENCE_FLOOR_ID } from '../../shared/levels.js';
@@ -34,6 +34,7 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
   const [packageExport, setPackageExport] = useState<{ productionId: string; scenes: { id: string; name: string }[] }>();
+  const [renaming, setRenaming] = useState<{ kind: 'scene' | 'production' | 'template'; id: string }>();
   const openedIdRef = useRef<string | undefined>(undefined);
   const openingRef = useRef<string | undefined>(undefined);
   openedIdRef.current = opened?.scene.id;
@@ -46,7 +47,7 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
   const readOnly = !can(me.workspace.role, 'scenes');
   const base = `/api/workspaces/${me.workspace.id}/scenes`;
   const templatesBase = `/api/workspaces/${me.workspace.id}/scene-templates`;
-  const editingForm = creating || addingScene || addingVenue || copying || capturing || instantiating;
+  const editingForm = creating || addingScene || addingVenue || copying || capturing || instantiating || renaming;
   function markDirty(value: boolean) {
     onDirty(value);
   }
@@ -141,7 +142,36 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
   }
   function dismissForms() {
     setCreating(false); setSelectedVenueVersion(''); setAddingScene(undefined); setAddingVenue(undefined);
-    setCopying(undefined); setCapturing(undefined); setInstantiating(undefined);
+    setCopying(undefined); setCapturing(undefined); setInstantiating(undefined); setRenaming(undefined);
+  }
+  async function rename(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!renaming) return;
+    const parsed = (renaming.kind === 'scene' ? renameSceneSchema
+      : renaming.kind === 'production' ? renameProductionSchema
+        : renameSceneTemplateSchema).safeParse({ name: new FormData(event.currentTarget).get('name') });
+    if (!parsed.success) { setError('Bitte geben Sie einen gültigen Namen ein.'); return; }
+    setBusy(true); setError('');
+    try {
+      if (renaming.kind === 'scene') {
+        const result = sceneSchema.parse(await request(`${base}/${renaming.id}`, parsed.data, 'PATCH'));
+        setScenes(current => current.map(item => item.id === renaming.id
+          ? { ...item, name: result.name } : item));
+      } else if (renaming.kind === 'production') {
+        const result = sceneTemplateSummarySchema.parse(await request(
+          `/api/workspaces/${me.workspace.id}/productions/${renaming.id}`, parsed.data, 'PATCH'));
+        setScenes(current => current.map(item => item.productionId === renaming.id
+          ? { ...item, productionName: result.name } : item));
+      } else {
+        const result = sceneTemplateSummarySchema.parse(
+          await request(`${templatesBase}/${renaming.id}`, parsed.data, 'PATCH'));
+        setTemplates(current => current.map(item => item.id === renaming.id ? { ...item, name: result.name } : item)
+          .sort((a, b) => a.name.localeCompare(b.name, 'de')));
+      }
+      setRenaming(undefined);
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Der Name konnte nicht geändert werden.');
+    } finally { setBusy(false); }
   }
   function startCreatingProduction() {
     dismissForms();
@@ -287,7 +317,7 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
     { id: AUDIENCE_FLOOR_ID, label: 'Zuschauerboden' },
     ...(destVenue?.platforms ?? []).map(platform => ({ id: platform.id, label: platform.label })),
   ];
-  if (opened) return <><Editor key={`${opened.scene.id}:${opened.holdsLease}`} initial={opened.scene} workspaceId={me.workspace.id} readOnly={readOnly || !opened.holdsLease} onDirty={markDirty} onClose={leave}
+  if (opened) return <><Editor key={`${opened.scene.id}:${opened.holdsLease}`} initial={opened.scene} workspaceId={me.workspace.id} readOnly={readOnly || !opened.holdsLease} canRename={!readOnly} onDirty={markDirty} onClose={leave}
     onRequestEditing={readOnly ? undefined : () => void open(opened.scene.id)} />{error && <p role="alert">{error}</p>}</>;
   return <section className="plans"><div className="section-heading"><h2>Produktionen & Szenen</h2>{!readOnly && !editingForm && <button onClick={startCreatingProduction} disabled={busy}>Neue Produktion</button>}</div>
     <p className="muted">Zuerst die Produktion, dann die Szenen je Spielstätte. Vorschaubilder zeigen den aktuellen Grundriss.</p>
@@ -394,7 +424,16 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
         <div className="section-heading">
           <h2>{item.productionName}</h2>
           {!readOnly && !editingForm && availableVenues.length > 0 && <button className="quiet" type="button" onClick={() => { dismissForms(); setAddingVenue({ productionId: item.productionId, productionName: item.productionName }); }} disabled={busy}>Weitere Spielstätte</button>}
+          {!readOnly && !editingForm && <button className="quiet" type="button" disabled={busy} onClick={() => { dismissForms(); setRenaming({ kind: 'production', id: item.productionId }); }}>Umbenennen</button>}
         </div>
+        {renaming?.kind === 'production' && renaming.id === item.productionId && <form className="create-plan" onSubmit={event => void rename(event)}>
+          <label htmlFor={`rename-production-${item.productionId}`}>Neuer Name</label>
+          <input id={`rename-production-${item.productionId}`} name="name" required maxLength={120} defaultValue={item.productionName} autoFocus />
+          <div className="form-actions">
+            <button type="submit" disabled={busy}>Umbenennen</button>
+            <button type="button" className="quiet" disabled={busy} onClick={() => setRenaming(undefined)}>Abbrechen</button>
+          </div>
+        </form>}
         {venueNames.map(venue => {
           const venueScenes = productionScenes.filter(scene => scene.venueId === venue.venueId);
           return <div className="venue-block" key={venue.venueId}>
@@ -412,6 +451,15 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
               </button>
               {!readOnly && scene.venueUpdateAvailable && <button className="quiet" type="button" onClick={() => void applyVenue(scene.id)} disabled={busy}>Spielstättenfassung übernehmen</button>}
               {!readOnly && <button className="quiet" type="button" onClick={() => void duplicate(scene.id)} disabled={busy}>Szene duplizieren</button>}
+              {!readOnly && renaming?.kind !== 'scene' && <button className="quiet" type="button" disabled={busy} onClick={() => { dismissForms(); setRenaming({ kind: 'scene', id: scene.id }); }}>Umbenennen</button>}
+              {!readOnly && renaming?.kind === 'scene' && renaming.id === scene.id && <form className="create-plan" onSubmit={event => void rename(event)}>
+                <label htmlFor={`rename-scene-${scene.id}`}>Neuer Name</label>
+                <input id={`rename-scene-${scene.id}`} name="name" required maxLength={120} defaultValue={scene.name} autoFocus />
+                <div className="form-actions">
+                  <button type="submit" disabled={busy}>Umbenennen</button>
+                  <button type="button" className="quiet" disabled={busy} onClick={() => setRenaming(undefined)}>Abbrechen</button>
+                </div>
+              </form>}
               {!readOnly && <details className="scene-actions">
                 <summary>Weitere Aktionen</summary>
                 <button className="quiet" type="button" onClick={() => void startCopy(scene.id)} disabled={busy}>In andere Spielstätte kopieren</button>
@@ -434,7 +482,16 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
     {!busy && !templates.length && !capturing && !instantiating && !error && <p className="muted">Noch keine Szenenvorlagen vorhanden.{!readOnly && ' Speichern Sie eine Szene als schreibgeschützte Szenenvorlage.'}</p>}
     <div className="scene-list">{templates.map(template => <div className="scene-card" key={template.id}>
       <div className="scene-open"><strong>{template.name}</strong><span>schreibgeschützt</span></div>
+      {!readOnly && renaming?.kind === 'template' && renaming.id === template.id && <form className="create-plan" onSubmit={event => void rename(event)}>
+        <label htmlFor={`rename-template-${template.id}`}>Neuer Name</label>
+        <input id={`rename-template-${template.id}`} name="name" required maxLength={120} defaultValue={template.name} autoFocus />
+        <div className="form-actions">
+          <button type="submit" disabled={busy}>Umbenennen</button>
+          <button type="button" className="quiet" disabled={busy} onClick={() => setRenaming(undefined)}>Abbrechen</button>
+        </div>
+      </form>}
       {!readOnly && <button className="quiet" type="button" onClick={() => void startInstantiate(template.id)} disabled={busy}>In Produktion einfügen</button>}
+      {!readOnly && <button className="quiet" type="button" disabled={busy} onClick={() => { dismissForms(); setRenaming({ kind: 'template', id: template.id }); }}>Umbenennen</button>}
       {!readOnly && <button className="quiet" type="button" onClick={() => void removeTemplate(template.id, template.name)} disabled={busy}>Löschen</button>}
     </div>)}</div>
   </section>;

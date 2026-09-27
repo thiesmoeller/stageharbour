@@ -4,7 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { errorSchema, okSchema, workspaceParamsSchema } from '../../shared/contracts.js';
-import { layoutSchema, captureTemplateSchema, createSceneSchema, copySceneSchema, duplicateSceneSchema, instantiateTemplateSchema, saveLayoutSchema, sceneSchema, sceneListSchema, sceneTemplateListSchema, sceneTemplateSchema, venueGeometrySchema, wallCorners } from '../../shared/layout.js';
+import { layoutSchema, captureTemplateSchema, createSceneSchema, copySceneSchema, duplicateSceneSchema, instantiateTemplateSchema, renameProductionSchema, renameSceneSchema, renameSceneTemplateSchema, saveLayoutSchema, sceneSchema, sceneListSchema, sceneTemplateListSchema, sceneTemplateSchema, sceneTemplateSummarySchema, venueGeometrySchema, wallCorners } from '../../shared/layout.js';
 import { stripLayoutReportTemplates } from '../../shared/reportTemplate.js';
 import { captureTemplateLayout, copiedSceneName, copyLayoutIntoVenue, duplicateLayout } from '../../shared/scenes.js';
 import { overheadClearance, overheadWarningSchema } from '../../shared/overhead.js';
@@ -117,6 +117,32 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
     const [record] = await loadScenes(request.params.workspaceId, request.params.sceneId);
     if (!record) throw new AccessError(404, 'Szene nicht verfügbar.');
     return withLease(request.params.workspaceId, record);
+  });
+  // Rename is metadata-only (like venues): no scene lease required.
+  api.patch(`${path}/:sceneId`, { schema: { params, body: renameSceneSchema, response: { 200: sceneSchema, ...errors } } }, async request => {
+    const { workspaceId, sceneId } = request.params;
+    await requireEditor(request, workspaceId);
+    const [updated] = await db.update(scene).set({ name: request.body.name })
+      .where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, sceneId)))
+      .returning({ id: scene.id });
+    if (!updated) throw new AccessError(404, 'Szene nicht verfügbar.');
+    const [record] = await loadScenes(workspaceId, sceneId);
+    return withLease(workspaceId, record!);
+  });
+  api.patch('/api/workspaces/:workspaceId/productions/:productionId', {
+    schema: {
+      params: workspaceParamsSchema.extend({ productionId: z.uuid() }),
+      body: renameProductionSchema,
+      response: { 200: z.object({ id: z.uuid(), name: z.string() }), ...errors },
+    },
+  }, async request => {
+    const { workspaceId, productionId } = request.params;
+    await requireEditor(request, workspaceId);
+    const [updated] = await db.update(production).set({ name: request.body.name })
+      .where(and(eq(production.workspaceId, workspaceId), eq(production.id, productionId)))
+      .returning({ id: production.id, name: production.name });
+    if (!updated) throw new AccessError(404, 'Produktion nicht verfügbar.');
+    return updated;
   });
   api.post(path, { schema: { params: workspaceParamsSchema, body: createSceneSchema, response: { 201: sceneSchema, ...errors } } }, async (request, reply) => {
     const { workspaceId } = request.params;
@@ -256,6 +282,16 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
     const [record] = await readTemplates(request.params.workspaceId, request.params.templateId);
     if (!record) throw new AccessError(404, 'Szenenvorlage nicht verfügbar.');
     return record;
+  });
+  api.patch(`${templatesPath}/:templateId`, {
+    schema: { params: templateParams, body: renameSceneTemplateSchema, response: { 200: sceneTemplateSummarySchema, ...errors } },
+  }, async request => {
+    await requireEditor(request, request.params.workspaceId);
+    const [updated] = await db.update(sceneTemplate).set({ name: request.body.name })
+      .where(and(eq(sceneTemplate.workspaceId, request.params.workspaceId), eq(sceneTemplate.id, request.params.templateId)))
+      .returning({ id: sceneTemplate.id, name: sceneTemplate.name });
+    if (!updated) throw new AccessError(404, 'Szenenvorlage nicht verfügbar.');
+    return updated;
   });
   // Instantiating reads the template without a lease. The new scene starts
   // unleased on the destination adaptation; panel assignments are cleared.

@@ -12,7 +12,7 @@ import {
 } from '../../shared/clipboard.js';
 import { canFormGroup, formGroup, groupContaining, ungroup, type GroupMember } from '../../shared/groups.js';
 import { execute, history, redo, undo, type History } from '../../shared/history.js';
-import { layoutSchema, newBrace, newWall, wallCorners, wallSchema, type Brace, type Layout, type Scene, type VenueGeometry, type Wall } from '../../shared/layout.js';
+import { layoutSchema, newBrace, newWall, renameSceneSchema, saveVenueResultSchema, sceneSchema, wallCorners, wallSchema, type Brace, type Layout, type Scene, type VenueGeometry, type Wall } from '../../shared/layout.js';
 import {
   SNAP_NOTICE, alignBraceToNearestWall, planRotationAt,
   snapStatusText, snapWallPose, type SnapGuide,
@@ -45,7 +45,6 @@ import { BraceLayer } from './BraceLayer.js';
 import { PlatformInspector, StairInspector } from './PlatformInspector.js';
 import { WallSurfaceEditor } from './WallSurfaceEditor.js';
 import { liftReportTemplatesToVenue, stripLayoutReportTemplates } from '../../shared/reportTemplate.js';
-import { saveVenueResultSchema } from '../../shared/layout.js';
 import { MeasureLayer } from './MeasureLayer.js';
 import { PlatformLayer, SurfaceField } from './PlatformLayer.js';
 import { RotationHandle } from './RotationHandle.js';
@@ -80,8 +79,8 @@ const MaterialPicker = lazy(() => import('./MaterialPicker.js'));
 type VenueFixtureSelection = { kind: 'curtain' | 'door'; id: string };
 const statusText = { saved: 'Gespeichert', pending: 'Änderungen ausstehend …', saving: 'Speichert …', failed: 'Speichern fehlgeschlagen', conflict: 'Neuere Fassung vorhanden' };
 const INSPECTOR_PENDING_STATUS = 'Nicht übernommene Eingaben';
-export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onClose, onDirty, onRequestEditing }: {
-  initial: Scene; workspaceId: string; readOnly: boolean; onClose: () => void; onDirty: (value: boolean) => void; onRequestEditing?: () => void;
+export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, canRename = false, onClose, onDirty, onRequestEditing }: {
+  initial: Scene; workspaceId: string; readOnly: boolean; canRename?: boolean; onClose: () => void; onDirty: (value: boolean) => void; onRequestEditing?: () => void;
 }) {
   const boot = liftReportTemplatesToVenue({
     ...initial.layout, braces: initial.layout.braces ?? [], connections: initial.layout.connections ?? [],
@@ -98,6 +97,10 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
   const stageGesture = useRef<{ layout: Layout; members: ClipboardMember[] } | undefined>(undefined);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [assetError, setAssetError] = useState('');
+  const [sceneName, setSceneName] = useState(initial.name);
+  const [renamingScene, setRenamingScene] = useState(false);
+  const [renameBusy, setRenameBusy] = useState(false);
+  const [renameError, setRenameError] = useState('');
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const persistLiftedTemplates = useRef(
@@ -244,6 +247,19 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
       setRecoveryMessage('Entwurf als Szenenvorlage gesichert. Sie finden ihn in der Übersicht.');
     } catch (error) { setRecoveryMessage(error instanceof ApiError ? error.message : 'Entwurf konnte nicht gesichert werden. Bitte herunterladen.'); }
     finally { setRecovering(false); }
+  }
+  async function renameScene(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const parsed = renameSceneSchema.safeParse({ name: new FormData(event.currentTarget).get('name') });
+    if (!parsed.success) { setRenameError('Bitte geben Sie einen gültigen Namen ein.'); return; }
+    setRenameBusy(true); setRenameError('');
+    try {
+      const result = sceneSchema.parse(await request(`/api/workspaces/${workspaceId}/scenes/${initial.id}`, parsed.data, 'PATCH'));
+      setSceneName(result.name);
+      setRenamingScene(false);
+    } catch (error) {
+      setRenameError(error instanceof ApiError ? error.message : 'Die Szene konnte nicht umbenannt werden.');
+    } finally { setRenameBusy(false); }
   }
   const dirty = venueDirty || saveState.dirty || !!groupPreview || !!placing || inspectorPending;
   const onDirtyRef = useRef(onDirty);
@@ -829,7 +845,18 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   return <section ref={root} className="editor" aria-label="Szene bearbeiten">
-    <div className="editor-heading"><button className="quiet back-button" disabled={dirty} onClick={onClose} title="Zur Übersicht" aria-label="Zur Übersicht"><ToolIcon name="back" /></button><div><p className="eyebrow">{initial.productionName} · {venueName}</p><h2>{initial.name}</h2></div>
+    <div className="editor-heading"><button className="quiet back-button" disabled={dirty} onClick={onClose} title="Zur Übersicht" aria-label="Zur Übersicht"><ToolIcon name="back" /></button><div><p className="eyebrow">{initial.productionName} · {venueName}</p><h2>{sceneName}</h2>
+      {canRename && !renamingScene && <button className="quiet" type="button" disabled={renameBusy} onClick={() => { setRenamingScene(true); setRenameError(''); }}>Umbenennen</button>}
+      {canRename && renamingScene && <form className="create-plan" onSubmit={event => void renameScene(event)}>
+        <label htmlFor="rename-open-scene">Neuer Name</label>
+        <input id="rename-open-scene" name="name" required maxLength={120} defaultValue={sceneName} autoFocus />
+        <div className="form-actions">
+          <button type="submit" disabled={renameBusy}>Umbenennen</button>
+          <button type="button" className="quiet" disabled={renameBusy} onClick={() => { setRenamingScene(false); setRenameError(''); }}>Abbrechen</button>
+        </div>
+        {renameError && <p className="error" role="alert">{renameError}</p>}
+      </form>}
+    </div>
       <span className={`save-status ${inspectorPending ? 'pending' : saveState.status}`} role="status">{permissionReadOnly
         ? (initial.lease ? `Nur Ansicht · Bearbeitung durch ${initial.lease.holderName}` : 'Nur Ansicht')
         : saveState.status === 'conflict' && saveState.conflictKind === 'lease' ? 'Bearbeitung abgelaufen'
@@ -915,6 +942,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
       wallTypes={wallTypes} selectedTypeId={selectedType}
       onCreated={asset => setAssets(items => [...items, asset])}
       onArchive={id => setAssets(items => items.map(asset => asset.id === id ? { ...asset, archived: true } : asset))}
+      onRenamed={updated => setAssets(items => items.map(asset => asset.id === updated.id ? updated : asset).sort((a, b) => a.name.localeCompare(b.name, 'de')))}
       onPlace={asset => { setLibraryOpen(false); placeAsset(asset); }}
       onWallTypeSelect={setSelectedType} onWallTypeCreate={applyType} onWallTypeApply={applyType}
       onWallTypePlace={type => {

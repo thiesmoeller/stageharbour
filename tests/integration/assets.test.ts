@@ -60,6 +60,25 @@ test('shared GLB assets survive restart and archival; layout references are work
   assert.equal((await app.inject({ method: 'PUT', url: `${sceneBase}/${scene.id}/layout`, headers, payload: { revision: 1, layout: { ...layout, placeholders: [{ ...prop, assetId: foreignAsset.id }] } } })).statusCode, 400);
 });
 
+test('renames an inventory asset while the inventory lease is held', async () => {
+  const created = await app.inject({
+    method: 'POST', url: base, headers,
+    payload: { name: 'Alte Vorlage', definition: { kind: 'wall', template: { width: 1200, height: 2400, thickness: 28 } } },
+  });
+  assert.equal(created.statusCode, 201, created.body);
+  const asset = created.json();
+  const renamed = await app.inject({
+    method: 'PATCH', url: `${base}/${asset.id}`, headers, payload: { name: 'Neue Vorlage' },
+  });
+  assert.equal(renamed.statusCode, 200, renamed.body);
+  assert.equal(renamed.json().name, 'Neue Vorlage');
+  assert.equal(renamed.json().archived, false);
+  assert.equal((await app.inject({ url: base, headers })).json().find((item: { id: string }) => item.id === asset.id)?.name, 'Neue Vorlage');
+  assert.equal((await app.inject({
+    method: 'PATCH', url: `${base}/${asset.id}`, headers, payload: { name: '   ' },
+  })).statusCode, 400);
+});
+
 test('invalid models, cross-origin writes and viewer mutations are rejected', async () => {
   const upload = (payload: Buffer, origin = headers.origin) => app.inject({ method: 'POST', url: `${base}/files`, headers: { ...headers, origin, 'content-type': 'model/gltf-binary' }, payload });
   assert.equal((await upload(Buffer.from('not a model'))).statusCode, 400);
