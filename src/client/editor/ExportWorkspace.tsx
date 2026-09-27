@@ -4,7 +4,7 @@ import {
   type ExportLayers, type ExportRevision,
 } from '../../shared/export.js';
 import {
-  defaultCamera, documentPagesFromTemplate, viewFrameId, type CameraPreset, type DocumentFrame, type DocumentPage, type ExportDocumentSpec, type FrameCrop, type SheetOrientation,
+  defaultCamera, documentPagesFromTemplate, editablePagesFromSettings, viewFrameId, type CameraPreset, type DocumentFrame, type DocumentPage, type ExportDocumentSpec, type FrameCrop, type SheetOrientation,
 } from '../../shared/exportDocument.js';
 import type { Asset } from '../../shared/assets.js';
 import type { Group } from '../../shared/groups.js';
@@ -79,6 +79,7 @@ export function ExportWorkspace({
   const [selectedFrame, setSelectedFrame] = useState<string>();
   const [job, setJob] = useState<Job>();
   const [outdated, setOutdated] = useState(false);
+  const [retryToken, setRetryToken] = useState(0);
   const [phase, setPhase] = useState<'idle' | 'preparing' | 'rendering' | 'ready' | 'failed' | 'downloading'>('idle');
   const [error, setError] = useState('');
   const [previewUrl, setPreviewUrl] = useState<string>();
@@ -167,7 +168,7 @@ export function ExportWorkspace({
       });
     }, 300);
     return () => { stop = true; window.clearTimeout(handle); };
-  }, [workspaceId, preparePayload, readOnly]);
+  }, [workspaceId, preparePayload, readOnly, retryToken]);
 
   function editPages(next: DocumentPage[]) {
     setPast(current => [...current, customPages ?? []]);
@@ -201,18 +202,25 @@ export function ExportWorkspace({
     setPhase('downloading');
     setError('');
     try {
-      const url = item
-        ? `${historyBase}/${item.id}/file`
-        : job ? `/api/workspaces/${workspaceId}/documents/${job.id}/file` : '';
-      const response = await fetch(url, { credentials: 'same-origin' });
-      if (!response.ok) throw new Error('download');
-      const blob = URL.createObjectURL(await response.blob());
+      let href: string;
+      let revoke = false;
+      if (item) {
+        const response = await fetch(`${historyBase}/${item.id}/file`, { credentials: 'same-origin' });
+        if (!response.ok) throw new Error('download');
+        href = URL.createObjectURL(await response.blob());
+        revoke = true;
+      } else if (previewUrl) {
+        // Bind toolbar download to the same artifact the preview shows (F05).
+        href = previewUrl;
+      } else {
+        throw new Error('download');
+      }
       const anchor = document.createElement('a');
       const safe = (item?.name ?? revisionName).replace(/[^\wÄÖÜäöüß\-]+/g, '_').slice(0, 40);
-      anchor.href = blob;
+      anchor.href = href;
       anchor.download = `${documentKind === 'package' ? 'konstruktionspaket' : 'konstruktionsplan'}-${safe}.pdf`;
       anchor.click();
-      setTimeout(() => URL.revokeObjectURL(blob), 1000);
+      if (revoke) setTimeout(() => URL.revokeObjectURL(href), 1000);
     } catch {
       setError('Das PDF konnte nicht heruntergeladen werden.');
     } finally {
@@ -412,7 +420,23 @@ export function ExportWorkspace({
             </label>;
           })}
         </fieldset>}
-        <button type="button" className="quiet" aria-pressed={editing} onClick={() => setEditing(value => !value)}>Layout bearbeiten</button>
+        <button type="button" className="quiet" aria-pressed={editing} onClick={() => {
+          setEditing(open => {
+            if (!open && !customPages) {
+              const pages = editablePagesFromSettings({
+                paper, orientation, scale, planCrop,
+                sceneId: sceneIds[0] ?? sceneId,
+                name: revisionName,
+              });
+              setCustomPages(pages);
+              setPast([]);
+              setFuture([]);
+              setSelectedFrame(pages[0]?.frames[0]?.id);
+              setOutdated(true);
+            }
+            return !open;
+          });
+        }}>Layout bearbeiten</button>
         {editing && customPages && <LayoutEditor pages={customPages} selectedId={selectedFrame} onSelect={setSelectedFrame} onChange={editPages}
           onUndo={() => { const previous = past[past.length - 1]; if (!previous) return; setFuture(current => [customPages, ...current]); setPast(current => current.slice(0, -1)); setCustomPages(previous); }}
           onRedo={() => { const next = future[0]; if (!next) return; setPast(current => [...current, customPages]); setFuture(current => current.slice(1)); setCustomPages(next); }}
@@ -439,7 +463,7 @@ export function ExportWorkspace({
           })),
         }])}>Als Vorlage speichern</button>}
         {freezeDisabled && <p className="muted">Bitte speichern Sie ausstehende Änderungen, bevor Sie exportieren.</p>}
-        {error && <p className="error" role="alert">{error} <button type="button" className="quiet" onClick={() => { setOutdated(true); setError(''); }}>Erneut versuchen</button></p>}
+        {error && <p className="error" role="alert">{error} <button type="button" className="quiet" onClick={() => { setError(''); setRetryToken(token => token + 1); }}>Erneut versuchen</button></p>}
         <details>
           <summary>Frühere Fassungen</summary>
           <ul className="export-list">{history.map(item => <li key={item.id}>
@@ -459,7 +483,7 @@ export function ExportWorkspace({
           <button type="button" className="quiet" disabled={!pageCount || page >= pageCount} onClick={() => setPage(value => value + 1)}>Nächstes Blatt</button>
           <button type="button" className="quiet" onClick={() => setZoom(value => value === 'fit' ? 1 : 'fit')}>{zoom === 'fit' ? 'Originalgröße' : 'Seite einpassen'}</button>
           <button type="button" className="quiet" disabled={!previewUrl} onClick={openPdf}>PDF öffnen</button>
-          <button type="button" className="quiet" disabled={!previewUrl && !issued} onClick={() => void download(issued)}>Herunterladen</button>
+          <button type="button" className="quiet" disabled={!previewUrl} onClick={() => void download()}>Herunterladen</button>
           <button type="button" className="quiet" aria-pressed={thumbs} onClick={() => setThumbs(value => !value)}>Miniaturen</button>
         </div>
         <PdfPreview url={previewUrl} page={page} zoom={zoom} onPage={setPage} />

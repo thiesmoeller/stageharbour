@@ -16,4 +16,8 @@ test('online help page documents tools, shortcuts and wall surfaces', async ({ p
   await expect(page.getByText('Szene zuerst')).toBeVisible();
   await expect(page.getByText(/keine Live-Synchronisation/)).toBeVisible();
   await expect(page.getByText(/Oberflächen.*Wand-Inspektor/)).toBeVisible();
+  await page.getByRole('link', { name: 'Wandoberflächen' }).click();
+  await expect(page).toHaveURL(/#\/hilfe\/oberflaechen/);
+  await expect(page.getByRole('heading', { name: 'Bedienung des Bühnenplaners' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Wandoberflächen' })).toBeInViewport();
 });

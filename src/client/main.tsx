@@ -83,6 +83,8 @@ function App() {
             window.location.hash = hashForRoute(current);
             return;
           }
+          dirtyRef.current = false;
+          setDirty(false);
           setRoute(next);
         });
         return;
@@ -329,14 +331,14 @@ function Workspace({ me, branding, onBranding, onDirty, location }: {
       <button className="quiet" aria-current={section === 'venues' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'venues' })}>Spielstätten & Bühnen<span>Räume, Grundrisse und feste Einrichtungen</span></button>
       <button className="quiet" aria-current={section === 'bestand' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'bestand' })}>Bestand<span>Platten und Wandtypen</span></button>
       <button className="quiet" aria-current={section === 'help' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'help' })}>Hilfe<span>Werkzeuge, Kürzel und Oberflächen</span></button>
-      <button className="quiet" aria-current={section === 'account' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'account' })}>Mein Konto<span>Verknüpfte Anmeldung</span></button>
+      <button className="quiet" aria-current={section === 'account' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'account' })}>Mein Konto<span>Anmeldung und Konto</span></button>
       {isAdmin && <button className="quiet" aria-current={section === 'admin' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'admin' })}>Verwaltung<span>Mitglieder, Darstellung und Aktivität</span></button>}
     </nav>
     {section === 'plans' && <Plans me={me} onDirty={onDirty} sceneId={'sceneId' in location ? location.sceneId : undefined} />}
     {section === 'venues' && <Venues me={me} onDirty={onDirty} venueId={'venueId' in location ? location.venueId : undefined} />}
     {section === 'bestand' && <Bestand me={me} />}
-    {section === 'help' && <Help />}
-    {section === 'account' && <div className="workspace-management"><LinkedAccounts /></div>}
+    {section === 'help' && <Help topic={'topic' in location ? location.topic : undefined} />}
+    {section === 'account' && <div className="workspace-management"><LinkedAccounts me={me} /></div>}
     {section === 'admin' && isAdmin && <div className="workspace-management">
       <SiteBranding workspaceId={me.workspace.id} branding={branding} onBranding={onBranding} />
       <Members me={me} />
@@ -369,7 +371,8 @@ function SiteBranding({ workspaceId, branding, onBranding }: {
   }
   async function replaceLogo(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const file = new FormData(event.currentTarget).get('logo');
+    const form = event.currentTarget;
+    const file = new FormData(form).get('logo');
     if (!(file instanceof File) || !file.size) { setError('Bitte eine PNG- oder JPEG-Datei wählen.'); return; }
     setPending(true); setError(''); setNotice('');
     try {
@@ -377,7 +380,7 @@ function SiteBranding({ workspaceId, branding, onBranding }: {
       onBranding(next);
       setLogoRevision(value => value + 1);
       setNotice('Logo wurde übernommen.');
-      event.currentTarget.reset();
+      form.reset();
     } catch { setError('Das Logo konnte nicht übernommen werden. Bitte PNG oder JPEG bis 2 MB verwenden.'); }
     finally { setPending(false); }
   }
@@ -419,23 +422,27 @@ function SiteBranding({ workspaceId, branding, onBranding }: {
   </section>;
 }
 
-function LinkedAccounts() {
+function LinkedAccounts({ me }: { me: Me }) {
   const [oidc, setOidc] = useState(false);
   const [pocketId, setPocketId] = useState<{ id: string } | undefined>();
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const load = useCallback(async () => {
     try {
       const options = loginOptionsSchema.parse(await request('/api/login-options'));
       setOidc(options.oidc);
-      if (!options.oidc) return;
-      const linked = linkedSchema.parse(await request('/api/auth/list-accounts')).find(row => row.providerId === 'pocket-id');
-      setPocketId(linked ? { id: linked.id } : undefined);
+      if (options.oidc) {
+        const linked = linkedSchema.parse(await request('/api/auth/list-accounts')).find(row => row.providerId === 'pocket-id');
+        setPocketId(linked ? { id: linked.id } : undefined);
+      } else {
+        setPocketId(undefined);
+      }
       setStatus('');
-    } catch { setStatus('Verknüpfte Anmeldung konnte nicht geladen werden.'); }
+    } catch { setStatus('Kontoinformationen konnten nicht geladen werden.'); }
+    finally { setLoaded(true); }
   }, []);
   useEffect(() => { void load(); }, [load]);
-  if (!oidc && !status) return null;
   async function link() {
     setBusy(true); setStatus('');
     try { await startPocketId('/api/auth/link-social'); }
@@ -449,8 +456,11 @@ function LinkedAccounts() {
     finally { setBusy(false); }
   }
   return <section className="members linked-accounts" aria-labelledby="linked-title">
-    <div className="section-heading"><h2 id="linked-title">Verknüpfte Anmeldung</h2><span>Nur für Ihr Konto</span></div>
+    <div className="section-heading"><h2 id="linked-title">Mein Konto</h2><span>Nur für Ihr Konto</span></div>
+    <p><strong>{me.user.name}</strong> · {me.user.email}</p>
+    <p className="muted">Rolle in diesem Arbeitsbereich: {roleNames[me.workspace.role]}.</p>
     {status && <p role="alert">{status}</p>}
+    {loaded && !oidc && !status && <p>Sie melden sich mit E-Mail-Adresse und Passwort an. Eine Verknüpfung mit Pocket ID ist in dieser Installation nicht eingerichtet.</p>}
     {oidc && pocketId && <p>Pocket ID ist mit diesem Konto verknüpft.</p>}
     {oidc && !pocketId && <p>Eine übereinstimmende E-Mail-Adresse allein verbindet die Konten nicht. Die Verknüpfung bestätigt die Anmeldung bei Pocket ID.</p>}
     {oidc && (pocketId
@@ -500,24 +510,31 @@ function Members({ me }: { me: Me }) {
       setAttempt(value => value + 1);
     } catch { setError('Die Berechtigung konnte nicht geändert werden.'); }
   }
-  async function revoke(userId: string) {
-    setError('');
+  async function revoke(userId: string, name: string) {
+    if (!await askConfirm({
+      title: 'Zugang entziehen?',
+      message: `Zugang für „${name}“ wirklich entziehen? Die Person kann diesen Arbeitsbereich danach nicht mehr öffnen.`,
+      confirmLabel: 'Zugang entziehen',
+      danger: true,
+    })) return;
+    setPending(true); setError(''); setNotice('');
     try {
       await request(`${base}/members/${userId}`, undefined, 'DELETE');
+      setNotice(`Zugang für ${name} wurde entzogen.`);
       setAttempt(value => value + 1);
     } catch (caught) {
       setError(caught instanceof ApiError && caught.status === 409
         ? 'Die letzte Administration kann nicht entfernt oder herabgestuft werden.'
         : 'Der Zugang konnte nicht entzogen werden.');
-    }
+    } finally { setPending(false); }
   }
   return <section className="members" aria-labelledby="members-title"><div className="section-heading"><h2 id="members-title">Mitglieder</h2><span>Nur für die Administration sichtbar</span></div>
     {status ? <div><p role="status">{status}</p>{status.includes('nicht') && <button className="quiet" onClick={() => setAttempt(value => value + 1)}>Erneut versuchen</button>}</div>
       : <div className="table-scroll"><table><thead><tr><th scope="col">Name</th><th scope="col">E-Mail-Adresse</th><th scope="col">Berechtigung</th></tr></thead>
         <tbody>{members.map(member => <tr key={member.userId}><td>{member.name}</td><td>{member.email}</td><td>
-          <div className="member-actions"><select className="member-role" aria-label={`Berechtigung für ${member.name}`} value={member.role} onChange={event => void changeRole(member.userId, event.target.value as Role)}>
+          <div className="member-actions"><select className="member-role" aria-label={`Berechtigung für ${member.name}`} value={member.role} disabled={pending} onChange={event => void changeRole(member.userId, event.target.value as Role)}>
             {roles.map(role => <option key={role} value={role}>{roleNames[role]}</option>)}
-          </select><button className="quiet" type="button" onClick={() => void revoke(member.userId)}>Zugang entziehen</button></div>
+          </select><button className="quiet" type="button" disabled={pending} onClick={() => void revoke(member.userId, member.name)}>Zugang entziehen</button></div>
         </td></tr>)}</tbody></table></div>}
     <form className="invite-form" onSubmit={event => void invite(event)}>
       <h3>Mitglied einladen</h3>

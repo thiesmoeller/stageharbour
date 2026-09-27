@@ -359,3 +359,25 @@ test('PATCH report-templates updates only templates and scene PUT venue round-tr
   assert.equal(final.layout.reportTemplates, undefined);
   assert.equal(final.venue.reportTemplates?.[0]!.name, 'Saalblatt v2');
 });
+
+test('template patches preserve siblings and reject old venue pins', async () => {
+  const created = (await app.inject({ method: 'POST', url: scenes, headers, payload: { ...input, productionName: 'Template safety' } })).json<Scene>();
+  const sceneUrl = `${scenes}/${created.id}`;
+  const venueUrl = `/api/workspaces/${fixture.config.WORKSPACE_ID}/venues/${created.venueId}`;
+  await app.inject({ method: 'POST', url: `${sceneUrl}/lease`, headers, payload: {} });
+  const a = newReportTemplate(randomUUID(), 'A');
+  const b = newReportTemplate(randomUUID(), 'B');
+  const patch = (reportTemplates: typeof a[]) => app.inject({ method: 'PATCH', url: `${sceneUrl}/venue/report-templates`, headers, payload: { reportTemplates } });
+  assert.equal((await patch([a, b])).statusCode, 200);
+  const saved = await patch([{ ...a, name: 'Updated A' }]);
+  assert.equal(saved.statusCode, 200, saved.body);
+  assert.deepEqual(saved.json().venue.reportTemplates.map((t: typeof a) => t.name), ['Updated A', 'B']);
+  await app.inject({ method: 'POST', url: `${venueUrl}/lease`, headers, payload: {} });
+  const current = (await app.inject({ url: venueUrl, headers })).json();
+  const newer = await app.inject({ method: 'PUT', url: venueUrl, headers, payload: { venueVersionId: current.venueVersionId, venue: { ...current.venue, ceilingHeight: 7777 } } });
+  assert.equal(newer.statusCode, 200, newer.body);
+  const pin = (await app.inject({ url: sceneUrl, headers })).json().venueVersionId;
+  assert.equal((await patch([a])).statusCode, 409);
+  assert.equal((await app.inject({ url: venueUrl, headers })).json().venue.ceilingHeight, 7777);
+  assert.equal((await app.inject({ url: sceneUrl, headers })).json().venueVersionId, pin);
+});

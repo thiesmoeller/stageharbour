@@ -95,7 +95,14 @@ export function registerInventoryRoutes(app: FastifyInstance, db: Database, acce
       await leases.requireHeld(tx, workspaceId, 'inventory', workspaceId, user.id);
       const [existing] = await tx.select().from(inventoryPanel).where(and(eq(inventoryPanel.workspaceId, workspaceId), eq(inventoryPanel.id, panelId)));
       if (!existing) throw new AccessError(404, 'Platte nicht verfügbar.');
+      const nextLabel = request.body.label ?? existing.label;
+      if (request.body.label !== undefined && request.body.label !== existing.label) {
+        const [duplicate] = await tx.select({ id: inventoryPanel.id }).from(inventoryPanel)
+          .where(and(eq(inventoryPanel.workspaceId, workspaceId), eq(inventoryPanel.label, request.body.label)));
+        if (duplicate) throw new AccessError(409, 'Dieses Plattenetikett ist bereits vergeben.');
+      }
       const [updated] = await tx.update(inventoryPanel).set({
+        label: nextLabel,
         available: request.body.available ?? existing.available,
         note: request.body.note === undefined ? existing.note : request.body.note,
       }).where(and(eq(inventoryPanel.workspaceId, workspaceId), eq(inventoryPanel.id, panelId))).returning();

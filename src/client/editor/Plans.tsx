@@ -33,19 +33,21 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
-  const [documentDirty, setDocumentDirty] = useState(false);
   const [packageExport, setPackageExport] = useState<{ productionId: string; scenes: { id: string; name: string }[] }>();
   const openedIdRef = useRef<string | undefined>(undefined);
   const openingRef = useRef<string | undefined>(undefined);
-  const documentDirtyRef = useRef(false);
   openedIdRef.current = opened?.scene.id;
-  documentDirtyRef.current = documentDirty;
+  const openedRef = useRef(opened);
+  openedRef.current = opened;
+  useEffect(() => () => {
+    const held = openedRef.current;
+    if (held?.holdsLease) void request(`/api/workspaces/${me.workspace.id}/scenes/${held.scene.id}/lease/release`, {}).catch(() => {});
+  }, [me.workspace.id]);
   const readOnly = !can(me.workspace.role, 'scenes');
   const base = `/api/workspaces/${me.workspace.id}/scenes`;
   const templatesBase = `/api/workspaces/${me.workspace.id}/scene-templates`;
   const editingForm = creating || addingScene || addingVenue || copying || capturing || instantiating;
   function markDirty(value: boolean) {
-    setDocumentDirty(value);
     onDirty(value);
   }
   useEffect(() => {
@@ -98,19 +100,16 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
   useEffect(() => {
     if (!sceneId) {
       if (!openedIdRef.current) return;
-      if (documentDirtyRef.current) {
-        writeWorkspaceLocation({ section: 'plans', sceneId: openedIdRef.current });
-        return;
-      }
       leave();
       return;
     }
     if (openedIdRef.current === sceneId || openingRef.current === sceneId) return;
-    if (openedIdRef.current && documentDirtyRef.current) {
-      writeWorkspaceLocation({ section: 'plans', sceneId: openedIdRef.current });
-      return;
-    }
-    void open(sceneId);
+    const held = openedRef.current;
+    setOpened(undefined); markDirty(false);
+    void (async () => {
+      if (held?.holdsLease) await request(`${base}/${held.scene.id}/lease/release`, {}).catch(() => {});
+      await open(sceneId);
+    })();
   }, [sceneId]);
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -272,7 +271,7 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
     const held = opened;
     openedIdRef.current = undefined;
     openingRef.current = undefined;
-    setOpened(undefined); setDocumentDirty(false); onDirty(false); setAttempt(value => value + 1);
+    setOpened(undefined); onDirty(false); setAttempt(value => value + 1);
     writeWorkspaceLocation({ section: 'plans' });
     if (held?.holdsLease) {
       await request(`${base}/${held.scene.id}/lease/release`, {}).catch(() => {});

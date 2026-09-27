@@ -23,9 +23,7 @@ export function Venues({ me, onDirty, venueId }: { me: Me; onDirty: (dirty: bool
   const [attempt, setAttempt] = useState(0);
   const openedIdRef = useRef<string | undefined>(undefined);
   const openingRef = useRef<string | undefined>(undefined);
-  const dirtyRef = useRef(false);
   openedIdRef.current = opened?.id;
-  dirtyRef.current = dirty;
   const readOnly = !can(me.workspace.role, 'venues');
   const base = `/api/workspaces/${me.workspace.id}/venues`;
   const lease = useEditingLease(`${base}/${opened?.id ?? ''}`, !!opened && !readOnly);
@@ -59,24 +57,17 @@ export function Venues({ me, onDirty, venueId }: { me: Me; onDirty: (dirty: bool
     openedIdRef.current = undefined;
     openingRef.current = undefined;
     setOpened(undefined);
+    setDirty(false);
     setAttempt(value => value + 1);
     writeWorkspaceLocation({ section: 'venues' });
   }
   useEffect(() => {
     if (!venueId) {
       if (!openedIdRef.current) return;
-      if (dirtyRef.current) {
-        writeWorkspaceLocation({ section: 'venues', venueId: openedIdRef.current });
-        return;
-      }
       closeOpened();
       return;
     }
     if (openedIdRef.current === venueId || openingRef.current === venueId) return;
-    if (openedIdRef.current && dirtyRef.current) {
-      writeWorkspaceLocation({ section: 'venues', venueId: openedIdRef.current });
-      return;
-    }
     void open(venueId);
   }, [venueId]);
   async function create(event: FormEvent<HTMLFormElement>) {

@@ -1,6 +1,27 @@
-/** Online help for crews: tools, shortcuts, gestures, wall surfaces. */
+import { useEffect } from 'react';
 
-export function Help() {
+const HELP_TOPICS = [
+  { topic: 'ablauf', label: 'Ablauf' },
+  { topic: 'werkzeuge', label: 'Werkzeuge' },
+  { topic: 'gesten', label: 'Gesten & Navigation' },
+  { topic: 'kuerzel', label: 'Tastatur' },
+  { topic: 'oberflaechen', label: 'Wandoberflächen' },
+  { topic: 'raumsicht', label: 'Raumsicht' },
+  { topic: 'bestand', label: 'Bestand' },
+] as const;
+
+function sectionId(topic: string) {
+  return `hilfe-${topic}`;
+}
+
+/** Online help for crews: tools, shortcuts, gestures, wall surfaces. */
+export function Help({ topic }: { topic?: string }) {
+  useEffect(() => {
+    if (!topic) return;
+    const target = document.getElementById(sectionId(topic));
+    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [topic]);
+
   return <article className="help-page" aria-labelledby="help-title">
     <header className="help-hero">
       <p className="eyebrow">ONLINE-HILFE</p>
@@ -10,13 +31,8 @@ export function Help() {
     </header>
 
     <nav className="help-toc" aria-label="Inhalt">
-      <a href="#hilfe-ablauf">Ablauf</a>
-      <a href="#hilfe-werkzeuge">Werkzeuge</a>
-      <a href="#hilfe-gesten">Gesten &amp; Navigation</a>
-      <a href="#hilfe-kuerzel">Tastatur</a>
-      <a href="#hilfe-oberflaechen">Wandoberflächen</a>
-      <a href="#hilfe-raumsicht">Raumsicht</a>
-      <a href="#hilfe-bestand">Bestand</a>
+      {HELP_TOPICS.map(item =>
+        <a key={item.topic} href={`#/hilfe/${item.topic}`}>{item.label}</a>)}
     </nav>
 
     <section id="hilfe-ablauf">
