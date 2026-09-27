@@ -1,9 +1,11 @@
 import { ExtrudeGeometry, Float32BufferAttribute, Path, Shape } from 'three';
-import type { Opening } from './wall-types.js';
+import { isArchOpening, openingSpringHeight, pointInOpening, type Opening } from './wall-types.js';
 
 export type OpeningFlush = { left: boolean; right: boolean; bottom: boolean; top: boolean };
 
 const FLUSH_EPS = 0.5;
+/** Sample spacing along an arch crown when building flush contours (mm). */
+const ARCH_SAMPLE_MM = 25;
 
 /** Which panel edges this opening sits flush against (implicit open sides). */
 export function openingFlushSides(opening: Opening, size: { x: number; y: number }, eps = FLUSH_EPS): OpeningFlush {
@@ -32,22 +34,49 @@ function openingRect(opening: Opening, hw: number, hh: number): Rect {
   };
 }
 
+function pointInOpeningCentered(opening: Opening, hw: number, hh: number, x: number, y: number) {
+  return pointInOpening(opening, x + hw, y + hh);
+}
+
+function archSampleSteps(opening: Opening) {
+  return Math.max(8, Math.ceil((Math.PI * opening.width / 2) / ARCH_SAMPLE_MM));
+}
+
 function uniqueSorted(values: number[]) {
   return [...new Set(values.map(v => Math.round(v * 1000) / 1000))].sort((a, b) => a - b);
+}
+
+function openingGridSamples(opening: Opening, hw: number, hh: number): { xs: number[]; ys: number[] } {
+  const rect = openingRect(opening, hw, hh);
+  const xs = [rect.x0, rect.x1];
+  const ys = [rect.y0, rect.y1];
+  if (!isArchOpening(opening)) return { xs, ys };
+  const radius = opening.width / 2;
+  const springY = -hh + opening.sill + openingSpringHeight(opening);
+  const cx = -hw + opening.left + radius;
+  ys.push(springY);
+  const steps = archSampleSteps(opening);
+  for (let i = 0; i <= steps; i++) {
+    const angle = Math.PI * (i / steps);
+    xs.push(cx + radius * Math.cos(angle));
+    ys.push(springY + radius * Math.sin(angle));
+  }
+  return { xs, ys };
 }
 
 /**
  * Orthogonal outer contour of a panel rectangle minus flush openings (CCW, solid on the left).
  * Interior-only openings must not be passed here — they become Shape holes instead.
+ * Arch crowns are approximated with sampled polyline notches.
  */
 export function panelOuterContour(size: { x: number; y: number }, flushOpenings: readonly Opening[]): Pt[] {
   const hw = size.x / 2, hh = size.y / 2;
   if (!flushOpenings.length) {
     return [{ x: -hw, y: -hh }, { x: hw, y: -hh }, { x: hw, y: hh }, { x: -hw, y: hh }];
   }
-  const voids = flushOpenings.map(opening => openingRect(opening, hw, hh));
-  const xs = uniqueSorted([-hw, hw, ...voids.flatMap(v => [v.x0, v.x1])]);
-  const ys = uniqueSorted([-hh, hh, ...voids.flatMap(v => [v.y0, v.y1])]);
+  const samples = flushOpenings.map(opening => openingGridSamples(opening, hw, hh));
+  const xs = uniqueSorted([-hw, hw, ...samples.flatMap(sample => sample.xs)]);
+  const ys = uniqueSorted([-hh, hh, ...samples.flatMap(sample => sample.ys)]);
   const cols = xs.length - 1, rows = ys.length - 1;
   if (cols < 1 || rows < 1) {
     return [{ x: -hw, y: -hh }, { x: hw, y: -hh }, { x: hw, y: hh }, { x: -hw, y: hh }];
@@ -55,7 +84,7 @@ export function panelOuterContour(size: { x: number; y: number }, flushOpenings:
   const solid: boolean[][] = Array.from({ length: cols }, (_, i) => Array.from({ length: rows }, (_, j) => {
     const cx = (xs[i]! + xs[i + 1]!) / 2;
     const cy = (ys[j]! + ys[j + 1]!) / 2;
-    return !voids.some(v => cx > v.x0 && cx < v.x1 && cy > v.y0 && cy < v.y1);
+    return !flushOpenings.some(opening => pointInOpeningCentered(opening, hw, hh, cx, cy));
   }));
   if (!solid.some(col => col.some(Boolean))) {
     // Degenerate: nothing left — fall back to a thin lintel strip so ExtrudeGeometry stays valid.
@@ -79,18 +108,9 @@ export function wallShadowVolumes(
   if (!openings.length) {
     return [{ position: [0, 0, 0], size: [size.x, size.y, size.z] }];
   }
-  const voids = openings.map(opening => {
-    const rect = openingRect(opening, hw, hh);
-    return {
-      x0: Math.max(-hw, rect.x0), y0: Math.max(-hh, rect.y0),
-      x1: Math.min(hw, rect.x1), y1: Math.min(hh, rect.y1),
-    };
-  }).filter(v => v.x1 - v.x0 > 1e-6 && v.y1 - v.y0 > 1e-6);
-  if (!voids.length) {
-    return [{ position: [0, 0, 0], size: [size.x, size.y, size.z] }];
-  }
-  const xs = uniqueSorted([-hw, hw, ...voids.flatMap(v => [v.x0, v.x1])]);
-  const ys = uniqueSorted([-hh, hh, ...voids.flatMap(v => [v.y0, v.y1])]);
+  const samples = openings.map(opening => openingGridSamples(opening, hw, hh));
+  const xs = uniqueSorted([-hw, hw, ...samples.flatMap(sample => sample.xs)]);
+  const ys = uniqueSorted([-hh, hh, ...samples.flatMap(sample => sample.ys)]);
   const volumes: { position: [number, number, number]; size: [number, number, number] }[] = [];
   // Merge contiguous solid cells per row into fewer boxes (cleaner shadows, fewer draw calls).
   for (let j = 0; j < ys.length - 1; j++) {
@@ -100,7 +120,7 @@ export function wallShadowVolumes(
     for (let i = 0; i < xs.length - 1; i++) {
       const x0 = xs[i]!, x1 = xs[i + 1]!;
       const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
-      const solid = !voids.some(v => cx > v.x0 && cx < v.x1 && cy > v.y0 && cy < v.y1);
+      const solid = !openings.some(opening => pointInOpeningCentered(opening, hw, hh, cx, cy));
       if (solid) {
         if (runStart === undefined) runStart = x0;
       } else if (runStart !== undefined) {
@@ -198,7 +218,19 @@ function openingHole(opening: Opening, hw: number, hh: number) {
   const hole = new Path();
   const x0 = -hw + opening.left, y0 = -hh + opening.sill;
   const x1 = x0 + opening.width, y1 = y0 + opening.height;
-  hole.moveTo(x0, y0); hole.lineTo(x1, y0); hole.lineTo(x1, y1); hole.lineTo(x0, y1); hole.closePath();
+  if (!isArchOpening(opening)) {
+    hole.moveTo(x0, y0); hole.lineTo(x1, y0); hole.lineTo(x1, y1); hole.lineTo(x0, y1); hole.closePath();
+    return hole;
+  }
+  const radius = opening.width / 2;
+  const springY = y0 + openingSpringHeight(opening);
+  const cx = x0 + radius;
+  hole.moveTo(x0, y0);
+  hole.lineTo(x1, y0);
+  hole.lineTo(x1, springY);
+  // Semicircle from right spring through the crown to the left spring.
+  hole.absarc(cx, springY, radius, 0, Math.PI, false);
+  hole.closePath();
   return hole;
 }
 

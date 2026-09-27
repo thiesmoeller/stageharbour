@@ -6,9 +6,9 @@ import { resolveWall, typesOf, wallTypeSchema, type Opening, type WallElementTyp
 const name = z.string().trim().min(1).max(120);
 const note = z.string().trim().max(500);
 
-/** Reported physical stock. Not a seed; real panel labels and arch geometry are not recorded here. */
+/** Reported physical stock. Not a seed; real panel labels are not recorded here. */
 export const REPORTED_PANEL_COUNTS = { plain: 20, door: 6, window: 2, arch: 1 } as const;
-/** The group owns one 250 mm arch panel; the opening profile is specified in slice 06, not here. */
+/** The group owns one 250 mm arch panel (Roman arch opening: straight jambs + semicircular crown). */
 export const REPORTED_ARCH_THICKNESS = 250;
 
 export const GROUP_WALL_TYPE_KINDS = ['plain', 'doorLeft', 'doorRight', 'window', 'arch', 'half'] as const;
@@ -30,16 +30,16 @@ export const EXAMPLE_PLAIN = { width: 1200, height: 2400, thickness: 28, opening
 export const EXAMPLE_DOOR_OPENING = { left: 200, sill: 0, width: 800, height: 2000 };
 export const EXAMPLE_WINDOW_OPENING = { left: 390, sill: 1100, width: 420, height: 900 };
 /**
- * Rectangular stand-in for the arch walk-through until the rounded profile is measured (slice 06).
+ * Arch walk-through: door-sized clear opening (800×2000) with a semicircular crown.
  * Outer size matches the standard panel; thickness uses the reported 250 mm arch panel.
  */
-export const EXAMPLE_ARCH_OPENING = { left: 200, sill: 0, width: 800, height: 2000 };
+export const EXAMPLE_ARCH_OPENING = { left: 200, sill: 0, width: 800, height: 2000, profile: 'arch' as const };
 /** Door returns / half-width scenic walls: 60 × 240 × 25 cm, as beside the Sensenmann door. */
 export const EXAMPLE_HALF = { width: 600, height: 2400, thickness: 250, openings: [] as Opening[] };
 
 export function groupWallTypeSizeLabel(kind: GroupWallTypeKind): string {
   if (kind === 'half') return '600×2400×250 mm';
-  if (kind === 'arch') return '1200×2400×250 mm · rechteckige Öffnung vorläufig';
+  if (kind === 'arch') return '1200×2400×250 mm · Bogenöffnung 800×2000';
   if (kind === 'doorLeft' || kind === 'doorRight') return '1200×2400×28 mm · Tür 800×2000 weiß · Zarge 25×50';
   if (kind === 'window') return '1200×2400×28 mm · rechteckige Öffnung';
   return '1200×2400×28 mm';
@@ -95,14 +95,14 @@ export type InventoryWarning = {
   wallId?: string; panelId?: string; message: string;
 };
 
-function openingKey(opening: Pick<Opening, 'left' | 'sill' | 'width' | 'height' | 'hinge'>) {
-  return `${opening.left}|${opening.sill}|${opening.width}|${opening.height}|${opening.hinge ?? ''}`;
+function openingKey(opening: Pick<Opening, 'left' | 'sill' | 'width' | 'height' | 'hinge' | 'profile'>) {
+  return `${opening.left}|${opening.sill}|${opening.width}|${opening.height}|${opening.hinge ?? ''}|${opening.profile ?? 'rectangle'}`;
 }
 function geometryKey(type: PlacementType) {
   return `${type.width}|${type.height}|${type.thickness}|${[...type.openings].map(openingKey).sort().join(';')}`;
 }
 
-/** Compatible when type ids match, or when outer dimensions and rectangular openings match. Opening ids are ignored. */
+/** Compatible when type ids match, or when outer dimensions and openings match. Opening ids are ignored. */
 export function sameGeometry(panelType: Pick<WallElementType, 'width' | 'height' | 'thickness' | 'openings'>, placement: PlacementType): boolean {
   return panelType.width === placement.width && panelType.height === placement.height && panelType.thickness === placement.thickness
     && panelType.openings.length === placement.openings.length

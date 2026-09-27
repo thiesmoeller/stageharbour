@@ -143,6 +143,47 @@ test('shadow volumes leave the cutout empty and cover remaining solid cells', ()
   assert.deepEqual(solid[0]!.size, [5000, 2400, 400]);
 });
 
+test('Roman-arch floor opening leaves the crown void empty and keeps the corners above the spring line', () => {
+  const panel = { x: 1200, y: 2400, z: 250 };
+  const opening = { id: randomUUID(), left: 200, sill: 0, width: 800, height: 2000, profile: 'arch' as const };
+  const geometry = buildWallPanelGeometry(panel, [opening]);
+  assert.equal(wallGeometryGroupCoverage(geometry).complete, true);
+  const hw = panel.x / 2, hh = panel.y / 2;
+  const cx = -hw + opening.left + opening.width / 2;
+  const springY = -hh + opening.sill + opening.height - opening.width / 2;
+  const crownY = -hh + opening.sill + opening.height - 20;
+  assert.equal(rayHits(geometry, new Vector3(cx, springY + opening.width / 4, -1000)), 0, 'inside the arch crown must miss');
+  assert.equal(rayHits(geometry, new Vector3(cx, -hh + 1000, -1000)), 0, 'inside the jambs must miss');
+  assert(rayHits(geometry, new Vector3(-hw + 50, 0, -1000)) > 0, 'left pier must remain');
+  // Outside the semicircle, beside the crown, solid remains.
+  assert(rayHits(geometry, new Vector3(-hw + opening.left + 40, crownY, -1000)) > 0, 'corner above spring outside the arc must hit');
+  assert(rayHits(geometry, new Vector3(-hw + opening.left + opening.width - 40, crownY, -1000)) > 0, 'opposite crown corner must hit');
+  const shadows = wallShadowVolumes(panel, [opening]);
+  for (const volume of shadows) {
+    const [vx, vy] = volume.position;
+    const dx = vx - cx, dy = vy - springY;
+    const inJambs = Math.abs(vx - cx) < opening.width / 2 - 1 && vy > -hh + 1 && vy < springY - 1;
+    const inCrown = vy >= springY && dx * dx + dy * dy < (opening.width / 2 - 2) ** 2;
+    assert(!inJambs && !inCrown, `shadow at ${vx},${vy} must not fill the arch void`);
+  }
+  geometry.dispose();
+});
+
+test('inset Roman-arch window uses an interior hole with a curved crown', () => {
+  const panel = { x: 5000, y: 2989, z: 200 };
+  const opening = { id: randomUUID(), left: 1500, sill: 600, width: 1200, height: 1400, profile: 'arch' as const };
+  assert.equal(openingTouchesBoundary(opening, panel), false);
+  const geometry = buildWallPanelGeometry(panel, [opening]);
+  assert.equal(wallGeometryGroupCoverage(geometry).complete, true);
+  const hw = panel.x / 2, hh = panel.y / 2;
+  const cx = -hw + opening.left + opening.width / 2;
+  const crownY = -hh + opening.sill + opening.height - 30;
+  assert.equal(rayHits(geometry, new Vector3(cx, -hh + opening.sill + 400, -1000)), 0);
+  assert.equal(rayHits(geometry, new Vector3(cx, crownY, -1000)), 0);
+  assert(rayHits(geometry, new Vector3(-hw + opening.left + 30, crownY, -1000)) > 0);
+  geometry.dispose();
+});
+
 function hh(opening: { sill: number; height: number }) {
   return -size.y / 2 + opening.sill + opening.height / 2;
 }

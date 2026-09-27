@@ -17,6 +17,8 @@ export const openingSchema = z.strictObject({
   left: alongPanel, sill: alongPanel,
   width: dimension, height: dimension,
   hinge: doorHingeSchema.optional(),
+  /** Roman arch: straight jambs to the spring line, semicircular crown (radius = width/2). */
+  profile: z.enum(['rectangle', 'arch']).optional(),
 });
 export type Opening = z.infer<typeof openingSchema>;
 export const wallTypeSchema = z.strictObject({
@@ -27,8 +29,58 @@ export const wallTypeSchema = z.strictObject({
   ),
 }).refine(type => type.openings.every(opening =>
   opening.left + opening.width <= type.width && opening.sill + opening.height <= type.height
+  && (opening.profile !== 'arch' || opening.height + 1e-9 >= opening.width / 2)
 ), 'Openings must lie inside the panel');
 export type WallElementType = z.infer<typeof wallTypeSchema>;
+
+/** True when the opening uses a semicircular crown (radius = half width). */
+export function isArchOpening(opening: Pick<Opening, 'profile' | 'width' | 'height'>): boolean {
+  return opening.profile === 'arch' && opening.height + 1e-9 >= opening.width / 2;
+}
+
+/** Height of the straight jambs below the arch spring line. */
+export function openingSpringHeight(opening: Pick<Opening, 'width' | 'height'>): number {
+  return opening.height - opening.width / 2;
+}
+
+/**
+ * Void outline in panel millimetres from the bottom-left (left/sill origin).
+ * Rectangle, or Roman arch (straight sides + semicircular crown).
+ */
+export function openingOutlinePoints(
+  opening: Pick<Opening, 'left' | 'sill' | 'width' | 'height' | 'profile'>,
+  steps = 16,
+): { x: number; y: number }[] {
+  const x0 = opening.left, y0 = opening.sill;
+  const x1 = x0 + opening.width, y1 = y0 + opening.height;
+  if (!isArchOpening(opening)) {
+    return [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 }];
+  }
+  const radius = opening.width / 2;
+  const springY = y0 + openingSpringHeight(opening);
+  const cx = x0 + radius;
+  const points = [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: springY }];
+  const count = Math.max(8, steps);
+  for (let i = 1; i < count; i++) {
+    const angle = Math.PI * (i / count);
+    points.push({ x: cx + radius * Math.cos(angle), y: springY + radius * Math.sin(angle) });
+  }
+  points.push({ x: x0, y: springY });
+  return points;
+}
+
+/** Whether a panel-local point (origin bottom-left) lies inside the opening void. */
+export function pointInOpening(opening: Opening, x: number, y: number): boolean {
+  if (x <= opening.left || x >= opening.left + opening.width) return false;
+  if (y <= opening.sill || y >= opening.sill + opening.height) return false;
+  if (!isArchOpening(opening)) return true;
+  const radius = opening.width / 2;
+  const springY = opening.sill + openingSpringHeight(opening);
+  if (y <= springY) return true;
+  const dx = x - (opening.left + radius);
+  const dy = y - springY;
+  return dx * dx + dy * dy <= radius * radius + 1e-6;
+}
 
 export function newWallType(id: string): WallElementType {
   return { id, name: 'Wandtyp', width: 1200, height: 2400, thickness: 28, openings: [] };

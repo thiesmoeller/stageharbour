@@ -14,14 +14,14 @@ function panel(overrides: Partial<InventoryPanel> & Pick<InventoryPanel, 'type'>
   return { id: randomUUID(), label: 'Beispiel-P01', typeId: type.id, available: true, note: null, ...overrides, type };
 }
 
-test('reported stock is 29 panels and does not invent arch-opening geometry', () => {
+test('reported stock is 29 panels; Bogen uses a Roman-arch opening', () => {
   assert.equal(REPORTED_PANEL_COUNTS.plain + REPORTED_PANEL_COUNTS.door + REPORTED_PANEL_COUNTS.window + REPORTED_PANEL_COUNTS.arch, 29);
   assert.deepEqual(REPORTED_PANEL_COUNTS, { plain: 20, door: 6, window: 2, arch: 1 });
   assert.equal(REPORTED_ARCH_THICKNESS, 250);
   assert.equal(EXAMPLE_PLAIN.openings.length, 0);
   assert.deepEqual(EXAMPLE_DOOR_OPENING, { left: 200, sill: 0, width: 800, height: 2000 });
   assert.deepEqual(EXAMPLE_WINDOW_OPENING, { left: 390, sill: 1100, width: 420, height: 900 });
-  assert.deepEqual(EXAMPLE_ARCH_OPENING, { left: 200, sill: 0, width: 800, height: 2000 });
+  assert.deepEqual(EXAMPLE_ARCH_OPENING, { left: 200, sill: 0, width: 800, height: 2000, profile: 'arch' });
   assert.deepEqual(EXAMPLE_HALF, { width: 600, height: 2400, thickness: 250, openings: [] });
 });
 
@@ -43,6 +43,11 @@ test('group wall-type templates cover Sensenmann stock including half walls besi
   const arch = groupWallType('arch', randomUUID(), randomUUID());
   assert.equal(arch.name, GROUP_WALL_TYPE_NAMES.arch);
   assert.equal(arch.thickness, REPORTED_ARCH_THICKNESS);
+  assert.equal(arch.openings[0]?.profile, 'arch');
+  assert.deepEqual({
+    left: arch.openings[0]?.left, sill: arch.openings[0]?.sill,
+    width: arch.openings[0]?.width, height: arch.openings[0]?.height, profile: arch.openings[0]?.profile,
+  }, EXAMPLE_ARCH_OPENING);
   const half = groupWallType('half', randomUUID());
   assert.equal(half.name, GROUP_WALL_TYPE_NAMES.half);
   assert.deepEqual({ width: half.width, height: half.height, thickness: half.thickness, openings: half.openings }, EXAMPLE_HALF);
