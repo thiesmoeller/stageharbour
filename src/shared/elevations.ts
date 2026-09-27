@@ -1,4 +1,4 @@
-import { resolveWall } from './wall-types.js';
+import { resolveWall, type Opening } from './wall-types.js';
 import type { ConstructionSnapshot } from './export.js';
 
 /**
@@ -6,14 +6,15 @@ import type { ConstructionSnapshot } from './export.js';
  * group is one labelled orthogonal elevation. Walls that share a facing (same
  * plan rotation) sit on that face at their millimetre positions along it. A 90°
  * corner is two faces, never one flattened width. Openings are drawn on the face
- * that owns their wall. Rectangular openings use left/sill/width/height; other
- * supported shapes (arches, once slice 06 records a profile) reuse that box.
+ * that owns their wall. Rectangular openings use left/sill/width/height; arch
+ * openings keep that bounding box and add a semicircular crown in elevation paint.
  */
 export const ELEVATION_PROJECTION_NOTICE =
   'Jede Wandflucht einer gewählten Gruppe wird als eigene beschriftete Orthogonalansicht dargestellt, nicht als zusammengezogene Breite eines Knicks.';
 
 export type ElevationOpening = {
   id: string; left: number; sill: number; width: number; height: number;
+  profile?: Opening['profile'];
 };
 export type ElevationPanel = {
   wallId: string; label: string; left: number; width: number; height: number;
@@ -53,9 +54,14 @@ export function elevationFaces(snapshot: ConstructionSnapshot): ElevationFace[] 
       const frozen = snapshot.resolvedWalls.find(item => item.id === wall.id);
       const facing = wrapFacing(resolved.rotation);
       const origin = alongAxis(resolved.x, resolved.y, facing) - resolved.width / 2;
-      const openings = (frozen?.openings ?? resolved.openings).map(opening => ({
-        id: opening.id, left: opening.left, sill: opening.sill, width: opening.width, height: opening.height,
-      }));
+      const openings = (frozen?.openings ?? resolved.openings).map(opening => {
+        const fromType = resolved.openings.find(item => item.id === opening.id);
+        const profile = ('profile' in opening ? opening.profile : undefined) ?? fromType?.profile;
+        return {
+          id: opening.id, left: opening.left, sill: opening.sill, width: opening.width, height: opening.height,
+          ...(profile ? { profile } : {}),
+        };
+      });
       const panels = clusters.get(facing) ?? [];
       panels.push({
         wallId: resolved.id, label: resolved.label, left: origin,

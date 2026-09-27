@@ -47,6 +47,7 @@ export const constructionSnapshotSchema = z.strictObject({
     openings: z.array(z.strictObject({
       id: z.uuid(), left: z.number().finite(), sill: z.number().finite(),
       width: z.number().finite(), height: z.number().finite(),
+      profile: z.enum(['rectangle', 'arch']).optional(),
       corners: z.tuple([point, point, point, point]),
     })).default([]),
   })),
@@ -115,7 +116,11 @@ export function freezeSnapshot(
         openings: resolved.openings.map(opening => {
           const [oa, ob, oc, od] = openingCorners(resolved, opening);
           if (!oa || !ob || !oc || !od) throw new Error('Opening geometry must resolve to four corners.');
-          return { id: opening.id, left: opening.left, sill: opening.sill, width: opening.width, height: opening.height, corners: [oa, ob, oc, od] as const };
+          return {
+            id: opening.id, left: opening.left, sill: opening.sill, width: opening.width, height: opening.height,
+            ...(opening.profile ? { profile: opening.profile } : {}),
+            corners: [oa, ob, oc, od] as const,
+          };
         }),
       };
     }),

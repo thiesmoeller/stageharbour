@@ -46,7 +46,7 @@ export function WallTypePanel({ types, selectedId, readOnly, onSelect, onCreate,
       <div className="form-actions">
         <button type="button" onClick={createType} disabled={types.length >= 250}>Wandtyp anlegen</button>
       </div>
-      <p className="muted">Vorlagen aus dem Sensenmann-Aufbau und dem gemeldeten Bestand. Türwände mit Scharnier links/rechts, weißem Blatt 800×2000 und Zarge 25×50 mm. Halbe Wände (600×2400×250 mm) stehen links und rechts der Tür. Das Bogenprofil bleibt vorerst rechteckig.</p>
+      <p className="muted">Vorlagen aus dem Sensenmann-Aufbau und dem gemeldeten Bestand. Türwände mit Scharnier links/rechts, weißem Blatt 800×2000 und Zarge 25×50 mm. Halbe Wände (600×2400×250 mm) stehen links und rechts der Tür. Der Bogen hat gerade Laibungen und einen Halbkreis oben (Öffnung 800×2000).</p>
     </>}
     {selected ? <TypeForm key={JSON.stringify(selected)} type={selected} readOnly={readOnly}
       onPendingChange={pending => { setTypePending(pending); onPendingChange?.(pending); }}
@@ -89,7 +89,7 @@ function TypeForm({ type, readOnly, onPendingChange, onApply, onPlace, onRemove 
     ] as const).map(([key, label]) => <div key={key}><label htmlFor={`wall-type-${key}`}>{label}</label>
       <input id={`wall-type-${key}`} name={key} type="number" step="any" min={1} max={100000} defaultValue={type[key]} required /></div>)}
     </div>
-    <h4>Rechteckige Öffnungen</h4>
+    <h4>Öffnungen</h4>
     {openings.map((opening, index) => <div key={opening.id} className="opening-fields">
       <p>{index + 1}. Öffnung</p>
       {([

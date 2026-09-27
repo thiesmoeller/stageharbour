@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { CONNECTION_COMPATIBILITY_NOTICE } from './assembly.js';
 import { dimensionFigure, resolveDimension } from './dimensions.js';
 import { elevationFaces, type ElevationFace } from './elevations.js';
+import { openingOutlinePoints } from './wall-types.js';
 import {
   DRAWING_SCALE, drawingScaleSchema, paperSizeSchema, type ConstructionSnapshot,
 } from './export.js';
@@ -486,12 +487,10 @@ function elevationPaint(face: ElevationFace, frame: Rect, view: Box, measure: Te
     ];
     paint.push(poly(corners, frame, view, '#e7efe4', '#315d49', 0.5));
     for (const opening of panel.openings) {
-      paint.push(poly([
-        { x: panel.left + opening.left, y: opening.sill },
-        { x: panel.left + opening.left + opening.width, y: opening.sill },
-        { x: panel.left + opening.left + opening.width, y: opening.sill + opening.height },
-        { x: panel.left + opening.left, y: opening.sill + opening.height },
-      ], frame, view, '#ffffff', '#315d49', 0.4));
+      paint.push(poly(
+        openingOutlinePoints(opening).map(point => ({ x: panel.left + point.x, y: point.y })),
+        frame, view, '#ffffff', '#315d49', 0.4,
+      ));
     }
     const anchor = toPage(panel.left + panel.width, panel.height, frame, view);
     const placed = placeLabel(String(Math.round(panel.width)), { x: anchor.x + 1, y: anchor.y }, 7, '#395640', frame, occupied, measure);

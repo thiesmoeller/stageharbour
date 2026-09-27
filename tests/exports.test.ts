@@ -453,6 +453,33 @@ test('a 90° group freezes two labelled elevation faces at known millimetres, no
   assert.equal(sideFace?.panels.every(panel => panel.openings.length === 0), true);
 });
 
+test('Bogen elevation openings keep the arch profile through freeze', () => {
+  const type = {
+    ...newWallType(randomUUID()), name: 'Bogen', thickness: 250,
+    openings: [{ id: randomUUID(), left: 200, sill: 0, width: 800, height: 2000, profile: 'arch' as const }],
+  };
+  const wall = { ...newWall(randomUUID(), 2000, 3000), typeId: type.id, label: 'Bogenwand' };
+  const neighbour = { ...newWall(randomUUID(), 3200, 3000), label: 'Nachbar' };
+  const groupId = randomUUID();
+  const layout = formGroup(
+    { schemaVersion: 1 as const, wallTypes: [type], walls: [wall, neighbour], braces: [] },
+    [{ kind: 'wall' as const, id: wall.id }, { kind: 'wall' as const, id: neighbour.id }],
+    groupId,
+  );
+  const scene: Scene = {
+    id: randomUUID(), name: 'Bogenansicht', productionName: 'Beispielproduktion', venueName: 'Beispielsaal',
+    revision: 1, productionId: randomUUID(), venueId: randomUUID(), venueVersionId: randomUUID(),
+    venue: { schemaVersion: 1, width: 8000, depth: 6000 }, lease: null, layout,
+  };
+  const snapshot = freezeSnapshot(scene, {
+    id: randomUUID(), name: 'Bogenfassung', issuedAt: new Date('2026-09-07T12:00:00.000Z'),
+    elevationGroupIds: [groupId],
+  });
+  assert.equal(snapshot.resolvedWalls.find(item => item.id === wall.id)?.openings[0]?.profile, 'arch');
+  const face = elevationFaces(snapshot).find(item => item.panels.some(panel => panel.wallId === wall.id));
+  assert.equal(face?.panels.find(panel => panel.wallId === wall.id)?.openings[0]?.profile, 'arch');
+});
+
 test('selected elevation group ids persist on the snapshot and legacy snapshots omit them', () => {
   const { scene, groupId } = angledGroupScene();
   const snapshot = freezeSnapshot(scene, {
