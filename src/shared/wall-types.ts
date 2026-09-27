@@ -70,7 +70,10 @@ export function openingOutlinePoints(
 }
 
 /** Whether a panel-local point (origin bottom-left) lies inside the opening void. */
-export function pointInOpening(opening: Opening, x: number, y: number): boolean {
+export function pointInOpening(
+  opening: Pick<Opening, 'left' | 'sill' | 'width' | 'height' | 'profile'>,
+  x: number, y: number,
+): boolean {
   if (x <= opening.left || x >= opening.left + opening.width) return false;
   if (y <= opening.sill || y >= opening.sill + opening.height) return false;
   if (!isArchOpening(opening)) return true;
