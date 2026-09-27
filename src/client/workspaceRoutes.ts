@@ -8,7 +8,8 @@ export type WorkspaceLocation =
   | { section: 'bestand' }
   | { section: 'account' }
   | { section: 'admin' }
-  | { section: 'help' };
+  | { section: 'help' }
+  | { section: 'help'; topic: string };
 
 export function parseWorkspaceLocation(raw: string): WorkspaceLocation | undefined {
   const path = raw.replace(/^#/, '');
@@ -22,6 +23,8 @@ export function parseWorkspaceLocation(raw: string): WorkspaceLocation | undefin
   if (path === '/konto') return { section: 'account' };
   if (path === '/verwaltung') return { section: 'admin' };
   if (path === '/hilfe') return { section: 'help' };
+  const helpTopic = /^\/hilfe\/([^/]+)$/.exec(path);
+  if (helpTopic) return { section: 'help', topic: decodeURIComponent(helpTopic[1]!) };
   return undefined;
 }
 
@@ -32,7 +35,9 @@ export function workspaceHash(location: WorkspaceLocation): string {
   if (location.section === 'bestand') return '#/bestand';
   if (location.section === 'account') return '#/konto';
   if (location.section === 'admin') return '#/verwaltung';
-  if (location.section === 'help') return '#/hilfe';
+  if (location.section === 'help') {
+    return 'topic' in location ? `#/hilfe/${encodeURIComponent(location.topic)}` : '#/hilfe';
+  }
   return 'sceneId' in location ? `#/szenen/${encodeURIComponent(location.sceneId)}` : '#/produktionen';
 }
 

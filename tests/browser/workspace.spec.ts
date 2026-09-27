@@ -13,7 +13,16 @@ test('German login, failed credentials, workspace, reload, logout and mobile lay
   await page.getByLabel('Passwort', { exact: true }).fill(testAdministrator.password);
   await page.getByRole('button', { name: 'Anmelden', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Beispiel-Theatergruppe' })).toBeVisible();
+  await page.getByRole('button', { name: /Mein Konto/ }).click();
+  await expect(page.getByRole('heading', { name: 'Mein Konto' })).toBeVisible();
+  await expect(page.getByText(/E-Mail-Adresse und Passwort/)).toBeVisible();
   await page.getByRole('button', { name: /Verwaltung/ }).click();
+  await expect(page.getByRole('cell', { name: testAdministrator.email })).toBeVisible();
+  await page.getByRole('button', { name: 'Zugang entziehen', exact: true }).first().click();
+  const revoke = page.getByRole('dialog', { name: 'Zugang entziehen?' });
+  await expect(revoke).toBeVisible();
+  await revoke.getByRole('button', { name: 'Abbrechen' }).click();
+  await expect(revoke).toHaveCount(0);
   await expect(page.getByRole('cell', { name: testAdministrator.email })).toBeVisible();
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Beispiel-Theatergruppe' })).toBeVisible();

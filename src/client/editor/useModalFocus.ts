@@ -19,6 +19,19 @@ export function useModalFocus<T extends HTMLElement = HTMLElement>(open: boolean
     previous.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const root = container.current;
     if (!root) return;
+    // Inert siblings at every ancestor level, including portals outside the app root.
+    const siblings: { element: HTMLElement; inert: boolean }[] = [];
+    let branch: HTMLElement = root;
+    while (branch.parentElement) {
+      for (const sibling of branch.parentElement.children) {
+        if (sibling !== branch && sibling instanceof HTMLElement) {
+          siblings.push({ element: sibling, inert: sibling.inert });
+          sibling.inert = true;
+        }
+      }
+      branch = branch.parentElement;
+      if (branch === document.body) break;
+    }
     const initial = focusables(root)[0] ?? root;
     initial.focus();
 
@@ -51,6 +64,7 @@ export function useModalFocus<T extends HTMLElement = HTMLElement>(open: boolean
     document.addEventListener('keydown', onKeyDown, true);
     return () => {
       document.removeEventListener('keydown', onKeyDown, true);
+      for (const { element, inert } of siblings) element.inert = inert;
       previous.current?.focus?.();
     };
   }, [open]);

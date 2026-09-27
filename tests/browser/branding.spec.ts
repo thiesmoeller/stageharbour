@@ -27,6 +27,7 @@ test('administrator can set site branding with a logo', async ({ page }) => {
   });
   await page.getByRole('button', { name: 'Logo hochladen' }).click();
   await expect(page.getByText('Logo wurde übernommen.')).toBeVisible();
+  await expect(page.getByRole('alert')).toHaveCount(0);
   await expect(page.locator('.brand-logo')).toBeVisible();
   await expect(page.getByRole('img', { name: 'Aktuelles Logo' })).toBeVisible();
 });

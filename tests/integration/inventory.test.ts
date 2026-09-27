@@ -137,6 +137,18 @@ test('availability change keeps the scene reference and surfaces a warning', asy
   const warnings = inventoryWarnings(reloaded.layout, inventory.panels);
   assert.equal(warnings.some(item => item.kind === 'unavailable' && item.panelId === panelId), true);
   assert.equal(reloaded.layout.walls.find(item => item.id === wall.id)?.panelId, panelId);
+
+  const renamed = await app.inject({
+    method: 'PATCH', url: `${inventoryUrl}/panels/${panelId}`, headers, payload: { label: 'Beispiel-P01-korrigiert', note: 'Erledigt' },
+  });
+  assert.equal(renamed.statusCode, 200, renamed.body);
+  assert.equal(renamed.json().label, 'Beispiel-P01-korrigiert');
+  assert.equal(renamed.json().note, 'Erledigt');
+  const afterRename = (await app.inject({ url: `${scenesUrl}/${scene.id}`, headers })).json<Scene>();
+  assert.equal(afterRename.layout.walls.find(item => item.id === wall.id)?.panelId, panelId);
+  assert.equal((await app.inject({
+    method: 'PATCH', url: `${inventoryUrl}/panels/${panelId}`, headers, payload: { label: 'Beispiel-T01' },
+  })).statusCode, 409);
 });
 
 test('creates, updates and deletes stocked wall types under lease; geometry locks when panels use the type', async () => {

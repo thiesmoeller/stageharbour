@@ -274,10 +274,19 @@ export function registerVenueRoutes(
       await leases.requireAvailable(tx, workspaceId, 'venue', pinned.venueId, user.id);
       await leases.requireHeld(tx, workspaceId, 'scene', sceneId, user.id);
       await tx.select({ id: venue.id }).from(venue).where(eq(venue.id, pinned.venueId)).for('update');
-      const geometry: VenueGeometry = {
-        ...venueGeometrySchema.parse(pinned.geometry),
-        reportTemplates: request.body.reportTemplates,
-      };
+      const latest = await loadVenue(tx, workspaceId, pinned.venueId);
+      if (latest.venueVersionId !== pinned.venueVersionId) {
+        throw new AccessError(409, 'Eine neuere Spielstättenfassung ist vorhanden. Bitte übernehmen Sie diese ausdrücklich in der Szene, bevor Sie eine Blattvorlage speichern.');
+      }
+      if (request.body.venueVersionId && request.body.venueVersionId !== pinned.venueVersionId) {
+        throw new AccessError(409, 'Die Blattvorlagen wurden inzwischen geändert. Bitte laden Sie die Szene neu.');
+      }
+      const templates = new Map((latest.venue.reportTemplates ?? []).map(template => [template.id, template]));
+      for (const template of request.body.reportTemplates) templates.set(template.id, template);
+      const geometry = venueGeometrySchema.parse({
+        ...latest.venue,
+        reportTemplates: [...templates.values()],
+      });
       const nextId = randomUUID();
       await tx.insert(venueVersion).values({ id: nextId, workspaceId, venueId: pinned.venueId, geometry, createdAt: sql`clock_timestamp()` });
       const applied = await retargetAdaptation(tx, workspaceId, pinned.adaptationId, nextId, geometry, user.id);

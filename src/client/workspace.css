@@ -71,7 +71,7 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
 .document-kind { font-size: 9px; color: var(--ui-muted); background: #f1f4f5; padding: 2px 6px; border: 1px solid var(--ui-line); border-radius: 4px; white-space: nowrap; }
 .document-history { display: flex; gap: 2px; border-left: 1px solid var(--ui-line); padding-left: 8px; flex-wrap: wrap; align-items: center; }
 .selection-count { font-size: 10px; color: var(--ui-muted); padding: 0 4px; white-space: nowrap; }
-.save-status { display: flex; align-items: center; gap: 6px; font-size: 10px; white-space: nowrap; }
+.save-status { display: flex; align-items: center; gap: 6px; font-size: 12px; white-space: nowrap; }
 .save-status::before, .status-dot { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #3f8970; }
 .save-status.pending::before, .save-status.saving::before { background: #c49333; }
 .save-status.failed::before, .save-status.conflict::before { background: #b84332; }
@@ -102,7 +102,7 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
 .tool-rail {
   position: absolute; top: 122px; left: 8px; bottom: 36px;
   display: flex; flex-direction: column; justify-content: flex-start; gap: 1px;
-  width: 56px; padding: 3px;
+  width: 72px; padding: 4px;
   height: auto; max-height: calc(100% - 158px);
   overflow-x: hidden; overflow-y: auto;
   scrollbar-width: none; -ms-overflow-style: none;
@@ -110,13 +110,13 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
 }
 .tool-rail::-webkit-scrollbar { display: none; width: 0; height: 0; }
 .editor .tool-rail button {
-  flex: 0 0 auto; flex-direction: column; gap: 1px;
-  padding: 3px 0; min-height: 0; width: 100%;
+  flex: 0 0 auto; flex-direction: column; gap: 2px;
+  padding: 4px 2px; min-height: 0; width: 100%;
   color: #4b5b64; background: transparent; border: 1px solid transparent; border-radius: 5px;
 }
 .editor .tool-rail button:hover { background: #eaf2f0; color: #286a62; border-color: #c6dad4; }
 .tool-rail .tool-icon { width: 18px; height: 18px; }
-.tool-rail button span { font-size: 8px; line-height: 1.05; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.tool-rail button span { font-size: 11px; line-height: 1.15; max-width: 100%; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; text-overflow: ellipsis; word-break: break-word; }
 .tool-rail button:first-child { margin-bottom: 2px; padding-bottom: 4px; border-bottom: 1px solid var(--ui-line); border-radius: 0; }
 .wall-tool { position: relative; display: flex; width: 100%; gap: 0; }
 .wall-tool-primary { flex: 1; min-width: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; }
@@ -169,7 +169,7 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
 .inspector-section-body > section, .inspector-section-body > div { border: 0; padding: 0; margin: 0; }
 .inspector-section-body h3 { font-size: 12px; }
 .editor .inspector-section-body button { border-color: var(--ui-line); }
-.workspace-statusbar { flex-shrink: 0; display: flex; align-items: center; gap: 12px; min-height: 28px; padding: 0 10px; margin-left: -76px; background: white; border-top: 1px solid var(--ui-line); font-size: 10px; color: var(--ui-muted); }
+.workspace-statusbar { flex-shrink: 0; display: flex; align-items: center; gap: 12px; min-height: 28px; padding: 0 10px; margin-left: -92px; background: white; border-top: 1px solid var(--ui-line); font-size: 11px; color: var(--ui-muted); }
 .workspace-statusbar .status-dot { margin-right: 6px; }
 .status-hint { flex: 1; }
 .editor .workspace-statusbar button { padding: 2px 6px; font-size: 10px; min-height: 26px; }
@@ -248,7 +248,7 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
   .editor-heading { padding: 9px; gap: 9px; flex-wrap: wrap; }
   .editor-heading h2 { font-size: 16px; }
   .document-kind, .status-hint { display: none; }
-  .editor-heading .save-status { width: auto; font-size: 10px; margin-left: 44px; }
+  .editor-heading .save-status { width: auto; font-size: 12px; margin-left: 44px; }
   .editor-heading > div:first-of-type { flex: 1; }
   .document-history { margin-left: auto; padding-left: 6px; }
   .workspace-commandbar { gap: 6px; padding: 6px 8px; }
@@ -258,9 +258,9 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
   .document-history .quiet { font-size: 10px; padding: 2px 4px; min-height: 28px; }
   /* Keep clipboard/group actions visible; only the selection count is too noisy on narrow layouts. */
   .document-history .selection-count { display: none; }
-  .editor .tool-rail button { flex: 0 0 auto; width: 52px; min-width: 52px; min-height: 44px; padding: 4px 2px; }
+  .editor .tool-rail button { flex: 0 0 auto; width: 64px; min-width: 64px; min-height: 44px; padding: 4px 2px; }
   .tool-rail button:first-child { margin: 0; border-bottom: 0; border-right: 1px solid var(--ui-line); }
-  .tool-rail button span { font-size: 8px; }
+  .tool-rail button span { font-size: 11px; }
   .wall-tool { flex: 0 0 auto; width: 74px; min-width: 74px; }
   .editor .tool-rail .wall-tool-primary { width: auto; min-width: 0; flex: 1; }
   .editor .tool-rail .wall-tool-menu { width: 22px; min-width: 22px; min-height: 44px; }

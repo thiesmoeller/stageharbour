@@ -1061,6 +1061,37 @@ export function defaultCamera(bounds: Box, preset: CameraPreset = 'orbit'): Save
 
 export type LegacyRepair = { frameId: string; message: string };
 
+/** Seed editable custom pages from the current automatic export settings (F04). */
+export function editablePagesFromSettings(input: {
+  paper: PaperSize;
+  orientation: 'auto' | SheetOrientation;
+  scale: DrawingScale;
+  sceneId?: string;
+  planCrop?: FrameCrop;
+  name?: string;
+}): DocumentPage[] {
+  const orientation: SheetOrientation = input.orientation === 'auto' ? 'portrait' : input.orientation;
+  const body = bodyRect(input.paper, orientation);
+  return [{
+    id: crypto.randomUUID(),
+    name: input.name?.trim() || 'Grundriss',
+    paper: input.paper,
+    orientation,
+    frames: [{
+      id: crypto.randomUUID(),
+      kind: 'plan',
+      x: body.x,
+      y: body.y,
+      width: body.width,
+      height: body.height,
+      rotation: 0,
+      scale: input.scale,
+      crop: input.planCrop,
+      source: { role: 'primary', ...(input.sceneId ? { sceneId: input.sceneId } : {}) },
+    }],
+  }];
+}
+
 /** Map a venue report template into document pages. Does not apply the template by itself. */
 export function documentPagesFromTemplate(template: {
   pages: { id: string; name: string; paper: 'a4' | 'a3'; orientation?: 'portrait' | 'landscape'; frames: {

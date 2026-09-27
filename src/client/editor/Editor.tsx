@@ -159,6 +159,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
   const inspectorPendingRef = useRef(false);
   inspectorPendingRef.current = inspectorPending;
   const pendingCount = useRef(0);
+  const [inspectorEpoch, setInspectorEpoch] = useState(0);
   const reportInspectorPending = useCallback((pending: boolean) => {
     pendingCount.current = adjustPendingCount(pendingCount.current, pending);
     const next = pendingCount.current > 0;
@@ -167,6 +168,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     inspectorPendingRef.current = next;
     setInspectorPending(next);
   }, []);
+  const [venueVersionId, setVenueVersionId] = useState(initial.venueVersionId);
   const [venue, setVenue] = useState<VenueGeometry>(boot.venue);
   const lastPlanPoint = useRef({ x: initial.venue.width / 2, y: initial.venue.depth / 2 });
   const [venueName, setVenueName] = useState(initial.venueName);
@@ -208,12 +210,13 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     if (!templates?.length) return;
     persistLiftedTemplates.current = false;
     let cancelled = false;
-    void request(`/api/workspaces/${workspaceId}/scenes/${initial.id}/venue/report-templates`, { reportTemplates: templates }, 'PATCH')
+    void request(`/api/workspaces/${workspaceId}/scenes/${initial.id}/venue/report-templates`, { reportTemplates: templates, venueVersionId }, 'PATCH')
       .then(data => {
         if (cancelled) return;
         const result = saveVenueResultSchema.parse(data);
         saver.acknowledgeRevision(result.revision);
         setVenue(result.venue);
+    if (result.venueVersionId) setVenueVersionId(result.venueVersionId);
       })
       .catch(() => { /* stay in-memory until the next venue save */ });
     return () => { cancelled = true; };
@@ -263,7 +266,24 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     // re-renders from dirty, and clearing the debounce timer left status stuck on pending.
     return () => { window.removeEventListener('beforeunload', warn); saver.dispose(); onDirtyRef.current(false); };
   }, [saver]);
+  function afterPending(command: () => void) {
+    if (!pendingCount.current) { command(); return; }
+    void confirmDiscardPending(true).then(ok => {
+      if (!ok) return;
+      pendingCount.current = 0;
+      inspectorPendingRef.current = false;
+      setInspectorPending(false);
+      setInspectorEpoch(value => value + 1);
+      command();
+    });
+  }
+  function pendingBlocksEdit() {
+    if (!pendingCount.current) return false;
+    setSnapStatus('Bitte Eingaben zuerst übernehmen oder verwerfen.');
+    return true;
+  }
   function apply(next: History) {
+    if (pendingBlocksEdit()) return;
     if (readOnly || busyGesture() || next === current.current) return;
     current.current = next;
     setState(next);
@@ -275,8 +295,9 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     if (!valid.success) { setSnapStatus('Änderung nicht übernommen: ungültige Maße oder Objektverweise.'); return; }
     apply(execute(current.current, valid.data));
   }
-  function adoptVenue(result: { venue: VenueGeometry; layout: Layout; revision: number; venueUpdateAvailable: boolean }) {
+  function adoptVenue(result: { venueVersionId?: string; venue: VenueGeometry; layout: Layout; revision: number; venueUpdateAvailable: boolean }) {
     setVenue(result.venue);
+    if (result.venueVersionId) setVenueVersionId(result.venueVersionId);
     const next = history({
       ...stripLayoutReportTemplates(result.layout), braces: result.layout.braces ?? [], connections: result.layout.connections ?? [],
       groups: result.layout.groups ?? [], placeholders: result.layout.placeholders ?? [],
@@ -447,8 +468,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
   }
   function remove() {
     if (busyGesture()) return;
-    commit(removeSelection(current.current.present, selection()));
-    clearSelection();
+    afterPending(() => { commit(removeSelection(current.current.present, selection())); clearSelection(true); });
   }
   function copy() {
     if (busyGesture()) return;
@@ -457,11 +477,13 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
   }
   function cut() {
     if (busyGesture()) return;
+    afterPending(() => {
     const result = cutSelection(current.current.present, selection());
     if (!result.clipboard) return;
     setClipboard(result.clipboard);
     commit(result.layout);
-    clearSelection();
+    clearSelection(true);
+    });
   }
   function paste() {
     if (busyGesture() || !clipboard) return;
@@ -490,8 +512,8 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
         return;
       }
       if (readOnly || busyGesture()) return;
-      if (command === 'undo') apply(undo(current.current));
-      else if (command === 'redo') apply(redo(current.current));
+      if (command === 'undo') afterPending(() => apply(undo(current.current)));
+      else if (command === 'redo') afterPending(() => apply(redo(current.current)));
       else if (command === 'copy') copy();
       else if (command === 'cut') cut();
       else if (command === 'paste') paste();
@@ -551,6 +573,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
     event.stopPropagation();
     if (busyGesture()) return;
     if (event.shiftKey) { pick(member, true); return; }
+    if (pendingBlocksEdit()) return;
     const previousSelection = selection();
     if (!previousSelection.some(item => item.id === member.id)) pick(member, false);
     if (readOnly) return;
@@ -699,7 +722,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
   }
   const stageTransform: StageEditing['onTransform'] = (phase, delta, bypass, operation = 'translate') => {
     if (readOnly) return;
-    if (phase === 'begin') { if (!busyGesture()) { stageGesture.current = { layout: current.current.present, members: selection() }; setGroupPreview(current.current.present); } return; }
+    if (phase === 'begin') { if (!pendingBlocksEdit() && !busyGesture()) { stageGesture.current = { layout: current.current.present, members: selection() }; setGroupPreview(current.current.present); } return; }
     if (phase === 'cancel') { stageGesture.current = undefined; setGroupPreview(undefined); setGuides([]); return; }
     const held = stageGesture.current;
     if (!held) return;
@@ -710,7 +733,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
   };
   const stageResize: StageEditing['onPushPull'] = (phase, next) => {
     if (readOnly) return;
-    if (phase === 'begin') { if (!busyGesture()) { stageGesture.current = { layout: current.current.present, members: selection() }; setGroupPreview(current.current.present); } return; }
+    if (phase === 'begin') { if (!pendingBlocksEdit() && !busyGesture()) { stageGesture.current = { layout: current.current.present, members: selection() }; setGroupPreview(current.current.present); } return; }
     if (phase === 'cancel') { stageGesture.current = undefined; setGroupPreview(undefined); return; }
     const held = stageGesture.current;
     if (!held) return;
@@ -811,8 +834,8 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
         ? (initial.lease ? `Nur Ansicht · Bearbeitung durch ${initial.lease.holderName}` : 'Nur Ansicht')
         : saveState.status === 'conflict' && saveState.conflictKind === 'lease' ? 'Bearbeitung abgelaufen'
           : inspectorPending ? INSPECTOR_PENDING_STATUS : statusText[saveState.status]}</span><div className="document-history">{!readOnly && <>
-      <button className="quiet" disabled={!!groupPreview || !!placing || !state.past.length} onClick={() => apply(undo(current.current))} hidden={venueOpen} title="Rückgängig (Strg+Z)" aria-label="Rückgängig"><ToolIcon name="undo" /></button>
-      <button className="quiet" disabled={!!groupPreview || !!placing || !state.future.length} onClick={() => apply(redo(current.current))} hidden={venueOpen} title="Wiederholen (Strg+Shift+Z)" aria-label="Wiederholen"><ToolIcon name="redo" /></button>
+      <button className="quiet" disabled={!!groupPreview || !!placing || !state.past.length} onClick={() => afterPending(() => apply(undo(current.current)))} hidden={venueOpen} title="Rückgängig (Strg+Z)" aria-label="Rückgängig"><ToolIcon name="undo" /></button>
+      <button className="quiet" disabled={!!groupPreview || !!placing || !state.future.length} onClick={() => afterPending(() => apply(redo(current.current)))} hidden={venueOpen} title="Wiederholen (Strg+Shift+Z)" aria-label="Wiederholen"><ToolIcon name="redo" /></button>
       <button className="quiet" type="button" disabled={!!groupPreview || !!placing || selection().length === 0} hidden={venueOpen} onClick={copy}>Kopieren</button>
       <button className="quiet" type="button" disabled={!!groupPreview || !!placing || selection().length === 0} hidden={venueOpen} onClick={cut}>Ausschneiden</button>
       <button className="quiet" type="button" disabled={!!groupPreview || !!placing || !clipboard} hidden={venueOpen} onClick={paste}>Einfügen</button>
@@ -887,7 +910,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
       </>}
     </div>
     {assetError && <p className="error" role="alert">{assetError}</p>}
-    {libraryOpen && !venueOpen && <AssetLibrary workspaceId={workspaceId} assets={assets} layout={state.present}
+    {libraryOpen && !venueOpen && <AssetLibrary key={inspectorEpoch} workspaceId={workspaceId} assets={assets} layout={state.present}
       readOnly={readOnly || busyGesture()} selected={selectedWall ?? selectedBraceItem}
       wallTypes={wallTypes} selectedTypeId={selectedType}
       onCreated={asset => setAssets(items => [...items, asset])}
@@ -914,10 +937,11 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
       templates={venue.reportTemplates ?? []} readOnly={readOnly} freezeDisabled={dirty || saveState.status !== 'saved'}
       onClose={() => setExportsOpen(false)}
       onSaveTemplate={async templates => {
-        const data = await request(`/api/workspaces/${workspaceId}/scenes/${initial.id}/venue/report-templates`, { reportTemplates: templates }, 'PATCH');
+        const data = await request(`/api/workspaces/${workspaceId}/scenes/${initial.id}/venue/report-templates`, { reportTemplates: templates, venueVersionId }, 'PATCH');
         const result = saveVenueResultSchema.parse(data);
         saver.acknowledgeRevision(result.revision);
         setVenue(result.venue);
+    if (result.venueVersionId) setVenueVersionId(result.venueVersionId);
       }} />}
     {['failed', 'conflict'].includes(saveState.status) && <div className="error" role="alert">
       <p>{saveState.status === 'conflict'
@@ -1184,7 +1208,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, onC
       onSelect={stageSelect} onClearSelection={() => { if (!busyGesture() && !stageGesture.current) { clearSelection(); } }}
       onTransform={readOnly ? undefined : stageTransform} onPushPull={readOnly ? undefined : stageResize}
       resizeScope="scene" resizeDocument={sceneResizeDocument(shown, venue)} />}
-    </div><aside className="wall-inspector" inert={busyGesture()}>
+    </div><aside key={inspectorEpoch} className="wall-inspector" inert={busyGesture()}>
       <div className="inspector-title"><ToolIcon name="settings" /><h3>Eigenschaften</h3><span>mm</span></div>
       <div className="selection-properties">
       <h3>{selectedCurtain ? 'Molton-Vorhang' : selectedVenueDoor ? 'Spielstättentür' : selectedPlaceholderItem ? 'Platzhalter' : selectedPlatformItem ? 'Podest' : selectedStairItem ? 'Treppe' : selectedBraceItem ? 'Gewichtete Stütze' : selectedWall ? (selectedWallCount > 1 ? `${selectedWallCount} Wandelemente` : 'Wandelement') : 'Keine Auswahl'}</h3>

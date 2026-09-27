@@ -3,6 +3,7 @@ export function editingText(target: EventTarget | null) {
 }
 
 export function editorCommand(event: KeyboardEvent) {
+  if (event.defaultPrevented || (typeof document !== 'undefined' && document.querySelector('[aria-modal="true"]'))) return;
   if (editingText(event.target)) return;
   if (event.key === 'Escape') return 'cancel';
   if (event.key === 'Delete' || event.key === 'Backspace') return 'delete';

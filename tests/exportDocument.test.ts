@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { freezeSnapshot, type ConstructionSnapshot } from '../src/shared/export.js';
 import {
-  composeDocument, contentBounds, coversPoint, documentPagesFromTemplate, pageEdgeMm, textBoxes,
+  bodyRect, composeDocument, contentBounds, coversPoint, documentPagesFromTemplate, editablePagesFromSettings, pageEdgeMm, textBoxes,
   type ExportDocumentSpec, type FrozenScene,
 } from '../src/shared/exportDocument.js';
 import { newWall, type Scene } from '../src/shared/layout.js';
@@ -221,4 +221,16 @@ test('bookmarks and neighbour links are present and a template is not applied un
   });
   assert.ok(adapted.repairs.some(item => item.message.includes('außerhalb')));
   assert.equal(layout.sheets.some(sheet => sheet.title === 'Zu groß'), false);
+});
+
+test('editablePagesFromSettings seeds a plan frame for Layout bearbeiten', () => {
+  const pages = editablePagesFromSettings({ paper: 'A4', orientation: 'auto', scale: 50, sceneId: randomUUID(), name: 'Fassung' });
+  assert.equal(pages.length, 1);
+  assert.equal(pages[0]!.name, 'Fassung');
+  assert.equal(pages[0]!.orientation, 'portrait');
+  assert.equal(pages[0]!.frames[0]!.kind, 'plan');
+  assert.equal(pages[0]!.frames[0]!.scale, 50);
+  const body = bodyRect('A4', 'portrait');
+  assert.equal(pages[0]!.frames[0]!.width, body.width);
+  assert.equal(pages[0]!.frames[0]!.height, body.height);
 });

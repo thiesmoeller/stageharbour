@@ -30,8 +30,28 @@ test('Bestand workspace manages panels and stocked wall types under lease', asyn
   await page.getByRole('button', { name: 'Wandtyp anlegen' }).click();
   await expect(page.getByLabel('Wandtyp-Bezeichnung')).toHaveValue('Glattwand');
   await page.getByLabel('Wandtyp-Bezeichnung').fill('Bestand-Glattwand');
+  // Distinct size so this stock type does not satisfy default Glattwand shortage checks in later e2e.
+  await page.getByLabel('Außenbreite (mm)').fill('1100');
   await page.getByRole('button', { name: 'Wandtyp speichern' }).click();
   await expect(page.locator('#wall-type-selection')).toContainText('Bestand-Glattwand');
+
+  await page.getByTestId('bestand-tab-panels').click();
+  await expect(page.getByTestId('bestand-tab-panels')).toHaveAttribute('aria-selected', 'true');
+  const acquirePanels = page.getByRole('button', { name: 'Plattenbestand bearbeiten' });
+  if (await acquirePanels.isVisible()) await acquirePanels.click();
+  await expect(page.getByLabel('Wandtyp')).toContainText('Bestand-Glattwand');
+  await page.getByLabel('Wandtyp').selectOption({ label: 'Bestand-Glattwand' });
+  await page.getByLabel('Plattenetikett').fill('Bestand-P02');
+  await page.getByRole('button', { name: 'Platte anlegen' }).click();
+  await expect(page.getByText(/Bestand-P02 · Bestand-Glattwand/)).toBeVisible();
+  await page.getByRole('listitem').filter({ hasText: 'Bestand-P02 · Bestand-Glattwand' }).getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+  const editForm = page.locator('form[data-testid^="edit-panel-"]');
+  await expect(editForm).toBeVisible();
+  await editForm.getByLabel('Plattenetikett').fill('Bestand-P02b');
+  await editForm.getByLabel('Reparaturhinweis').fill('Kante nacharbeiten');
+  await editForm.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(page.getByText(/Bestand-P02b · Bestand-Glattwand · Kante nacharbeiten/)).toBeVisible();
+
   // Leave Bestand so useEditingLease can POST /lease/release. Playwright page
   // teardown aborts that async cleanup and would otherwise leave inventory leased.
   await page.getByRole('navigation', { name: 'Arbeitsbereiche' }).getByRole('button', { name: /Produktionen/ }).click();

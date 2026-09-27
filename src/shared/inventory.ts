@@ -75,8 +75,10 @@ export const createPanelSchema = z.strictObject({
   label: name, type: wallTypeSchema, available: z.boolean().default(true), note: note.nullable().optional(),
 });
 export const updatePanelSchema = z.strictObject({
-  available: z.boolean().optional(), note: note.nullable().optional(),
-}).refine(body => body.available !== undefined || body.note !== undefined, 'Availability or note required');
+  label: name.optional(),
+  available: z.boolean().optional(),
+  note: note.nullable().optional(),
+}).refine(body => body.label !== undefined || body.available !== undefined || body.note !== undefined, 'Label, availability or note required');
 export const assignPanelSchema = z.strictObject({ panelId: z.uuid() });
 export const inventorySchema = z.object({
   lease: leaseHolderSchema.nullable(),

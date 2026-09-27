@@ -74,6 +74,7 @@ export const reportTemplatesSchema = z.array(reportTemplateSchema).max(50)
 
 /** Lightweight update: report templates only (avoids shipping the full venue geometry). */
 export const saveReportTemplatesSchema = z.strictObject({
+  venueVersionId: z.uuid().optional(),
   reportTemplates: reportTemplatesSchema,
 });
 

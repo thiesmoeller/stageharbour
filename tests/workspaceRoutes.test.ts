@@ -12,6 +12,7 @@ test('parseWorkspaceLocation maps list and document hashes', () => {
   assert.deepEqual(parseWorkspaceLocation('/konto'), { section: 'account' });
   assert.deepEqual(parseWorkspaceLocation('/verwaltung'), { section: 'admin' });
   assert.deepEqual(parseWorkspaceLocation('/hilfe'), { section: 'help' });
+  assert.deepEqual(parseWorkspaceLocation('/hilfe/oberflaechen'), { section: 'help', topic: 'oberflaechen' });
   assert.deepEqual(parseWorkspaceLocation('/bestand'), { section: 'bestand' });
   assert.equal(parseWorkspaceLocation('/einladung/x'), undefined);
 });
@@ -24,6 +25,7 @@ test('workspaceHash round-trips document locations', () => {
   assert.equal(workspaceHash({ section: 'account' }), '#/konto');
   assert.equal(workspaceHash({ section: 'admin' }), '#/verwaltung');
   assert.equal(workspaceHash({ section: 'help' }), '#/hilfe');
+  assert.equal(workspaceHash({ section: 'help', topic: 'oberflaechen' }), '#/hilfe/oberflaechen');
   assert.equal(workspaceHash({ section: 'bestand' }), '#/bestand');
   assert.deepEqual(parseWorkspaceLocation(workspaceHash({ section: 'plans', sceneId: 'a/b' }).slice(1)), {
     section: 'plans', sceneId: 'a/b',

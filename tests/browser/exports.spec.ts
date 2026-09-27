@@ -155,3 +155,60 @@ test('export Raumsicht capture embeds a client PNG into the PDF', async ({ page 
   await expect(workspace.getByRole('status').first()).toContainText('Vorschau bereit', { timeout: 45_000 });
   expect(errors.filter(message => !/ResizeObserver|AgXToneMapping|401/.test(message))).toEqual([]);
 });
+
+test('export retry prepares again and layout edit starts from automatic settings', async ({ page }) => {
+  test.setTimeout(90_000);
+  await signInToPlans(page);
+  await createProduction(page, {
+    productionName: 'RetryExport',
+    venueName: 'RetrySaal',
+    sceneName: 'RetrySzene',
+  });
+  await waitUntilSaved(page);
+  let blocked = true;
+  await page.route('**/api/workspaces/*/documents', async route => {
+    if (route.request().method() === 'POST' && blocked) {
+      await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'fail' }) });
+      return;
+    }
+    await route.continue();
+  });
+  await page.getByRole('button', { name: 'Konstruktionsplan' }).click();
+  const workspace = page.getByRole('region', { name: 'Export' });
+  await expect(workspace.getByRole('button', { name: 'Erneut versuchen', exact: true })).toBeVisible({ timeout: 15_000 });
+  blocked = false;
+  await workspace.getByRole('button', { name: 'Erneut versuchen', exact: true }).click();
+  await expect(workspace.getByRole('status').first()).toContainText('Vorschau bereit', { timeout: 20_000 });
+  await workspace.getByRole('button', { name: 'Layout bearbeiten', exact: true }).click();
+  await expect(workspace.getByRole('button', { name: 'Grundriss', exact: true })).toBeVisible();
+  await expect(workspace.locator('.export-layout-editor')).toBeVisible();
+});
+
+test('toolbar download uses the displayed preview after settings change', async ({ page }) => {
+  test.setTimeout(90_000);
+  await signInToPlans(page);
+  await createProduction(page, {
+    productionName: 'DownloadBind',
+    venueName: 'DownloadSaal',
+    sceneName: 'DownloadSzene',
+  });
+  await waitUntilSaved(page);
+  await page.getByRole('button', { name: 'Konstruktionsplan' }).click();
+  const workspace = page.getByRole('region', { name: 'Export' });
+  await workspace.getByLabel('Bezeichnung der Fassung').fill('Issued_A');
+  await expect(workspace.getByRole('status').first()).toContainText('Vorschau bereit', { timeout: 20_000 });
+  await workspace.getByRole('button', { name: 'PDF erstellen' }).click();
+  await workspace.getByText('Frühere Fassungen').click();
+  await expect(workspace.getByRole('listitem').filter({ hasText: 'Issued_A' })).toContainText('Fertig');
+  await workspace.getByLabel('Bezeichnung der Fassung').fill('Preview_B');
+  await expect(workspace.getByRole('status').first()).toContainText('Vorschau bereit', { timeout: 20_000 });
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    workspace.locator('.export-preview-toolbar').getByRole('button', { name: 'Herunterladen', exact: true }).click(),
+  ]);
+  expect(download.suggestedFilename()).toMatch(/Preview_B/);
+  const bytes = readFileSync(await download.path() as string);
+  expect(bytes.subarray(0, 5).toString()).toBe('%PDF-');
+  const text = await pdfWords(bytes);
+  expect(text).toContain('Preview_B');
+});

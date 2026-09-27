@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, lazy, Suspense, type DragEvent, type FormEvent, type PointerEvent } from 'react';
+import { BufferedNumberInput } from './BufferedNumberInput.js';
+import { useCallback, useEffect, useRef, useState, lazy, Suspense, type DragEvent, type FormEvent, type PointerEvent } from 'react';
 import { wallFromDrawnSegment, applyVenueResultSchema, saveVenueResultSchema, venueGeometrySchema, type Layout, type VenueGeometry, type Wall } from '../../shared/layout.js';
 import { renameVenueSchema, venueRecordSchema } from '../../shared/venueLibrary.js';
 import {
@@ -90,7 +91,7 @@ function optionalNotes(value?: string) {
 
 type VenuePersistence = {
   sceneId: string;
-  onSaved: (result: { venue: VenueGeometry; layout: Layout; revision: number; venueUpdateAvailable: boolean }) => void;
+  onSaved: (result: { venueVersionId?: string; venue: VenueGeometry; layout: Layout; revision: number; venueUpdateAvailable: boolean }) => void;
   onPublish?: never;
 } | {
   sceneId?: never;
@@ -145,6 +146,11 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
   const [sheetEditorOpen, setSheetEditorOpen] = useState(openSheetEditor);
   useEffect(() => { if (openSheetEditor) setSheetEditorOpen(true); }, [openSheetEditor]);
   const [nameDraft, setNameDraft] = useState(venueName ?? '');
+  const namePending = nameDraft !== (venueName ?? '');
+  const [numberPending, setNumberPending] = useState(0);
+  const [numberFormKey, setNumberFormKey] = useState(0);
+  const reportNumberPending = useCallback((pending: boolean) => setNumberPending(count => Math.max(0, count + (pending ? 1 : -1))), []);
+  const dirty = draft.dirty || namePending || numberPending > 0;
   const [click, setClick] = useState<ClickMode>('select');
   const [placeKind, setPlaceKind] = useState<PlaceKind>('platform');
   const [pinKind, setPinKind] = useState<ConnectionKind>('power');
@@ -194,7 +200,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
     ids: string[]; hinge: { x: number; y: number }; startAngle: number; startRotation: number; start: VenueDraft;
   } | undefined>(undefined);
   useEffect(() => { setNameDraft(venueName ?? ''); }, [venueName]);
-  useEffect(() => { onDirty?.(draft.dirty); }, [draft.dirty, onDirty]);
+  useEffect(() => { onDirty?.(dirty); return () => onDirty?.(false); }, [dirty, onDirty]);
   const [meta, setMeta] = useState<VenueReference>();
   const [overlay, setOverlay] = useState<{ href: string; pixelWidth: number; pixelHeight: number }>();
   const [underlayDialogOpen, setUnderlayDialogOpen] = useState(false);
@@ -561,7 +567,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
     setBusy(true); setError('');
     try {
       const body = applyVenueResultSchema.parse(await request(`/api/workspaces/${workspaceId}/scenes/${sceneId}/venue-apply`, {}));
-      onSaved?.({ venue: body.venue, layout: body.layout, revision: body.revision, venueUpdateAvailable: !!body.venueUpdateAvailable });
+      onSaved?.({ venueVersionId: body.venueVersionId, venue: body.venue, layout: body.layout, revision: body.revision, venueUpdateAvailable: !!body.venueUpdateAvailable });
     } catch { setError('Die Spielstättenfassung konnte nicht übernommen werden.'); }
     finally { setBusy(false); }
   }
@@ -886,7 +892,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
     setSelectedIds([]);
   }
   useEffect(() => {
-    const warn = (event: BeforeUnloadEvent) => { if (draft.dirty) { event.preventDefault(); event.returnValue = ''; } };
+    const warn = (event: BeforeUnloadEvent) => { if (dirty) { event.preventDefault(); event.returnValue = ''; } };
     const key = (event: KeyboardEvent) => {
       const command = editorCommand(event);
       if (!command) return;
@@ -956,7 +962,9 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
           <button type="button" disabled={!draft.dirty || busy} onClick={() => void save()}>Spielstätte speichern</button>
         </>}
         {(!readOnly || draft.dirty) && <>
-          <button type="button" className="quiet" disabled={!draft.dirty || busy} onClick={() => { draft.discard(); setError(''); }}>Spielstättenentwurf verwerfen</button>
+          <button type="button" className="quiet" disabled={!dirty || busy} onClick={() => {
+            draft.discard(); setNameDraft(venueName ?? ''); setNumberFormKey(key => key + 1); setError('');
+          }}>Spielstättenentwurf verwerfen</button>
           <button type="button" className="quiet" onClick={() => {
             const url = URL.createObjectURL(new Blob([JSON.stringify({ venue, draft: draft.value }, null, 2)], { type: 'application/json' }));
             const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'spielstaettenentwurf.json'; anchor.click();
@@ -969,7 +977,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
           onClick={() => setSheetEditorOpen(open => !open)}>
           {sheetEditorOpen ? 'Blatt-Layout schließen' : 'Blatt-Layout'}
         </button>
-        <span className={`save-status ${draft.dirty ? 'pending' : ''}`} role="status">{draft.dirty ? 'Unveröffentlichter Spielstättenentwurf' : 'Spielstättenfassung gespeichert'}</span>
+        <span className={`save-status ${dirty ? 'pending' : ''}`} role="status">{namePending ? 'Nicht gespeicherter Spielstättenname' : numberPending ? 'Nicht übernommene Eingaben' : draft.dirty ? 'Unveröffentlichter Spielstättenentwurf' : 'Spielstättenfassung gespeichert'}</span>
       </div>
       {!sheetEditorOpen && <div className="workspace-viewbar" role="toolbar" aria-label="Ansichten">
         <div className="view-modes">{(narrowEditor ? (['plan', 'stage'] as const) : (['split', 'plan', 'stage'] as const)).map(mode => <button key={mode} type="button" className="quiet" aria-pressed={activeView === mode} onClick={() => setViewMode(mode)}>{mode === 'split' ? '2D + 3D' : mode === 'plan' ? 'Grundriss' : 'Raumansicht'}</button>)}</div>
@@ -1408,15 +1416,15 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
                     <option key={key} value={key}>{PLATFORM_STYLE_LABELS[key]}</option>)}
                 </select></label>
                 <p className="muted">Bühnenelement: 2×1 / 2×0,5 / 1×1 / 1×0,5&nbsp;m mit Beinen. Massiv bis Boden. Schwebend wie bisher.</p>
-                <div className="numeric-fields">
+                <div className="numeric-fields" key={`${platform.id}-${numberFormKey}`}>
                   <label>Bezeichnung<input value={platform.label} onChange={event => updatePlatform({ label: event.target.value })} /></label>
                   {([
                     ['elevation', 'Höhe über Fußboden', platform.elevation],
                     ['width', 'Breite', width], ['depth', 'Tiefe', depth],
                     ['x', 'X', centre.x], ['y', 'Y', centre.y], ['rotation', 'Drehung', rotation],
                   ] as const).map(([key, label, value]) =>
-                    <label key={key}>{label}<input aria-label={`${platform.label} ${label}`} type="number" value={value}
-                      onChange={event => updatePlatform({ [key]: Number(event.target.value) })} /></label>)}
+                    <label key={key}>{label}<BufferedNumberInput label={`${platform.label} ${label}`} value={value}
+                      onPendingChange={reportNumberPending} onCommit={next => updatePlatform({ [key]: next })} /></label>)}
                 </div>
                 <Suspense fallback={<p>Materialbibliothek wird geladen …</p>}>
                   <MaterialPicker id="venue-platform-finish" value={platform.finish} onChange={value => {
