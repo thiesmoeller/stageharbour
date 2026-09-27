@@ -17,10 +17,14 @@ export async function testDatabase(origin = 'http://localhost:5173', extra: Node
   const storageDir = await mkdtemp(join(tmpdir(), 'stage-files-'));
   const connectionString = process.env.TEST_DATABASE_URL ?? 'postgresql://stage_planner:local-development-only@127.0.0.1:55432/stage_planner';
   const control = new pg.Pool({ connectionString, connectionTimeoutMillis: 5000 });
+  // DROP DATABASE … WITH (FORCE) and backend restarts emit idle-client errors; without a
+  // listener node:test treats them as async activity after the suite and fails the file.
+  control.on('error', () => {});
   await control.query(`CREATE DATABASE "${databaseName}"`);
   const url = new URL(connectionString);
   url.pathname = `/${databaseName}`;
   const pool = new pg.Pool({ connectionString: url.href, connectionTimeoutMillis: 5000 });
+  pool.on('error', () => {});
   const db = drizzle(pool, { schema });
   const config = readConfig({
     DATABASE_URL: url.href, APP_ORIGIN: origin, NODE_ENV: 'test',
@@ -32,7 +36,7 @@ export async function testDatabase(origin = 'http://localhost:5173', extra: Node
   const dispose = async () => {
     await pool.end();
     await rm(storageDir, { recursive: true, force: true });
-    try { await control.query(`DROP DATABASE "${databaseName}" WITH (FORCE)`); }
+    try { await control.query(`DROP DATABASE IF EXISTS "${databaseName}" WITH (FORCE)`); }
     finally { await control.end(); }
   };
   try {
