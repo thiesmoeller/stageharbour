@@ -21,17 +21,59 @@ export const openingSchema = z.strictObject({
   profile: z.enum(['rectangle', 'arch']).optional(),
 });
 export type Opening = z.infer<typeof openingSchema>;
-export const wallTypeSchema = z.strictObject({
+
+/** Fields accepted from storage before legacy Bogen openings are upgraded. */
+const wallTypeFieldsSchema = z.strictObject({
   id: z.uuid(), name,
   width: dimension, height: dimension, thickness: dimension,
   openings: z.array(openingSchema).max(20).refine(
     openings => new Set(openings.map(opening => opening.id)).size === openings.length, 'Opening IDs must be unique',
   ),
+});
+
+/**
+ * Pre–Roman-arch stand-in: same clear opening as today's Bogen, but a flat lintel.
+ * Doors share the clear size and are excluded by hinge.
+ */
+const LEGACY_ARCH_OPENING = { left: 200, sill: 0, width: 800, height: 2000 } as const;
+const LEGACY_ARCH_PANEL = { width: 1200, height: 2400, thickness: 250 } as const;
+
+function isLegacyArchOpening(opening: Opening): boolean {
+  return !opening.hinge && opening.profile !== 'arch'
+    && opening.left === LEGACY_ARCH_OPENING.left && opening.sill === LEGACY_ARCH_OPENING.sill
+    && opening.width === LEGACY_ARCH_OPENING.width && opening.height === LEGACY_ARCH_OPENING.height;
+}
+
+function isLegacyArchPanel(type: Pick<WallElementType, 'name' | 'width' | 'height' | 'thickness'>): boolean {
+  return type.name === 'Bogen'
+    || (type.width === LEGACY_ARCH_PANEL.width && type.height === LEGACY_ARCH_PANEL.height
+      && type.thickness === LEGACY_ARCH_PANEL.thickness);
+}
+
+/** Upgrade stored rectangular Bogen stand-ins to `profile: 'arch'` for mesh, elevations and export. */
+export function migrateLegacyArchWallType(type: WallElementType): WallElementType {
+  if (!isLegacyArchPanel(type)) return type;
+  let changed = false;
+  const openings = type.openings.map(opening => {
+    if (!isLegacyArchOpening(opening)) return opening;
+    changed = true;
+    return { ...opening, profile: 'arch' as const };
+  });
+  return changed ? { ...type, openings } : type;
+}
+
+/**
+ * Bidirectional wall-type schema: migrate legacy flat Bogen openings on decode and encode.
+ * Fastify response serialization encodes raw DB rows, so both sides must upgrade.
+ */
+export const wallTypeSchema = z.codec(wallTypeFieldsSchema, wallTypeFieldsSchema, {
+  decode: type => migrateLegacyArchWallType(type),
+  encode: type => migrateLegacyArchWallType(type),
 }).refine(type => type.openings.every(opening =>
   opening.left + opening.width <= type.width && opening.sill + opening.height <= type.height
   && (opening.profile !== 'arch' || opening.height + 1e-9 >= opening.width / 2)
 ), 'Openings must lie inside the panel');
-export type WallElementType = z.infer<typeof wallTypeSchema>;
+export type WallElementType = z.infer<typeof wallTypeFieldsSchema>;
 
 /** True when the opening uses a semicircular crown (radius = half width). */
 export function isArchOpening(opening: Pick<Opening, 'profile' | 'width' | 'height'>): boolean {
@@ -166,5 +208,5 @@ export function openingsFitWall(
   );
 }
 export function typesOf(layout: { wallTypes?: WallElementType[] }): WallElementType[] {
-  return layout.wallTypes ?? [];
+  return (layout.wallTypes ?? []).map(migrateLegacyArchWallType);
 }
