@@ -292,6 +292,15 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.locator('[data-testid^="assembly-label-"]')).toHaveText([
     '1Beispiel-P01', '2',
   ]);
+  await page.getByRole('button', { name: 'Montagenummern löschen' }).click();
+  await waitUntilSaved(page);
+  await expect(page.locator('[data-testid^="assembly-label-"]')).toHaveCount(1);
+  await expect(page.locator('[data-testid^="assembly-label-"]')).toHaveText(['Beispiel-P01']);
+  await page.getByRole('button', { name: 'Montagenummern vergeben' }).click();
+  await waitUntilSaved(page);
+  await expect(page.locator('[data-testid^="assembly-label-"]')).toHaveText([
+    '1Beispiel-P01', '2',
+  ]);
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   const assembledX = await page.getByLabel('X (mm)').inputValue();
   await page.getByLabel('Verbinden mit').selectOption({ label: 'Position 2' });
