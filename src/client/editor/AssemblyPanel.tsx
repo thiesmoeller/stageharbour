@@ -1,6 +1,6 @@
 import { type FormEvent } from 'react';
 import {
-  CONNECTION_COMPATIBILITY_NOTICE, assignAssemblyNumbers, recordConnection, type PanelConnection,
+  CONNECTION_COMPATIBILITY_NOTICE, assignAssemblyNumbers, clearAssemblyNumbers, recordConnection, type PanelConnection,
 } from '../../shared/assembly.js';
 import type { Layout, Wall } from '../../shared/layout.js';
 
@@ -13,6 +13,8 @@ export function AssemblyPanel({ layout, selectedWall, readOnly, onChange }: {
     return [connection.a === selectedWall.id ? connection.b : connection.a];
   }));
   const others = layout.walls.filter(wall => wall.id !== selectedWall?.id && !linked.has(wall.id));
+  const hasNumbers = layout.walls.some(wall => wall.assemblyNumber != null);
+  const hasUnnumbered = layout.walls.some(wall => wall.assemblyNumber == null);
   function caption(wall?: Wall) {
     return wall?.assemblyNumber ? `Position ${wall.assemblyNumber}` : wall?.label ?? wall?.id ?? '';
   }
@@ -33,13 +35,15 @@ export function AssemblyPanel({ layout, selectedWall, readOnly, onChange }: {
   }
   return <div className="assembly-panel">
     <h3>Montage</h3>
-    <p className="muted">Montagenummern werden von links nach rechts aus Publikumsicht vergeben und bleiben danach gespeichert. Sie sind keine Plattenetiketten.</p>
+    <p className="muted">Montagenummern werden von links nach rechts aus Publikumsicht vergeben und bleiben danach gespeichert. Sie sind keine Plattenetiketten. Zum Neuordnen zuerst löschen, dann erneut vergeben.</p>
     {selectedWall?.assemblyNumber
       ? <p>Montagenummer: Position {selectedWall.assemblyNumber}</p>
       : <p className="muted">{selectedWall ? 'Diese Wand hat noch keine Montagenummer.' : 'Wählen Sie eine Wand, um Verbindungen zu erfassen.'}</p>}
     {!readOnly && <div className="form-actions">
-      <button type="button" disabled={!layout.walls.some(wall => wall.assemblyNumber == null)}
+      <button type="button" disabled={!layout.walls.length || !hasUnnumbered}
         onClick={() => onChange({ ...layout, walls: assignAssemblyNumbers(layout.walls) })}>Montagenummern vergeben</button>
+      <button type="button" className="quiet" disabled={!hasNumbers}
+        onClick={() => onChange({ ...layout, walls: clearAssemblyNumbers(layout.walls) })}>Montagenummern löschen</button>
     </div>}
     {selectedWall && others.length > 0 && <form onSubmit={connect}><fieldset disabled={readOnly}>
       <label htmlFor="assembly-other">Verbinden mit</label>

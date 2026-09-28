@@ -37,3 +37,12 @@ export function assignAssemblyNumbers<T extends { id: string; x: number; y: numb
   );
   return walls.map(wall => wall.assemblyNumber != null ? wall : { ...wall, assemblyNumber: assigned.get(wall.id)! }) as Array<T & { assemblyNumber: number }>;
 }
+
+/** Drop every stored Montagenummer so a fresh left-to-right pass can renumber. */
+export function clearAssemblyNumbers<T extends { assemblyNumber?: number }>(walls: readonly T[]): T[] {
+  return walls.map(wall => {
+    if (wall.assemblyNumber == null) return wall;
+    const { assemblyNumber: _removed, ...rest } = wall;
+    return rest as T;
+  });
+}

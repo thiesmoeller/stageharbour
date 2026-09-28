@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { assemblyCaption, assignAssemblyNumbers, recordConnection } from '../src/shared/assembly.js';
+import { assemblyCaption, assignAssemblyNumbers, clearAssemblyNumbers, recordConnection } from '../src/shared/assembly.js';
 
 test('left-to-right from the audience assigns assembly numbers in known +x order', () => {
   const left = { id: randomUUID(), x: 1000, y: 4000 };
@@ -22,6 +22,19 @@ test('assembly numbers stay put when a wall is later moved', () => {
   assert.equal(again.find(wall => wall.id === left.id)?.assemblyNumber, 1);
   assert.equal(again.find(wall => wall.id === right.id)?.assemblyNumber, 2);
   assert.equal(again.find(wall => wall.id === right.id)?.x, 0);
+});
+
+test('clearing assembly numbers drops every position so a later pass can renumber', () => {
+  const left = { id: randomUUID(), x: 1000, y: 2000, label: 'Links', assemblyNumber: 1 };
+  const right = { id: randomUUID(), x: 5000, y: 2000, label: 'Rechts', assemblyNumber: 2 };
+  const cleared = clearAssemblyNumbers([left, right]);
+  assert.equal(cleared[0]?.assemblyNumber, undefined);
+  assert.equal(cleared[1]?.assemblyNumber, undefined);
+  assert.equal(cleared[0]?.label, 'Links');
+  assert.equal(cleared[1]?.x, 5000);
+  const renumbered = assignAssemblyNumbers([{ ...cleared[1]!, x: 0 }, cleared[0]!]);
+  assert.equal(renumbered.find(wall => wall.id === right.id)?.assemblyNumber, 1);
+  assert.equal(renumbered.find(wall => wall.id === left.id)?.assemblyNumber, 2);
 });
 
 test('recording a connection does not change wall coordinates', () => {
