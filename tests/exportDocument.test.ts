@@ -6,7 +6,7 @@ import {
   bodyRect, composeDocument, contentBounds, coversPoint, documentPagesFromTemplate, editablePagesFromSettings, pageEdgeMm, textBoxes,
   type ExportDocumentSpec, type FrozenScene,
 } from '../src/shared/exportDocument.js';
-import { newWall, type Scene } from '../src/shared/layout.js';
+import { newBrace, newWall, type Scene } from '../src/shared/layout.js';
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { createFontMeasure, renderDocument } from '../src/server/exports/documentPdf.js';
 
@@ -251,4 +251,22 @@ test('whole-venue scope covers the room while set-only framing stays available',
   const frozen = sceneWith([newWall(randomUUID(), 1500, 1500)], { schemaVersion: 1, width: 18000, depth: 14000 });
   const layout = composeDocument({ spec: spec(frozen.sceneId, { planScope: 'venue' }), scenes: [frozen], productionName: 'Test', issuedAtLabel: '28.09.2026' });
   for (const point of [{ x: 0, y: 0 }, { x: 18000, y: 14000 }]) assert.ok(coversPoint(layout, point.x, point.y));
+});
+
+
+test('ballast appears in scene schedules and venue material sheets in the rendered PDF', async () => {
+  const scene = sceneWith([]);
+  scene.snapshot.layout.braces = [{ ...newBrace(randomUUID(), 1000, 1000), ballast: { mode: 'heavy' } }];
+  const layout = composeDocument({ spec: spec(scene.sceneId, { kind: 'package' }), scenes: [scene],
+    productionName: 'Ballast', issuedAtLabel: '29.09.2026', measure: createFontMeasure(),
+    stock: { physicalPanels: 0, appearances: 0, panels: [], unassigned: [], unavailable: [], conflicts: [],
+      venueMaterials: [{ venueId: randomUUID(), venueName: 'Saal A', required: { braces: 1, slabs: 2, straps: 1 },
+        available: { slabs: 1, straps: 1 }, shortage: { slabs: 1, straps: 0 } }] },
+  });
+  const text = await pdfText(await renderDocument(layout));
+  assert.match(text, /Gehwegplatten/);
+  assert.match(text, /Spanngurte/);
+  assert.match(text, /Materialbedarf/);
+  assert.match(text, /Saal A/);
+  assert.match(text, /Schwer/);
 });

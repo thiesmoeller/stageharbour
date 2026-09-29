@@ -1,3 +1,4 @@
+import { ballastSchema, materialRequirementsSchema, materialRequirements, sceneMaterials, materialCountsSchema, EMPTY_BALLAST_STOCK, type BallastStock } from './ballast.js';
 import { z } from 'zod';
 import { freezeExportSchema, freezeSnapshot, constructionSnapshotSchema, DRAWING_SCALE, type ConstructionSnapshot } from './export.js';
 import type { ExportLayers } from './exportLayers.js';
@@ -24,11 +25,13 @@ const wallPartSchema = z.strictObject({
   x: z.number().finite(), y: z.number().finite(), rotation: z.number().finite(),
 });
 const bracePartSchema = z.strictObject({
+  ballast: ballastSchema.optional(),
   id: z.uuid(), label: name,
   footprintWidth: z.number().finite(), footprintDepth: z.number().finite(), height: z.number().finite(),
 });
 export const scenePartsListSchema = z.strictObject({
   sceneId: z.uuid(), sceneName: name,
+  materials: materialCountsSchema.optional(),
   walls: z.array(wallPartSchema).max(250),
   braces: z.array(bracePartSchema).max(250),
   inventoryWarnings: z.array(inventoryWarningSchema).max(500),
@@ -47,6 +50,7 @@ export const stockUnavailableSchema = z.strictObject({
   sceneId: z.uuid(), sceneName: name, wallId: z.uuid(), wallLabel: name, panelId: z.uuid(), panelLabel: name,
 });
 export const packageStockSchema = z.strictObject({
+  venueMaterials: z.array(materialRequirementsSchema.extend({ venueId: z.uuid(), venueName: name })).optional(),
   physicalPanels: z.number().int().nonnegative(),
   appearances: z.number().int().nonnegative(),
   panels: z.array(stockPanelSchema).max(500),
@@ -88,9 +92,10 @@ function wallPart(wall: Scene['layout']['walls'][number], panels: readonly Inven
 function sceneList(scene: Scene, snapshot: ConstructionSnapshot, panels: readonly InventoryPanel[]): ScenePartsList {
   return {
     sceneId: scene.id, sceneName: snapshot.sceneName,
+    materials: sceneMaterials(snapshot.layout),
     walls: snapshot.layout.walls.map(wall => wallPart(wall, panels)),
     braces: (snapshot.layout.braces ?? []).map(brace => ({
-      id: brace.id, label: brace.label,
+      id: brace.id, label: brace.label, ballast: brace.ballast,
       footprintWidth: brace.footprintWidth, footprintDepth: brace.footprintDepth, height: brace.height,
     })),
     inventoryWarnings: inventoryWarnings(snapshot.layout, panels),
@@ -152,6 +157,7 @@ export function freezePackage(
     elevationGroupIds?: string[]; layers?: Partial<ExportLayers>;
   },
   panels: readonly InventoryPanel[] = [],
+  ballastStock: BallastStock = EMPTY_BALLAST_STOCK,
 ): ConstructionPackage {
   if (!scenes.length) throw new Error('A package needs at least one scene.');
   const productionId = scenes[0]!.productionId;
@@ -163,6 +169,9 @@ export function freezePackage(
     kind: 'package', schemaVersion: 1, paper: revision.paper ?? 'A4', scale: revision.scale ?? DRAWING_SCALE,
     revisionId: revision.id, revisionName: revision.name, issuedAt: revision.issuedAt.toISOString(),
     productionId, productionName: scenes[0]!.productionName,
-    inventory, scenes: snapshots, sceneLists, stock: stockFrom(sceneLists, inventory),
+    inventory, scenes: snapshots, sceneLists, stock: { ...stockFrom(sceneLists, inventory), venueMaterials: [...new Set(scenes.map(scene => scene.venueId))].map(venueId => {
+      const matching = scenes.filter(scene => scene.venueId === venueId);
+      return { venueId, venueName: matching[0]!.venueName, ...materialRequirements(matching.map(scene => scene.layout), ballastStock) };
+    }) },
   });
 }

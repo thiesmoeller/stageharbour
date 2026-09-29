@@ -1,3 +1,4 @@
+import { materialRequirements, materialRequirementsSchema, EMPTY_BALLAST_STOCK } from '../../shared/ballast.js';
 import { snapshotPanelAssignments } from '../../shared/inventory.js';
 import { randomUUID } from 'node:crypto';
 import { and, eq, inArray, sql } from 'drizzle-orm';
@@ -14,7 +15,7 @@ import { leaseHolderSchema } from '../../shared/leases.js';
 import { resolveWall } from '../../shared/wall-types.js';
 import type { Database } from '../db/connection.js';
 import {
-  adaptation, constructionPackage, constructionPlanRevision, editingLease, inventoryAsset, inventoryPanel, production, scene, sceneTemplate, venue, venueVersion,
+  inventoryBallast, adaptation, constructionPackage, constructionPlanRevision, editingLease, inventoryAsset, inventoryPanel, production, scene, sceneTemplate, venue, venueVersion,
 } from '../db/schema.js';
 import { AccessError, type createAccess } from '../identity/access.js';
 import { LeaseError, type Leases } from './leases.js';
@@ -26,6 +27,20 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
   const params = workspaceParamsSchema.extend({ sceneId: z.uuid() });
   const templateParams = workspaceParamsSchema.extend({ templateId: z.uuid() });
   const errors = { 400: errorSchema, 401: errorSchema, 403: errorSchema, 404: errorSchema, 409: errorSchema, 423: errorSchema };
+  api.get('/api/workspaces/:workspaceId/productions/:productionId/venues/:venueId/requirements', { schema: {
+    params: workspaceParamsSchema.extend({ productionId: z.uuid(), venueId: z.uuid() }),
+    response: { 200: materialRequirementsSchema, ...errors },
+  } }, async request => {
+    const { workspaceId, productionId, venueId } = request.params;
+    await access(request, workspaceId);
+    const matching = await db.select({ layout: scene.layout }).from(scene)
+      .innerJoin(adaptation, eq(scene.adaptationId, adaptation.id))
+      .innerJoin(venueVersion, eq(adaptation.venueVersionId, venueVersion.id))
+      .where(and(eq(scene.workspaceId, workspaceId), eq(adaptation.productionId, productionId), eq(venueVersion.venueId, venueId)));
+    if (!matching.length) throw new AccessError(404, 'Produktion an dieser Spielstätte nicht verfügbar.');
+    const [stock] = await db.select({ slabs: inventoryBallast.slabs, straps: inventoryBallast.straps }).from(inventoryBallast).where(eq(inventoryBallast.workspaceId, workspaceId));
+    return materialRequirements(matching.map(row => row.layout), stock ?? EMPTY_BALLAST_STOCK);
+  });
   api.post(`${path}/:sceneId/recover`, { bodyLimit: 128 * 1024, schema: {
     params, body: z.object({ name: z.string().trim().min(1).max(120), layout: layoutSchema,
       sourceSurfaces: z.array(z.object({ id: z.string(), label: z.string().max(120) })).max(250) }).strict(),

@@ -1,3 +1,4 @@
+import { MaterialRequirements } from './MaterialRequirements.js';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { captureTemplateSchema, copySceneSchema, createSceneSchema, instantiateTemplateSchema, renameProductionSchema, renameSceneSchema, renameSceneTemplateSchema, sceneListSchema, sceneSchema, sceneTemplateListSchema, sceneTemplateSchema, sceneTemplateSummarySchema, type Scene, type SceneTemplate, type VenueGeometry } from '../../shared/layout.js';
 import { venueListSchema, venueRecordSchema } from '../../shared/venueLibrary.js';
@@ -456,6 +457,8 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
               <h3 className="venue-block-title">Spielstätte · {venue.venueName}</h3>
               {!readOnly && !editingForm && <button className="quiet" type="button" onClick={() => { dismissForms(); setAddingScene({ productionId: item.productionId, venueVersionId: venue.venueVersionId, productionName: item.productionName, venueName: venue.venueName }); }} disabled={busy}>Neue Szene</button>}
             </div>
+            <MaterialRequirements workspaceId={me.workspace.id} productionId={item.productionId} venueId={venue.venueId}
+              revisionKey={productionScenes.filter(scene => scene.venueId === venue.venueId).map(scene => scene.id).join(',')} />
             <div className="scene-list">{venueScenes.map(scene => <div className="scene-card" key={scene.id}>
               <button className="quiet scene-open" aria-label={`${scene.productionName} · ${scene.name} ${scene.venueName}`} onClick={() => void open(scene.id)} disabled={busy}>
                 {scene.preview && <PlanPreview preview={scene.preview} label={`Grundriss ${scene.name}`} />}

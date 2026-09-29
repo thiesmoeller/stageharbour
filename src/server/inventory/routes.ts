@@ -1,3 +1,4 @@
+import { ballastStockSchema, EMPTY_BALLAST_STOCK } from '../../shared/ballast.js';
 import { randomUUID } from 'node:crypto';
 import { and, eq, sql } from 'drizzle-orm';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
@@ -8,7 +9,7 @@ import { assignPanelSchema, createPanelSchema, finishWorkListSchema, snapshotPan
 import { leaseHolderSchema } from '../../shared/leases.js';
 import { typesOf, wallTypeSchema, type WallElementType } from '../../shared/wall-types.js';
 import type { Database } from '../db/connection.js';
-import { inventoryPanel, inventoryWallType, scene } from '../db/schema.js';
+import { inventoryBallast, inventoryPanel, inventoryWallType, scene } from '../db/schema.js';
 import { AccessError, type createAccess } from '../identity/access.js';
 import { LeaseError, type Leases } from '../productions/leases.js';
 
@@ -30,7 +31,9 @@ export function registerInventoryRoutes(app: FastifyInstance, db: Database, acce
     const types = await store.select().from(inventoryWallType).where(eq(inventoryWallType.workspaceId, workspaceId));
     const typeMap = new Map(types.map(row => [row.id, row.definition]));
     const rows = await store.select().from(inventoryPanel).where(eq(inventoryPanel.workspaceId, workspaceId)).orderBy(inventoryPanel.label);
+    const [ballast] = await store.select({ slabs: inventoryBallast.slabs, straps: inventoryBallast.straps }).from(inventoryBallast).where(eq(inventoryBallast.workspaceId, workspaceId));
     return {
+      ballast: ballast ?? EMPTY_BALLAST_STOCK,
       types: types.map(row => row.definition),
       panels: rows.map(row => {
         const type = typeMap.get(row.typeId);
@@ -54,6 +57,16 @@ export function registerInventoryRoutes(app: FastifyInstance, db: Database, acce
   api.get(path, { schema: { params: workspaceParamsSchema, response: { 200: inventorySchema, ...errors } } }, async request => {
     await access(request, request.params.workspaceId);
     return { lease: await leases.read(request.params.workspaceId, 'inventory', request.params.workspaceId), ...(await readInventory(request.params.workspaceId)) };
+  });
+  api.put(`${path}/ballast`, { schema: { params: workspaceParamsSchema, body: ballastStockSchema, response: { 200: ballastStockSchema, ...errors } } }, async request => {
+    const { workspaceId } = request.params;
+    const { user } = await requireEditor(request, workspaceId);
+    return db.transaction(async tx => {
+      await leases.requireHeld(tx, workspaceId, 'inventory', workspaceId, user.id);
+      await tx.insert(inventoryBallast).values({ workspaceId, ...request.body })
+        .onConflictDoUpdate({ target: inventoryBallast.workspaceId, set: request.body });
+      return request.body;
+    });
   });
   api.post(`${path}/lease`, { schema: { params: workspaceParamsSchema, response: { 200: leaseHolderSchema, ...errors } } }, async request => {
     const { user } = await requireEditor(request, request.params.workspaceId);

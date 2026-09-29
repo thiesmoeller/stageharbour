@@ -227,3 +227,9 @@ export const sceneTemplate = pgTable('scene_template', {
   uniqueIndex('scene_template_workspace_id').on(t.workspaceId, t.id),
   index('scene_template_workspace_idx').on(t.workspaceId),
 ]);
+
+export const inventoryBallast = pgTable('inventory_ballast', {
+  workspaceId: uuid('workspace_id').primaryKey().references(() => workspace.id),
+  slabs: integer('slabs').notNull().default(0),
+  straps: integer('straps').notNull().default(0),
+});

@@ -1,3 +1,4 @@
+import { ballastStockSchema, EMPTY_BALLAST_STOCK } from './ballast.js';
 import { z } from 'zod';
 import { type Layout, type Wall } from './layout.js';
 import { finishAssignmentSchema, physicalFinishSchema, wallSurfacesSchema } from './surfaces.js';
@@ -86,6 +87,7 @@ export const updatePanelSchema = z.strictObject({
 }).refine(body => body.label !== undefined || body.available !== undefined || body.note !== undefined || body.cutouts !== undefined || body.finish !== undefined, 'Label, availability or note required');
 export const assignPanelSchema = z.strictObject({ panelId: z.uuid() });
 export const inventorySchema = z.object({
+  ballast: ballastStockSchema.default(EMPTY_BALLAST_STOCK),
   lease: leaseHolderSchema.nullable(),
   types: z.array(wallTypeSchema),
   panels: z.array(inventoryPanelSchema),
