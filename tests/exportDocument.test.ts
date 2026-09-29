@@ -270,3 +270,65 @@ test('ballast appears in scene schedules and venue material sheets in the render
   assert.match(text, /Saal A/);
   assert.match(text, /Schwer/);
 });
+
+test('wrapped heavy-brace description does not overlap the following slab row in the PDF', async () => {
+  const scene = sceneWith([]);
+  scene.snapshot.layout.braces = [{ ...newBrace(randomUUID(), 1000, 1000), ballast: { mode: 'heavy' } }];
+  const layout = composeDocument({ spec: spec(scene.sceneId), scenes: [scene], productionName: 'Ballast',
+    issuedAtLabel: '29.09.2026', measure: createFontMeasure() });
+  const pdf = await getDocument({
+    data: new Uint8Array(await renderDocument(layout)), disableWorker: true, isEvalSupported: false,
+  } as never).promise;
+  let checked = false;
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const content = await (await pdf.getPage(i)).getTextContent();
+    const items = content.items.filter(item => 'str' in item);
+    const strap = items.find(item => /Spanngurt$/.test(item.str));
+    const slab = items.find(item => item.str.includes('2 Stück'));
+    if (!strap || !slab) continue;
+    checked = true;
+    assert.ok(strap.transform[5]! - slab.transform[5]! >= strap.height,
+      `Wrapped brace text at y=${strap.transform[5]} overlaps slab row at y=${slab.transform[5]} (font height ${strap.height})`);
+  }
+  assert.ok(checked, 'Found brace and slab text on the parts-list page');
+});
+
+test('multiline parts-list rows paginate without clipping, losing rows or overflowing columns', () => {
+  const scene = sceneWith([]);
+  scene.snapshot.layout.braces = Array.from({ length: 70 }, (_, index) => ({ ...newBrace(randomUUID(), 1000, 1000),
+    label: `Stütze-${index}-${'Langtext'.repeat(12)}`, ballast: { mode: 'heavy' as const } }));
+  const measure = createFontMeasure();
+  const layout = composeDocument({ spec: spec(scene.sceneId), scenes: [scene], productionName: 'Ballast',
+    issuedAtLabel: '29.09.2026', measure });
+  const schedules = layout.sheets.filter(sheet => sheet.title.startsWith('Stückliste'));
+  assert.ok(schedules.length > 1);
+  const numbers: string[] = [];
+  for (const sheet of schedules) {
+    const frame = sheet.frames[0]!;
+    for (const item of frame.paint) {
+      if (item.op !== 'text') continue;
+      assert.ok(item.y + item.height <= frame.clip.y + frame.clip.height + 1e-8, 'Row stays within the page');
+      assert.ok(measure(item.text, item.size, item.bold) <= item.width! + 1e-8, 'Even unbroken labels fit the column');
+      if (item.x === frame.clip.x && /^\d+$/.test(item.text)) numbers.push(item.text);
+    }
+  }
+  assert.deepEqual(numbers, Array.from({ length: 70 }, (_, index) => String(index + 1)));
+});
+
+test('narrow custom schedule frames wrap rows and report insufficient space', () => {
+  const scene = sceneWith([]);
+  scene.snapshot.layout.braces = [{ ...newBrace(randomUUID(), 1000, 1000), ballast: { mode: 'heavy' } }];
+  const measure = createFontMeasure();
+  const pages = documentPagesFromTemplate({ pages: [{ id: randomUUID(), name: 'Stückliste', paper: 'a4',
+    frames: [{ id: randomUUID(), kind: 'schedule', x: 0, y: 0, width: 40, height: 20 }] }] }).pages;
+  const layout = composeDocument({ spec: spec(scene.sceneId, { customPages: pages }), scenes: [scene], productionName: 'Ballast',
+    issuedAtLabel: '29.09.2026', measure });
+  const sheet = layout.sheets.find(sheet => sheet.frames.some(frame => frame.kind === 'schedule'))!;
+  assert.ok(sheet.diagnostics.some(message => message.includes('Stückliste passt nicht vollständig')));
+  const frame = sheet.frames.find(frame => frame.kind === 'schedule')!;
+  for (const item of frame.paint) {
+    if (item.op !== 'text') continue;
+    assert.ok(measure(item.text, item.size) <= item.width!);
+    assert.ok(item.y + item.height <= frame.clip.y + frame.clip.height);
+  }
+});
