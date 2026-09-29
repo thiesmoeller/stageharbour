@@ -9,7 +9,7 @@ import {
 } from '../../shared/layout.js';
 import { saveReportTemplatesSchema } from '../../shared/reportTemplate.js';
 import { applyVenueVersion } from '../../shared/scenes.js';
-import { createVenueSchema, publishVenueSchema, renameVenueSchema, venueListSchema, venueRecordSchema } from '../../shared/venueLibrary.js';
+import { createVenueSchema, publishVenueSchema, renameVenueSchema, venueListSchema, venuePlanPreview, venueRecordSchema } from '../../shared/venueLibrary.js';
 import { boundsFromOutline } from '../../shared/venue.js';
 import type { Database } from '../db/connection.js';
 import { adaptation, editingLease, production, scene, venue, venueReference, venueVersion } from '../db/schema.js';
@@ -182,8 +182,13 @@ export function registerVenueRoutes(
       .from(venue).innerJoin(venueVersion, eq(venueVersion.venueId, venue.id))
       .where(eq(venue.workspaceId, workspaceId))
       .orderBy(venue.id, desc(venueVersion.createdAt), desc(venueVersion.id));
-    return rows.map(row => ({ id: row.id, name: row.name, venueVersionId: row.venueVersionId, width: row.geometry.width, depth: row.geometry.depth }))
-      .sort((a, b) => a.name.localeCompare(b.name, 'de'));
+    return rows.map(row => {
+      const geometry = venueGeometrySchema.parse(row.geometry);
+      return {
+        id: row.id, name: row.name, venueVersionId: row.venueVersionId,
+        width: geometry.width, depth: geometry.depth, preview: venuePlanPreview(geometry),
+      };
+    }).sort((a, b) => a.name.localeCompare(b.name, 'de'));
   });
   api.get(`${venuesPath}/:venueId`, { schema: { params: venueParams, response: { 200: venueRecordSchema, ...errors } } }, async request => {
     await access(request, request.params.workspaceId);

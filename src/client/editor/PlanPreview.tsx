@@ -9,6 +9,8 @@ export type PlanPreviewData = {
   /** Plan millimetres of the crop origin (defaults to venue 0,0). */
   originX?: number;
   originY?: number;
+  /** Hall footprint; when set, drawn instead of the axis-aligned floor rectangle. */
+  outline?: { x: number; y: number }[];
   walls: { corners: { x: number; y: number }[] }[];
   platforms: { outline: { x: number; y: number }[] }[];
 };
@@ -56,8 +58,11 @@ export function PlanPreview({ preview, label }: { preview: PlanPreviewData; labe
   const top = -(originY + preview.depth) - pad;
   const width = preview.width + pad * 2;
   const height = preview.depth + pad * 2;
+  const floor = preview.outline?.length
+    ? <polygon className="plan-preview-floor" points={preview.outline.map(point => `${point.x},${-point.y}`).join(' ')} />
+    : <rect x={originX} y={-(originY + preview.depth)} width={preview.width} height={preview.depth} className="plan-preview-floor" />;
   return <svg className="plan-preview" role="img" aria-label={label} viewBox={`${left} ${top} ${width} ${height}`} preserveAspectRatio="xMidYMid meet">
-    <rect x={originX} y={-(originY + preview.depth)} width={preview.width} height={preview.depth} className="plan-preview-floor" />
+    {floor}
     {preview.platforms.map((platform, index) =>
       <polygon key={`p-${index}`} className="plan-preview-platform"
         points={platform.outline.map(point => `${point.x},${-point.y}`).join(' ')} />)}

@@ -41,10 +41,18 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
 .plan-preview-floor { fill: #f7f9f5; stroke: #9aa897; stroke-width: 40; }
 .plan-preview-wall { fill: #315d49; stroke: #244d42; stroke-width: 20; }
 .plan-preview-platform { fill: rgba(113, 132, 105, 0.35); stroke: #718469; stroke-width: 24; }
-.venue-card-wrap { display: flex; flex-direction: column; gap: 6px; }
-.venue-card-wrap .venue-card-art { display: block; width: 100%; height: 88px; }
-.venue-card-wrap .venue-card-art .plan-preview { width: 100%; height: 100%; }
-.venue-card-wrap > .quiet { align-self: flex-start; }
+.venue-card-wrap {
+  display: flex; flex-direction: column; gap: 10px; min-width: 0;
+  padding: 12px; border: 1px solid var(--ui-line); border-radius: 10px; background: #fff;
+}
+.venue-card-wrap:hover { border-color: #9cb7b4; }
+.venue-card-wrap .venue-card-art {
+  display: block; width: 100%; height: 160px; margin: 0;
+  background: #eef2ec; border: 1px solid #d5ddd2; border-radius: 6px; overflow: hidden;
+}
+.venue-card-wrap .venue-card-art .plan-preview { width: 100%; height: 100%; background: transparent; border: 0; border-radius: 0; }
+.venue-card-wrap > .venue-card-actions { display: flex; flex-wrap: wrap; gap: 4px; padding-top: 2px; border-top: 1px solid var(--ui-line); }
+.venue-card-wrap > .venue-card-actions .quiet { padding: 5px 10px; font-size: 12px; border-color: transparent; }
 .workspace-management { margin-top: 32px; }
 .workspace-management .members { border-color: var(--ui-line); }
 /* Once a document is open, the viewport belongs to the editor. */
@@ -306,12 +314,16 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
 .scene-actions > summary::-webkit-details-marker { display: none; }
 .scene-actions[open] > summary { margin-bottom: 6px; }
 .scene-actions > button { display: block; margin: 2px 0; padding: 5px 10px; font-size: 12px; border-color: transparent; }
-.venue-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; margin-top: 24px; }
-.venue-card { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; background: #fff; border-color: var(--ui-line); padding: 20px; text-align: left; }
-.venue-card-art { display: grid; place-items: center; width: 100%; height: 110px; background: repeating-linear-gradient(0deg, transparent 0 19px, #dce5e3 19px 20px), repeating-linear-gradient(90deg, #f4f8f7 0 19px, #dce5e3 19px 20px); border-radius: 5px; margin-bottom: 8px; }
-.venue-card-art svg { width: 70px; height: 70px; color: #44796a; }
-.venue-card > span:not(.venue-card-art) { font-size: 12px; font-weight: 400; }
-.venue-card .venue-card-action { color: #286a62; margin-top: 12px; }
+.venue-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 16px; margin-top: 24px; }
+.venue-card {
+  display: flex; flex-direction: column; align-items: stretch; gap: 10px;
+  width: 100%; padding: 0; background: transparent; border-color: transparent; text-align: left;
+}
+.venue-card:hover { background: transparent; border-color: transparent; }
+.venue-card-copy { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 0 2px; }
+.venue-card-copy strong { font-size: 15px; overflow-wrap: anywhere; }
+.venue-card-copy > span { font-size: 12px; font-weight: 400; color: var(--ui-muted); }
+.venue-card .venue-card-action { color: #286a62; margin-top: 2px; }
 .venue-workspace .document-kind { margin-left: auto; }
 .venue-independence { display: none; }
 .lease-banner, .venue-workspace > p[role=status] {

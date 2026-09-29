@@ -145,13 +145,19 @@ export function Venues({ me, onDirty, venueId }: { me: Me; onDirty: (dirty: bool
     {busy && <p role="status">Spielstätten werden geladen …</p>}
     {!busy && !error && !venues.length && <p className="muted">Noch keine Spielstätten vorhanden. Eine Spielstätte ist unabhängig von einer Produktion oder Szene.</p>}
     <div className="venue-cards">{venues.map(item => <div className="venue-card-wrap" key={item.id}>
-      <button className="venue-card quiet" disabled={busy} onClick={() => void open(item.id)}>
+      <button className="venue-card quiet" disabled={busy} onClick={() => void open(item.id)}
+        aria-label={`${item.name} · ${readOnly ? 'Spielstätte ansehen' : 'Spielstätte gestalten'}`}>
         <span className="venue-card-art" aria-hidden="true">
-          <PlanPreview preview={{ width: item.width, depth: item.depth, walls: [], platforms: [] }} label={`Grundriss ${item.name}`} />
+          <PlanPreview
+            preview={item.preview ?? { width: item.width, depth: item.depth, walls: [], platforms: [] }}
+            label={`Grundriss ${item.name}`}
+          />
         </span>
-        <strong>{item.name}</strong>
-        <span>{(item.width / 1000).toLocaleString('de-DE')} × {(item.depth / 1000).toLocaleString('de-DE')} m</span>
-        <span className="venue-card-action">{readOnly ? 'Spielstätte ansehen' : 'Spielstätte gestalten'} →</span>
+        <span className="venue-card-copy">
+          <strong>{item.name}</strong>
+          <span>{(item.width / 1000).toLocaleString('de-DE')} × {(item.depth / 1000).toLocaleString('de-DE')} m</span>
+          <span className="venue-card-action">{readOnly ? 'Spielstätte ansehen' : 'Spielstätte gestalten'} →</span>
+        </span>
       </button>
       {!readOnly && renamingId === item.id && <form className="create-plan venue-rename" onSubmit={event => void rename(event, item.id)}>
         <label htmlFor={`rename-venue-${item.id}`}>Neuer Name</label>
@@ -161,7 +167,7 @@ export function Venues({ me, onDirty, venueId }: { me: Me; onDirty: (dirty: bool
           <button type="button" className="quiet" disabled={busy} onClick={() => setRenamingId(undefined)}>Abbrechen</button>
         </div>
       </form>}
-      {!readOnly && <div className="form-actions">
+      {!readOnly && renamingId !== item.id && <div className="venue-card-actions">
         <button className="quiet" type="button" disabled={busy} onClick={() => setRenamingId(item.id)}>Umbenennen</button>
         <button className="quiet" type="button" disabled={busy} onClick={() => void remove(item.id, item.name)}>Löschen</button>
       </div>}
