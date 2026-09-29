@@ -15,7 +15,7 @@ export function BraceLayer({ braces, selectedId, groupedIds, preview, readOnly, 
     const overlap = overlappingIds?.has(brace.id);
     const halfW = brace.footprintWidth / 2;
     const halfD = brace.footprintDepth / 2;
-    return <g key={brace.id} data-testid={`brace-${brace.id}`} aria-label={brace.label}
+    return <g key={brace.id} data-print-layer="braces" data-print-name={brace.label} data-testid={`brace-${brace.id}`} aria-label={brace.label}
       className={[readOnly ? '' : 'draggable-wall', overlap ? 'plan-overlap' : ''].filter(Boolean).join(' ') || undefined}
       transform={`translate(${brace.x} ${-brace.y}) rotate(${-brace.rotation})`} onPointerDown={event => onPointerDown(event, brace)}>
       <rect x={-halfW} y={-halfD} width={brace.footprintWidth} height={brace.footprintDepth}
@@ -26,8 +26,8 @@ export function BraceLayer({ braces, selectedId, groupedIds, preview, readOnly, 
       <line x1={0} y1={-halfD} x2={0} y2={halfD} stroke="#a48454" strokeWidth="2" vectorEffect="non-scaling-stroke" />
       {display.showObjectNames && <text y={-halfD - 80} textAnchor="middle" fontSize="150" pointerEvents="none">{brace.label}</text>}
       {display.showDimensions && <>
-        <text y={halfD + 160} textAnchor="middle" fontSize="130" pointerEvents="none">{brace.footprintWidth} × {brace.footprintDepth} mm</text>
-        <text y={halfD + 310} textAnchor="middle" fontSize="130" pointerEvents="none">{brace.height} mm</text>
+        <text data-print-layer="dimensions" y={halfD + 160} textAnchor="middle" fontSize="130" pointerEvents="none">{brace.footprintWidth} × {brace.footprintDepth} mm</text>
+        <text data-print-layer="dimensions" y={halfD + 310} textAnchor="middle" fontSize="130" pointerEvents="none">{brace.height} mm</text>
       </>}
     </g>;
   });

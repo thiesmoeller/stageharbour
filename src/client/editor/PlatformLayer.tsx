@@ -52,7 +52,7 @@ export function PlatformLayer({
   return <g aria-label="Ebenen">
     {venuePlatforms.map(platform => {
       const caption = platformCaption(platform, display);
-      return <g key={platform.id} data-testid={`venue-platform-${platform.id}`}>
+      return <g key={platform.id} data-print-layer="platforms" data-print-name={platform.label} data-testid={`venue-platform-${platform.id}`}>
         <path d={path(platform.outline)} fill={platformFill(platform, false)} stroke="#5a6e52" strokeWidth="2" vectorEffect="non-scaling-stroke" pointerEvents="none" />
         <StageDeckSeams platform={platform} />
         {caption && <text x={platform.outline.reduce((sum, point) => sum + point.x, 0) / platform.outline.length}
@@ -65,7 +65,7 @@ export function PlatformLayer({
       const chosen = selectedId === platform.id || platforms.has(platform.id);
       const overlap = overlappingIds?.has(platform.id);
       const caption = platformCaption(platform, display);
-      return <g key={platform.id} data-testid={`platform-${platform.id}`}
+      return <g key={platform.id} data-print-layer="platforms" data-print-name={platform.label} data-testid={`platform-${platform.id}`}
         className={[readOnly ? undefined : 'draggable-wall', overlap ? 'plan-overlap' : undefined].filter(Boolean).join(' ') || undefined}
         onPointerDown={event => {
           if (onPlatformPointerDown) onPlatformPointerDown(event, platform);
@@ -80,7 +80,7 @@ export function PlatformLayer({
     {[...venueStairs.map(stair => ({ stair, movable: false })), ...layoutStairs.map(stair => ({ stair, movable: true }))].map(({ stair, movable }) => {
       const chosen = selectedId === stair.id || !!selectedMemberIds?.has(`stair:${stair.id}`);
       const overlap = overlappingIds?.has(stair.id);
-      return <g key={stair.id} data-testid={`${movable ? 'stair' : 'venue-stair'}-${stair.id}`}
+      return <g key={stair.id} data-print-layer="platforms" data-print-name={stair.label} data-testid={`${movable ? 'stair' : 'venue-stair'}-${stair.id}`}
         className={[movable ? 'draggable-wall' : undefined, overlap ? 'plan-overlap' : undefined].filter(Boolean).join(' ') || undefined}
         transform={`translate(${stair.x} ${-stair.y}) rotate(${-stair.rotation})`}
         onPointerDown={movable ? event => {
@@ -91,7 +91,7 @@ export function PlatformLayer({
           fill={chosen ? '#d5decc' : '#e8efe3'} stroke={chosen ? '#b67c35' : '#718469'}
           strokeWidth="2" vectorEffect="non-scaling-stroke" />
         {display.showObjectNames && <text y="40" textAnchor="middle" fontSize="140" pointerEvents="none">{stair.label}</text>}
-        {display.showDimensions && <text y="200" textAnchor="middle" fontSize="120" pointerEvents="none">{stair.width} × {stair.run} mm</text>}
+        {display.showDimensions && <text data-print-layer="dimensions" y="200" textAnchor="middle" fontSize="120" pointerEvents="none">{stair.width} × {stair.run} mm</text>}
       </g>;
     })}
   </g>;

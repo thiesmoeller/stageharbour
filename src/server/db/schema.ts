@@ -3,6 +3,8 @@ import type { ConstructionSnapshot } from '../../shared/export.js';
 import type { ConstructionPackage } from '../../shared/package.js';
 import type { Layout, VenueGeometry } from '../../shared/layout.js';
 import type { LeaseKind } from '../../shared/leases.js';
+import type { PhysicalFinish } from '../../shared/surfaces.js';
+import type { Opening } from '../../shared/wall-types.js';
 import type { WallElementType } from '../../shared/wall-types.js';
 import type { AssetDefinition } from '../../shared/assets.js';
 
@@ -208,6 +210,8 @@ export const inventoryPanel = pgTable('inventory_panel', {
   id: uuid('id').primaryKey(), workspaceId: uuid('workspace_id').notNull(),
   typeId: uuid('type_id').notNull(), label: text('label').notNull(),
   available: boolean('available').notNull().default(true), note: text('note'),
+  cutouts: jsonb('cutouts').$type<Opening[]>().notNull().default([]),
+  currentFinish: jsonb('current_finish').$type<PhysicalFinish>(),
 }, t => [
   uniqueIndex('inventory_panel_workspace_id').on(t.workspaceId, t.id),
   uniqueIndex('inventory_panel_workspace_label').on(t.workspaceId, t.label),

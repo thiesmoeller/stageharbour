@@ -117,7 +117,7 @@ function InventoryTypesStock({ workspaceId, readOnly }: { workspaceId: string; r
     {!readOnly && !holding && <div className="form-actions">
       <button type="button" onClick={() => void acquire()} disabled={busy}>Wandtypen bearbeiten</button>
     </div>}
-    <fieldset disabled={!holding || busy || readOnly}>
+    <fieldset disabled={busy}>
       <WallTypePanel
         types={types}
         selectedId={selectedId}

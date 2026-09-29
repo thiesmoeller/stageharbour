@@ -427,3 +427,48 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
   .export-workspace-body.panel-settings .export-workspace-preview, .export-workspace-body.panel-settings .export-thumb-rail { display: none; }
   .export-workspace-body.panel-preview .export-workspace-settings { display: none; }
 }
+
+/* Browse productions, then their scene layouts. */
+.workspace-navigation { gap: 6px; margin: 14px 0 24px; padding: 6px; background: #edf1ef; border-radius: 12px; }
+.workspace-navigation button { padding: 12px 16px; background: transparent; border-color: transparent; border-radius: 8px; }
+.workspace-navigation [aria-current=page] { background: #fff; box-shadow: 0 2px 5px #203c3610; border-color: #b7ccc5; }
+.overview-tools { display: flex; align-items: end; gap: 16px; flex-wrap: wrap; }
+.overview-tools label { flex: 1 1 260px; margin: 0; }
+.overview-tools input { margin-top: 6px; }
+.production-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: 12px; margin: 18px 0; }
+.production-tile { display: flex; flex-direction: column; text-align: left; gap: 8px; padding: 14px; min-width: 0; background: #fff; }
+.production-tile .plan-preview { width: 100%; height: 120px; }
+.production-tile strong { overflow-wrap: anywhere; }
+.production-tile span { font-size: 12px; color: var(--ui-muted); }
+.production-tile[aria-pressed=true], .wall-type-gallery button[aria-pressed=true] { border-color: #286a62; box-shadow: inset 0 0 0 1px #286a62; background: #edf5f2; }
+.plans .scene-list { grid-template-columns: repeat(auto-fill, minmax(min(100%, 285px), 1fr)); align-items: start; }
+.plans .scene-card { min-width: 0; align-items: stretch; gap: 6px; }
+.plans .scene-card .scene-open { flex-direction: column; align-items: stretch; gap: 12px; padding: 0; background: transparent; }
+.plans .scene-card .plan-preview { width: 100%; height: 180px; }
+.plans .scene-card .scene-open-copy { padding: 6px 2px; overflow-wrap: anywhere; }
+.stock-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 16px; list-style: none; padding: 0; }
+.inventory-list.stock-cards > li { display: flex; flex-direction: column; align-items: stretch; gap: 8px; padding: 18px; border: 1px solid var(--ui-line); border-radius: 10px; background: #fff; min-width: 0; }
+.stock-cards > li:has(form) { grid-column: 1 / -1; }
+.stock-cards p { margin: 4px 0; }
+.panel-faces { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; background: #f5f7f8; border-radius: 6px; padding: 12px; }
+.wall-type-preview { display: block; width: 100%; height: 180px; margin: 8px auto; }
+.wall-type-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin: 16px 0; }
+.wall-type-gallery button { display: flex; flex-direction: column; align-items: center; min-width: 0; padding: 10px; gap: 6px; text-align: center; }
+.wall-type-gallery .wall-type-preview { height: 120px; }
+.wall-type-gallery span { font-size: 11px; color: var(--ui-muted); }
+.finish-work { border-top: 1px solid var(--ui-line); padding-top: 10px; }
+.finish-work summary { cursor: pointer; font-size: 13px; }
+@media (max-width: 760px) {
+  .workspace-navigation { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .workspace-navigation button { padding: 10px; }
+  .workspace-navigation button span { display: none; }
+  .production-gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .production-tile .plan-preview { height: 85px; }
+}
+.plans .section-heading { flex-wrap: wrap; gap: 10px; }
+.plans .section-heading h2, .plans .section-heading h3 { min-width: 0; overflow-wrap: anywhere; }
+.panel-faces > span { text-align: center; font-size: 11px; color: var(--ui-muted); }
+.production-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 20px; align-items: start; }
+.production-details.focused { grid-template-columns: minmax(0, 1fr); }
+.production-details > .production-block { min-width: 0; margin-top: 8px; padding: 16px; border: 1px solid var(--ui-line); border-radius: 10px; }
+.production-details > .production-block > .section-heading { align-items: flex-start; }

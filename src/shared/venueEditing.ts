@@ -90,7 +90,7 @@ export function pasteVenueSelection(
       const copy = { ...item, id: ids.get(item.id)! };
       if ('supportingSurfaceId' in copy && copy.supportingSurfaceId) copy.supportingSurfaceId = ids.get(copy.supportingSurfaceId) ?? copy.supportingSurfaceId;
       if ('lowerSurfaceId' in copy) { copy.lowerSurfaceId = ids.get(copy.lowerSurfaceId) ?? copy.lowerSurfaceId; copy.upperSurfaceId = ids.get(copy.upperSurfaceId) ?? copy.upperSurfaceId; }
-      if ('panelId' in copy && !clipboard.cut) { delete copy.panelId; delete copy.assemblyNumber; }
+      if ('panelId' in copy && !clipboard.cut) { delete copy.panelId; delete copy.finishAssignment; delete copy.assemblyNumber; }
       return copy;
     }) ?? [];
     Object.assign(next, { [key]: [...venue[key] ?? [], ...added] });

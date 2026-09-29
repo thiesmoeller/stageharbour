@@ -1,21 +1,26 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import {
   GROUP_DOOR_STOCK_NAME, GROUP_WALL_TYPE_KINDS, GROUP_WALL_TYPE_NAMES, REPORTED_PANEL_COUNTS, groupWallType, groupWallTypeSizeLabel,
-  inventoryPanelSchema, inventorySchema, inventoryWarnings,
+  finishWorkListSchema, type FinishWork, inventoryPanelSchema, inventorySchema, inventoryWarnings,
   placementType, typesCompatible, type GroupWallTypeKind, type InventoryPanel,
 } from '../../shared/inventory.js';
 import { useEditingLease } from './useEditingLease.js';
 import type { Layout, Wall } from '../../shared/layout.js';
 import { typesOf, type WallElementType } from '../../shared/wall-types.js';
+import { PhysicalPanelForm } from './PhysicalPanelForm.js';
+import { WallTypePreview, finishLabel } from './WallTypePreview.js';
+import { askConfirm } from '../ConfirmDialog.js';
 import { ApiError, request } from '../api.js';
 
-/** Stock CRUD for the Bibliothek Plattenbestand tab. */
+/** Stock CRUD for the Bestand Plattenbestand tab. */
 export function InventoryStock({ workspaceId, layout, readOnly, onPanels }: {
   workspaceId: string; layout: Layout; readOnly: boolean;
   onPanels: (panels: InventoryPanel[]) => void;
 }) {
   const [panels, setPanels] = useState<InventoryPanel[]>([]);
   const [types, setTypes] = useState<WallElementType[]>([]);
+  const [work, setWork] = useState<FinishWork[]>([]);
+  const [query, setQuery] = useState('');
   const [editingId, setEditingId] = useState<string>();
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -30,6 +35,7 @@ export function InventoryStock({ workspaceId, layout, readOnly, onPanels }: {
   async function load() {
     const data = inventorySchema.parse(await request(base));
     applyInventory(data);
+    setWork(finishWorkListSchema.parse(await request(`${base}/finish-work`)));
     return data;
   }
   useEffect(() => {
@@ -39,6 +45,8 @@ export function InventoryStock({ workspaceId, layout, readOnly, onPanels }: {
         const data = inventorySchema.parse(await request(base));
         if (cancelled) return;
         applyInventory(data);
+        const pending = finishWorkListSchema.parse(await request(`${base}/finish-work`));
+        if (!cancelled) setWork(pending);
       } catch {
         if (!cancelled) setError('Plattenbestand konnte nicht geladen werden.');
       }
@@ -88,15 +96,10 @@ export function InventoryStock({ workspaceId, layout, readOnly, onPanels }: {
     } catch { setError('Verfügbarkeit konnte nicht geändert werden.'); }
     finally { setBusy(false); }
   }
-  async function savePanel(event: FormEvent<HTMLFormElement>, panel: InventoryPanel) {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const label = String(data.get('label') ?? '').trim();
-    const noteRaw = String(data.get('note') ?? '').trim();
-    const note = noteRaw || null;
+  async function savePanel(body: Parameters<Parameters<typeof PhysicalPanelForm>[0]['onSave']>[0], panel: InventoryPanel) {
     setBusy(true); setError('');
     try {
-      const updated = inventoryPanelSchema.parse(await request(`${base}/panels/${panel.id}`, { label, note }, 'PATCH'));
+      const updated = inventoryPanelSchema.parse(await request(`${base}/panels/${panel.id}`, body, 'PATCH'));
       setPanels(current => {
         const next = current.map(item => item.id === updated.id ? updated : item);
         onPanels(next);
@@ -105,35 +108,57 @@ export function InventoryStock({ workspaceId, layout, readOnly, onPanels }: {
       setEditingId(undefined);
     } catch (caught) {
       setError(caught instanceof ApiError && caught.status === 409
-        ? 'Dieses Plattenetikett ist bereits vergeben.'
-        : 'Platte konnte nicht gespeichert werden.');
+        ? caught.message
+        : caught instanceof ApiError ? caught.message : 'Platte konnte nicht gespeichert werden.');
     } finally { setBusy(false); }
+  }
+  async function removePanel(panel: InventoryPanel) {
+    if (!await askConfirm({ title: 'Platte löschen?', message: `„${panel.label}“ aus dem Bestand löschen? Die Platte darf keiner Szene mehr zugewiesen sein.`, confirmLabel: 'Platte löschen', danger: true })) return;
+    setBusy(true); setError('');
+    try { await request(`${base}/panels/${panel.id}`, undefined, 'DELETE'); await load(); }
+    catch (caught) { setError(caught instanceof ApiError ? caught.message : 'Platte konnte nicht gelöscht werden.'); }
+    finally { setBusy(false); }
+  }
+  async function completeFinish(item: FinishWork, panel: InventoryPanel) {
+    if (!await askConfirm({ title: 'Oberfläche fertiggestellt?', message: `Den bei der Zuweisung gespeicherten Entwurf für ${panel.label} als tatsächlich ausgeführte Oberfläche übernehmen? Der bisherige Bestandszustand wird ersetzt.`, confirmLabel: 'Arbeit abgeschlossen' })) return;
+    setBusy(true); setError('');
+    try {
+      await request(`${base}/panels/${panel.id}/finish-complete`, { sceneId: item.sceneId, wallId: item.wallId, assignmentId: item.assignment.id });
+      await load();
+    } catch (caught) { setError(caught instanceof ApiError ? caught.message : 'Oberfläche konnte nicht bestätigt werden.'); }
+    finally { setBusy(false); }
   }
   const warnings = inventoryWarnings(layout, panels);
   const catalogueOptions = types.filter(type => !GROUP_WALL_TYPE_KINDS.includes(type.id as GroupWallTypeKind));
   return <div className="inventory-panel">
     <h3>Plattenbestand</h3>
-    <p className="muted">Gemeldeter Plattenbestand: {REPORTED_PANEL_COUNTS.plain} {GROUP_WALL_TYPE_NAMES.plain}, {REPORTED_PANEL_COUNTS.door} {GROUP_DOOR_STOCK_NAME}, {REPORTED_PANEL_COUNTS.window} {GROUP_WALL_TYPE_NAMES.window}, {REPORTED_PANEL_COUNTS.arch} {GROUP_WALL_TYPE_NAMES.arch} ({REPORTED_PANEL_COUNTS.plain + REPORTED_PANEL_COUNTS.door + REPORTED_PANEL_COUNTS.window + REPORTED_PANEL_COUNTS.arch} Platten), zuzüglich Halbe Wände 600×2400×250 mm. Etiketten hier sind Beispiele. Der Bogen hat gerade Laibungen und einen Halbkreis oben.</p>
+    <p className="muted">Gemeldeter Plattenbestand: {REPORTED_PANEL_COUNTS.plain} {GROUP_WALL_TYPE_NAMES.plain}, {REPORTED_PANEL_COUNTS.door} {GROUP_DOOR_STOCK_NAME}, {REPORTED_PANEL_COUNTS.window} {GROUP_WALL_TYPE_NAMES.window}, {REPORTED_PANEL_COUNTS.arch} {GROUP_WALL_TYPE_NAMES.arch} ({REPORTED_PANEL_COUNTS.plain + REPORTED_PANEL_COUNTS.door + REPORTED_PANEL_COUNTS.window + REPORTED_PANEL_COUNTS.arch} Platten), zuzüglich Halbe Wände 600×2400×250 mm. Erfassen Sie hier die tatsächlichen Plattenetiketten. Der Bogen hat gerade Laibungen und einen Halbkreis oben.</p>
     {warnings.length > 0 && <ul data-testid="inventory-warnings" role="status">{warnings.map((warning, index) => <li key={`${warning.kind}-${warning.wallId ?? index}`} data-kind={warning.kind}>{warning.message}</li>)}</ul>}
     {error && <p role="alert" className="error">{error}</p>}
     {lease.message && <p role="status">{lease.message}</p>}
     {!readOnly && !holding && <div className="form-actions"><button type="button" onClick={() => void acquire()} disabled={busy}>Plattenbestand bearbeiten</button></div>}
     <p className="muted">Verfügbar: {panels.filter(panel => panel.available).length} von {panels.length} Platten.</p>
-    {panels.length > 0 && <ul className="inventory-list">{panels.map(panel => <li key={panel.id}>
-      {editingId === panel.id ? <form data-testid={`edit-panel-${panel.id}`} onSubmit={event => void savePanel(event, panel)}><fieldset disabled={busy}>
-        <label htmlFor={`edit-panel-label-${panel.id}`}>Plattenetikett</label>
-        <input id={`edit-panel-label-${panel.id}`} name="label" maxLength={120} required defaultValue={panel.label} />
-        <label htmlFor={`edit-panel-note-${panel.id}`}>Reparaturhinweis</label>
-        <input id={`edit-panel-note-${panel.id}`} name="note" maxLength={500} defaultValue={panel.note ?? ''} />
-        <div className="form-actions">
-          <button type="submit">Speichern</button>
-          <button type="button" className="quiet" onClick={() => setEditingId(undefined)}>Abbrechen</button>
-        </div>
-      </fieldset></form> : <>
-        <label><input type="checkbox" checked={panel.available} disabled={!holding || busy} onChange={event => void setAvailable(panel, event.target.checked)} /> {panel.label} · {panel.type.name}{panel.note ? ` · ${panel.note}` : ''}</label>
+    <label htmlFor="stock-search">Platten suchen</label><input id="stock-search" type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Etikett, Wandtyp, Reparatur oder Tapete" />
+    {!panels.length && <p className="muted">Noch keine Platten erfasst. Beginnen Sie mit dem Etikett einer echten Platte.</p>}
+    <ul className="inventory-list stock-cards">{panels.filter(panel => `${panel.label} ${panel.type.name} ${panel.note ?? ''} ${panel.currentFinish?.description ?? ''}`.toLocaleLowerCase('de').includes(query.toLocaleLowerCase('de'))).map(panel => <li key={panel.id}>
+      {editingId === panel.id ? <PhysicalPanelForm panel={panel} disabled={busy || !holding} onSave={body => void savePanel(body, panel)} onCancel={() => setEditingId(undefined)} /> : <>
+        <div className="panel-faces"><WallTypePreview type={panel.type} cutouts={panel.cutouts} surfaces={panel.currentFinish?.surfaces} label={`${panel.label} Vorderseite`} /><WallTypePreview type={panel.type} cutouts={panel.cutouts} surfaces={panel.currentFinish?.surfaces} label={`${panel.label} Rückseite`} side="back" /><span>Vorderseite</span><span>Rückseite</span></div>
+        <strong>{panel.label} · {panel.type.name}</strong>
+        <span className="muted">{panel.type.width} × {panel.type.height} × {panel.type.thickness} mm · {panel.cutouts?.length ?? 0} Technikausschnitte</span>
+        <label><input type="checkbox" checked={panel.available} disabled={!holding || busy} onChange={event => void setAvailable(panel, event.target.checked)} /> Verfügbar</label>
+        {panel.note && <p>{panel.note}</p>}
+        <p>{panel.currentFinish ? `Vorderseite: ${finishLabel(panel.currentFinish.surfaces.front?.full ?? panel.currentFinish.surfaces.front?.lower)} · Rückseite: ${finishLabel(panel.currentFinish.surfaces.back?.full ?? panel.currentFinish.surfaces.back?.lower)}` : 'Oberfläche noch nicht erfasst'}</p>
+        {panel.currentFinish?.description && <p>{panel.currentFinish.description}</p>}
         {holding && <button type="button" className="quiet" disabled={busy} data-testid={`edit-panel-button-${panel.id}`} onClick={() => setEditingId(panel.id)}>Bearbeiten</button>}
+        {holding && <button type="button" className="quiet" disabled={busy} onClick={() => void removePanel(panel)}>Platte löschen</button>}
+        {work.filter(item => item.panelId === panel.id).map(item => <details key={`${item.sceneId}-${item.wallId}`} className="finish-work">
+          <summary>{panel.currentFinish?.assignmentId === item.assignment.id ? 'Ausgeführt' : 'Geplante Oberfläche'} · {item.sceneName} · {item.wallLabel}</summary>
+          <p className="muted">Entwurf zum Zeitpunkt der Plattenzuweisung. Spätere Szenenänderungen verändern diesen Auftrag nicht.</p>
+          <div className="panel-faces"><WallTypePreview type={panel.type} cutouts={panel.cutouts} surfaces={item.assignment.surfaces} label="Geplante Vorderseite" /><WallTypePreview type={panel.type} cutouts={panel.cutouts} surfaces={item.assignment.surfaces} label="Geplante Rückseite" side="back" /><span>Vorderseite</span><span>Rückseite</span></div>
+          <button type="button" disabled={!holding || busy || panel.currentFinish?.assignmentId === item.assignment.id} onClick={() => void completeFinish(item, panel)}>Arbeit abgeschlossen</button>
+        </details>)}
       </>}
-    </li>)}</ul>}
+    </li>)}</ul>
     {holding && <form onSubmit={event => void create(event)}><fieldset disabled={busy}>
       <label htmlFor="panel-label">Plattenetikett</label>
       <input id="panel-label" name="label" maxLength={120} required placeholder="Beispiel-P01" />
@@ -165,9 +190,9 @@ export function InventoryAssignment({ layout, selectedWall, panels, readOnly, on
     <label htmlFor="panel-assignment">Platte zuweisen</label>
     <select id="panel-assignment" value={selectedWall.panelId ?? ''} disabled={readOnly} onChange={event => event.target.value ? onAssign(event.target.value) : onUnassign()}>
       <option value="">Keine Platte</option>
-      {assignable.map(panel => <option key={panel.id} value={panel.id}>{panel.label}{panel.available ? '' : ' (nicht verfügbar)'}</option>)}
+      {assignable.map(panel => <option key={panel.id} value={panel.id} disabled={panel.id !== selectedWall.panelId && (!panel.available || layout.walls.some(wall => wall.id !== selectedWall.id && wall.panelId === panel.id))}>{panel.label}{panel.available ? '' : ' (nicht verfügbar)'}</option>)}
       {assigned && !assignable.some(panel => panel.id === assigned.id) && <option value={assigned.id}>{assigned.label} (nicht verfügbar)</option>}
     </select>
-    {assigned && <p className="muted">Zugewiesen: {assigned.label}</p>}
+    {assigned && <p className="muted">Zugewiesen: {assigned.label}. Der Oberflächenentwurf ist als Auftrag im Bestand festgehalten. Erst „Arbeit abgeschlossen“ ändert dort den tatsächlichen Zustand. Für einen neuen Auftrag die Zuweisung lösen, speichern und erneut zuweisen.</p>}
   </div>;
 }

@@ -251,3 +251,16 @@ export function applyUniformFinish(finish: SurfaceFinish | undefined): WallSurfa
     edge: finish,
   };
 }
+
+/** Intended finish captured when a physical panel is assigned; independent of later design edits. */
+export const finishAssignmentSchema = z.strictObject({
+  id: z.uuid(), surfaces: wallSurfacesSchema,
+});
+export type FinishAssignment = z.infer<typeof finishAssignmentSchema>;
+export const physicalFinishSchema = z.strictObject({
+  surfaces: wallSurfacesSchema,
+  description: z.string().trim().max(300),
+  confirmedAt: z.iso.datetime(),
+  assignmentId: z.uuid().optional(),
+});
+export type PhysicalFinish = z.infer<typeof physicalFinishSchema>;

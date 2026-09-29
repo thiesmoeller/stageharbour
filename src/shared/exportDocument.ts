@@ -14,6 +14,7 @@ import {
   PAGE_OVERLAP_MM, PAPER_SIZE_MM, type DrawingScale, type PaperSize,
 } from './tiling.js';
 import { measuredOutline } from './venue.js';
+import { planFeatures } from './planFeatures.js';
 
 const name = z.string().trim().min(1).max(120);
 const point = z.strictObject({ x: z.number().finite(), y: z.number().finite() });
@@ -90,6 +91,7 @@ export const exportDocumentSpecSchema = z.strictObject({
   templateId: z.uuid().optional(),
   /** Model millimetres shown in the ground plan. Omitted means the whole drawing. */
   planCrop: frameCropSchema.optional(),
+  planScope: z.enum(['scenery', 'venue']).optional(),
   /** One sheet per saved camera. Empty keeps the automatic construction set without 3D pages. */
   viewCameras: z.array(z.strictObject({
     id: z.uuid(),
@@ -207,8 +209,9 @@ function expand(box: Box, pad: number): Box {
   return { minX: box.minX - pad, minY: box.minY - pad, maxX: box.maxX + pad, maxY: box.maxY + pad };
 }
 
-export function contentBounds(snapshot: ConstructionSnapshot, layers: ExportLayers): Box {
+export function contentBounds(snapshot: ConstructionSnapshot, layers: ExportLayers, scope: 'scenery' | 'venue' = 'scenery'): Box {
   const points: { x: number; y: number }[] = [];
+  if (scope === 'venue') points.push(...measuredOutline(snapshot.venue));
   if (layers.scenery) {
     for (const wall of snapshot.resolvedWalls) points.push(...wall.corners);
     for (const brace of snapshot.resolvedBraces ?? []) points.push(...brace.corners);
@@ -223,10 +226,13 @@ export function contentBounds(snapshot: ConstructionSnapshot, layers: ExportLaye
       points.push(...item.corners);
     }
   }
-  // Venue outline is drawn as context when enabled, but does not enlarge the crop — construction
-  // sheets default to scenery (no empty audience hall). Keep-clear polygons still influence crop.
-  if (layers.venueContext) {
-    for (const zone of snapshot.venue.keepClearZones ?? []) points.push(...zone.polygon);
+  for (const feature of planFeatures(snapshot, layers)) points.push(...feature.points);
+  if (layers.dimensions) for (const item of snapshot.layout.dimensions ?? []) {
+    const dimension = resolveDimension(item, snapshot.venue, snapshot.layout);
+    if (!dimension) continue;
+    const figure = dimensionFigure(dimension);
+    for (const segment of [...figure.extensions, figure.line, ...figure.ticks]) points.push({ x: segment.x1, y: segment.y1 }, { x: segment.x2, y: segment.y2 });
+    points.push(figure.label);
   }
   const box = boxOf(points);
   if (box && box.maxX > box.minX && box.maxY > box.minY) return box;
@@ -377,8 +383,19 @@ function planPaint(
   if (layers.venueContext) {
     const outline = measuredOutline(snapshot.venue);
     paint.push(poly(outline, frame, view, undefined, '#718469', 0.7));
-    for (const zone of snapshot.venue.keepClearZones ?? []) {
-      paint.push(poly(zone.polygon, frame, view, undefined, '#986122', 0.6));
+  }
+  for (const feature of planFeatures(snapshot, layers)) {
+    if (feature.closed) paint.push(poly(feature.points, frame, view, feature.fill, feature.stroke, 0.5));
+    else for (let i = 1; i < feature.points.length; i++) {
+      const a = toPage(feature.points[i - 1]!.x, feature.points[i - 1]!.y, frame, view);
+      const b = toPage(feature.points[i]!.x, feature.points[i]!.y, frame, view);
+      paint.push({ op: 'line', x1: a.x, y1: a.y, x2: b.x, y2: b.y, stroke: feature.stroke, line: 0.5 });
+    }
+    if (feature.label && feature.points.length) {
+      const centre = feature.points.reduce((sum, point) => ({ x: sum.x + point.x / feature.points.length, y: sum.y + point.y / feature.points.length }), { x: 0, y: 0 });
+      const at = toPage(centre.x, centre.y, frame, view);
+      const width = measure(feature.label, 7);
+      paint.push({ op: 'text', x: at.x - width / 2, y: at.y - 2, text: feature.label, size: 7, color: feature.stroke, height: 4, width });
     }
   }
   if (layers.scenery) {
@@ -386,7 +403,7 @@ function planPaint(
       paint.push(poly([...wall.corners], frame, view, '#315d49', '#243f34', 0.5));
       for (const opening of wall.openings ?? []) paint.push(poly([...opening.corners], frame, view, '#ffffff', '#315d49', 0.4));
       const box = boxOf(wall.corners);
-      if (box) identityMarks(wallIdentityLines(wall.assemblyNumber, wall.panelLabel), (box.minX + box.maxX) / 2, (box.minY + box.maxY) / 2, frame, view, measure, paint);
+      if (box && layers.labels) identityMarks(wallIdentityLines(wall.assemblyNumber, wall.panelLabel), (box.minX + box.maxX) / 2, (box.minY + box.maxY) / 2, frame, view, measure, paint);
     }
     for (const brace of snapshot.resolvedBraces ?? []) paint.push(poly([...brace.corners], frame, view, undefined, '#5c6b52', 0.5));
     for (const item of snapshot.resolvedPlaceholders ?? []) {
@@ -400,7 +417,7 @@ function planPaint(
       paint.push(poly([...item.corners], frame, view, undefined, '#8b8478', 0.4));
     }
   }
-  for (const item of snapshot.layout.dimensions ?? []) {
+  if (layers.dimensions) for (const item of snapshot.layout.dimensions ?? []) {
     const dimension = resolveDimension(item, snapshot.venue, snapshot.layout);
     if (!dimension) continue;
     const figure = dimensionFigure(dimension);
@@ -715,10 +732,10 @@ function composeScene(
   const scale = spec.scale;
   const faces = elevationFaces(snapshot);
   const planCrop = spec.planCrop ? orderedCrop(spec.planCrop) : undefined;
-  const orientation = spec.orientation === 'auto' ? chooseOrientation(snapshot, paper, scale, layers, faces, planCrop) : spec.orientation;
+  const fullBounds = contentBounds(snapshot, layers, spec.planScope);
+  const orientation = spec.orientation === 'auto' ? chooseOrientation(snapshot, paper, scale, layers, faces, planCrop ?? fullBounds) : spec.orientation;
   const body = bodyRect(paper, orientation);
   const size = sheetSizeMm(paper, orientation);
-  const fullBounds = contentBounds(snapshot, layers);
   const bounds = planCrop ?? fullBounds;
   const cropped = Boolean(planCrop);
   const { map, rows } = keysFor(snapshot);

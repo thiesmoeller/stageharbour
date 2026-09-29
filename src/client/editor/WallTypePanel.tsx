@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { GROUP_WALL_TYPE_KINDS, GROUP_WALL_TYPE_NAMES, groupWallType, groupWallTypeSizeLabel, type GroupWallTypeKind } from '../../shared/inventory.js';
 import { newDoorOpening, newOpening, newWallType, wallTypeSchema, type DoorHinge, type WallElementType } from '../../shared/wall-types.js';
+import { WallTypePreview } from './WallTypePreview.js';
 import { confirmDiscardPending, usePendingApplyForm } from './usePendingApplyForm.js';
 
 export function WallTypePanel({ types, selectedId, readOnly, onSelect, onCreate, onApply, onPlace, onRemove, onPendingChange }: {
@@ -37,6 +38,7 @@ export function WallTypePanel({ types, selectedId, readOnly, onSelect, onCreate,
       <option value="">Wandtyp auswählen</option>
       {types.map((type, index) => <option key={type.id} value={type.id}>{index + 1}. {type.name}</option>)}
     </select>
+    <div className="wall-type-gallery">{types.map(type => <button type="button" className="quiet" key={type.id} aria-pressed={type.id === selectedId} onClick={() => { void (async () => { if (await confirmDiscardPending(typePending)) onSelect(type.id); })(); }}><WallTypePreview type={type} /><strong>{type.name}</strong><span>{type.width} × {type.height} mm</span></button>)}</div>
     {!readOnly && <>
       <label htmlFor="wall-type-template">Vorlage aus Bestandsarten</label>
       <select id="wall-type-template" value={template} onChange={event => setTemplate(event.target.value as GroupWallTypeKind | '')}>
@@ -61,6 +63,7 @@ function TypeForm({ type, readOnly, onPendingChange, onApply, onPlace, onRemove 
   onApply: (type: WallElementType) => void; onPlace?: (type: WallElementType) => void; onRemove: () => void;
 }) {
   const [openings, setOpenings] = useState(type.openings);
+  const [preview, setPreview] = useState(type);
   const [error, setError] = useState('');
   const { pending, resetKey, markPending, clearPending, discard, formProps } = usePendingApplyForm(onPendingChange);
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -81,7 +84,14 @@ function TypeForm({ type, readOnly, onPendingChange, onApply, onPlace, onRemove 
     if (!result.success) { setError('Bitte prüfen Sie die Außenmaße und ob alle Öffnungen innerhalb der Platte liegen.'); return; }
     setError(''); clearPending(); onApply(result.data);
   }
-  return <form key={resetKey} onSubmit={submit} {...formProps}><fieldset disabled={readOnly}>
+  return <form key={resetKey} onSubmit={submit} {...formProps} onChangeCapture={event => {
+    const data = new FormData(event.currentTarget);
+    const candidate = wallTypeSchema.safeParse({ ...type,
+      ...Object.fromEntries(['width', 'height', 'thickness'].map(key => [key, Number(data.get(key))])),
+      openings: openings.map(opening => ({ ...opening, ...Object.fromEntries(['left', 'sill', 'width', 'height'].map(key => [key, Number(data.get(`${key}-${opening.id}`))])) })),
+    });
+    if (candidate.success) setPreview(candidate.data);
+  }}><fieldset disabled={readOnly}>
     <label htmlFor="wall-type-name">Wandtyp-Bezeichnung</label>
     <input id="wall-type-name" name="name" defaultValue={type.name} maxLength={120} required />
     <div className="numeric-fields">{([
@@ -89,6 +99,7 @@ function TypeForm({ type, readOnly, onPendingChange, onApply, onPlace, onRemove 
     ] as const).map(([key, label]) => <div key={key}><label htmlFor={`wall-type-${key}`}>{label}</label>
       <input id={`wall-type-${key}`} name={key} type="number" step="any" min={1} max={100000} defaultValue={type[key]} required /></div>)}
     </div>
+    <WallTypePreview type={{ ...preview, openings: openings.map(opening => preview.openings.find(item => item.id === opening.id) ?? opening) }} />
     <h4>Öffnungen</h4>
     {openings.map((opening, index) => <div key={opening.id} className="opening-fields">
       <p>{index + 1}. Öffnung</p>
@@ -113,7 +124,7 @@ function TypeForm({ type, readOnly, onPendingChange, onApply, onPlace, onRemove 
     {error && <p role="alert" className="error">{error}</p>}
     {!readOnly && <div className="form-actions">
       <button type="submit">Wandtyp speichern</button>
-      {pending && <button className="quiet" type="button" onClick={() => { setOpenings(type.openings); discard(); }}>Verwerfen</button>}
+      {pending && <button className="quiet" type="button" onClick={() => { setOpenings(type.openings); setPreview(type); discard(); }}>Verwerfen</button>}
       {onPlace && <button className="quiet" type="button" onClick={() => onPlace(type)}>Wandtyp platzieren</button>}
       <button className="quiet" type="button" onClick={onRemove}>Wandtyp löschen</button>
     </div>}

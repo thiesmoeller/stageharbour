@@ -19,7 +19,7 @@ import { playDimensionsSchema } from './dimensionSchema.js';
 import { wallPicturesSchema } from './wallPictures.js';
 import { reportTemplatesSchema } from './reportTemplate.js';
 import { RAL_CODE_PATTERN } from './ral.js';
-import { migrateWallSurfaces, wallSurfacesSchema } from './surfaces.js';
+import { finishAssignmentSchema, migrateWallSurfaces, wallSurfacesSchema } from './surfaces.js';
 import { BRACE_TIMBER_MM } from './braceTransforms.js';
 
 const name = z.string().trim().min(1).max(120);
@@ -48,6 +48,7 @@ export const wallFieldsStoredSchema = z.strictObject({
   /** Inline cutouts when the wall has no wall type (permanent venue shell openings). */
   openings: z.array(openingSchema).max(20).optional(),
   panelId: z.uuid().optional(),
+  finishAssignment: finishAssignmentSchema.optional(),
   supportingSurfaceId: z.uuid().optional(),
   assemblyNumber: z.number().int().positive().max(250).optional(),
   /** @deprecated Prefer surfaces.front — kept for load migration. */
@@ -70,6 +71,7 @@ export const wallFieldsSchema = z.strictObject({
   typeId: z.uuid().optional(),
   openings: z.array(openingSchema).max(20).optional(),
   panelId: z.uuid().optional(),
+  finishAssignment: finishAssignmentSchema.optional(),
   supportingSurfaceId: z.uuid().optional(),
   assemblyNumber: z.number().int().positive().max(250).optional(),
   surfaces: wallSurfacesSchema.optional(),

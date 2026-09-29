@@ -3,7 +3,7 @@ import { measureLineCaption, measureLineMidpoint } from '../../shared/measuremen
 
 /** User-drawn measure callouts on the plan (like CAD dimension tools). */
 export function MeasureLayer({ lines }: { lines: readonly MeasureLine[] }) {
-  return <g className="measure-layer" aria-hidden>
+  return <g data-print-layer="dimensions" className="measure-layer" aria-hidden>
     {lines.map(line => {
       const mid = measureLineMidpoint(line);
       return <g key={line.id} data-testid={`measure-${line.id}`}>

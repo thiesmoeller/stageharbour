@@ -1,3 +1,4 @@
+import { openPlanPrint } from './printPlan.js';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type PointerEvent } from 'react';
 import { z } from 'zod';
 import { applyPlatformFinish, applyWallSurfaces, memberIdsByKind, mixedPropertyValue, MIXED_PROPERTY, selectionPivot } from '../../shared/editing.js';
@@ -150,7 +151,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
         setInventoryPanels(panels);
         setPanelLabels(Object.fromEntries(panels.map(item => [item.id, item.label])));
       })
-      .catch(() => { /* assignment stays empty until Bibliothek loads stock */ });
+      .catch(() => { /* assignment stays empty until Bestand loads stock */ });
     return () => { cancelled = true; };
   }, [workspaceId]);
   const [exportsOpen, setExportsOpen] = useState(false);
@@ -774,7 +775,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
     if (viewMode === 'stage') setViewMode(narrowEditor ? 'plan' : 'split');
     const definition = asset.definition, id = crypto.randomUUID(), x = venue.width / 2, y = venue.depth / 2;
     if (definition.kind === 'wall') {
-      const { typeId: _type, panelId: _panel, assemblyNumber: _assembly, ...template } = definition.template;
+      const { typeId: _type, panelId: _panel, finishAssignment: _finishAssignment, assemblyNumber: _assembly, ...template } = definition.template;
       const wall = { ...template, id, label: asset.name, x, y, rotation: 0, supportingSurfaceId: AUDIENCE_FLOOR_ID };
       const draft = { wall };
       placingRef.current = draft;
@@ -886,6 +887,9 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
         setExportsOpen(open => !open);
         setLibraryOpen(false);
       }}>{exportsOpen ? 'Export schließen' : 'Konstruktionsplan'}</button>
+      {!venueOpen && activeView !== 'stage' && <button type="button" className="quiet" disabled={busyGesture()} onClick={() => {
+        if (svg.current && !openPlanPrint(svg.current, `${initial.productionName} · ${initial.name} · ${venueName}`)) setAssetError('Bitte Pop-ups für die 2D-Druckansicht erlauben.');
+      }}>2D-Ansicht drucken / PDF</button>}
       {!readOnly && <SnapToggle enabled={snapEnabled} onChange={setSnapEnabled} />}
 
     </div>
@@ -1027,14 +1031,14 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
         <rect data-testid="marquee-target"
           x={viewCx - viewW / 2} y={-(viewCy + viewH / 2)} width={viewW} height={viewH}
           fill="white" fillOpacity={0} pointerEvents="all" onPointerDown={startMarquee} />
-        <path data-testid="venue-floor" d={`${floor.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')} Z`}
+        <path data-print-layer="venue" data-testid="venue-floor" d={`${floor.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')} Z`}
           fill="url(#metre-grid)" stroke="#718469" strokeWidth="2" vectorEffect="non-scaling-stroke" onPointerDown={startMarquee} />
         {(venue.walls ?? []).map(wall => {
           const resolved = resolveWall(wall, venue.wallTypes ?? []);
           const hasDoor = resolved.openings.some(isDoorOpening);
           const chosen = fixtureSelection?.kind === 'door' && fixtureSelection.id === wall.id;
           const doorOpen = effectiveVenueDoorOpen(wall, shown);
-          return <g key={wall.id} data-testid={`venue-wall-${wall.id}`}
+          return <g key={wall.id} data-print-layer="venue" data-print-name={wall.label} data-testid={`venue-wall-${wall.id}`}
             className={hasDoor && !readOnly ? 'draggable-wall' : undefined}
             transform={`translate(${wall.x} ${-wall.y}) rotate(${-wall.rotation})`}
             pointerEvents={hasDoor ? 'all' : 'none'}
@@ -1068,19 +1072,19 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
             <title>{wall.label} · feste Spielstättenwand{hasDoor ? ' · Öffnung pro Szene' : ''}</title>
           </g>;
         })}
-        {(venue.placeholders ?? []).map(item => <g key={item.id} data-testid={`venue-placeholder-${item.id}`}
+        {(venue.placeholders ?? []).map(item => <g key={item.id} data-print-layer="audience" data-print-name={item.label} data-testid={`venue-placeholder-${item.id}`}
           transform={`translate(${item.x} ${-item.y}) rotate(${-item.rotation})`} pointerEvents="none">
           <rect x={-item.width / 2} y={-item.depth / 2} width={item.width} height={item.depth}
             fill="#8fa07a99" stroke="#625b50" strokeWidth="2" vectorEffect="non-scaling-stroke" />
           <title>{item.label} · fester Publikumsstuhl</title>
         </g>)}
         {planDisplay.showDimensions && <>
-          <text x={venue.width / 2} y={-venue.depth - 200} textAnchor="middle" fontSize="180">{venue.width} mm</text>
-          <text x="-170" y={-venue.depth / 2} textAnchor="middle" fontSize="180" transform={`rotate(-90 -170 ${-venue.depth / 2})`}>{venue.depth} mm</text>
+          <text data-print-layer="dimensions" x={venue.width / 2} y={-venue.depth - 200} textAnchor="middle" fontSize="180">{venue.width} mm</text>
+          <text data-print-layer="dimensions" x="-170" y={-venue.depth / 2} textAnchor="middle" fontSize="180" transform={`rotate(-90 -170 ${-venue.depth / 2})`}>{venue.depth} mm</text>
         </>}
         {planDisplay.showTexts && <>
-          <text x={venue.width / 2} y="420" textAnchor="middle" fontSize="190">↑ Publikum · Blick zur Bühne</text>
-          <text x={venue.width / 2} y="620" textAnchor="middle" fontSize="140">V Vorderseite · R Rückseite</text>
+          <text data-print-layer="orientation" x={venue.width / 2} y="420" textAnchor="middle" fontSize="190">↑ Publikum · Blick zur Bühne</text>
+          <text data-print-layer="orientation" x={venue.width / 2} y="620" textAnchor="middle" fontSize="140">V Vorderseite · R Rückseite</text>
         </>}
         <PlatformLayer venuePlatforms={venue.platforms ?? []} layoutPlatforms={shown.platforms ?? []}
           venueStairs={venue.stairs ?? []} layoutStairs={shown.stairs ?? []}
@@ -1096,7 +1100,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
           const resolved = resolveWall(wall, wallTypes);
           const chosen = selected === wall.id || groupedIds.has(`wall:${wall.id}`);
           const overlap = overlapIds.has(wall.id);
-          return <g key={wall.id} data-testid={`wall-${wall.id}`} aria-label={wall.label}
+          return <g key={wall.id} data-print-layer="walls" data-print-name={wall.label} data-testid={`wall-${wall.id}`} aria-label={wall.label}
             className={[readOnly ? '' : 'draggable-wall', overlap ? 'plan-overlap' : ''].filter(Boolean).join(' ') || undefined}
             transform={`translate(${wall.x} ${-wall.y}) rotate(${-wall.rotation})`} onPointerDown={event => start(event, wall)}>
             <line x1={-resolved.width / 2} x2={resolved.width / 2} stroke="transparent" strokeWidth="18" vectorEffect="non-scaling-stroke" />
@@ -1290,8 +1294,8 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
                 : <p className="muted">Objekt im Grundriss wählen oder links über die Werkzeugleiste und die Bibliothek hinzufügen.</p>}
       {selectedWall && <InventoryAssignment layout={state.present} selectedWall={selectedWall}
         panels={inventoryPanels} readOnly={readOnly}
-        onAssign={panelId => replace({ ...selectedWall, panelId })}
-        onUnassign={() => replace((({ panelId: _removed, ...rest }) => rest)(selectedWall))} />}
+        onAssign={panelId => replace({ ...selectedWall, panelId, finishAssignment: { id: crypto.randomUUID(), surfaces: structuredClone(selectedWall.surfaces ?? {}) } })}
+        onUnassign={() => replace((({ panelId: _removed, finishAssignment: _finish, ...rest }) => rest)(selectedWall))} />}
       </div>
       {selectedWall && <details className="inspector-section"><summary>Aufbau & Verbindungen</summary><div className="inspector-section-body">
       <AssemblyPanel layout={state.present} selectedWall={selectedWall} readOnly={readOnly} onChange={commit} />

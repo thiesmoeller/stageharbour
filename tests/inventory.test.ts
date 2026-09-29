@@ -114,3 +114,36 @@ test('stock warnings compare placements against available compatible panels', ()
   const enough = [available, panel({ label: 'Beispiel-C', type })];
   assert.equal(inventoryWarnings(layout, enough).some(item => item.kind === 'shortage'), false);
 });
+
+test('assignment snapshots preserve planned finish and clear with the physical assignment', async () => {
+  const { snapshotPanelAssignments } = await import('../src/shared/inventory.js');
+  const panelId = randomUUID();
+  const wall = { ...newWall(randomUUID(), 0, 0), panelId, surfaces: { front: { full: { kind: 'paint' as const, ral: '9010' } } } };
+  const initial: Layout = { schemaVersion: 1, walls: [], braces: [] };
+  const assigned = snapshotPanelAssignments(initial, { ...initial, walls: [wall] }, randomUUID);
+  const changed = snapshotPanelAssignments(assigned, { ...assigned, walls: [{ ...wall, surfaces: { front: { full: { kind: 'paint', ral: '3020' } } } }] }, randomUUID);
+  assert.equal(changed.walls[0]!.finishAssignment?.surfaces.front?.full?.kind, 'paint');
+  assert.deepEqual(changed.walls[0]!.finishAssignment, assigned.walls[0]!.finishAssignment);
+  assert.notDeepEqual(changed.walls[0]!.surfaces, changed.walls[0]!.finishAssignment?.surfaces);
+  const cleared = snapshotPanelAssignments(changed, { ...changed, walls: [{ ...changed.walls[0]!, panelId: undefined }] }, randomUUID);
+  assert.equal(cleared.walls[0]!.finishAssignment, undefined);
+});
+
+test('first save keeps assign-time surfaces when the scene finish changed before persist', async () => {
+  const { snapshotPanelAssignments } = await import('../src/shared/inventory.js');
+  const panelId = randomUUID();
+  const assignmentId = randomUUID();
+  const captured = { front: { full: { kind: 'paint' as const, ral: '9010' } } };
+  const draft = {
+    ...newWall(randomUUID(), 0, 0),
+    panelId,
+    surfaces: { front: { full: { kind: 'paint' as const, ral: '3020' } } },
+    finishAssignment: { id: assignmentId, surfaces: captured },
+  };
+  const initial: Layout = { schemaVersion: 1, walls: [], braces: [] };
+  const saved = snapshotPanelAssignments(initial, { ...initial, walls: [draft] }, randomUUID);
+  assert.equal(saved.walls[0]!.finishAssignment?.id, assignmentId);
+  assert.deepEqual(saved.walls[0]!.finishAssignment?.surfaces, captured);
+  assert.equal(saved.walls[0]!.surfaces?.front?.full && 'ral' in saved.walls[0]!.surfaces.front.full
+    ? saved.walls[0]!.surfaces.front.full.ral : undefined, '3020');
+});

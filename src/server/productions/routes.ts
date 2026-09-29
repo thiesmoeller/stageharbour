@@ -1,3 +1,4 @@
+import { snapshotPanelAssignments } from '../../shared/inventory.js';
 import { randomUUID } from 'node:crypto';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
@@ -13,7 +14,7 @@ import { leaseHolderSchema } from '../../shared/leases.js';
 import { resolveWall } from '../../shared/wall-types.js';
 import type { Database } from '../db/connection.js';
 import {
-  adaptation, constructionPackage, constructionPlanRevision, editingLease, inventoryAsset, production, scene, sceneTemplate, venue, venueVersion,
+  adaptation, constructionPackage, constructionPlanRevision, editingLease, inventoryAsset, inventoryPanel, production, scene, sceneTemplate, venue, venueVersion,
 } from '../db/schema.js';
 import { AccessError, type createAccess } from '../identity/access.js';
 import { LeaseError, type Leases } from './leases.js';
@@ -355,7 +356,7 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
     const { workspaceId, sceneId } = request.params;
     const { user } = await requireEditor(request, workspaceId);
     const result = await db.transaction(async tx => {
-      const [existing] = await tx.select({ id: scene.id, venue: venueVersion.geometry }).from(scene)
+      const [existing] = await tx.select({ id: scene.id, layout: scene.layout, venue: venueVersion.geometry }).from(scene)
         .innerJoin(adaptation, eq(scene.adaptationId, adaptation.id))
         .innerJoin(venueVersion, eq(adaptation.venueVersionId, venueVersion.id))
         .where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, sceneId)));
@@ -366,7 +367,12 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
         const assets = await tx.select().from(inventoryAsset).where(and(eq(inventoryAsset.workspaceId, workspaceId), inArray(inventoryAsset.id, assetIds)));
         if (assets.length !== assetIds.length || assets.some(asset => asset.definition.kind !== 'model')) throw new AccessError(400, 'Ein Modell ist in dieser Theatergruppe nicht verfügbar.');
       }
-      const layout = stripLayoutReportTemplates(request.body.layout);
+      const panelIds = [...new Set(request.body.layout.walls.flatMap(wall => wall.panelId ? [wall.panelId] : []))];
+      if (panelIds.length) {
+        await tx.select({ id: inventoryPanel.id }).from(inventoryPanel)
+          .where(and(eq(inventoryPanel.workspaceId, workspaceId), inArray(inventoryPanel.id, panelIds))).for('share');
+      }
+      const layout = snapshotPanelAssignments(existing.layout, stripLayoutReportTemplates(request.body.layout), randomUUID);
       const [updated] = await tx.update(scene).set({ layout, revision: sql`${scene.revision} + 1` })
         .where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, sceneId), eq(scene.revision, request.body.revision)))
         .returning({ revision: scene.revision });

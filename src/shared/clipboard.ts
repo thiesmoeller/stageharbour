@@ -85,7 +85,7 @@ function shift(value: number, delta: number) {
 
 function placementCopy(wall: Wall, id: string, offset: PasteOffset): Wall {
   const moved = { ...wall, id, x: shift(wall.x, offset.x), y: shift(wall.y, offset.y) };
-  const { panelId: _panelId, assemblyNumber: _assemblyNumber, ...rest } = moved;
+  const { panelId: _panelId, finishAssignment: _finishAssignment, assemblyNumber: _assemblyNumber, ...rest } = moved;
   return rest;
 }
 

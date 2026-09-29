@@ -234,3 +234,21 @@ test('editablePagesFromSettings seeds a plan frame for Layout bearbeiten', () =>
   assert.equal(pages[0]!.frames[0]!.width, body.width);
   assert.equal(pages[0]!.frames[0]!.height, body.height);
 });
+
+test('PDF includes the full raised stage even when scene walls occupy only one corner', async () => {
+  const outline = [{ x: 12000, y: 1000 }, { x: 16000, y: 1000 }, { x: 16000, y: 5000 }, { x: 12000, y: 5000 }];
+  const frozen = sceneWith([newWall(randomUUID(), 1000, 1000)], {
+    schemaVersion: 1, width: 18000, depth: 8000,
+    platforms: [{ id: randomUUID(), label: 'Raised stage', elevation: 600, outline }],
+  });
+  const layout = composeDocument({ spec: spec(frozen.sceneId), scenes: [frozen], productionName: 'Test', issuedAtLabel: '28.09.2026' });
+  for (const point of outline) assert.ok(coversPoint(layout, point.x, point.y), `stage corner cropped: ${point.x},${point.y}`);
+  const text = await pdfText(await renderDocument(layout));
+  assert.match(text, /Raised stage/);
+});
+
+test('whole-venue scope covers the room while set-only framing stays available', () => {
+  const frozen = sceneWith([newWall(randomUUID(), 1500, 1500)], { schemaVersion: 1, width: 18000, depth: 14000 });
+  const layout = composeDocument({ spec: spec(frozen.sceneId, { planScope: 'venue' }), scenes: [frozen], productionName: 'Test', issuedAtLabel: '28.09.2026' });
+  for (const point of [{ x: 0, y: 0 }, { x: 18000, y: 14000 }]) assert.ok(coversPoint(layout, point.x, point.y));
+});

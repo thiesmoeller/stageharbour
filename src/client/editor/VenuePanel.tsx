@@ -1681,7 +1681,7 @@ export function InfrastructureMarks({ pins, corridors, selectedIds = [], display
   onVertexPointerDown?: (event: PointerEvent<SVGCircleElement>, corridorId: string, index: number) => void;
 }) {
   return <g>
-    {corridors.map(corridor => <g key={corridor.id} data-testid={`cable-corridor-${corridor.id}`} className={onPointerDown ? 'draggable-wall' : undefined}
+    {corridors.map(corridor => <g key={corridor.id} data-print-layer="constraints" data-print-name={corridor.label} data-testid={`cable-corridor-${corridor.id}`} className={onPointerDown ? 'draggable-wall' : undefined}
       onPointerDown={onPointerDown ? event => onPointerDown(event, corridor.id) : undefined}>
       <path d={corridor.path.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')}
         fill="none" stroke={selectedIds.includes(corridor.id) ? '#b67c35' : '#5a6e8a'} strokeWidth="3" strokeDasharray="80 50" vectorEffect="non-scaling-stroke" />
@@ -1691,7 +1691,7 @@ export function InfrastructureMarks({ pins, corridors, selectedIds = [], display
         onPointerDown={onVertexPointerDown ? event => onVertexPointerDown(event, corridor.id, index) : undefined} />)}
       {display.showObjectNames && <text x={corridor.path[0]?.x} y={-(corridor.path[0]?.y ?? 0) - 80} fontSize="140" pointerEvents="none">{corridor.label}</text>}
     </g>)}
-    {pins.map(pin => <g key={pin.id} data-testid={`connection-point-${pin.id}`} data-kind={pin.kind} className={onPointerDown ? 'draggable-wall' : undefined}
+    {pins.map(pin => <g key={pin.id} data-print-layer="constraints" data-print-name={pin.label} data-testid={`connection-point-${pin.id}`} data-kind={pin.kind} className={onPointerDown ? 'draggable-wall' : undefined}
       onPointerDown={onPointerDown ? event => onPointerDown(event, pin.id) : undefined}>
       <circle cx={pin.x} cy={-pin.y} r="90" fill="transparent" />
       <circle cx={pin.x} cy={-pin.y} r="55" fill={selectedIds.includes(pin.id) ? '#b67c35' : '#d9c6a1'} stroke="#986122" strokeWidth="2" vectorEffect="non-scaling-stroke" />

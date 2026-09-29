@@ -19,6 +19,8 @@ function uniqueBy<T>(items: T[], key: (item: T) => string) {
 }
 
 export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boolean) => void; sceneId?: string }) {
+  const [productionFilter, setProductionFilter] = useState('');
+  const [search, setSearch] = useState('');
   const [scenes, setScenes] = useState<ReturnType<typeof sceneListSchema.parse>>([]);
   const [templates, setTemplates] = useState<ReturnType<typeof sceneTemplateListSchema.parse>>([]);
   const [opened, setOpened] = useState<{ scene: Scene; holdsLease: boolean }>();
@@ -417,7 +419,19 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
     </fieldset></form>}
     {busy && <p role="status">Szenen werden geladen …</p>}
     {!busy && !scenes.length && !editingForm && !error && <p className="muted">Noch keine Szenen vorhanden.{!readOnly && ' Legen Sie Ihre erste Produktion mit Spielstätte und Szene an.'}</p>}
-    {productions.map(item => {
+    {scenes.length > 0 && <div className="production-browser">
+      <div className="overview-tools"><label htmlFor="scene-search">Produktionen & Szenen suchen<input id="scene-search" type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Produktion, Szene oder Spielstätte" /></label>
+        <button type="button" className="quiet" aria-pressed={!productionFilter} onClick={() => { setProductionFilter(''); setSearch(''); }}>Alle Produktionen ({productions.length})</button></div>
+      <div className="production-gallery" aria-label="Produktionen auswählen">{productions.map(production => {
+        const items = scenes.filter(scene => scene.productionId === production.productionId);
+        return <button key={production.productionId} type="button" className="quiet production-tile" aria-pressed={productionFilter === production.productionId} onClick={() => setProductionFilter(current => current === production.productionId ? '' : production.productionId)}>
+          {production.preview && <PlanPreview preview={production.preview} label={`Bühnenbild ${production.productionName}`} />}
+          <strong>{production.productionName}</strong><span>{items.length} Szenen · {new Set(items.map(scene => scene.venueId)).size} Spielstätten</span>
+        </button>;
+      })}</div>
+      <p className="muted" role="status">{scenes.filter(scene => (!productionFilter || scene.productionId === productionFilter) && `${scene.productionName} ${scene.name} ${scene.venueName}`.toLocaleLowerCase('de').includes(search.trim().toLocaleLowerCase('de'))).length} Szenen gefunden</p>
+    </div>}
+    <div className={`production-details${productionFilter ? ' focused' : ''}`}>{productions.filter(item => (!productionFilter || item.productionId === productionFilter) && scenes.some(scene => scene.productionId === item.productionId && `${scene.productionName} ${scene.name} ${scene.venueName}`.toLocaleLowerCase('de').includes(search.trim().toLocaleLowerCase('de')))).map(item => {
       const productionScenes = scenes.filter(scene => scene.productionId === item.productionId);
       const venueNames = uniqueBy(productionScenes, scene => scene.venueId);
       return <section className="production-block" key={item.productionId} aria-label={`Produktion ${item.productionName}`}>
@@ -435,7 +449,8 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
           </div>
         </form>}
         {venueNames.map(venue => {
-          const venueScenes = productionScenes.filter(scene => scene.venueId === venue.venueId);
+          const venueScenes = productionScenes.filter(scene => scene.venueId === venue.venueId && `${scene.productionName} ${scene.name} ${scene.venueName}`.toLocaleLowerCase('de').includes(search.trim().toLocaleLowerCase('de')));
+          if (!venueScenes.length) return null;
           return <div className="venue-block" key={venue.venueId}>
             <div className="section-heading venue-block-heading">
               <h3 className="venue-block-title">Spielstätte · {venue.venueName}</h3>
@@ -475,6 +490,7 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
         })}>Konstruktionspaket exportieren</button>}
       </section>;
     })}
+    </div>
     {packageExport && <ExportWorkspace workspaceId={me.workspace.id} productionId={packageExport.productionId}
       scenes={packageExport.scenes} groups={[]} walls={[]} templates={[]} readOnly={readOnly} freezeDisabled={busy}
       onClose={() => setPackageExport(undefined)} />}
