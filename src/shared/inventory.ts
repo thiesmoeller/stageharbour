@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import { type Layout, type Wall } from './layout.js';
+import { finishAssignmentSchema, physicalFinishSchema, wallSurfacesSchema } from './surfaces.js';
 import { leaseHolderSchema } from './leases.js';
-import { resolveWall, typesOf, wallTypeSchema, type Opening, type WallElementType } from './wall-types.js';
+import { openingSchema, resolveWall, typesOf, wallTypeSchema, type Opening, type WallElementType } from './wall-types.js';
 
 const name = z.string().trim().min(1).max(120);
 const note = z.string().trim().max(500);
@@ -69,6 +70,8 @@ export function groupWallType(kind: GroupWallTypeKind, typeId: string, openingId
 export const inventoryPanelSchema = z.strictObject({
   id: z.uuid(), label: name, typeId: z.uuid(), available: z.boolean(),
   note: note.nullable(), type: wallTypeSchema,
+  cutouts: z.array(openingSchema).max(20).optional(),
+  currentFinish: physicalFinishSchema.nullable().optional(),
 });
 export type InventoryPanel = z.infer<typeof inventoryPanelSchema>;
 export const createPanelSchema = z.strictObject({
@@ -78,7 +81,9 @@ export const updatePanelSchema = z.strictObject({
   label: name.optional(),
   available: z.boolean().optional(),
   note: note.nullable().optional(),
-}).refine(body => body.label !== undefined || body.available !== undefined || body.note !== undefined, 'Label, availability or note required');
+  cutouts: z.array(openingSchema).max(20).optional(),
+  finish: z.strictObject({ surfaces: wallSurfacesSchema, description: z.string().trim().max(300) }).optional(),
+}).refine(body => body.label !== undefined || body.available !== undefined || body.note !== undefined || body.cutouts !== undefined || body.finish !== undefined, 'Label, availability or note required');
 export const assignPanelSchema = z.strictObject({ panelId: z.uuid() });
 export const inventorySchema = z.object({
   lease: leaseHolderSchema.nullable(),
@@ -167,3 +172,24 @@ export function inventoryWarnings(layout: Layout, panels: readonly InventoryPane
   }
   return warnings;
 }
+
+/** Preserve a saved assignment snapshot even when the scene finish changes. */
+export function snapshotPanelAssignments(previous: Layout, next: Layout, makeId: () => string): Layout {
+  return { ...next, walls: next.walls.map(wall => {
+    const { finishAssignment: incoming, ...rest } = wall;
+    if (!wall.panelId) return rest;
+    const saved = previous.walls.find(item => item.id === wall.id && item.panelId === wall.panelId);
+    return { ...rest, finishAssignment: saved?.finishAssignment ?? {
+      id: incoming?.id ?? makeId(),
+      // Prefer the client-captured assign-time surfaces over a later design edit before first save.
+      surfaces: structuredClone(incoming?.surfaces ?? wall.surfaces ?? {}),
+    } };
+  }) };
+}
+
+export const finishWorkSchema = z.strictObject({
+  sceneId: z.uuid(), sceneName: z.string(), wallId: z.uuid(), wallLabel: z.string(), panelId: z.uuid(),
+  assignment: finishAssignmentSchema,
+});
+export const finishWorkListSchema = z.array(finishWorkSchema);
+export type FinishWork = z.infer<typeof finishWorkSchema>;

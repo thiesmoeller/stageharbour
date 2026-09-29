@@ -61,6 +61,7 @@ export function ExportWorkspace({
   const [orientation, setOrientation] = useState<'auto' | SheetOrientation>('auto');
   const [scale, setScale] = useState<25 | 50 | 100>(50);
   const [preset, setPreset] = useState<'construction' | 'presentation'>('construction');
+  const [planScope, setPlanScope] = useState<'venue' | 'scenery'>('venue');
   const [planCrop, setPlanCrop] = useState<FrameCrop | undefined>();
   const [viewCameras, setViewCameras] = useState<{ id: string; label: string; preset: CameraPreset }[]>([]);
   const [viewImages, setViewImages] = useState<Record<string, string>>({});
@@ -106,7 +107,7 @@ export function ExportWorkspace({
       layers,
       scenes: sceneIds.map(id => ({ sceneId: id, elevationGroupIds: id === (sceneId ?? sceneIds[0]) ? elevationGroupIds : [] })),
       templateId: templateId || undefined,
-      planCrop, viewCameras: viewCameras.flatMap(view => {
+      planScope, planCrop, viewCameras: viewCameras.flatMap(view => {
         const label = view.label.trim();
         if (!label) return [];
         return [{
@@ -118,7 +119,7 @@ export function ExportWorkspace({
       }),
       customPages,
     };
-  }, [sceneIds, revisionName, preset, documentKind, paper, orientation, scale, layers, elevationGroupIds, sceneId, templateId, customPages, planCrop, viewCameras, venueSize?.width, venueSize?.depth]);
+  }, [sceneIds, revisionName, preset, documentKind, paper, orientation, scale, layers, elevationGroupIds, sceneId, templateId, customPages, planScope, planCrop, viewCameras, venueSize?.width, venueSize?.depth]);
 
   const preparePayload = useMemo(() => {
     if (!spec) return undefined;
@@ -276,11 +277,16 @@ export function ExportWorkspace({
       <form className="export-workspace-settings" onSubmit={event => { event.preventDefault(); void issue(); }}>
         <label htmlFor="export-name">Bezeichnung der Fassung</label>
         <input id="export-name" value={revisionName} maxLength={120} required onChange={event => { setRevisionName(event.target.value); setOutdated(true); }} />
+        <label htmlFor="export-plan-scope">Zeichnungsbereich</label>
+        <select id="export-plan-scope" value={planScope} disabled={readOnly} onChange={event => { setPlanScope(event.target.value as 'venue' | 'scenery'); setPlanCrop(undefined); dropCustomLayout(); }}>
+          <option value="venue">Ganze Spielstätte mit Bühnenbild</option><option value="scenery">Bühnenbild und eingeblendete Einrichtungen</option>
+        </select>
+        <p className="muted">Große Pläne werden im gewählten Maßstab auf mehrere Blätter verteilt. Alle Grundrissblätter gehören zum vollständigen Plan.</p>
         {planPreview && <fieldset>
           <legend>Grundrissausschnitt</legend>
           <PlanCropBand preview={planPreview} crop={planCrop} disabled={readOnly} onChange={next => { setPlanCrop(next); dropCustomLayout(); }} />
           <button type="button" className="quiet" disabled={!planCrop || readOnly} onClick={() => { setPlanCrop(undefined); dropCustomLayout(); }}>Ganze Zeichnung</button>
-          <p className="muted">Ziehen Sie ein Rechteck über den Grundriss. Ohne Rechteck gilt die ganze Zeichnung. Der Ausschnitt bleibt im gewählten Maßstab.</p>
+          <p className="muted">Ziehen Sie ein Rechteck über den Grundriss. Ohne Rechteck gilt der gewählte Grundrissumfang. Der Ausschnitt bleibt im gewählten Maßstab.</p>
         </fieldset>}
         {scenes.length > 1 && <fieldset>
           <legend>Szenen</legend>

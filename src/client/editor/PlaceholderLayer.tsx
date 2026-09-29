@@ -18,7 +18,7 @@ export function PlaceholderLayer({ placeholders, selectedId, preview, readOnly, 
     const chosen = selectedId === item.id || groupedIds.has(`placeholder:${item.id}`);
     const overlap = overlappingIds?.has(item.id);
     const w = item.width, d = item.depth;
-    return <g key={item.id} data-testid={`placeholder-${item.id}`} aria-label={item.label}
+    return <g key={item.id} data-print-layer={item.kind === 'chair' ? 'audience' : 'objects'} data-print-name={item.label} data-testid={`placeholder-${item.id}`} aria-label={item.label}
       className={[readOnly ? '' : 'draggable-wall', overlap ? 'plan-overlap' : ''].filter(Boolean).join(' ') || undefined}
       transform={`translate(${item.x} ${-item.y}) rotate(${-item.rotation})`} onPointerDown={event => onPointerDown(event, item)}>
       {item.kind === 'chair' ? <>
@@ -39,7 +39,7 @@ export function PlaceholderLayer({ placeholders, selectedId, preview, readOnly, 
           fill="#d9c6a1" stroke="#8a6a3a" strokeWidth="2" vectorEffect="non-scaling-stroke" />}
       </>}
       {display.showObjectNames && <text y="-140" textAnchor="middle" fontSize="150" pointerEvents="none">{item.label}</text>}
-      {display.showDimensions && <text y="200" textAnchor="middle" fontSize="130" pointerEvents="none">{item.width} × {item.depth} mm</text>}
+      {display.showDimensions && <text data-print-layer="dimensions" y="200" textAnchor="middle" fontSize="130" pointerEvents="none">{item.width} × {item.depth} mm</text>}
       {display.showTexts && <text y="350" textAnchor="middle" fontSize="110" pointerEvents="none">{PLACEHOLDER_KIND_LABELS[item.kind]}{item.seatedFigure ? ' · Sitzfigur' : ''}</text>}
     </g>;
   });

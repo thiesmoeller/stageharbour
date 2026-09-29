@@ -66,7 +66,7 @@ A definition of a kind of wall element, including distinguishing features such a
 A reusable definition of a wall element, weighted rear brace or scenic object. Placing a template creates an independent scene instance; the template is not itself a physical panel label or a count of available pieces.
 
 **Bestand**:
-The workspace home for physical panel stock and stocked wall-element types (including doors and windows as types). Crews design scenes first and assign panels later; one-off wall types may still exist only on a scene. Surface finishes are not managed here.
+The workspace home for physical panel stock and stocked wall-element types (including doors and windows as types). Crews design scenes first and assign panels later; one-off wall types may still exist only on a scene. The actual paint or wallpaper on physical panels is recorded here, separately from scene designs.
 _Avoid_: Materialien, Inventar (alone), Bibliothek
 
 **Scenic object**:
@@ -132,3 +132,12 @@ A simple standing-person placeholder used to mark where someone would be on the 
 **Front elevation**:
 An orthogonal construction-plan view of one wall facing from a selected explicit group, showing panel heights and opening dimensions at the issued scale. Angled groups produce one labelled face per distinct facing rather than a flattened overview of a corner.
 _Avoid_: Flattened elevation
+
+**Physical finish**:
+The paint, wallpaper or cladding currently on a real panel, recorded after the work has been carried out. It can differ from the intended finish of a scene wall.
+
+**Finish assignment**:
+The intended finish captured when a physical panel is assigned to a scene wall. Later scene edits do not change that record; the crew separately confirms when the work is complete.
+
+**Technical cutout**:
+A measured outlet or cable opening specific to one physical panel. It is a stock characteristic, distinct from a scenic door or window opening defined by the wall type.

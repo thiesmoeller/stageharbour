@@ -4,7 +4,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { errorSchema, workspaceParamsSchema } from '../../shared/contracts.js';
-import { assignPanelSchema, createPanelSchema, inventoryPanelSchema, inventorySchema, sameGeometry, typesCompatible, updatePanelSchema, upsertInventoryTypeSchema, placementType } from '../../shared/inventory.js';
+import { assignPanelSchema, createPanelSchema, finishWorkListSchema, snapshotPanelAssignments, inventoryPanelSchema, inventorySchema, sameGeometry, typesCompatible, updatePanelSchema, upsertInventoryTypeSchema, placementType } from '../../shared/inventory.js';
 import { leaseHolderSchema } from '../../shared/leases.js';
 import { typesOf, wallTypeSchema, type WallElementType } from '../../shared/wall-types.js';
 import type { Database } from '../db/connection.js';
@@ -35,7 +35,7 @@ export function registerInventoryRoutes(app: FastifyInstance, db: Database, acce
       panels: rows.map(row => {
         const type = typeMap.get(row.typeId);
         if (!type) throw new AccessError(404, 'Bestand nicht verfügbar.');
-        return { id: row.id, label: row.label, typeId: row.typeId, available: row.available, note: row.note, type };
+        return { id: row.id, label: row.label, typeId: row.typeId, available: row.available, note: row.note, type, cutouts: row.cutouts, currentFinish: row.currentFinish };
       }),
     };
   }
@@ -101,8 +101,16 @@ export function registerInventoryRoutes(app: FastifyInstance, db: Database, acce
           .where(and(eq(inventoryPanel.workspaceId, workspaceId), eq(inventoryPanel.label, request.body.label)));
         if (duplicate) throw new AccessError(409, 'Dieses Plattenetikett ist bereits vergeben.');
       }
+      if (request.body.cutouts) {
+        const [type] = await tx.select().from(inventoryWallType).where(and(eq(inventoryWallType.workspaceId, workspaceId), eq(inventoryWallType.id, existing.typeId)));
+        if (!type || !wallTypeSchema.safeParse({ ...type.definition, openings: [...type.definition.openings, ...request.body.cutouts] }).success) {
+          throw new AccessError(400, 'Ausschnitte müssen innerhalb der Platte liegen und eindeutige IDs haben (höchstens 20 Öffnungen).');
+        }
+      }
       const [updated] = await tx.update(inventoryPanel).set({
         label: nextLabel,
+        cutouts: request.body.cutouts ?? existing.cutouts,
+        currentFinish: request.body.finish ? { ...request.body.finish, confirmedAt: new Date().toISOString() } : existing.currentFinish,
         available: request.body.available ?? existing.available,
         note: request.body.note === undefined ? existing.note : request.body.note,
       }).where(and(eq(inventoryPanel.workspaceId, workspaceId), eq(inventoryPanel.id, panelId))).returning();
@@ -112,6 +120,47 @@ export function registerInventoryRoutes(app: FastifyInstance, db: Database, acce
       return panel;
     });
     return result;
+  });
+  api.delete(`${path}/panels/:panelId`, { schema: { params: panelParams, response: { 200: z.object({ ok: z.literal(true) }), ...errors } } }, async request => {
+    const { workspaceId, panelId } = request.params;
+    const { user } = await requireEditor(request, workspaceId);
+    await db.transaction(async tx => {
+      await leases.requireHeld(tx, workspaceId, 'inventory', workspaceId, user.id);
+      const [panel] = await tx.select().from(inventoryPanel).where(and(eq(inventoryPanel.workspaceId, workspaceId), eq(inventoryPanel.id, panelId))).for('update');
+      if (!panel) throw new AccessError(404, 'Platte nicht verfügbar.');
+      const records = await tx.select().from(scene).where(eq(scene.workspaceId, workspaceId));
+      const used = records.filter(record => record.layout.walls.some(wall => wall.panelId === panelId));
+      if (used.length) throw new AccessError(409, `Platte ist noch zugewiesen: ${used.map(record => record.name).join(', ')}. Zuweisungen zuerst in den Szenen lösen.`);
+      await tx.delete(inventoryPanel).where(and(eq(inventoryPanel.workspaceId, workspaceId), eq(inventoryPanel.id, panelId)));
+    });
+    return { ok: true as const };
+  });
+  api.get(`${path}/finish-work`, { schema: { params: workspaceParamsSchema, response: { 200: finishWorkListSchema, ...errors } } }, async request => {
+    const { workspaceId } = request.params;
+    await access(request, workspaceId);
+    const records = await db.select().from(scene).where(eq(scene.workspaceId, workspaceId));
+    return records.flatMap(record => record.layout.walls.flatMap(wall => wall.panelId && wall.finishAssignment
+      ? [{ sceneId: record.id, sceneName: record.name, wallId: wall.id, wallLabel: wall.label, panelId: wall.panelId, assignment: wall.finishAssignment }] : []));
+  });
+  api.post(`${path}/panels/:panelId/finish-complete`, {
+    schema: { params: panelParams, body: z.strictObject({ sceneId: z.uuid(), wallId: z.uuid(), assignmentId: z.uuid() }), response: { 200: inventoryPanelSchema, ...errors } },
+  }, async request => {
+    const { workspaceId, panelId } = request.params;
+    const { user } = await requireEditor(request, workspaceId);
+    return db.transaction(async tx => {
+      await leases.requireHeld(tx, workspaceId, 'inventory', workspaceId, user.id);
+      const [record] = await tx.select().from(scene).where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, request.body.sceneId))).for('update');
+      const wall = record?.layout.walls.find(item => item.id === request.body.wallId && item.panelId === panelId);
+      if (!wall?.finishAssignment || wall.finishAssignment.id !== request.body.assignmentId) throw new AccessError(409, 'Die Zuweisung wurde geändert. Bitte den Bestand neu laden.');
+      const [panel] = await tx.select().from(inventoryPanel).where(and(eq(inventoryPanel.workspaceId, workspaceId), eq(inventoryPanel.id, panelId))).for('update');
+      if (!panel) throw new AccessError(404, 'Platte nicht verfügbar.');
+      if (panel.currentFinish?.assignmentId !== wall.finishAssignment.id) {
+        await tx.update(inventoryPanel).set({ currentFinish: { surfaces: wall.finishAssignment.surfaces, description: '', assignmentId: wall.finishAssignment.id, confirmedAt: new Date().toISOString() } })
+          .where(and(eq(inventoryPanel.workspaceId, workspaceId), eq(inventoryPanel.id, panelId)));
+      }
+      const inventory = await readInventory(workspaceId, tx);
+      return inventory.panels.find(item => item.id === panelId)!;
+    });
   });
   const typeParams = workspaceParamsSchema.extend({ typeId: z.uuid() });
   api.post(`${path}/types`, {
@@ -181,6 +230,8 @@ export function registerInventoryRoutes(app: FastifyInstance, db: Database, acce
       const [record] = await tx.select().from(scene).where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, sceneId)));
       if (!record) throw new AccessError(404, 'Szene nicht verfügbar.');
       await leases.requireHeld(tx, workspaceId, 'scene', sceneId, user.id);
+      const [lockedPanel] = await tx.select().from(inventoryPanel).where(and(eq(inventoryPanel.workspaceId, workspaceId), eq(inventoryPanel.id, panel.id))).for('share');
+      if (!lockedPanel) throw new AccessError(404, 'Platte nicht verfügbar.');
       const wall = record.layout.walls.find(item => item.id === wallId);
       if (!wall) throw new AccessError(404, 'Wandelement nicht verfügbar.');
       if (record.layout.walls.some(item => item.id !== wallId && item.panelId === panel.id)) {
@@ -190,7 +241,7 @@ export function registerInventoryRoutes(app: FastifyInstance, db: Database, acce
         throw new InventoryError(400, 'Diese Platte passt nicht zum Wandelement.');
       }
       await tx.update(scene).set({
-        layout: { ...record.layout, walls: record.layout.walls.map(item => item.id === wallId ? { ...item, panelId: panel.id } : item) },
+        layout: snapshotPanelAssignments(record.layout, { ...record.layout, walls: record.layout.walls.map(item => item.id === wallId ? { ...item, panelId: panel.id } : item) }, randomUUID),
         revision: sql`${scene.revision} + 1`,
       }).where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, sceneId)));
     });
@@ -209,7 +260,7 @@ export function registerInventoryRoutes(app: FastifyInstance, db: Database, acce
       await tx.update(scene).set({
         layout: { ...record.layout, walls: record.layout.walls.map(item => {
           if (item.id !== wallId) return item;
-          const { panelId: _removed, ...rest } = item;
+          const { panelId: _removed, finishAssignment: _finish, ...rest } = item;
           return rest;
         }) },
         revision: sql`${scene.revision} + 1`,

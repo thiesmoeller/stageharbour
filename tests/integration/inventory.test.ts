@@ -189,3 +189,43 @@ test('creates, updates and deletes stocked wall types under lease; geometry lock
     method: 'POST', url: `${inventoryUrl}/types`, headers, payload: { ...unused, id: stocked.id },
   })).statusCode, 409);
 });
+
+test('physical cutouts, actual finishes and deletion stay independent from frozen scene intent', async () => {
+  await app.inject({ method: 'POST', url: `${inventoryUrl}/lease`, headers });
+  const created = await app.inject({ method: 'POST', url: `${inventoryUrl}/panels`, headers, payload: { label: 'Finish-P01', type: plain } });
+  assert.equal(created.statusCode, 201, created.body);
+  const panelId = created.json().id;
+  const cutout = { id: randomUUID(), left: 50, sill: 250, width: 80, height: 80 };
+  const actual = { surfaces: { front: { full: { kind: 'paint', ral: '9010' } } }, description: 'White stock' };
+  const patched = await app.inject({ method: 'PATCH', url: `${inventoryUrl}/panels/${panelId}`, headers, payload: { cutouts: [cutout], finish: actual, label: 'Finish-renamed' } });
+  assert.equal(patched.statusCode, 200, patched.body);
+  assert.equal(patched.json().label, 'Finish-renamed');
+  assert.deepEqual(patched.json().cutouts, [cutout]);
+  assert.equal((await app.inject({ method: 'PATCH', url: `${inventoryUrl}/panels/${panelId}`, headers, payload: { cutouts: [{ ...cutout, left: 5000 }] } })).statusCode, 400);
+  const made = (await app.inject({ method: 'POST', url: scenesUrl, headers, payload: { productionName: 'Finish test', venueName: 'Room', sceneName: 'Painting', width: 8000, depth: 6000 } })).json<Scene>();
+  await app.inject({ method: 'POST', url: `${scenesUrl}/${made.id}/lease`, headers });
+  const wall = { ...newWall(randomUUID(), 1000, 2000), panelId, surfaces: { front: { full: { kind: 'paint', ral: '3020' } } } };
+  const saved = await app.inject({ method: 'PUT', url: `${scenesUrl}/${made.id}/layout`, headers, payload: { revision: made.revision, layout: { schemaVersion: 1, walls: [wall], braces: [] } } });
+  assert.equal(saved.statusCode, 200, saved.body);
+  let loaded = (await app.inject({ url: `${scenesUrl}/${made.id}`, headers })).json<Scene>();
+  const assignment = loaded.layout.walls[0]!.finishAssignment!;
+  assert.ok(assignment?.id);
+  const next = { ...loaded.layout, walls: [{ ...loaded.layout.walls[0]!, surfaces: actual.surfaces }] };
+  assert.equal((await app.inject({ method: 'PUT', url: `${scenesUrl}/${made.id}/layout`, headers, payload: { revision: loaded.revision, layout: next } })).statusCode, 200);
+  const stockBefore = (await app.inject({ url: inventoryUrl, headers })).json<Inventory>().panels.find(panel => panel.id === panelId)!;
+  assert.deepEqual(stockBefore.currentFinish?.surfaces, actual.surfaces);
+  assert.equal((await app.inject({ method: 'DELETE', url: `${inventoryUrl}/panels/${panelId}`, headers })).statusCode, 409);
+  const completeUrl = `${inventoryUrl}/panels/${panelId}/finish-complete`;
+  const completion = { sceneId: made.id, wallId: wall.id, assignmentId: assignment.id };
+  assert.equal((await app.inject({ method: 'POST', url: completeUrl, headers, payload: { ...completion, assignmentId: randomUUID() } })).statusCode, 409);
+  const completed = await app.inject({ method: 'POST', url: completeUrl, headers, payload: completion });
+  assert.equal(completed.statusCode, 200, completed.body);
+  assert.deepEqual(completed.json().currentFinish.surfaces, wall.surfaces);
+  loaded = (await app.inject({ url: `${scenesUrl}/${made.id}`, headers })).json<Scene>();
+  assert.deepEqual(loaded.layout.walls[0]!.surfaces, actual.surfaces);
+  assert.deepEqual(loaded.layout.walls[0]!.finishAssignment, assignment);
+  await app.inject({ method: 'DELETE', url: `${scenesUrl}/${made.id}/walls/${wall.id}/assignment`, headers });
+  assert.equal((await app.inject({ method: 'POST', url: completeUrl, headers, payload: completion })).statusCode, 409);
+  assert.equal((await app.inject({ method: 'DELETE', url: `${inventoryUrl}/panels/${panelId}`, headers })).statusCode, 200);
+  assert.equal((await app.inject({ url: inventoryUrl, headers })).json<Inventory>().panels.some(panel => panel.id === panelId), false);
+});

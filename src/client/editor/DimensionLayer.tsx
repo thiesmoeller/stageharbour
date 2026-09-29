@@ -19,7 +19,7 @@ export function DimensionLayer({ dimensions, preview, selectedId, snaps, snapRad
   onSelect?: (id: string) => void;
 }) {
   const drawn = preview ? [...dimensions, preview] : dimensions;
-  return <g className="dimension-layer" pointerEvents={passPointer ? 'none' : undefined}>
+  return <g data-print-layer="dimensions" className="dimension-layer" pointerEvents={passPointer ? 'none' : undefined}>
     {drawn.map(dimension => {
       const figure = dimensionFigure(dimension);
       const selected = dimension.id === selectedId || dimension.id === 'preview';

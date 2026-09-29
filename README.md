@@ -8,6 +8,10 @@ The `feature/pascal-stage-editor` branch combines the latest `implement/phase-on
 
 The object library supports reusable wall/brace definitions, uploaded GLB models and Pascal catalogue models. Model placements use the existing placeholder workflow, including supporting surfaces, selection, clipboard, constraints and saved geometry. Materials apply to solid walls and walls with openings. Permanent venue walls appear in the plan, 3D and frozen PDF.
 
+The productions overview has searchable production cards and scene previews. **Bestand** shows front/back panel previews, measured outlet/cable cutouts, and actual finish records. Panels can be renamed or deleted (clear scene assignments before deletion). Assigning a panel captures the intended finish; “Arbeit abgeschlossen” in Bestand confirms it as the actual finish. See [the finish decision](docs/adr/0006-physical-panel-finishes.md).
+
+For the actual editor drawing, use **2D-Ansicht drucken / PDF**. Its print view supports A4–A1, fixed scale or fit-to-page, current viewport or whole drawing, layer and individual-object visibility, and movable notes/arrows. The browser's print dialog can save a PDF; SVG download preserves an editable vector drawing. Print composition belongs to the open print view and is not saved as a construction-plan revision. Construction-plan exports retain their named revision/history workflow and now include missing venue geometry with explicit whole-venue/set framing. Apply the additive inventory migration with `npm run db:migrate` before starting an existing installation.
+
 This is an integration foundation, with remaining work documented in [the implementation status](docs/pascal-editor-status.md). The complete Pascal architectural editor shell is not mounted. Theatre transforms use shared commands and Drei handles; Pascal's separate architectural tool history remains disabled.
 
 For this machine, the existing `.env` selects <http://localhost:5174>, API port 3100 and PostgreSQL port 55432. Generic setup defaults below remain configurable. `npm run test:e2e` always builds fresh assets first and includes real SVG gestures and a drag of a rendered 3D handle.

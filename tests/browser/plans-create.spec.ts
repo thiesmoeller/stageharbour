@@ -22,3 +22,25 @@ test('Neue Szene adds a second empty scene on an existing production', async ({ 
   await expect(page.getByRole('heading', { name: 'Akt 2' })).toBeVisible();
   await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(0);
 });
+
+
+test('production gallery filters multiple plays and scene searches on desktop and mobile', async ({ page }) => {
+  await signInToPlans(page);
+  await createProduction(page, { productionName: 'Sommerstück', venueName: 'Garten', sceneName: 'Abend' });
+  await page.getByRole('button', { name: 'Zur Übersicht', exact: true }).click();
+  await createProduction(page, { productionName: 'Winterstück', venueName: 'Saal', sceneName: 'Schnee' });
+  await page.getByRole('button', { name: 'Zur Übersicht', exact: true }).click();
+  await page.locator('.production-gallery').getByRole('button', { name: /Sommerstück/ }).click();
+  await expect(page.getByRole('region', { name: 'Produktion Sommerstück' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Produktion Winterstück' })).toHaveCount(0);
+  await page.getByRole('button', { name: /Alle Produktionen/ }).click();
+  await page.getByLabel('Produktionen & Szenen suchen').fill('Schnee');
+  await expect(page.getByRole('region', { name: 'Produktion Winterstück' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Produktion Sommerstück' })).toHaveCount(0);
+  await page.getByLabel('Produktionen & Szenen suchen').fill('');
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.screenshot({ path: 'test-results/productions-polish-desktop.png', fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
+  await page.screenshot({ path: 'test-results/productions-polish-mobile.png', fullPage: true });
+});

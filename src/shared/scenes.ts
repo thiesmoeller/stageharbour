@@ -110,8 +110,8 @@ export function copyLayoutIntoVenue(
     if (Object.hasOwn(surfaceMap, id)) return surfaceMap[id]!;
     return id;
   }
-  function withoutPanel<T extends { panelId?: string }>(item: T) {
-    const { panelId: _panelId, ...rest } = item;
+  function withoutPanel<T extends { panelId?: string; finishAssignment?: unknown }>(item: T) {
+    const { panelId: _panelId, finishAssignment: _finishAssignment, ...rest } = item;
     return rest;
   }
   const adapted: Layout = {

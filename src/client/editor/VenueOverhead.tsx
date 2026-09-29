@@ -19,7 +19,7 @@ export function OverheadMarks({ boxes, selectedIds = [], display = defaultPlanDi
         display.showObjectNames ? box.label : undefined,
         display.showDimensions ? `${box.bottomHeight} mm` : undefined,
       ].filter(Boolean).join(' · ');
-      return <g key={box.id} data-testid={`overhead-box-${box.id}`} className={onPointerDown ? 'draggable-wall' : undefined}
+      return <g key={box.id} data-print-layer="overhead" data-print-name={box.label} data-testid={`overhead-box-${box.id}`} className={onPointerDown ? 'draggable-wall' : undefined}
         onPointerDown={onPointerDown ? event => onPointerDown(event, box.id) : undefined}>
         <path d={`${corners.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')} Z`}
           fill={chosen ? '#d9c6a166' : '#d9c6a133'} stroke="#8a6a3a" strokeWidth="2" strokeDasharray="80 50" vectorEffect="non-scaling-stroke" />
@@ -45,7 +45,7 @@ export function TrussMarks({ trusses, selectedIds = [], drawing, display = defau
         display.showObjectNames ? truss.label : undefined,
         display.showDimensions ? `${truss.bottomHeight} mm` : undefined,
       ].filter(Boolean).join(' · ');
-      return <g key={truss.id} data-testid={`truss-${truss.id}`} className={onPointerDown ? 'draggable-wall' : undefined}
+      return <g key={truss.id} data-print-layer="overhead" data-print-name={truss.label} data-testid={`truss-${truss.id}`} className={onPointerDown ? 'draggable-wall' : undefined}
         onPointerDown={onPointerDown ? event => onPointerDown(event, truss.id) : undefined}>
         <path d={`${corners.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')} Z`}
           fill={chosen ? '#4f86ba55' : '#4f86ba22'} stroke="#4f86ba" strokeWidth="2" strokeDasharray="40 30" vectorEffect="non-scaling-stroke" />
@@ -84,7 +84,7 @@ export function CurtainMarks({ curtains, selectedIds = [], drawing, display = de
         display.showDimensions ? `${curtain.height} mm` : undefined,
         display.showObjectNames && curtain.openPercent > 0 ? `offen ${Math.round(curtain.openPercent)}%` : undefined,
       ].filter(Boolean).join(' · ');
-      return <g key={curtain.id} data-testid={`curtain-${curtain.id}`} className={onPointerDown ? 'draggable-wall' : undefined}
+      return <g key={curtain.id} data-print-layer="curtains" data-print-name={curtain.label} data-testid={`curtain-${curtain.id}`} className={onPointerDown ? 'draggable-wall' : undefined}
         onPointerDown={onPointerDown ? event => onPointerDown(event, curtain.id) : undefined}>
         {waves.map((points, index) =>
           <path key={index} d={points.map((point, i) => `${i ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')}

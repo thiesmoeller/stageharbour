@@ -50,7 +50,24 @@ test('Bestand workspace manages panels and stocked wall types under lease', asyn
   await editForm.getByLabel('Plattenetikett').fill('Bestand-P02b');
   await editForm.getByLabel('Reparaturhinweis').fill('Kante nacharbeiten');
   await editForm.getByRole('button', { name: 'Speichern', exact: true }).click();
-  await expect(page.getByText(/Bestand-P02b · Bestand-Glattwand · Kante nacharbeiten/)).toBeVisible();
+  const renamed = page.getByRole('listitem').filter({ hasText: 'Bestand-P02b · Bestand-Glattwand' });
+  await expect(renamed.getByText('Kante nacharbeiten')).toBeVisible();
+  await renamed.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+  await editForm.getByRole('button', { name: 'Steckdosen-/Kabelausschnitt hinzufügen' }).click();
+  await editForm.getByLabel('Von links (mm)').fill('120');
+  await editForm.getByLabel('Von unten (mm)').fill('300');
+  await editForm.getByLabel('Tapete / Oberflächenhinweis').fill('Blumentapete');
+  await editForm.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(renamed.getByText(/1 Technikausschnitte/)).toBeVisible();
+  await expect(renamed.getByText('Blumentapete')).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390);
+  await page.screenshot({ path: 'test-results/stock-polish-mobile.png', fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.screenshot({ path: 'test-results/stock-polish-desktop.png', fullPage: true });
+  await renamed.getByRole('button', { name: 'Platte löschen', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Platte löschen', exact: true }).click();
+  await expect(renamed).toHaveCount(0);
 
   // Leave Bestand so useEditingLease can POST /lease/release. Playwright page
   // teardown aborts that async cleanup and would otherwise leave inventory leased.

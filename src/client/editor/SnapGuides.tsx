@@ -9,7 +9,7 @@ export function CentrelineMark({ centreline, selected, showLabel = true, onPoint
 }) {
   if (!centreline) return null;
   const span = centrelineSpan(centreline);
-  return <g data-testid="stage-centreline" className={onPointerDown ? 'draggable-wall' : undefined}
+  return <g data-print-layer="orientation" data-testid="stage-centreline" className={onPointerDown ? 'draggable-wall' : undefined}
     pointerEvents={onPointerDown ? undefined : 'none'}
     onPointerDown={onPointerDown}>
     <line x1={span.a.x} y1={-span.a.y} x2={span.b.x} y2={-span.b.y}

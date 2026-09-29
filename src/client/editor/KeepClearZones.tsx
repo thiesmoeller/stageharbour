@@ -18,7 +18,7 @@ export function KeepClearMarks({ zones, selectedIds = [], drawing, display = def
       const cx = zone.polygon.reduce((sum, point) => sum + point.x, 0) / zone.polygon.length;
       const cy = zone.polygon.reduce((sum, point) => sum + point.y, 0) / zone.polygon.length;
       const chosen = selectedIds.includes(zone.id);
-      return <g key={zone.id} data-testid={`keep-clear-zone-${zone.id}`} className={onPointerDown ? 'draggable-wall' : undefined}
+      return <g key={zone.id} data-print-layer="constraints" data-print-name={zone.label} data-testid={`keep-clear-zone-${zone.id}`} className={onPointerDown ? 'draggable-wall' : undefined}
         onPointerDown={onPointerDown ? event => onPointerDown(event, zone.id) : undefined}>
         <path d={`${zone.polygon.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')} Z`}
           fill={chosen ? '#b67c3555' : '#b67c3522'} stroke="#b67c35" strokeWidth="2" strokeDasharray="80 50" vectorEffect="non-scaling-stroke" />
