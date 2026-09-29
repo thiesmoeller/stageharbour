@@ -1,13 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { venueGeometrySchema } from '../src/shared/layout.js';
+import { venueGeometrySchema, newWall } from '../src/shared/layout.js';
 import {
   calibrationSchema, insertOutlineVertex, measuredOutline, millimetresPerUnit, nearestOutlineEdge,
   offsetOutlineEdge, OUTLINE_EDGE_HIT_MM, OUTLINE_VERTEX_INSERT_MM, outlineEdgeOutwardNormal,
   planToUnderlaySource, underlaySourceToPlan, venueOutlineSchema,
 } from '../src/shared/venue.js';
 import { defaultPlanDisplay } from '../src/shared/planDisplay.js';
+import { newPlatform } from '../src/shared/levels.js';
+import { venuePlanPreview } from '../src/shared/venueLibrary.js';
 
 test('two-point calibration with a known distance yields a reproducible millimetre scale', () => {
   const calibration = calibrationSchema.parse({
@@ -112,4 +114,21 @@ test('plan display defaults show underlay, names, dimensions and texts', () => {
   assert.deepEqual(defaultPlanDisplay, {
     showUnderlay: true, showObjectNames: true, showDimensions: true, showTexts: true,
   });
+});
+
+test('venue plan preview draws the measured outline with permanent walls and platforms', () => {
+  const outline = [
+    { x: 0, y: 0 }, { x: 8000, y: 500 }, { x: 7500, y: 6000 }, { x: 400, y: 5800 },
+  ];
+  const wall = newWall(randomUUID(), 1000, 2000);
+  const platform = newPlatform(randomUUID(), 1500, 1200);
+  const venue = venueGeometrySchema.parse({
+    schemaVersion: 1, width: 8000, depth: 6000, outline, walls: [wall], platforms: [platform],
+  });
+  const preview = venuePlanPreview(venue);
+  assert.deepEqual(preview.outline, outline);
+  assert.equal(preview.walls.length, 1);
+  assert.equal(preview.walls[0]!.corners.length, 4);
+  assert.equal(preview.platforms.length, 1);
+  assert.deepEqual(preview.platforms[0]!.outline, platform.outline);
 });

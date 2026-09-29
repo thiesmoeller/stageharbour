@@ -6,6 +6,9 @@ import { createApp } from '../../src/server/app.js';
 import { bootstrapAdministrator } from '../../src/server/identity/bootstrap.js';
 import { membership } from '../../src/server/db/schema.js';
 import { defaultLighting } from '../../src/shared/lighting.js';
+import { newWall } from '../../src/shared/layout.js';
+import { newPlatform } from '../../src/shared/levels.js';
+import { venueListSchema } from '../../src/shared/venueLibrary.js';
 import { testAdministrator, testDatabase } from '../helpers/database.js';
 
 let fixture: Awaited<ReturnType<typeof testDatabase>>;
@@ -93,6 +96,34 @@ test('rename returns the current venueVersionId so a following publish can succe
     payload: { venueVersionId: renamed.json().venueVersionId, venue: { ...created.venue, ceilingHeight: 4300 } },
   });
   assert.equal(again.statusCode, 200, again.body);
+});
+
+test('venue list returns a plan preview of permanent walls, platforms and outline', async () => {
+  const created = (await app.inject({
+    method: 'POST', url: `${base}/venues`, headers, payload: { name: 'Preview-Saal', width: 9000, depth: 7000 },
+  })).json();
+  const outline = [
+    { x: 0, y: 0 }, { x: 9000, y: 0 }, { x: 8500, y: 7000 }, { x: 400, y: 6800 },
+  ];
+  const wall = newWall(randomUUID(), 2000, 3000);
+  const platform = newPlatform(randomUUID(), 4000, 2500);
+  assert.equal((await app.inject({ method: 'POST', url: `${base}/venues/${created.id}/lease`, headers })).statusCode, 200);
+  const published = await app.inject({
+    method: 'PUT', url: `${base}/venues/${created.id}`, headers,
+    payload: {
+      venueVersionId: created.venueVersionId,
+      venue: { ...created.venue, outline, walls: [wall], platforms: [platform] },
+    },
+  });
+  assert.equal(published.statusCode, 200, published.body);
+  const listed = venueListSchema.parse((await app.inject({ url: `${base}/venues`, headers })).json());
+  const item = listed.find(entry => entry.id === created.id);
+  assert.ok(item?.preview);
+  assert.deepEqual(item.preview.outline, outline);
+  assert.equal(item.preview.walls.length, 1);
+  assert.equal(item.preview.walls[0]!.corners.length, 4);
+  assert.equal(item.preview.platforms.length, 1);
+  assert.deepEqual(item.preview.platforms[0]!.outline, platform.outline);
 });
 
 test('venue routes validate inputs and enforce origin, workspace and viewer permissions', async () => {
