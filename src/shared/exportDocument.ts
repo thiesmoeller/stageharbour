@@ -528,10 +528,16 @@ function wrapLines(text: string, widthMm: number, size: number, measure: TextMea
   let current = '';
   for (const word of words) {
     const next = current ? `${current} ${word}` : word;
-    if (measure(next, size) <= widthMm) current = next;
-    else {
-      if (current) lines.push(current);
-      current = word;
+    if (measure(next, size) <= widthMm) { current = next; continue; }
+    if (current) lines.push(current);
+    current = '';
+    // A label or identifier can be longer than the whole column with no spaces.
+    for (const character of word) {
+      if (current && measure(current + character, size) > widthMm) {
+        lines.push(current);
+        current = '';
+      }
+      current += character;
     }
   }
   if (current) lines.push(current);
@@ -606,23 +612,38 @@ function tableSheets(
   const lineH = 4.2;
   const cols = headers.length;
   const colW = body.width / cols;
+  const wrappedRows = rows.map(row => row.map(cell => wrapLines(cell, colW - 1, 8, measure)));
+  const wrappedHeaders = headers.map(header => wrapLines(header, colW - 1, 8, (text, size) => measure(text, size, true)));
+  const headerHeight = Math.max(...wrappedHeaders.map(lines => lines.length)) * lineH;
   let rowIndex = 0;
+  let lineOffset = 0;
   let part = 1;
   while (rowIndex < rows.length || part === 1) {
     const paint: Paint[] = [];
     let y = body.y;
-    headers.forEach((header, column) => {
-      paint.push({ op: 'text', x: body.x + column * colW, y, text: header, size: 8, color: '#203c36', bold: true, height: lineH, width: colW - 1 });
+    wrappedHeaders.forEach((lines, column) => {
+      lines.forEach((text, line) => paint.push({ op: 'text', x: body.x + column * colW, y: y + line * lineH,
+        text, size: 8, color: '#203c36', bold: true, height: lineH, width: colW - 1 }));
     });
-    y += lineH + 1;
+    y += headerHeight + 1;
     paint.push({ op: 'line', x1: body.x, y1: y, x2: body.x + body.width, y2: y, stroke: '#c5cbbd', line: 0.4 });
     y += 1.5;
-    while (rowIndex < rows.length && y + lineH <= body.y + body.height) {
-      rows[rowIndex]!.forEach((cell, column) => {
-        paint.push({ op: 'text', x: body.x + column * colW, y, text: cell, size: 8, color: '#203c36', height: lineH, width: colW - 1 });
+    const pageCapacity = Math.floor((body.y + body.height - y) / lineH);
+    while (rowIndex < rows.length) {
+      const cells = wrappedRows[rowIndex]!;
+      const rowLines = Math.max(1, ...cells.map(lines => lines.length));
+      const available = Math.floor((body.y + body.height - y + 1e-8) / lineH);
+      if (available <= 0) break;
+      // Keep ordinary rows together. Only rows taller than a page are split.
+      if (lineOffset === 0 && rowLines > available && rowLines <= pageCapacity) break;
+      const count = Math.min(rowLines - lineOffset, available);
+      cells.forEach((lines, column) => {
+        lines.slice(lineOffset, lineOffset + count).forEach((text, line) => paint.push({ op: 'text',
+          x: body.x + column * colW, y: y + line * lineH, text, size: 8, color: '#203c36', height: lineH, width: colW - 1 }));
       });
-      y += lineH;
-      rowIndex += 1;
+      y += count * lineH;
+      lineOffset += count;
+      if (lineOffset === rowLines) { rowIndex += 1; lineOffset = 0; }
     }
     const continued = rowIndex < rows.length;
     pushSheet(sheets, {
@@ -899,6 +920,7 @@ function composeCustom(
   for (const page of spec.customPages ?? []) {
     const size = sheetSizeMm(page.paper, page.orientation);
     const frames: DrawnFrame[] = [];
+    const pageDiagnostics: string[] = [];
     const scales = new Set<number>();
     let perspective = false;
     for (const frame of page.frames) {
@@ -925,10 +947,17 @@ function composeCustom(
       }
       if (frame.kind === 'schedule') {
         const rows = keysFor(scene.snapshot).rows;
+        const lines = rows.flatMap(row => wrapLines(`${row.key}  ${row.label}  ${row.detail}`, clip.width, 8, measure));
+        const capacity = Math.floor(clip.height / 4.2);
+        if (lines.length > capacity) {
+          const message = 'Die Stückliste passt nicht vollständig in den Rahmen. Bitte den Rahmen vergrößern.';
+          pageDiagnostics.push(message);
+          diagnostics.push(message);
+        }
         frames.push({
           id: frame.id, kind: 'schedule', clip, scale: null, scaleLabel: '—', sourceLabel: scene.sceneName, detail: false,
-          paint: rows.slice(0, Math.floor(clip.height / 4)).map((row, index) => ({
-            op: 'text' as const, x: clip.x, y: clip.y + index * 4, text: `${row.key}  ${row.label}  ${row.detail}`, size: 8, color: '#203c36', height: 4, width: clip.width,
+          paint: lines.slice(0, capacity).map((text, index) => ({
+            op: 'text' as const, x: clip.x, y: clip.y + index * 4.2, text, size: 8, color: '#203c36', height: 4.2, width: clip.width,
           })),
         });
         continue;
@@ -942,7 +971,11 @@ function composeCustom(
       if (frame.crop) overviewNeeded = true;
       const tiles = tilesFor(bounds, clip, scale);
       const tile = tiles[0]!;
-      if (tiles.length > 1) diagnostics.push(`Rahmen ${frame.label ?? frame.kind} braucht ${tiles.length} Blätter; Folgeblätter wurden ergänzt.`);
+      if (tiles.length > 1) {
+        const message = `Rahmen ${frame.label ?? frame.kind} braucht ${tiles.length} Blätter; Folgeblätter wurden ergänzt.`;
+        pageDiagnostics.push(message);
+        diagnostics.push(message);
+      }
       const drawn = frame.kind === 'elevation'
         ? elevationFrame(snapshot, frame, clip, tile.window, measure)
         : planPaint(snapshot, layers, clip, tile.window, measure, keysFor(snapshot).map);
@@ -973,7 +1006,7 @@ function composeCustom(
       title: page.name, sceneName: primary.sceneName, paper: page.paper, orientation: page.orientation,
       widthMm: size.width, heightMm: size.height, scale: shared, scaleLabel: scaleLabel(shared, perspective && scales.size === 0),
       paint: chrome(metaFor(input, primary, page.name, scaleLabel(shared, perspective && scales.size === 0)), size, measure),
-      frames, diagnostics: [], neighbors: {}, bookmarkTitle: page.name,
+      frames, diagnostics: pageDiagnostics, neighbors: {}, bookmarkTitle: page.name,
     });
   }
   if (overviewNeeded) {
