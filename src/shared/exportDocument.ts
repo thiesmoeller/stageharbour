@@ -1,3 +1,4 @@
+import { ballastLabel, sceneMaterials } from './ballast.js';
 import { z } from 'zod';
 import { CONNECTION_COMPATIBILITY_NOTICE } from './assembly.js';
 import { dimensionFigure, resolveDimension } from './dimensions.js';
@@ -405,7 +406,10 @@ function planPaint(
       const box = boxOf(wall.corners);
       if (box && layers.labels) identityMarks(wallIdentityLines(wall.assemblyNumber, wall.panelLabel), (box.minX + box.maxX) / 2, (box.minY + box.maxY) / 2, frame, view, measure, paint);
     }
-    for (const brace of snapshot.resolvedBraces ?? []) paint.push(poly([...brace.corners], frame, view, undefined, '#5c6b52', 0.5));
+    for (const brace of snapshot.resolvedBraces ?? []) {
+      for (const slab of brace.slabs ?? []) paint.push(poly([...slab], frame, view, '#999b96', '#666666', 0.4));
+      paint.push(poly([...(brace.timberCorners ?? brace.corners)], frame, view, undefined, '#5c6b52', 0.5));
+    }
     for (const item of snapshot.resolvedPlaceholders ?? []) {
       if (item.kind === 'chair') continue;
       paint.push(poly([...item.corners], frame, view, undefined, '#8b8478', 0.4));
@@ -582,6 +586,14 @@ function keysFor(snapshot: ConstructionSnapshot): { map: Map<string, string>; ro
       detail: `${Math.round(width)} mm${wall.assemblyNumber ? ` · Position ${wall.assemblyNumber}` : ''}`,
     });
   }
+  for (const brace of snapshot.layout.braces) {
+    const key = String(n++);
+    map.set(brace.id, key);
+    rows.push({ key, label: brace.label, detail: `${brace.footprintWidth} × ${brace.footprintDepth} × ${brace.height} mm · ${ballastLabel(brace.ballast)}` });
+  }
+  const materials = sceneMaterials(snapshot.layout);
+  if (materials.slabs) rows.push({ key: '—', label: 'Gehwegplatten', detail: `${materials.slabs} Stück · 400 × 400 × 50 mm` });
+  if (materials.straps) rows.push({ key: '—', label: 'Spanngurte', detail: `${materials.straps} Stück` });
   return { map, rows };
 }
 
@@ -844,6 +856,13 @@ function composeStock(stock: PackageStock, spec: ExportDocumentSpec, input: { pr
     ...stock.panels.map(panel => [panel.label, String(panel.appearances), panel.sceneNames.join(', ')]),
   ];
   tableSheets('Bestand', ['Platte', 'Anzahl', 'Szenen'], rows, body, spec.paper, orientation, measure, undefined, metaFor(input, undefined, 'Bestand', '—'), sheets);
+  for (const venue of stock.venueMaterials ?? []) {
+    tableSheets('Materialbedarf · enthaltene Szenen', ['Artikel', 'Benötigt', 'Verfügbar / Fehlend'], [
+      ['Stützen', String(venue.required.braces), '—'],
+      ['Gehwegplatten · 400 × 400 × 50 mm', String(venue.required.slabs), `${venue.available.slabs} / ${venue.shortage.slabs}`],
+      ['Spanngurte', String(venue.required.straps), `${venue.available.straps} / ${venue.shortage.straps}`],
+    ], body, spec.paper, orientation, measure, venue.venueName, metaFor(input, undefined, `Materialbedarf · ${venue.venueName}`, '—'), sheets);
+  }
 }
 
 function composeView(

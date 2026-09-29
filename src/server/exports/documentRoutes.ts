@@ -1,3 +1,4 @@
+import { EMPTY_BALLAST_STOCK } from '../../shared/ballast.js';
 import { randomUUID } from 'node:crypto';
 import { and, eq, inArray } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
@@ -10,7 +11,7 @@ import { sceneSchema, type Scene } from '../../shared/layout.js';
 import { freezePackage } from '../../shared/package.js';
 import type { Database } from '../db/connection.js';
 import {
-  adaptation, constructionPackage, constructionPlanRevision, exportPreparation, inventoryPanel, inventoryWallType,
+  inventoryBallast, adaptation, constructionPackage, constructionPlanRevision, exportPreparation, inventoryPanel, inventoryWallType,
   production, scene, venue, venueVersion,
 } from '../db/schema.js';
 import { AccessError, type createAccess } from '../identity/access.js';
@@ -116,11 +117,12 @@ export function registerDocumentRoutes(
     const issuedAt = new Date();
     const labels = await panelLabels(request.params.workspaceId, scenes.flatMap(scene => scene.layout.walls.flatMap(wall => wall.panelId ? [wall.panelId] : [])));
     const frozenScenes = freezeScenes(spec, scenes, labels, issuedAt);
+    const [ballastStock] = await db.select({ slabs: inventoryBallast.slabs, straps: inventoryBallast.straps }).from(inventoryBallast).where(eq(inventoryBallast.workspaceId, request.params.workspaceId));
     const packageStock = spec.kind === 'package' || spec.scenes.length > 1
       ? freezePackage(scenes, {
         id: randomUUID(), name: spec.revisionName, issuedAt, paper: spec.paper, scale: spec.scale,
         elevationGroupIds: spec.scenes[0]?.elevationGroupIds ?? [], layers: spec.layers,
-      }, await inventory(request.params.workspaceId)).stock
+      }, await inventory(request.params.workspaceId), ballastStock ?? EMPTY_BALLAST_STOCK).stock
       : undefined;
     const frozen: IssuedDocument = {
       schemaVersion: 2, paper: spec.paper, scale: spec.scale, spec, productionName: scenes[0]!.productionName,

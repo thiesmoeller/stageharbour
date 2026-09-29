@@ -16,6 +16,7 @@ export function BraceInspector({ brace, surfaces, readOnly, onPendingChange, onA
     const data = new FormData(event.currentTarget);
     const result = braceSchema.safeParse({
       ...brace, label: data.get('label'),
+      ballast: data.get('ballast') === 'single' ? { mode: 'single', side: data.get('ballastSide') } : { mode: data.get('ballast') },
       ...Object.fromEntries(['x', 'y', 'rotation', 'footprintWidth', 'footprintDepth', 'height'].map(key => [key, Number(data.get(key))])),
     });
     if (!result.success) { setError('Bitte prüfen Sie die Maße und die Bezeichnung.'); return; }
@@ -23,6 +24,16 @@ export function BraceInspector({ brace, surfaces, readOnly, onPendingChange, onA
   }
   return <form key={resetKey} onSubmit={submit} {...formProps}><fieldset disabled={readOnly}>
     <label htmlFor="brace-label">Bezeichnung</label><input id="brace-label" name="label" defaultValue={brace.label} maxLength={120} required />
+    <label htmlFor="brace-ballast">Beschwerung</label>
+    <select id="brace-ballast" name="ballast" defaultValue={brace.ballast?.mode ?? 'none'}>
+      <option value="none">Keine</option><option value="single">Einfach · 1 Gehwegplatte</option>
+      <option value="heavy">Schwer · 2 Gehwegplatten + 1 Spanngurt</option>
+    </select>
+    <label htmlFor="brace-ballast-side">Seite bei einfacher Beschwerung</label>
+    <select id="brace-ballast-side" name="ballastSide" defaultValue={brace.ballast?.mode === 'single' ? brace.ballast.side : 'left'}>
+      <option value="left">Links</option><option value="right">Rechts</option>
+    </select>
+    <p className="muted">Gehwegplatten: 400 × 400 × 50 mm. Links/rechts aus Sicht der Wand zum Bodenausleger.</p>
     <SurfaceField id="brace-surface" value={brace.supportingSurfaceId} surfaces={surfaces} />
     <div className="numeric-fields">{([
       ['footprintWidth', 'Grundfläche Breite (mm)', 1, 100000], ['footprintDepth', 'Grundfläche Tiefe (mm)', 1, 100000],

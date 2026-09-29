@@ -1,3 +1,5 @@
+import { braceCorners } from './braceTransforms.js';
+import type { Ballast } from './ballast.js';
 import { z } from 'zod';
 import { venueOutlineSchema, OUTLINE_VERTEX_INSERT_MM, type PlanPoint } from './venue.js';
 import { AUDIENCE_FLOOR_ID } from './levels.js';
@@ -49,7 +51,7 @@ export type KeepClearWarning = z.infer<typeof keepClearWarningSchema>;
 
 type LayoutObjects = {
   walls: { id: string; label: string; x: number; y: number; rotation: number; width: number; thickness: number; supportingSurfaceId?: string }[];
-  braces: { id: string; label: string; x: number; y: number; rotation: number; footprintWidth: number; footprintDepth: number; supportingSurfaceId?: string }[];
+  braces: { id: string; label: string; x: number; y: number; rotation: number; footprintWidth: number; footprintDepth: number; ballast?: Ballast; supportingSurfaceId?: string }[];
   platforms?: { id: string; label: string; outline: PlanPoint[] }[];
   stairs?: { id: string; label: string; lowerSurfaceId: string; upperSurfaceId: string; x: number; y: number; rotation: number; width: number; run: number }[];
   placeholders?: { id: string; label: string; x: number; y: number; rotation: number; width: number; depth: number; supportingSurfaceId?: string }[];
@@ -136,7 +138,7 @@ export function keepClearWarnings(venue: VenueZones, layout: LayoutObjects): Kee
     ...layout.braces.map(brace => ({
       id: brace.id, label: brace.label, kind: 'brace' as const,
       surfaces: brace.supportingSurfaceId ? [brace.supportingSurfaceId] : [],
-      polygon: footprint({ x: brace.x, y: brace.y, rotation: brace.rotation, width: brace.footprintWidth, depth: brace.footprintDepth }),
+      polygon: braceCorners(brace),
     })),
     ...(layout.platforms ?? []).map(platform => ({
       id: platform.id, label: platform.label, kind: 'platform' as const,

@@ -1,3 +1,4 @@
+import { EMPTY_BALLAST_STOCK } from '../../shared/ballast.js';
 import { randomUUID } from 'node:crypto';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
@@ -8,7 +9,7 @@ import { exportListSchema, exportRevisionSchema, type ExportRevision } from '../
 import { sceneSchema } from '../../shared/layout.js';
 import { constructionPackageSchema, freezePackage, freezePackageSchema, type ConstructionPackage } from '../../shared/package.js';
 import type { Database } from '../db/connection.js';
-import { adaptation, constructionPackage, inventoryPanel, inventoryWallType, production, scene, venue, venueVersion } from '../db/schema.js';
+import { inventoryBallast, adaptation, constructionPackage, inventoryPanel, inventoryWallType, production, scene, venue, venueVersion } from '../db/schema.js';
 import { AccessError, type createAccess } from '../identity/access.js';
 import { pdfForStoredSnapshot } from './documentRoutes.js';
 import type { FileStorage } from './storage.js';
@@ -95,10 +96,11 @@ export function registerPackageRoutes(
     const scenes = await loadScenes(request.params.workspaceId, request.params.productionId, request.body.sceneIds);
     const id = randomUUID();
     const issuedAt = new Date();
+    const [ballastStock] = await db.select({ slabs: inventoryBallast.slabs, straps: inventoryBallast.straps }).from(inventoryBallast).where(eq(inventoryBallast.workspaceId, request.params.workspaceId));
     const snapshot = freezePackage(scenes, {
       id, name: request.body.name, issuedAt, paper: request.body.paper, scale: request.body.scale,
       elevationGroupIds: request.body.elevationGroupIds, layers: request.body.layers,
-    }, await loadInventory(request.params.workspaceId));
+    }, await loadInventory(request.params.workspaceId), ballastStock ?? EMPTY_BALLAST_STOCK);
     await db.insert(constructionPackage).values({
       id, workspaceId: request.params.workspaceId, productionId: request.params.productionId, name: request.body.name,
       scale: snapshot.scale, status: 'pending', snapshot, createdAt: issuedAt,

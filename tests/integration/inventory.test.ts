@@ -42,7 +42,7 @@ async function loginAs(email: string) {
 test('creates and lists inventory panels under an exclusive inventory lease', async () => {
   const empty = await app.inject({ url: inventoryUrl, headers });
   assert.equal(empty.statusCode, 200, empty.body);
-  assert.deepEqual(empty.json(), { lease: null, types: [], panels: [] });
+  assert.deepEqual(empty.json(), { lease: null, types: [], panels: [], ballast: { slabs: 0, straps: 0 } });
   assert.equal((await app.inject({ method: 'POST', url: `${inventoryUrl}/panels`, headers, payload: { label: 'Beispiel-P01', type: plain } })).statusCode, 423);
   assert.equal((await app.inject({ method: 'POST', url: `${inventoryUrl}/lease`, headers })).statusCode, 200);
   const created = await app.inject({ method: 'POST', url: `${inventoryUrl}/panels`, headers, payload: { label: 'Beispiel-P01', type: plain, note: null } });

@@ -138,3 +138,21 @@ test('a package PDF lists parts, warnings and the frozen revision on every page,
   assert.equal(forked.subarray(0, 5).toString(), '%PDF-');
   assert(shownText(forked).includes('Stückliste'));
 });
+
+test('ballast stock freezes per venue maxima over included scenes and keeps old packages readable', () => {
+  const first = baseScene('A');
+  const heavy = { ...newBrace(randomUUID(), 1000, 1000), ballast: { mode: 'heavy' as const } };
+  const single = { ...newBrace(randomUUID(), 2000, 1000), ballast: { mode: 'single' as const, side: 'left' as const } };
+  first.layout.braces = [heavy, single];
+  const second = baseScene('B', { venueId: first.venueId, layout: { schemaVersion: 1, walls: [], braces: [heavy] } });
+  const other = baseScene('Other venue', { layout: { schemaVersion: 1, walls: [], braces: [single] } });
+  const stock = { slabs: 2, straps: 1 };
+  const frozen = freezePackage([first, second, other], { id: randomUUID(), name: 'Ballast', issuedAt: new Date() }, [], stock);
+  assert.deepEqual(frozen.stock.venueMaterials?.map(row => row.required), [{ braces: 2, slabs: 3, straps: 1 }, { braces: 1, slabs: 1, straps: 0 }]);
+  stock.slabs = 200;
+  first.layout.braces = [];
+  assert.equal(frozen.stock.venueMaterials?.[0]?.available.slabs, 2);
+  assert.equal(frozen.stock.venueMaterials?.[0]?.shortage.slabs, 1);
+  assert.equal(frozen.sceneLists[0]?.materials?.slabs, 3);
+  assert.equal(frozen.scenes[0]?.resolvedBraces[0]?.slabs?.length, 2);
+});

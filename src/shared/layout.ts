@@ -1,3 +1,4 @@
+import { ballastSchema } from './ballast.js';
 import { z } from 'zod';
 import { stageLightingSchema } from './lighting.js';
 import { leaseHolderSchema } from './leases.js';
@@ -101,6 +102,7 @@ export const EXAMPLE_BRACE_FOOTPRINT_WIDTH = BRACE_TIMBER_MM;
 export const EXAMPLE_BRACE_FOOTPRINT_DEPTH = 500;
 export const EXAMPLE_BRACE_HEIGHT = 1200;
 export const braceSchema = z.strictObject({
+  ballast: ballastSchema.optional(),
   id: z.uuid(), label: name,
   x: coordinate, y: coordinate,
   rotation: z.number().finite().min(-360).max(360),

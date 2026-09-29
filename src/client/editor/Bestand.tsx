@@ -1,3 +1,4 @@
+import { BallastStock } from './BallastStock.js';
 import { useEffect, useState } from 'react';
 import { can } from '../../shared/permissions.js';
 import type { Me } from '../../shared/contracts.js';
@@ -10,7 +11,7 @@ import { useEditingLease } from './useEditingLease.js';
 
 const EMPTY_LAYOUT = { schemaVersion: 1 as const, walls: [], braces: [] };
 
-type BestandTab = 'panels' | 'types';
+type BestandTab = 'panels' | 'types' | 'ballast';
 
 /** Workspace home for physical panels and stocked wall-element types (ADR 0005). */
 export function Bestand({ me }: { me: Me }) {
@@ -20,7 +21,7 @@ export function Bestand({ me }: { me: Me }) {
     <div className="section-heading">
       <div>
         <h2>Bestand</h2>
-        <p className="muted">Platten und Wandtypen des Arbeitsbereichs. Szenen zuerst entwerfen; Platten später zuweisen.</p>
+        <p className="muted">Platten, Wandtypen und Beschwerung des Arbeitsbereichs. Szenen zuerst entwerfen; Platten später zuweisen.</p>
       </div>
     </div>
     <div className="asset-tabs" role="tablist" aria-label="Bestand">
@@ -28,7 +29,10 @@ export function Bestand({ me }: { me: Me }) {
         data-testid="bestand-tab-panels" onClick={() => setTab('panels')}>Platten</button>
       <button type="button" role="tab" className="quiet" aria-selected={tab === 'types'} aria-pressed={tab === 'types'}
         data-testid="bestand-tab-types" onClick={() => setTab('types')}>Wandtypen</button>
+      <button type="button" role="tab" className="quiet" aria-selected={tab === 'ballast'} aria-pressed={tab === 'ballast'}
+        data-testid="bestand-tab-ballast" onClick={() => setTab('ballast')}>Beschwerung</button>
     </div>
+    {tab === 'ballast' && <BallastStock workspaceId={me.workspace.id} readOnly={readOnly} />}
     {tab === 'panels' && <InventoryStock workspaceId={me.workspace.id} layout={EMPTY_LAYOUT} readOnly={readOnly}
       onPanels={() => { /* stock list is self-contained */ }} />}
     {tab === 'types' && <InventoryTypesStock workspaceId={me.workspace.id} readOnly={readOnly} />}

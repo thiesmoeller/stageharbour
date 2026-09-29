@@ -1,3 +1,4 @@
+import { ballastLabel } from '../../shared/ballast.js';
 import PDFDocument from 'pdfkit';
 import { PDFDocument as PdfLib } from 'pdf-lib';
 import { germanDate } from '../../shared/export.js';
@@ -145,6 +146,14 @@ function renderPartsList(pkg: ConstructionPackage) {
         y += 5;
       }
     }
+    for (const venue of pkg.stock.venueMaterials ?? []) {
+      section(`Materialbedarf · ${venue.venueName} · enthaltene Szenen`);
+      for (const line of [
+        `Stützen: ${venue.required.braces}`,
+        `Gehwegplatten 400 × 400 × 50 mm: ${venue.required.slabs} · verfügbar ${venue.available.slabs} · fehlend ${venue.shortage.slabs}`,
+        `Spanngurte: ${venue.required.straps} · verfügbar ${venue.available.straps} · fehlend ${venue.shortage.straps}`,
+      ]) { ensure(5); doc.fontSize(8).text(line, mm(PAGE_MARGIN_MM), mm(y), { width: mm(contentWidth), lineBreak: false }); y += 5; }
+    }
     for (const list of pkg.sceneLists) {
       section(list.sceneName);
       ensure(5);
@@ -165,8 +174,13 @@ function renderPartsList(pkg: ConstructionPackage) {
       }
       for (const brace of list.braces) {
         ensure(5);
-        doc.fontSize(8).text(`${brace.label} · ${brace.footprintWidth}×${brace.footprintDepth} · ${brace.height} mm`,
+        doc.fontSize(8).text(`${brace.label} · ${brace.footprintWidth}×${brace.footprintDepth} · ${brace.height} mm · ${ballastLabel(brace.ballast)}`,
           mm(PAGE_MARGIN_MM), mm(y), { width: mm(contentWidth), lineBreak: false });
+        y += 5;
+      }
+      if (list.materials) {
+        ensure(5);
+        doc.fontSize(8).text(`Gehwegplatten: ${list.materials.slabs} · Spanngurte: ${list.materials.straps}`, mm(PAGE_MARGIN_MM), mm(y));
         y += 5;
       }
       if (list.riggingNotes) {
