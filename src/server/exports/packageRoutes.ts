@@ -49,7 +49,7 @@ export function registerPackageRoutes(
       .where(and(eq(scene.workspaceId, workspaceId), eq(production.id, productionId), inArray(scene.id, sceneIds)));
     const byId = new Map(rows.map(row => [row.id, sceneSchema.parse({ ...row, lease: null })]));
     const loaded = sceneIds.map(id => byId.get(id));
-    if (loaded.some(item => !item)) throw new AccessError(404, 'Szene nicht verfügbar.');
+    if (loaded.some(item => !item)) throw new AccessError(404, 'Bühnenbild nicht verfügbar.');
     return loaded as ReturnType<typeof sceneSchema.parse>[];
   }
   async function loadInventory(workspaceId: string) {

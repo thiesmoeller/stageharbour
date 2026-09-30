@@ -15,7 +15,7 @@ export function MaterialRequirements({ workspaceId, productionId, venueId, revis
     return () => { cancelled = true; };
   }, [workspaceId, productionId, venueId, revisionKey]);
   return <details data-testid={`material-requirements-${venueId}`}><summary>Materialbedarf</summary>
-    <p className="muted">Höchster Bedarf je Artikel über alle Szenen dieser Produktion an dieser Spielstätte.</p>
+    <p className="muted">Höchster Bedarf je Artikel über alle Bühnenbilder dieser Produktion an dieser Spielstätte.</p>
     {error && <p role="alert">{error}</p>}
     {!data && !error && <p>Lädt …</p>}
     {data && <table><thead><tr><th>Artikel</th><th>Benötigt</th><th>Verfügbar</th><th>Fehlend</th></tr></thead><tbody>

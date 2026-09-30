@@ -35,7 +35,7 @@ export async function createProduction(page: Page, options: CreateProductionOpti
     await page.getByRole('spinbutton', { name: 'Spielstättentiefe (mm)' }).fill(options.depth ?? '6000');
   }
   if (options.sceneName !== undefined) {
-    await page.getByRole('textbox', { name: 'Szene' }).fill(options.sceneName);
+    await page.getByRole('textbox', { name: 'Bühnenbild' }).fill(options.sceneName);
   }
   await page.getByRole('button', { name: 'Produktion anlegen' }).click();
 }

@@ -82,6 +82,6 @@ test('editor keeps the canvas in view, preserves tray drafts, and adapts to smal
   await expect(page.locator('#wall-x')).toBeInViewport();
   await page.screenshot({ path: 'test-results/editor-workspace-mobile.png', fullPage: true });
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();
-  await expect(page.getByRole('heading', { name: 'Produktionen & Szenen', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Produktionen & Bühnenbilder', exact: true })).toBeVisible();
   expect(errors).toEqual([]);
 });

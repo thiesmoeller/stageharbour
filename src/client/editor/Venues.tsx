@@ -143,7 +143,7 @@ export function Venues({ me, onDirty, venueId }: { me: Me; onDirty: (dirty: bool
       <div className="form-actions"><button>Spielstätte anlegen</button><button type="button" className="quiet" onClick={() => setCreating(false)}>Abbrechen</button></div>
     </fieldset></form>}
     {busy && <p role="status">Spielstätten werden geladen …</p>}
-    {!busy && !error && !venues.length && <p className="muted">Noch keine Spielstätten vorhanden. Eine Spielstätte ist unabhängig von einer Produktion oder Szene.</p>}
+    {!busy && !error && !venues.length && <p className="muted">Noch keine Spielstätten vorhanden. Eine Spielstätte ist unabhängig von einer Produktion oder einem Bühnenbild.</p>}
     <div className="venue-cards">{venues.map(item => <div className="venue-card-wrap" key={item.id}>
       <button className="venue-card quiet" disabled={busy} onClick={() => void open(item.id)}
         aria-label={`${item.name} · ${readOnly ? 'Spielstätte ansehen' : 'Spielstätte gestalten'}`}>

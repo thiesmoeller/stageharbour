@@ -47,7 +47,7 @@ test('design a venue independently, reuse it in a production, and save scene lig
     await page.screenshot({ path: 'test-results/venue-library.png', fullPage: true });
   });
   await test.step('Reuse the published venue in a production', async () => {
-    await page.getByRole('button', { name: /Produktionen & Szenen/ }).click();
+    await page.getByRole('button', { name: /Produktionen & Bühnenbilder/ }).click();
     await expect(page.getByRole('button', { name: /Studiobühne/ })).toHaveCount(0);
     await createProduction(page, {
       productionName: 'Lichtprobe',
@@ -87,9 +87,9 @@ test('design a venue independently, reuse it in a production, and save scene lig
   });
   await test.step('Reload scene lighting without changing the venue preset', async () => {
     await page.reload();
-    const editor = page.getByRole('heading', { name: 'Szene 1', exact: true });
-    const card = page.getByRole('button', { name: /Lichtprobe · Szene 1/ });
-    const workspace = page.getByRole('region', { name: 'Szene bearbeiten' });
+    const editor = page.getByRole('heading', { name: 'Bühnenbild 1', exact: true });
+    const card = page.getByRole('button', { name: /Lichtprobe · Bühnenbild 1/ });
+    const workspace = page.getByRole('region', { name: 'Bühnenbild bearbeiten' });
     try {
       await workspace.waitFor({ state: 'visible', timeout: 8_000 });
     } catch {
@@ -112,19 +112,19 @@ test('design a venue independently, reuse it in a production, and save scene lig
     await page.getByRole('button', { name: 'Spielstätte speichern', exact: true }).click();
     await expect(page.getByText('Spielstättenfassung gespeichert', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Zur Spielstättenübersicht' }).click();
-    await page.getByRole('button', { name: /Produktionen & Szenen/ }).click();
-    await expect(page.getByRole('button', { name: /Lichtprobe · Szene 1/ })).toContainText('Aktualisierung verfügbar');
+    await page.getByRole('button', { name: /Produktionen & Bühnenbilder/ }).click();
+    await expect(page.getByRole('button', { name: /Lichtprobe · Bühnenbild 1/ })).toContainText('Aktualisierung verfügbar');
     await page.getByRole('button', { name: /Spielstätten & Bühnen/ }).click();
     await page.getByRole('button', { name: 'Neue Spielstätte', exact: true }).click();
     await page.getByLabel('Name der Spielstätte').fill('Gastbühne');
     await page.getByRole('button', { name: 'Spielstätte anlegen', exact: true }).click();
     await page.getByRole('button', { name: 'Zur Spielstättenübersicht' }).click();
-    await page.getByRole('button', { name: /Produktionen & Szenen/ }).click();
-    const lightingCard = page.locator('.scene-card').filter({ has: page.getByRole('button', { name: /Lichtprobe · Szene 1/ }) });
+    await page.getByRole('button', { name: /Produktionen & Bühnenbilder/ }).click();
+    const lightingCard = page.locator('.scene-card').filter({ has: page.getByRole('button', { name: /Lichtprobe · Bühnenbild 1/ }) });
     await lightingCard.locator('summary', { hasText: 'Weitere Aktionen' }).click();
     await lightingCard.getByRole('button', { name: 'In andere Spielstätte kopieren' }).click();
     await page.getByLabel('Zielspielstätte').selectOption({ label: 'Gastbühne' });
-    await page.getByRole('textbox', { name: 'Szene', exact: true }).fill('Gastszene');
+    await page.getByRole('textbox', { name: 'Bühnenbild', exact: true }).fill('Gastszene');
     await page.getByRole('button', { name: 'Als Spielstättenanpassung anlegen' }).click();
     await page.getByRole('button', { name: /Lichtprobe · Gastszene/ }).click();
     await expect(page.locator('.scene-context').filter({ hasText: 'Lichtprobe · Gastbühne' })).toBeVisible();

@@ -73,7 +73,7 @@ function renderPartsList(pkg: ConstructionPackage) {
       doc.fontSize(7).fillColor('#536950');
       doc.text('Platte', mm(col.label), mm(y), { lineBreak: false });
       doc.text('Einsätze', mm(col.apps), mm(y), { lineBreak: false });
-      doc.text('Szenen', mm(col.scenes), mm(y), { lineBreak: false });
+      doc.text('Bühnenbilder', mm(col.scenes), mm(y), { lineBreak: false });
       doc.text('Status', mm(col.status), mm(y), { lineBreak: false });
       y += 4.5;
       doc.moveTo(mm(PAGE_MARGIN_MM), mm(y)).lineTo(mm(PAGE_MARGIN_MM + contentWidth), mm(y))
@@ -147,7 +147,7 @@ function renderPartsList(pkg: ConstructionPackage) {
       }
     }
     for (const venue of pkg.stock.venueMaterials ?? []) {
-      section(`Materialbedarf · ${venue.venueName} · enthaltene Szenen`);
+      section(`Materialbedarf · ${venue.venueName} · enthaltene Bühnenbilder`);
       for (const line of [
         `Stützen: ${venue.required.braces}`,
         `Gehwegplatten 400 × 400 × 50 mm: ${venue.required.slabs} · verfügbar ${venue.available.slabs} · fehlend ${venue.shortage.slabs}`,

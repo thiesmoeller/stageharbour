@@ -28,7 +28,7 @@ export function PhysicalPanelForm({ panel, disabled, onSave, onCancel }: {
     <label>Reparaturhinweis<input name="note" maxLength={500} defaultValue={panel.note ?? ''} /></label>
     <WallTypePreview type={panel.type} cutouts={cutouts} surfaces={surfaces} />
     <h4>Technikausschnitte dieser Platte</h4>
-    <p className="muted">Für Steckdosen und Kabel. Maße von links und unten an der Vorderseite. Diese Bestandsmerkmale verändern keinen Szenenentwurf.</p>
+    <p className="muted">Für Steckdosen und Kabel. Maße von links und unten an der Vorderseite. Diese Bestandsmerkmale verändern keinen Bühnenbildentwurf.</p>
     {cutouts.map((opening, index) => <div className="opening-fields" key={opening.id}>
       <strong>Ausschnitt {index + 1}</strong>
       <div className="numeric-fields">{([['left', 'Von links'], ['sill', 'Von unten'], ['width', 'Breite'], ['height', 'Höhe']] as const).map(([key, label]) => <label key={key}>{label} (mm)<input type="number" required min={key === 'width' || key === 'height' ? 1 : 0} max={100000} value={opening[key]} onChange={event => setCutouts(current => current.map(item => item.id === opening.id ? { ...item, [key]: Number(event.target.value) } : item))} /></label>)}</div>

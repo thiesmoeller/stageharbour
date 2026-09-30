@@ -145,7 +145,7 @@ export function AssetLibrary({ workspaceId, assets, layout, readOnly, selected, 
           <option value="wall">Standardwand · 1200 × 2400 × 28 mm</option><option value="brace">Beispielstütze · Maße vor Einsatz prüfen</option>
         </select><button type="submit">Objektvorlage speichern</button>
       </fieldset></form>}
-      <p className="muted">Vorlagen erzeugen unabhängige Exemplare. Archivieren entfernt nur die Vorlage aus der Auswahl; bestehende Szenen behalten ihre Objekte.</p>
+      <p className="muted">Vorlagen erzeugen unabhängige Exemplare. Archivieren entfernt nur die Vorlage aus der Auswahl; bestehende Bühnenbilder behalten ihre Objekte.</p>
     </>}
     {tab === 'panels' && <InventoryStock workspaceId={workspaceId} layout={layout} readOnly={readOnly} onPanels={onPanels} />}
     {tab === 'wallTypes' && <WallTypePanel types={wallTypes} selectedId={selectedTypeId} readOnly={readOnly}

@@ -62,7 +62,7 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
       setScenes(sceneListSchema.parse(sceneData));
       setAvailableVenues(venueListSchema.parse(venueData));
       setTemplates(sceneTemplateListSchema.parse(templateData));
-    }).catch(() => { if (!cancelled) setError('Szenen konnten nicht geladen werden.'); })
+    }).catch(() => { if (!cancelled) setError('Bühnenbilder konnten nicht geladen werden.'); })
       .finally(() => { if (!cancelled) setBusy(false); });
     return () => { cancelled = true; };
   }, [base, templatesBase, attempt]);
@@ -98,7 +98,7 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
     if (openedIdRef.current === id && opened?.holdsLease) return;
     setBusy(true); setError('');
     try { await enter(sceneSchema.parse(await request(`${base}/${id}`))); }
-    catch { setError('Die Szene konnte nicht geladen werden.'); writeWorkspaceLocation({ section: 'plans' }); }
+    catch { setError('Das Bühnenbild konnte nicht geladen werden.'); writeWorkspaceLocation({ section: 'plans' }); }
     finally { setBusy(false); }
   }
   useEffect(() => {
@@ -131,17 +131,17 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
     const productionId = addingScene?.productionId ?? addingVenue?.productionId;
     const venueVersionId = addingScene?.venueVersionId ?? String(data.get('venueVersionId') ?? '');
     const input = createSceneSchema.safeParse({ productionId, venueVersionId, sceneName: data.get('sceneName') });
-    if (!input.success) { setError('Bitte geben Sie einen gültigen Szenennamen ein.'); return; }
+    if (!input.success) { setError('Bitte geben Sie einen gültigen Bühnenbildnamen ein.'); return; }
     setBusy(true); setError('');
     try {
       await request(base, input.data);
       setAddingScene(undefined); setAddingVenue(undefined); setAttempt(value => value + 1);
-    } catch { setError('Die Szene konnte nicht angelegt werden.'); setBusy(false); }
+    } catch { setError('Das Bühnenbild konnte nicht angelegt werden.'); setBusy(false); }
   }
   async function duplicate(id: string) {
     setBusy(true); setError('');
     try { await request(`${base}/${id}/duplicate`, {}); setAttempt(value => value + 1); }
-    catch { setError('Die Szene konnte nicht dupliziert werden.'); setBusy(false); }
+    catch { setError('Das Bühnenbild konnte nicht dupliziert werden.'); setBusy(false); }
   }
   function dismissForms() {
     setCreating(false); setSelectedVenueVersion(''); setAddingScene(undefined); setAddingVenue(undefined);
@@ -186,7 +186,7 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
     try {
       const source = sceneSchema.parse(await request(`${base}/${id}`));
       setCopying({ source, destVenue: source.venue });
-    } catch { setError('Die Szene konnte nicht geladen werden.'); }
+    } catch { setError('Das Bühnenbild konnte nicht geladen werden.'); }
     finally { setBusy(false); }
   }
   async function loadDestVenue(venueVersionId: string) {
@@ -221,16 +221,16 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
     if (!input.success) { setError('Bitte wählen Sie Zielproduktion und Zielspielstätte.'); return; }
     setBusy(true); setError('');
     try { await request(`${base}/${copying.source.id}/copy`, input.data); setCopying(undefined); setAttempt(value => value + 1); }
-    catch { setError('Die Szene konnte nicht in die Zielspielstätte kopiert werden.'); setBusy(false); }
+    catch { setError('Das Bühnenbild konnte nicht in die Zielspielstätte kopiert werden.'); setBusy(false); }
   }
   async function capture(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!capturing) return;
     const input = captureTemplateSchema.safeParse({ name: new FormData(event.currentTarget).get('name') });
-    if (!input.success) { setError('Bitte geben Sie einen Namen für die Szenenvorlage ein.'); return; }
+    if (!input.success) { setError('Bitte geben Sie einen Namen für die Bühnenbildvorlage ein.'); return; }
     setBusy(true); setError('');
     try { await request(`${base}/${capturing.id}/templates`, input.data); setCapturing(undefined); setAttempt(value => value + 1); }
-    catch { setError('Die Szenenvorlage konnte nicht gespeichert werden.'); setBusy(false); }
+    catch { setError('Die Bühnenbildvorlage konnte nicht gespeichert werden.'); setBusy(false); }
   }
   async function startInstantiate(id: string) {
     setBusy(true); setError(''); dismissForms();
@@ -238,7 +238,7 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
       const template = sceneTemplateSchema.parse(await request(`${templatesBase}/${id}`));
       const destVenue = availableVenues[0] ? await loadDestVenue(availableVenues[0].venueVersionId) : undefined;
       setInstantiating({ template, destVenue });
-    } catch { setError('Die Szenenvorlage konnte nicht geladen werden.'); }
+    } catch { setError('Die Bühnenbildvorlage konnte nicht geladen werden.'); }
     finally { setBusy(false); }
   }
   async function chooseInstantiateVenue(venueVersionId: string) {
@@ -267,7 +267,7 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
     try {
       await request(`${templatesBase}/${instantiating.template.id}/instantiate`, input.data);
       setInstantiating(undefined); setAttempt(value => value + 1);
-    } catch { setError('Die Szenenvorlage konnte nicht in die Produktion eingefügt werden.'); setBusy(false); }
+    } catch { setError('Die Bühnenbildvorlage konnte nicht in die Produktion eingefügt werden.'); setBusy(false); }
   }
   async function applyVenue(id: string) {
     setBusy(true); setError('');
@@ -280,25 +280,25 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
   }
   async function removeScene(id: string, label: string) {
     if (!await askConfirm({
-      title: 'Szene löschen?',
-      message: `„${label}“ wirklich löschen? Diese Szene und abhängige Exporte werden entfernt.`,
-      confirmLabel: 'Szene löschen',
+      title: 'Bühnenbild löschen?',
+      message: `„${label}“ wirklich löschen? Dieses Bühnenbild und abhängige Exporte werden entfernt.`,
+      confirmLabel: 'Bühnenbild löschen',
       danger: true,
     })) return;
     setBusy(true); setError('');
     try { await request(`${base}/${id}`, undefined, 'DELETE'); setAttempt(value => value + 1); }
-    catch (caught) { setError(caught instanceof ApiError ? caught.message : 'Die Szene konnte nicht gelöscht werden.'); setBusy(false); }
+    catch (caught) { setError(caught instanceof ApiError ? caught.message : 'Das Bühnenbild konnte nicht gelöscht werden.'); setBusy(false); }
   }
   async function removeTemplate(id: string, label: string) {
     if (!await askConfirm({
-      title: 'Szenenvorlage löschen?',
-      message: `Szenenvorlage „${label}“ wirklich löschen?`,
+      title: 'Bühnenbildvorlage löschen?',
+      message: `Bühnenbildvorlage „${label}“ wirklich löschen?`,
       confirmLabel: 'Vorlage löschen',
       danger: true,
     })) return;
     setBusy(true); setError('');
     try { await request(`${templatesBase}/${id}`, undefined, 'DELETE'); setAttempt(value => value + 1); }
-    catch (caught) { setError(caught instanceof ApiError ? caught.message : 'Die Szenenvorlage konnte nicht gelöscht werden.'); setBusy(false); }
+    catch (caught) { setError(caught instanceof ApiError ? caught.message : 'Die Bühnenbildvorlage konnte nicht gelöscht werden.'); setBusy(false); }
   }
   async function leave() {
     const held = opened;
@@ -322,36 +322,36 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
   ];
   if (opened) return <><Editor key={`${opened.scene.id}:${opened.holdsLease}`} initial={opened.scene} workspaceId={me.workspace.id} readOnly={readOnly || !opened.holdsLease} canRename={!readOnly} onDirty={markDirty} onClose={leave}
     onRequestEditing={readOnly ? undefined : () => void open(opened.scene.id)} />{error && <p role="alert">{error}</p>}</>;
-  return <section className="plans"><div className="section-heading"><h2>Produktionen & Szenen</h2>{!readOnly && !editingForm && <button onClick={startCreatingProduction} disabled={busy}>Neue Produktion</button>}</div>
-    <p className="muted">Zuerst die Produktion, dann die Szenen je Spielstätte. Vorschaubilder zeigen den aktuellen Grundriss.</p>
+  return <section className="plans"><div className="section-heading"><h2>Produktionen & Bühnenbilder</h2>{!readOnly && !editingForm && <button onClick={startCreatingProduction} disabled={busy}>Neue Produktion</button>}</div>
+    <p className="muted">Zuerst die Produktion, dann die Bühnenbilder je Spielstätte. Vorschaubilder zeigen den aktuellen Grundriss.</p>
     {error && <div className="error" role="alert">{error} <button className="quiet" onClick={() => setAttempt(value => value + 1)} disabled={busy}>Übersicht neu laden</button></div>}
     {creating && <form className="create-plan" onSubmit={event => void create(event)}><fieldset disabled={busy}>
       <h3>Produktion anlegen</h3><p className="muted">Wählen Sie eine vorhandene Spielstätte oder legen Sie einen neuen Raum an.</p>
       <label htmlFor="production-name">Produktion</label><input id="production-name" name="productionName" required maxLength={120} />
       <label htmlFor="existing-venue">Vorhandene Spielstätte</label><select id="existing-venue" value={selectedVenueVersion} onChange={event => setSelectedVenueVersion(event.target.value)}><option value="">Neue Spielstätte anlegen</option>{availableVenues.map(item => <option key={item.id} value={item.venueVersionId}>{item.name}</option>)}</select>
       {!selectedVenueVersion && <><label htmlFor="venue-name">Spielstätte</label><input id="venue-name" name="venueName" required maxLength={120} /></>}
-      <label htmlFor="scene-name">Szene</label><input id="scene-name" name="sceneName" defaultValue="Szene 1" required maxLength={120} />
+      <label htmlFor="scene-name">Bühnenbild</label><input id="scene-name" name="sceneName" defaultValue="Bühnenbild 1" required maxLength={120} />
       {!selectedVenueVersion && <div className="numeric-fields"><div><label htmlFor="venue-width">Spielstättenbreite (mm)</label><input id="venue-width" name="width" type="number" min="1" max="100000" step="any" required /></div><div><label htmlFor="venue-depth">Spielstättentiefe (mm)</label><input id="venue-depth" name="depth" type="number" min="1" max="100000" step="any" required /></div></div>}
       <div className="form-actions"><button type="submit">Produktion anlegen</button><button className="quiet" type="button" onClick={() => { setCreating(false); setSelectedVenueVersion(''); }}>Abbrechen</button></div>
     </fieldset></form>}
     {addingScene && <form className="create-plan" onSubmit={event => void createBlankScene(event)}><fieldset disabled={busy}>
-      <h3>Neue Szene</h3>
-      <p className="muted">{addingScene.productionName} · {addingScene.venueName}. Die neue Szene beginnt ohne Anordnung.</p>
-      <label htmlFor="blank-scene-name">Szene</label>
+      <h3>Neues Bühnenbild</h3>
+      <p className="muted">{addingScene.productionName} · {addingScene.venueName}. Das neue Bühnenbild beginnt ohne Anordnung.</p>
+      <label htmlFor="blank-scene-name">Bühnenbild</label>
       <input id="blank-scene-name" name="sceneName" required maxLength={120} autoFocus />
-      <div className="form-actions"><button type="submit">Szene anlegen</button>
+      <div className="form-actions"><button type="submit">Bühnenbild anlegen</button>
         <button className="quiet" type="button" onClick={() => setAddingScene(undefined)}>Abbrechen</button></div>
     </fieldset></form>}
     {addingVenue && <form className="create-plan" onSubmit={event => void createBlankScene(event)}><fieldset disabled={busy}>
       <h3>Weitere Spielstätte</h3>
-      <p className="muted">{addingVenue.productionName}. Wählen Sie eine vorhandene Spielstätte für eine neue leere Szene.</p>
+      <p className="muted">{addingVenue.productionName}. Wählen Sie eine vorhandene Spielstätte für ein neues leeres Bühnenbild.</p>
       <label htmlFor="add-venue-version">Spielstätte</label>
       <select id="add-venue-version" name="venueVersionId" required defaultValue={availableVenues[0]?.venueVersionId ?? ''}>
         {availableVenues.map(item => <option key={item.id} value={item.venueVersionId}>{item.name}</option>)}
       </select>
-      <label htmlFor="add-venue-scene-name">Szene</label>
-      <input id="add-venue-scene-name" name="sceneName" defaultValue="Szene 1" required maxLength={120} />
-      <div className="form-actions"><button type="submit">Szene anlegen</button>
+      <label htmlFor="add-venue-scene-name">Bühnenbild</label>
+      <input id="add-venue-scene-name" name="sceneName" defaultValue="Bühnenbild 1" required maxLength={120} />
+      <div className="form-actions"><button type="submit">Bühnenbild anlegen</button>
         <button className="quiet" type="button" onClick={() => setAddingVenue(undefined)}>Abbrechen</button></div>
     </fieldset></form>}
     {copying && <form className="create-plan" onSubmit={event => void copy(event)}><fieldset disabled={busy}>
@@ -366,7 +366,7 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
         onChange={event => void chooseDestVenue(event.target.value)}>
         {venues.map(item => <option key={item.venueVersionId} value={item.venueVersionId}>{item.venueName}</option>)}
       </select>
-      <label htmlFor="copy-scene-name">Szene</label>
+      <label htmlFor="copy-scene-name">Bühnenbild</label>
       <input id="copy-scene-name" name="sceneName" defaultValue={copiedSceneName(copying.source.name)} required maxLength={120} />
       {copying.source.venue.platforms && copying.source.venue.platforms.length > 0 && <>
         <h4>Auflageflächen zuordnen</h4>
@@ -383,16 +383,16 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
         <button className="quiet" type="button" onClick={() => setCopying(undefined)}>Abbrechen</button></div>
     </fieldset></form>}
     {capturing && <form className="create-plan" onSubmit={event => void capture(event)}><fieldset disabled={busy}>
-      <h3>Szenenvorlage speichern</h3>
-      <p className="muted">Die Szenenvorlage ist eine unabhängige, schreibgeschützte Kopie der Anordnung. Spätere Änderungen an der Quelle ändern sie nicht. Die Quelle wird nur gelesen, eine Bearbeitungsberechtigung dort ist nicht nötig.</p>
-      <label htmlFor="template-name">Name der Szenenvorlage</label>
+      <h3>Bühnenbildvorlage speichern</h3>
+      <p className="muted">Die Bühnenbildvorlage ist eine unabhängige, schreibgeschützte Kopie der Anordnung. Spätere Änderungen an der Quelle ändern sie nicht. Die Quelle wird nur gelesen, eine Bearbeitungsberechtigung dort ist nicht nötig.</p>
+      <label htmlFor="template-name">Name der Bühnenbildvorlage</label>
       <input id="template-name" name="name" defaultValue={capturing.name} required maxLength={120} />
-      <div className="form-actions"><button type="submit">Szenenvorlage speichern</button>
+      <div className="form-actions"><button type="submit">Bühnenbildvorlage speichern</button>
         <button className="quiet" type="button" onClick={() => setCapturing(undefined)}>Abbrechen</button></div>
     </fieldset></form>}
     {instantiating && <form className="create-plan" onSubmit={event => void instantiate(event)}><fieldset disabled={busy}>
-      <h3>Szenenvorlage in Produktion einfügen</h3>
-      <p className="muted">Es entsteht eine unabhängige, bearbeitbare Kopie. Plattenzuweisungen entfallen. Die Zielspielstätte liefert Umriss, permanente Einrichtungen und Vorgaben. Die Szenenvorlage bleibt unverändert.</p>
+      <h3>Bühnenbildvorlage in Produktion einfügen</h3>
+      <p className="muted">Es entsteht eine unabhängige, bearbeitbare Kopie. Plattenzuweisungen entfallen. Die Zielspielstätte liefert Umriss, permanente Einrichtungen und Vorgaben. Die Bühnenbildvorlage bleibt unverändert.</p>
       <label htmlFor="template-production">Zielproduktion</label>
       <select id="template-production" name="productionId" required defaultValue={productions[0]?.productionId}>
         {productions.map(item => <option key={item.productionId} value={item.productionId}>{item.productionName}</option>)}
@@ -402,7 +402,7 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
         onChange={event => void chooseInstantiateVenue(event.target.value)}>
         {venues.map(item => <option key={item.venueVersionId} value={item.venueVersionId}>{item.venueName}</option>)}
       </select>
-      <label htmlFor="template-scene-name">Szene</label>
+      <label htmlFor="template-scene-name">Bühnenbild</label>
       <input id="template-scene-name" name="sceneName" defaultValue={instantiating.template.name} required maxLength={120} />
       {instantiating.template.sourceSurfaces.length > 0 && <>
         <h4>Auflageflächen zuordnen</h4>
@@ -415,22 +415,22 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
           </select>
         </div>)}
       </>}
-      <div className="form-actions"><button type="submit">Szenenvorlage einfügen</button>
+      <div className="form-actions"><button type="submit">Bühnenbildvorlage einfügen</button>
         <button className="quiet" type="button" onClick={() => setInstantiating(undefined)}>Abbrechen</button></div>
     </fieldset></form>}
-    {busy && <p role="status">Szenen werden geladen …</p>}
-    {!busy && !scenes.length && !editingForm && !error && <p className="muted">Noch keine Szenen vorhanden.{!readOnly && ' Legen Sie Ihre erste Produktion mit Spielstätte und Szene an.'}</p>}
+    {busy && <p role="status">Bühnenbilder werden geladen …</p>}
+    {!busy && !scenes.length && !editingForm && !error && <p className="muted">Noch keine Bühnenbilder vorhanden.{!readOnly && ' Legen Sie Ihre erste Produktion mit Spielstätte und Bühnenbild an.'}</p>}
     {scenes.length > 0 && <div className="production-browser">
-      <div className="overview-tools"><label htmlFor="scene-search">Produktionen & Szenen suchen<input id="scene-search" type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Produktion, Szene oder Spielstätte" /></label>
+      <div className="overview-tools"><label htmlFor="scene-search">Produktionen & Bühnenbilder suchen<input id="scene-search" type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Produktion, Bühnenbild oder Spielstätte" /></label>
         <button type="button" className="quiet" aria-pressed={!productionFilter} onClick={() => { setProductionFilter(''); setSearch(''); }}>Alle Produktionen ({productions.length})</button></div>
       <div className="production-gallery" aria-label="Produktionen auswählen">{productions.map(production => {
         const items = scenes.filter(scene => scene.productionId === production.productionId);
         return <button key={production.productionId} type="button" className="quiet production-tile" aria-pressed={productionFilter === production.productionId} onClick={() => setProductionFilter(current => current === production.productionId ? '' : production.productionId)}>
           {production.preview && <PlanPreview preview={production.preview} label={`Bühnenbild ${production.productionName}`} />}
-          <strong>{production.productionName}</strong><span>{items.length} Szenen · {new Set(items.map(scene => scene.venueId)).size} Spielstätten</span>
+          <strong>{production.productionName}</strong><span>{items.length} Bühnenbilder · {new Set(items.map(scene => scene.venueId)).size} Spielstätten</span>
         </button>;
       })}</div>
-      <p className="muted" role="status">{scenes.filter(scene => (!productionFilter || scene.productionId === productionFilter) && `${scene.productionName} ${scene.name} ${scene.venueName}`.toLocaleLowerCase('de').includes(search.trim().toLocaleLowerCase('de'))).length} Szenen gefunden</p>
+      <p className="muted" role="status">{scenes.filter(scene => (!productionFilter || scene.productionId === productionFilter) && `${scene.productionName} ${scene.name} ${scene.venueName}`.toLocaleLowerCase('de').includes(search.trim().toLocaleLowerCase('de'))).length} Bühnenbilder gefunden</p>
     </div>}
     <div className={`production-details${productionFilter ? ' focused' : ''}`}>{productions.filter(item => (!productionFilter || item.productionId === productionFilter) && scenes.some(scene => scene.productionId === item.productionId && `${scene.productionName} ${scene.name} ${scene.venueName}`.toLocaleLowerCase('de').includes(search.trim().toLocaleLowerCase('de')))).map(item => {
       const productionScenes = scenes.filter(scene => scene.productionId === item.productionId);
@@ -455,7 +455,7 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
           return <div className="venue-block" key={venue.venueId}>
             <div className="section-heading venue-block-heading">
               <h3 className="venue-block-title">Spielstätte · {venue.venueName}</h3>
-              {!readOnly && !editingForm && <button className="quiet" type="button" onClick={() => { dismissForms(); setAddingScene({ productionId: item.productionId, venueVersionId: venue.venueVersionId, productionName: item.productionName, venueName: venue.venueName }); }} disabled={busy}>Neue Szene</button>}
+              {!readOnly && !editingForm && <button className="quiet" type="button" onClick={() => { dismissForms(); setAddingScene({ productionId: item.productionId, venueVersionId: venue.venueVersionId, productionName: item.productionName, venueName: venue.venueName }); }} disabled={busy}>Neues Bühnenbild</button>}
             </div>
             <MaterialRequirements workspaceId={me.workspace.id} productionId={item.productionId} venueId={venue.venueId}
               revisionKey={productionScenes.filter(scene => scene.venueId === venue.venueId).map(scene => scene.id).join(',')} />
@@ -464,11 +464,11 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
                 {scene.preview && <PlanPreview preview={scene.preview} label={`Grundriss ${scene.name}`} />}
                 <span className="scene-open-copy">
                   <strong>{scene.name}</strong>
-                  <span>{scene.venueUpdateAvailable ? 'Aktualisierung verfügbar · ' : ''}{scene.lease ? `Bearbeitung durch ${scene.lease.holderName}` : 'Szene öffnen'} →</span>
+                  <span>{scene.venueUpdateAvailable ? 'Aktualisierung verfügbar · ' : ''}{scene.lease ? `Bearbeitung durch ${scene.lease.holderName}` : 'Bühnenbild öffnen'} →</span>
                 </span>
               </button>
               {!readOnly && scene.venueUpdateAvailable && <button className="quiet" type="button" onClick={() => void applyVenue(scene.id)} disabled={busy}>Spielstättenfassung übernehmen</button>}
-              {!readOnly && <button className="quiet" type="button" onClick={() => void duplicate(scene.id)} disabled={busy}>Szene duplizieren</button>}
+              {!readOnly && <button className="quiet" type="button" onClick={() => void duplicate(scene.id)} disabled={busy}>Bühnenbild duplizieren</button>}
               {!readOnly && renaming?.kind !== 'scene' && <button className="quiet" type="button" disabled={busy} onClick={() => { dismissForms(); setRenaming({ kind: 'scene', id: scene.id }); }}>Umbenennen</button>}
               {!readOnly && renaming?.kind === 'scene' && renaming.id === scene.id && <form className="create-plan" onSubmit={event => void rename(event)}>
                 <label htmlFor={`rename-scene-${scene.id}`}>Neuer Name</label>
@@ -481,7 +481,7 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
               {!readOnly && <details className="scene-actions">
                 <summary>Weitere Aktionen</summary>
                 <button className="quiet" type="button" onClick={() => void startCopy(scene.id)} disabled={busy}>In andere Spielstätte kopieren</button>
-                <button className="quiet" type="button" onClick={() => { dismissForms(); setCapturing({ id: scene.id, name: scene.name }); }} disabled={busy}>Als Szenenvorlage speichern</button>
+                <button className="quiet" type="button" onClick={() => { dismissForms(); setCapturing({ id: scene.id, name: scene.name }); }} disabled={busy}>Als Bühnenbildvorlage speichern</button>
                 <button className="quiet" type="button" onClick={() => void removeScene(scene.id, `${scene.productionName} · ${scene.name}`)} disabled={busy}>Löschen</button>
               </details>}
             </div>)}</div>
@@ -497,8 +497,8 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
     {packageExport && <ExportWorkspace workspaceId={me.workspace.id} productionId={packageExport.productionId}
       scenes={packageExport.scenes} groups={[]} walls={[]} templates={[]} readOnly={readOnly} freezeDisabled={busy}
       onClose={() => setPackageExport(undefined)} />}
-    <div className="section-heading"><h2>Szenenvorlagen</h2></div>
-    {!busy && !templates.length && !capturing && !instantiating && !error && <p className="muted">Noch keine Szenenvorlagen vorhanden.{!readOnly && ' Speichern Sie eine Szene als schreibgeschützte Szenenvorlage.'}</p>}
+    <div className="section-heading"><h2>Bühnenbildvorlagen</h2></div>
+    {!busy && !templates.length && !capturing && !instantiating && !error && <p className="muted">Noch keine Bühnenbildvorlagen vorhanden.{!readOnly && ' Speichern Sie ein Bühnenbild als schreibgeschützte Bühnenbildvorlage.'}</p>}
     <div className="scene-list">{templates.map(template => <div className="scene-card" key={template.id}>
       <div className="scene-open"><strong>{template.name}</strong><span>schreibgeschützt</span></div>
       {!readOnly && renaming?.kind === 'template' && renaming.id === template.id && <form className="create-plan" onSubmit={event => void rename(event)}>

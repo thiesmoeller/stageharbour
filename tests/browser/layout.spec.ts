@@ -19,7 +19,7 @@ async function reopenScene(page: Page, sceneHeading: string, listButton: RegExp 
   const card = typeof listButton === 'string'
     ? page.getByRole('button', { name: listButton, exact: true })
     : page.getByRole('button', { name: listButton });
-  const workspace = page.getByRole('region', { name: 'Szene bearbeiten' });
+  const workspace = page.getByRole('region', { name: 'Bühnenbild bearbeiten' });
   // Deep-link restore wins when present; avoid clicking a list card that the hash route will detach.
   try {
     await workspace.waitFor({ state: 'visible', timeout: 8_000 });
@@ -390,9 +390,9 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await waitUntilSaved(page);
 
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();
-  await expect(page.getByRole('heading', { name: 'Produktionen & Szenen' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Produktionen & Bühnenbilder' })).toBeVisible();
   const duplicated = page.waitForResponse(response => response.url().includes('/duplicate') && response.request().method() === 'POST');
-  await page.locator('.scene-card').filter({ has: page.getByRole('button', { name: 'LayoutJourney · LayoutSzene LayoutSaal' }) }).getByRole('button', { name: 'Szene duplizieren', exact: true }).click();
+  await page.locator('.scene-card').filter({ has: page.getByRole('button', { name: 'LayoutJourney · LayoutSzene LayoutSaal' }) }).getByRole('button', { name: 'Bühnenbild duplizieren', exact: true }).click();
   expect((await duplicated).ok()).toBeTruthy();
   await expect(page.getByRole('button', { name: /LayoutSzene \(Kopie\)/ })).toBeVisible();
   await expect(page.getByRole('button', { name: 'LayoutJourney · LayoutSzene LayoutSaal' })).toBeVisible();
@@ -472,7 +472,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByLabel('Mittellinie Drehung (°)')).toHaveValue('90');
 
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();
-  await expect(page.getByRole('heading', { name: 'Produktionen & Szenen' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Produktionen & Bühnenbilder' })).toBeVisible();
   await createProduction(page, {
     productionName: 'Gastspiel',
     venueName: 'Stadthalle',
@@ -510,7 +510,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await revealEditorCommand(page, 'Spielstätte schließen');
   await page.getByRole('button', { name: 'Spielstätte schließen' }).click();
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();
-  await expect(page.getByRole('heading', { name: 'Produktionen & Szenen' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Produktionen & Bühnenbilder' })).toBeVisible();
   const copiedAcross = page.waitForResponse(response => response.url().includes('/copy') && response.request().method() === 'POST');
   const sourceCard = page.getByRole('button', { name: 'LayoutJourney · LayoutSzene LayoutSaal' })
     .locator('xpath=ancestor::div[contains(@class,"scene-card")]');
@@ -531,22 +531,22 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByLabel('Freihaltezonen')).toBeVisible();
 
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();
-  await expect(page.getByRole('heading', { name: 'Produktionen & Szenen' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Produktionen & Bühnenbilder' })).toBeVisible();
   const capturedTemplate = page.waitForResponse(response => /\/scenes\/[^/]+\/templates$/.test(new URL(response.url()).pathname) && response.request().method() === 'POST');
   const templateSource = page.getByRole('button', { name: 'LayoutJourney · LayoutSzene LayoutSaal' })
     .locator('xpath=ancestor::div[contains(@class,"scene-card")]');
   await templateSource.locator('summary', { hasText: 'Weitere Aktionen' }).click();
-  await templateSource.getByRole('button', { name: 'Als Szenenvorlage speichern' }).click();
-  await page.getByLabel('Name der Szenenvorlage').fill('Grundriss A');
-  await page.getByRole('button', { name: 'Szenenvorlage speichern', exact: true }).click();
+  await templateSource.getByRole('button', { name: 'Als Bühnenbildvorlage speichern' }).click();
+  await page.getByLabel('Name der Bühnenbildvorlage').fill('Grundriss A');
+  await page.getByRole('button', { name: 'Bühnenbildvorlage speichern', exact: true }).click();
   expect((await capturedTemplate).ok()).toBeTruthy();
-  await expect(page.getByRole('heading', { name: 'Szenenvorlagen' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Bühnenbildvorlagen' })).toBeVisible();
   await expect(page.getByText('Grundriss A', { exact: true })).toBeVisible();
   const insertedTemplate = page.waitForResponse(response => response.url().includes('/instantiate') && response.request().method() === 'POST');
   await page.getByRole('button', { name: 'In Produktion einfügen' }).click();
   await page.getByLabel('Zielproduktion').selectOption({ label: 'Gastspiel' });
   await page.getByLabel('Zielspielstätte').selectOption({ label: 'Stadthalle' });
-  await page.getByRole('button', { name: 'Szenenvorlage einfügen' }).click();
+  await page.getByRole('button', { name: 'Bühnenbildvorlage einfügen' }).click();
   expect((await insertedTemplate).ok()).toBeTruthy();
   await expect(page.getByRole('button', { name: /Gastspiel · Grundriss A/ })).toBeVisible();
   await page.getByRole('button', { name: /Gastspiel · Grundriss A/ }).click();
@@ -557,7 +557,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByLabel('Platte zuweisen')).toHaveValue('');
 
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();
-  await expect(page.getByRole('heading', { name: 'Produktionen & Szenen' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Produktionen & Bühnenbilder' })).toBeVisible();
   const copiedReturn = page.waitForResponse(response => response.url().includes('/copy') && response.request().method() === 'POST');
   const returnSource = page.getByRole('button', { name: 'LayoutJourney · LayoutSzene LayoutSaal' })
     .locator('xpath=ancestor::div[contains(@class,"scene-card")]');
@@ -565,7 +565,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await returnSource.getByRole('button', { name: 'In andere Spielstätte kopieren' }).click();
   await page.getByLabel('Zielproduktion').selectOption({ label: 'Gastspiel' });
   await page.getByLabel('Zielspielstätte').selectOption({ label: 'LayoutSaal' });
-  await page.getByRole('textbox', { name: 'Szene' }).fill('Rückkehr');
+  await page.getByRole('textbox', { name: 'Bühnenbild' }).fill('Rückkehr');
   await page.getByRole('button', { name: 'Als Spielstättenanpassung anlegen' }).click();
   expect((await copiedReturn).ok()).toBeTruthy();
   await expect(page.getByRole('button', { name: /Gastspiel · Rückkehr/ })).toBeVisible();
@@ -579,7 +579,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByRole('button', { name: 'Spielstätte speichern' }).click();
   expect((await savedCeiling).ok()).toBeTruthy();
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();
-  await expect(page.getByRole('heading', { name: 'Produktionen & Szenen' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Produktionen & Bühnenbilder' })).toBeVisible();
   await expect(page.getByRole('button', { name: /Gastspiel · Rückkehr/ })).toContainText('Aktualisierung verfügbar');
   await expect(page.getByRole('button', { name: 'LayoutJourney · LayoutSzene LayoutSaal' })).not.toContainText('Aktualisierung verfügbar');
   const appliedVenue = page.waitForResponse(response => response.url().includes('/venue-apply') && response.request().method() === 'POST');
@@ -656,7 +656,7 @@ test('a failed autosave keeps the local draft and retries the same revision', as
     productionName: 'Netzwerkprobe',
     venueName: 'Probesaal',
   });
-  await expect(page.getByRole('heading', { name: 'Szene 1' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Bühnenbild 1' })).toBeVisible();
   await waitUntilSaved(page);
 
   await page.route('**/api/workspaces/**/scenes/**/layout', route => route.abort());
@@ -667,6 +667,6 @@ test('a failed autosave keeps the local draft and retries the same revision', as
   await page.getByRole('button', { name: 'Speichern erneut versuchen' }).click();
   await waitUntilSaved(page);
   await expect(page.locator('.plan-canvas g[data-testid^="wall-"]')).toHaveCount(1);
-  await reopenScene(page, 'Szene 1', /Netzwerkprobe · Szene 1/);
+  await reopenScene(page, 'Bühnenbild 1', /Netzwerkprobe · Bühnenbild 1/);
   await expect(page.locator('.plan-canvas g[data-testid^="wall-"]')).toHaveCount(1);
 });

@@ -715,7 +715,7 @@ export function composeDocument(input: {
   const layers = resolveExportLayers(spec.layers as Partial<ExportLayers> | undefined);
   const ordered = spec.scenes.map(entry => {
     const scene = input.scenes.find(item => item.sceneId === entry.sceneId);
-    if (!scene) throw new Error('Szene für den Export fehlt.');
+    if (!scene) throw new Error('Bühnenbild für den Export fehlt.');
     return { entry, scene };
   });
 
@@ -873,12 +873,12 @@ function composeStock(stock: PackageStock, spec: ExportDocumentSpec, input: { pr
   const body = bodyRect(spec.paper, orientation);
   const rows = [
     ['Physische Platten', String(stock.physicalPanels), 'Bestand'],
-    ['Einsätze in Szenen', String(stock.appearances), 'Auftritte'],
+    ['Einsätze in Bühnenbildern', String(stock.appearances), 'Auftritte'],
     ...stock.panels.map(panel => [panel.label, String(panel.appearances), panel.sceneNames.join(', ')]),
   ];
-  tableSheets('Bestand', ['Platte', 'Anzahl', 'Szenen'], rows, body, spec.paper, orientation, measure, undefined, metaFor(input, undefined, 'Bestand', '—'), sheets);
+  tableSheets('Bestand', ['Platte', 'Anzahl', 'Bühnenbilder'], rows, body, spec.paper, orientation, measure, undefined, metaFor(input, undefined, 'Bestand', '—'), sheets);
   for (const venue of stock.venueMaterials ?? []) {
-    tableSheets('Materialbedarf · enthaltene Szenen', ['Artikel', 'Benötigt', 'Verfügbar / Fehlend'], [
+    tableSheets('Materialbedarf · enthaltene Bühnenbilder', ['Artikel', 'Benötigt', 'Verfügbar / Fehlend'], [
       ['Stützen', String(venue.required.braces), '—'],
       ['Gehwegplatten · 400 × 400 × 50 mm', String(venue.required.slabs), `${venue.available.slabs} / ${venue.shortage.slabs}`],
       ['Spanngurte', String(venue.required.straps), `${venue.available.straps} / ${venue.shortage.straps}`],

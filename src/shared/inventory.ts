@@ -156,7 +156,7 @@ export function inventoryWarnings(layout: Layout, panels: readonly InventoryPane
   for (const [panelId, wallIds] of assigned) {
     if (wallIds.length < 2) continue;
     const panel = byId.get(panelId);
-    warnings.push({ kind: 'duplicate', panelId, wallId: wallIds[0], message: `Platte ${panel?.label ?? panelId} ist in dieser Szene mehrfach zugewiesen.` });
+    warnings.push({ kind: 'duplicate', panelId, wallId: wallIds[0], message: `Platte ${panel?.label ?? panelId} ist in diesem Bühnenbild mehrfach zugewiesen.` });
   }
   const groups = new Map<string, { needed: number; placement: PlacementType }>();
   for (const wall of layout.walls) {
