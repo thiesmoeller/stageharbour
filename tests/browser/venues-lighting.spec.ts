@@ -114,7 +114,7 @@ test('design a venue independently, reuse it in a production, and save scene lig
   await page.getByRole('textbox', { name: 'Szene', exact: true }).fill('Gastszene');
   await page.getByRole('button', { name: 'Als Spielstättenanpassung anlegen' }).click();
   await page.getByRole('button', { name: /Lichtprobe · Gastszene/ }).click();
-  await expect(page.getByText('Lichtprobe · Gastbühne', { exact: true })).toBeVisible();
+  await expect(page.locator('.scene-context').filter({ hasText: 'Lichtprobe · Gastbühne' })).toBeVisible();
   await expect(page.locator('[data-testid^="venue-wall-"]')).toHaveCount(0);
   expect(errors).toEqual([]);
 });

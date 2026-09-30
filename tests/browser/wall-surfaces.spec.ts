@@ -9,6 +9,7 @@ test('wall surface editor uniform library finish covers all faces', async ({ pag
     venueName: 'Probebühne',
     sceneName: 'Einheitlich',
   });
+  await page.getByRole('button', { name: '2D + 3D', exact: true }).click();
   await placeWallAt(page);
   const surfaces = page.getByTestId('surface-editor');
   await expect(surfaces).toBeVisible({ timeout: 15_000 });
@@ -28,6 +29,7 @@ test('wall surface editor assigns wood lower and paint upper bands', async ({ pa
     venueName: 'Probebühne',
     sceneName: 'Streifen',
   });
+  await page.getByRole('button', { name: '2D + 3D', exact: true }).click();
   await placeWallAt(page);
   await page.locator('#wall-height').fill('2400');
   const surfaces = page.getByTestId('surface-editor');

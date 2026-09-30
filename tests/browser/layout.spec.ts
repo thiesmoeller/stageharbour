@@ -1,3 +1,4 @@
+import { revealEditorCommand } from '../helpers/editorMenus.js';
 import { commitObjectPlacement, openInspector, openLibrary, placeWallAt, commitWallPlacement, placeNamedObjectAt } from '../helpers/inspector.js';
 import { test, expect, type Page } from '@playwright/test';
 import { pngBytes } from '../helpers/references.js';
@@ -54,7 +55,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
     sceneName: 'LayoutSzene',
   });
   await expect(page.getByRole('heading', { name: 'LayoutSzene' })).toBeVisible();
-  await expect(page.getByText('LayoutJourney · LayoutSaal')).toBeVisible();
+  await expect(page.locator('.scene-context').filter({ hasText: 'LayoutJourney · LayoutSaal' })).toBeVisible();
   await expect(page.getByText('↑ Publikum · Blick zur Bühne')).toBeVisible();
   await waitUntilSaved(page);
 
@@ -135,7 +136,8 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByLabel('Grundfläche Breite (mm)')).toHaveValue('40');
   await expect(page.getByRole('button', { name: 'Rückgängig' })).toBeDisabled();
 
-  await page.getByRole('button', { name: 'Spielstätte' }).click();
+  await revealEditorCommand(page, 'Spielstätte');
+  await page.getByRole('button', { name: 'Spielstätte bearbeiten' }).click();
   await expect(page.getByRole('heading', { name: 'Spielstätte' })).toBeVisible();
   await openInspector(page, 'Umriss');
   await page.getByLabel('Eckpunkt 2 X (mm)').fill('4000');
@@ -209,7 +211,8 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.locator('.plan-canvas g[data-testid^="cable-corridor-"]')).toContainText('Seitenbühne');
   await expect(page.locator('.plan-canvas [data-testid^="overhead-box-"]')).toHaveCount(1);
   await expect(page.locator('.plan-canvas [data-testid^="overhead-box-"]')).toContainText('Lüftung');
-  await page.getByRole('button', { name: 'Spielstätte' }).click();
+  await revealEditorCommand(page, 'Spielstätte');
+  await page.getByRole('button', { name: 'Spielstätte bearbeiten' }).click();
   await expect(page.getByLabel('Eckpunkt 3 X (mm)')).toHaveValue('4200');
   await expect(page.getByLabel('Eckpunkt 3 Y (mm)')).toHaveValue('3500');
   await expect(page.getByLabel('Eckpunkt 4 X (mm)')).toHaveValue('200');
@@ -232,6 +235,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByLabel('Überbauung 1 Unterkante über Fußboden (mm)')).toHaveValue('2600');
   await expect(page.getByLabel('Freihaltezone 1 Bezeichnung')).toHaveValue('Notausgang Ost');
   await expect(page.getByLabel('Freihaltezone 1 Grund')).toHaveValue('Notausgang');
+  await revealEditorCommand(page, 'Spielstätte schließen');
   await page.getByRole('button', { name: 'Spielstätte schließen' }).click();
   await expect(page.locator('.plan-canvas [data-testid^="keep-clear-zone-"]')).toHaveCount(1);
   await expect(page.locator('.plan-canvas [data-testid^="keep-clear-zone-"]')).toContainText('Notausgang Ost');
@@ -318,10 +322,13 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await openInspector(page, 'Aufbau & Verbindungen');
   await expect(page.getByTestId('assembly-connections')).toContainText('Position 1 – Position 2');
   await expect(page.getByLabel('Rigginghinweise')).toHaveValue('Stifte belassen.');
+  await revealEditorCommand(page, 'Gruppieren');
   await expect(page.getByRole('button', { name: 'Gruppieren' })).toBeDisabled();
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await page.locator('[data-testid^="wall-"]').nth(1).click({ modifiers: ['Shift'] });
+  await revealEditorCommand(page, 'Gruppieren');
   await expect(page.getByRole('button', { name: 'Gruppieren' })).toBeEnabled();
+  await revealEditorCommand(page, 'Gruppieren');
   await page.getByRole('button', { name: 'Gruppieren' }).click();
   await expect(page.getByLabel('Drehpunkt X (mm)')).toHaveValue('3500');
   await expect(page.getByLabel('Gruppendrehung (°)')).toHaveValue('0');
@@ -347,6 +354,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByRole('heading', { name: 'LayoutSzene' })).toBeVisible();
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await expect(page.getByLabel('Drehpunkt X (mm)')).toHaveValue('3500');
+  await revealEditorCommand(page, 'Gruppe auflösen');
   await expect(page.getByRole('button', { name: 'Gruppe auflösen' }).first()).toBeVisible();
   await page.getByLabel('X (mm)', { exact: true }).fill('1800');
   await page.locator('#wall-x').locator('xpath=ancestor::form').getByRole('button', { name: 'Übernehmen' }).click();
@@ -356,7 +364,9 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   // Selecting a group member selects its whole group; Shift would deselect the second wall.
   await expect(page.getByRole('heading', { name: '2 Wandelemente', exact: true })).toBeVisible();
+  await revealEditorCommand(page, 'Kopieren');
   await page.getByRole('button', { name: 'Kopieren' }).click();
+  await revealEditorCommand(page, 'Einfügen');
   await page.getByRole('button', { name: 'Einfügen' }).click();
   // Group pivot is (3650, 3000); place 300 mm audience-right so wall 3 lands at x=2100.
   await commitObjectPlacement(page, 3950, 3000, { bypassSnap: true });
@@ -408,16 +418,20 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('1800');
   await expect(page.getByText('Zugewiesen: Beispiel-P01')).toBeVisible();
 
+  await revealEditorCommand(page, 'Gruppe auflösen');
   await page.getByRole('button', { name: 'Gruppe auflösen' }).first().click();
   await waitUntilSaved(page);
-  await page.getByRole('button', { name: 'Spielstätte' }).click();
+  await revealEditorCommand(page, 'Spielstätte');
+  await page.getByRole('button', { name: 'Spielstätte bearbeiten' }).click();
   await openInspector(page, 'Bühnenmittellinie');
   await page.getByLabel('Mittellinie X (mm)').fill('4000');
   await page.getByLabel('Mittellinie Y (mm)').fill('2500');
   await page.getByLabel('Mittellinie Drehung (°)').fill('90');
   await expect(page.getByLabel('Mittellinie Drehung (°)')).toHaveValue('90');
   await page.getByLabel('Mittellinie Drehung (°)').blur();
+  await revealEditorCommand(page, 'Spielstätte schließen');
   await expect(page.getByRole('button', { name: 'Spielstätte schließen' })).toBeDisabled();
+  await page.keyboard.press('Escape');
   const savedCentreline = page.waitForResponse(
     response => /\/scenes\/[^/]+\/venue$/.test(new URL(response.url()).pathname) && response.request().method() === 'PUT',
     { timeout: 30_000 },
@@ -425,7 +439,9 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByRole('button', { name: 'Spielstätte speichern' }).click({ force: true });
   expect((await savedCentreline).ok()).toBeTruthy();
   await expect(page.getByText('Spielstättenfassung gespeichert', { exact: true })).toBeVisible({ timeout: 15_000 });
+  await revealEditorCommand(page, 'Spielstätte schließen');
   await expect(page.getByRole('button', { name: 'Spielstätte schließen' })).toBeEnabled({ timeout: 15_000 });
+  await revealEditorCommand(page, 'Spielstätte schließen');
   await page.getByRole('button', { name: 'Spielstätte schließen' }).click({ force: true });
   await expect(page.getByTestId('stage-centreline')).toBeVisible();
   await expect(page.getByText('Einrasten', { exact: true })).toBeVisible();
@@ -449,7 +465,8 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await reopenScene(page, 'LayoutSzene', 'LayoutJourney · LayoutSzene LayoutSaal');
   await expect(page.getByRole('heading', { name: 'LayoutSzene' })).toBeVisible();
   await expect(page.getByTestId('stage-centreline')).toBeVisible();
-  await page.getByRole('button', { name: 'Spielstätte' }).click();
+  await revealEditorCommand(page, 'Spielstätte');
+  await page.getByRole('button', { name: 'Spielstätte bearbeiten' }).click();
   await expect(page.getByLabel('Mittellinie X (mm)')).toHaveValue('4000');
   await expect(page.getByLabel('Mittellinie Y (mm)')).toHaveValue('2500');
   await expect(page.getByLabel('Mittellinie Drehung (°)')).toHaveValue('90');
@@ -463,7 +480,8 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   });
   await expect(page.getByRole('heading', { name: 'Gastszene' })).toBeVisible();
   await waitUntilSaved(page);
-  await page.getByRole('button', { name: 'Spielstätte' }).click();
+  await revealEditorCommand(page, 'Spielstätte');
+  await page.getByRole('button', { name: 'Spielstätte bearbeiten' }).click();
   await openInspector(page, 'Freihaltezonen');
   await page.locator('.venue-editor .tool-rail').getByRole('button', { name: 'Freihaltezone zeichnen' }).click();
   {
@@ -489,6 +507,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   const savedGuestVenue = page.waitForResponse(response => /\/scenes\/[^/]+\/venue$/.test(new URL(response.url()).pathname) && response.request().method() === 'PUT');
   await page.getByRole('button', { name: 'Spielstätte speichern' }).click();
   expect((await savedGuestVenue).ok()).toBeTruthy();
+  await revealEditorCommand(page, 'Spielstätte schließen');
   await page.getByRole('button', { name: 'Spielstätte schließen' }).click();
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();
   await expect(page.getByRole('heading', { name: 'Produktionen & Szenen' })).toBeVisible();
@@ -504,7 +523,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByRole('button', { name: /Gastspiel · LayoutSzene \(Kopie\)/ })).toBeVisible();
   await page.getByRole('button', { name: /Gastspiel · LayoutSzene \(Kopie\)/ }).click();
   await expect(page.getByRole('heading', { name: 'LayoutSzene (Kopie)' })).toBeVisible();
-  await expect(page.getByText('Gastspiel · Stadthalle')).toBeVisible();
+  await expect(page.locator('.scene-context').filter({ hasText: 'Gastspiel · Stadthalle' })).toBeVisible();
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await expect(page.getByText('Zugewiesen: Beispiel-P01')).toHaveCount(0);
   await expect(page.getByLabel('Platte zuweisen')).toHaveValue('');
@@ -532,7 +551,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByRole('button', { name: /Gastspiel · Grundriss A/ })).toBeVisible();
   await page.getByRole('button', { name: /Gastspiel · Grundriss A/ }).click();
   await expect(page.getByRole('heading', { name: 'Grundriss A' })).toBeVisible();
-  await expect(page.getByText('Gastspiel · Stadthalle')).toBeVisible();
+  await expect(page.locator('.scene-context').filter({ hasText: 'Gastspiel · Stadthalle' })).toBeVisible();
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await expect(page.getByText('Zugewiesen: Beispiel-P01')).toHaveCount(0);
   await expect(page.getByLabel('Platte zuweisen')).toHaveValue('');
@@ -552,7 +571,8 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByRole('button', { name: /Gastspiel · Rückkehr/ })).toBeVisible();
   await page.getByRole('button', { name: 'LayoutJourney · LayoutSzene LayoutSaal' }).click();
   await expect(page.getByRole('heading', { name: 'LayoutSzene', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Spielstätte' }).click();
+  await revealEditorCommand(page, 'Spielstätte');
+  await page.getByRole('button', { name: 'Spielstätte bearbeiten' }).click();
   await openInspector(page, 'Überbauung');
   await page.getByLabel('Deckenhöhe über Fußboden (mm)').fill('1800');
   const savedCeiling = page.waitForResponse(response => /\/scenes\/[^/]+\/venue$/.test(new URL(response.url()).pathname) && response.request().method() === 'PUT');
@@ -610,6 +630,7 @@ test('create a wall type with a rectangular opening, place it, and export the pl
   await expect(opening).toHaveAttribute('data-width', '800');
   await expect(opening).toHaveAttribute('data-height', '2000');
   await expect(opening).toHaveAttribute('data-left', '200');
+  await page.getByRole('button', { name: '2D + 3D', exact: true }).click();
   const stageWall = page.locator('[data-testid^="stage-wall-"]');
   await expect(stageWall).toHaveAttribute('data-opening-count', '1');
   await expect(stageWall).toHaveAttribute('data-opening-width', '800');
@@ -618,6 +639,7 @@ test('create a wall type with a rectangular opening, place it, and export the pl
   await expect(stageWall).toHaveAttribute('data-height', '2400');
   await waitUntilSaved(page);
 
+  await revealEditorCommand(page, 'Konstruktionsplan');
   await page.getByRole('button', { name: 'Konstruktionsplan' }).click();
   const workspace = page.getByRole('region', { name: 'Export' });
   await workspace.getByLabel('Bezeichnung der Fassung').fill('Türfassung');

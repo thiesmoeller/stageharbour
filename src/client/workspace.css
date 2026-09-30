@@ -484,3 +484,59 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
 .production-details.focused { grid-template-columns: minmax(0, 1fr); }
 .production-details > .production-block { min-width: 0; margin-top: 8px; padding: 16px; border: 1px solid var(--ui-line); border-radius: 10px; }
 .production-details > .production-block > .section-heading { align-items: flex-start; }
+
+/* Compact scene editor: application menus plus one document toolbar. */
+#editor-menu-slot:empty { display: none; }
+.app:has(.scene-editor) > .masthead { height: 38px; padding: 0 12px; gap: 12px; position: relative; z-index: 25; }
+.app:has(.scene-editor) > .masthead > .quiet { margin-left: auto; }
+.app:has(.scene-editor) > .masthead .brand { font-size: 12px; white-space: nowrap; }
+.editor-menubar { display: flex; align-items: center; gap: 2px; color: var(--ui-ink); font-size: 13px; }
+.editor-menu { position: relative; min-width: 0; }
+.editor-menu > summary { cursor: pointer; list-style: none; padding: 6px 9px; border-radius: 4px; white-space: nowrap; }
+.editor-menu > summary::-webkit-details-marker { display: none; }
+.editor-menu > summary:hover, .editor-menu[open] > summary { background: #e5f0ed; }
+.editor-menu > summary:focus-visible { outline: 2px solid #287eae; outline-offset: -2px; }
+.editor-menu-panel { position: absolute; z-index: 25; top: 100%; left: 0; display: flex; flex-direction: column; gap: 3px; min-width: 220px; max-width: min(360px, calc(100vw - 20px)); max-height: 65vh; overflow: auto; padding: 6px; background: #fff; border: 1px solid var(--ui-line); border-radius: 6px; box-shadow: 0 8px 24px #20304026; }
+.editor-menu:not([open]) > .editor-menu-panel { display: none; }
+.editor-menu-panel p { margin: 6px; font-size: 12px; white-space: normal; }
+.app .editor-menu-panel button, .editor-menu-panel a { display: flex; justify-content: flex-start; width: 100%; min-height: 32px; padding: 6px 10px; background: transparent; border: 0; border-radius: 3px; color: var(--ui-ink); font-size: 13px; font-weight: 400; text-decoration: none; white-space: nowrap; }
+.app .editor-menu-panel button:hover, .editor-menu-panel a:hover { background: #e5f0ed; }
+.editor-menu-panel .split-control { display: flex; padding: 8px; font-size: 12px; }
+.editor-menu-panel .split-control[hidden] { display: none; }
+.editor-local-menubar { margin-left: -76px; padding: 3px 10px; background: #fff; border-bottom: 1px solid var(--ui-line); }
+.scene-editor > .compact-editor-heading { height: 42px; min-height: 42px; padding: 3px 8px; flex-wrap: nowrap; gap: 8px; }
+.compact-editor-heading .scene-menu { flex: 1; min-width: 80px; }
+.compact-editor-heading .scene-menu > summary { display: flex; align-items: center; gap: 8px; overflow: hidden; }
+.compact-editor-heading .scene-menu h2 { font-size: 13px; flex-shrink: 0; max-width: 200px; }
+.scene-context { color: var(--ui-muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
+.compact-editor-heading .save-status { font-size: 11px; margin: 0; max-width: 190px; }
+.compact-editor-heading .document-history { flex-wrap: nowrap; flex-shrink: 0; }
+.compact-editor-heading .workspace-viewbar { flex-wrap: nowrap; flex-shrink: 0; width: auto; }
+.scene-editor > .tool-rail { top: 48px; bottom: 34px; max-height: calc(100% - 82px); }
+.scene-editor > .editor-grid > .editor-views { padding: 4px 4px 4px 0; }
+.scene-editor > .asset-library, .scene-editor > .export-drawer { top: 46px; }
+.scene-editor > .workspace-statusbar { margin-left: -76px; }
+.scene-editor > .workspace-statusbar .status-hint { display: block; visibility: visible; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.scene-rename-panel { position: absolute; top: 44px; left: 80px; z-index: 45; width: min(360px, calc(100% - 90px)); padding: 12px; background: #fff; border: 1px solid var(--ui-line); border-radius: 6px; box-shadow: 0 8px 24px #20304026; }
+.scene-rename-panel form { margin: 0; }
+.scene-rename-panel label { margin-top: 0; }
+.scene-editor:fullscreen > .tool-rail { top: 82px; max-height: calc(100% - 116px); }
+@media (max-width: 1100px) {
+  .scene-context { display: none; }
+  .compact-editor-heading .save-status { max-width: 140px; white-space: normal; }
+  .app:has(.scene-editor) > .masthead .brand { max-width: 160px; overflow: hidden; }
+}
+@media (max-width: 760px) {
+  .app:has(.scene-editor) > .masthead { gap: 4px; padding: 0 4px; }
+  .app:has(.scene-editor) > .masthead .brand { font-size: 0; gap: 0; flex-shrink: 0; }
+  .editor-menubar { font-size: 12px; gap: 0; }
+  .editor-menu > summary { padding: 6px; }
+  .editor-menubar .editor-menu-panel { position: fixed; top: 38px; left: 8px; right: 8px; max-width: none; }
+  .scene-editor > .compact-editor-heading { height: auto; min-height: 42px; flex-wrap: wrap; gap: 4px; }
+  .compact-editor-heading .scene-menu h2 { max-width: 130px; }
+  .compact-editor-heading .workspace-viewbar { justify-content: flex-end; flex: 1; }
+  .compact-editor-heading .save-status { margin-left: 0; }
+  .scene-editor > .tool-rail { max-height: none; margin: 0; }
+  .scene-editor > .workspace-statusbar, .editor-local-menubar { margin-left: 0; }
+  .scene-editor > .workspace-statusbar .status-hint { flex-basis: 100%; order: 1; }
+}

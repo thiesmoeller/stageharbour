@@ -1,3 +1,4 @@
+import { revealEditorCommand } from '../helpers/editorMenus.js';
 import { openInspector, placeWallAt } from '../helpers/inspector.js';
 
 async function pdfWords(bytes: Buffer) {
@@ -35,6 +36,7 @@ test('export a named frozen construction plan and download it from history', asy
   await page.getByRole('button', { name: 'Montagenummern vergeben' }).click();
   await waitUntilSaved(page);
   await expect(page.locator('[data-testid^="assembly-label-"]')).toHaveText(['1']);
+  await revealEditorCommand(page, 'Konstruktionsplan');
   await page.getByRole('button', { name: 'Konstruktionsplan' }).click();
   const workspace = page.getByRole('region', { name: 'Export' });
   await workspace.getByLabel('Bezeichnung der Fassung').fill('Probeexport');
@@ -71,14 +73,16 @@ test('export a named frozen construction plan and download it from history', asy
   const a3Bytes = readFileSync(await a3Download.path() as string);
   expect(a3Bytes.subarray(0, 5).toString()).toBe('%PDF-');
   expect(a3Bytes.toString('latin1')).toMatch(/\/MediaBox \[0 0 (?:841\.889764 1190\.551181|1190\.551181 841\.889764)\]/);
-  await page.getByRole('button', { name: 'Export schließen' }).evaluate(button => (button as HTMLButtonElement).click());
+  await workspace.getByRole('button', { name: 'Schließen', exact: true }).click();
   await expect(page.getByTestId('export-workspace')).toBeHidden();
   await placeWallAt(page, 2000, 4500);
   await waitUntilSaved(page);
   await page.getByLabel('Auswahl').selectOption({ label: '1. Wand' });
   await page.locator('[data-testid^="wall-"]').nth(1).click({ modifiers: ['Shift'] });
+  await revealEditorCommand(page, 'Gruppieren');
   await page.getByRole('button', { name: 'Gruppieren' }).click();
   await waitUntilSaved(page);
+  await revealEditorCommand(page, 'Konstruktionsplan');
   await page.getByRole('button', { name: 'Konstruktionsplan', exact: true }).click();
   const planExport = page.getByRole('region', { name: 'Export' });
   await planExport.getByRole('checkbox', { name: /Gruppe 1/ }).check();
@@ -140,6 +144,7 @@ test('export Raumsicht capture embeds a client PNG into the PDF', async ({ page 
   });
   await expect(page.getByRole('heading', { name: 'Blickfang' })).toBeVisible();
   await waitUntilSaved(page);
+  await revealEditorCommand(page, 'Konstruktionsplan');
   await page.getByRole('button', { name: 'Konstruktionsplan' }).click();
   const workspace = page.getByRole('region', { name: 'Export' });
   await workspace.getByRole('button', { name: 'Raumsicht hinzufügen' }).click();
@@ -173,6 +178,7 @@ test('export retry prepares again and layout edit starts from automatic settings
     }
     await route.continue();
   });
+  await revealEditorCommand(page, 'Konstruktionsplan');
   await page.getByRole('button', { name: 'Konstruktionsplan' }).click();
   const workspace = page.getByRole('region', { name: 'Export' });
   await expect(workspace.getByRole('button', { name: 'Erneut versuchen', exact: true })).toBeVisible({ timeout: 15_000 });
@@ -193,6 +199,7 @@ test('toolbar download uses the displayed preview after settings change', async 
     sceneName: 'DownloadSzene',
   });
   await waitUntilSaved(page);
+  await revealEditorCommand(page, 'Konstruktionsplan');
   await page.getByRole('button', { name: 'Konstruktionsplan' }).click();
   const workspace = page.getByRole('region', { name: 'Export' });
   await workspace.getByLabel('Bezeichnung der Fassung').fill('Issued_A');
@@ -220,6 +227,7 @@ test('direct 2D print keeps the actual SVG symbols and text as vectors', async (
   const plan = page.getByRole('img', { name: 'Grundriss der Spielstätte' });
   const text = await plan.locator('text').allTextContents();
   const popupPromise = page.waitForEvent('popup');
+  await revealEditorCommand(page, '2D-Ansicht drucken / PDF');
   await page.getByRole('button', { name: '2D-Ansicht drucken / PDF' }).click();
   const popup = await popupPromise;
   await expect(popup.getByRole('heading', { name: /2D-Druckprobe/ })).toBeVisible();

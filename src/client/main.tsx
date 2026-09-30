@@ -140,6 +140,7 @@ function App() {
           : <span className="brand-icon" aria-hidden="true">▱</span>}
         {branding.productName}
       </a>
+      <div id="editor-menu-slot" />
       {branding.tagline ? <span className="edition">{branding.tagline}</span> : null}
       {(screen.kind === 'workspace' || (screen.kind === 'error' && screen.denied)) && route.kind === 'app' && <button className="quiet" onClick={() => void signOut()} disabled={signingOut || dirty} title={dirty ? 'Bitte zuerst Änderungen speichern oder sichern.' : undefined}>{signingOut ? 'Abmeldung …' : 'Abmelden'}</button>}
     </header>

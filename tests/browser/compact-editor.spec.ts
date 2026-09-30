@@ -1,0 +1,52 @@
+import { test, expect } from '@playwright/test';
+import { createProduction, signInToPlans } from '../helpers/plans.js';
+
+test('notebook editor keeps commands discoverable and gives the canvas the viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await signInToPlans(page);
+  await createProduction(page, { productionName: 'Notebook-Produktion', venueName: 'Kleiner Saal', sceneName: 'Erste Szene' });
+  const menu = (name: string) => page.locator('.editor-menubar summary').filter({ hasText: new RegExp(`^${name}$`) });
+  await expect(page.getByRole('button', { name: 'Grundriss', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  for (const [width, height] of [[1366, 768], [1280, 720]] as const) {
+    await page.setViewportSize({ width, height });
+    const canvas = page.getByRole('img', { name: 'Grundriss der Spielstätte', exact: true });
+    await expect(canvas).toBeInViewport();
+    const bounds = (await canvas.boundingBox())!;
+    expect(bounds.y).toBeLessThanOrEqual(125);
+    expect(bounds.height).toBeGreaterThan(height * .7);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: `test-results/compact-editor-${width}.png` });
+  }
+  await page.getByRole('button', { name: 'Vollbild', exact: true }).click();
+  await expect(page.locator('.editor-local-menubar')).toBeVisible();
+  await menu('Datei').click();
+  await expect(page.getByRole('button', { name: 'Konstruktionsplan', exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Vollbild', exact: true }).click();
+  await expect(page.locator('#editor-menu-slot nav')).toBeVisible();
+  await menu('Datei').click();
+  await expect(page.getByRole('button', { name: '2D-Ansicht drucken / PDF' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(menu('Datei')).toBeFocused();
+  await expect(page.getByRole('button', { name: '2D-Ansicht drucken / PDF' })).toBeHidden();
+  await page.getByRole('button', { name: 'Wand hinzufügen', exact: true }).click();
+  await expect(page.getByTestId('placing-wall')).toBeVisible();
+  await page.getByRole('button', { name: 'Auswahl', exact: true }).click();
+  await expect(page.getByTestId('placing-wall')).toHaveCount(0);
+  await menu('Bearbeiten').click();
+  await expect(page.getByRole('button', { name: 'Kopieren', exact: true })).toBeDisabled();
+  await menu('Einfügen').click();
+  await expect(page.getByRole('button', { name: 'Kopieren', exact: true })).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Objektbibliothek öffnen' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.locator('.scene-menu > summary').click();
+  await page.getByRole('button', { name: 'Umbenennen', exact: true }).click();
+  await page.getByLabel('Neuer Name').fill('Umbenannte Szene');
+  await page.getByRole('button', { name: 'Umbenennen', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Umbenannte Szene', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Eigenschaften', exact: true }).click();
+  await page.getByRole('button', { name: 'Raumansicht', exact: true }).click();
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Raumansicht', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.wall-inspector')).toBeHidden();
+});

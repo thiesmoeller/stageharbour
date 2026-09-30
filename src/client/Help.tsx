@@ -43,19 +43,23 @@ export function Help({ topic }: { topic?: string }) {
         <li>In den <strong>Eigenschaften</strong> Maße übernehmen (Übernehmen), in der <strong>Raumsicht</strong> prüfen.</li>
         <li>Bei Bedarf <strong>Export</strong> (Bauzeichnung / PDF) oder Bauplan-Revision einfrieren.</li>
       </ol>
-      <p className="muted">Der Status unten rechts zeigt „Gespeichert“ oder Konflikte. Entwürfe mit offenen Änderungen blockieren das Verlassen der Szene.</p>
+      <p className="muted">Der Status neben dem Szenennamen zeigt „Gespeichert“ oder Konflikte. Entwürfe mit offenen Änderungen blockieren das Verlassen der Szene.</p>
     </section>
 
     <section id="hilfe-werkzeuge">
       <h2>Werkzeuge</h2>
       <h3>Szene (Bühnenbild)</h3>
       <ul>
-        <li><strong>Wand / Stütze / Platzhalter</strong> — aus der Werkzeugleiste oder Objektbibliothek platzieren, Klick setzt.</li>
+        <li><strong>Wand / Stütze</strong> — links in der Werkzeugleiste; weitere Platzhalter unter <strong>Einfügen</strong>. Klick im Grundriss setzt das Objekt.</li>
         <li><strong>Auswahl</strong> — Klick wählt; Ziehen auf dem Boden umschließt (nur vollständig enthaltene Objekte).</li>
         <li><strong>Shift+Klick</strong> — zur Mehrfachauswahl hinzufügen oder entfernen.</li>
         <li><strong>Gruppieren</strong> — ausgewählte Teile drehen und verschieben um einen gemeinsamen Drehpunkt.</li>
         <li><strong>Ausschnitte</strong> — an Wänden ohne Wandtyp zeichnen oder in den Eigenschaften bearbeiten.</li>
       </ul>
+      <p>Im Szeneneditor finden Sie Drucken und Konstruktionspläne unter <strong>Datei</strong>,
+        Kopieren und Gruppieren unter <strong>Bearbeiten</strong> und weitere Objekte unter <strong>Einfügen</strong>.
+        Der Szenenname öffnet das Menü zum Umbenennen und Bearbeiten der Spielstätte.
+        <strong> Auswahl</strong> links beendet das Platzieren; die Werkzeughinweise stehen unten.</p>
       <h3>Spielstätte</h3>
       <ul>
         <li><strong>Eckpunkt / Kante</strong> — Umriss verfeinern oder parallel verschieben.</li>

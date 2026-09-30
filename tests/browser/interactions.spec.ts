@@ -1,3 +1,4 @@
+import { revealEditorCommand } from '../helpers/editorMenus.js';
 import { commitObjectPlacement, openInspector, placeNamedObjectAt, placeWallAt } from '../helpers/inspector.js';
 import { test, expect, type Page } from '@playwright/test';
 import { createProduction, signInToPlans } from '../helpers/plans.js';
@@ -42,6 +43,7 @@ test('wall edge snapping, pointer rotation, clipboard, mixed marquee delete and 
   const box = (await handle.boundingBox())!;
   await drag(page, { x: box.x + box.width / 2, y: box.y + box.height / 2 }, await point(page, 3200, 3500));
   await expect(page.locator('#wall-rotation')).toHaveValue('90');
+  await revealEditorCommand(page, 'Kopieren');
   await page.getByRole('button', { name: 'Kopieren', exact: true }).click();
   await page.keyboard.press('Control+v');
   await commitObjectPlacement(page);
@@ -73,7 +75,8 @@ test('scene 2D marquee can start outside the venue outline', async ({ page }) =>
 
 test('venue vertex gestures have preview, cancel, one undo and publish semantics', async ({ page }) => {
   await create(page);
-  await page.getByRole('button', { name: 'Spielstätte', exact: true }).click();
+  await revealEditorCommand(page, 'Spielstätte');
+  await page.getByRole('button', { name: 'Spielstätte bearbeiten', exact: true }).click();
   const svg = 'svg[aria-label="Umriss der Spielstätte"]';
   const start = await point(page, 0, 0, svg), end = await point(page, 300, 300, svg);
   await drag(page, start, end);
@@ -85,13 +88,15 @@ test('venue vertex gestures have preview, cancel, one undo and publish semantics
   await expect(page.locator('[data-renderer="pascal"] canvas')).toBeVisible();
   await page.getByRole('button', { name: 'Spielstätte speichern', exact: true }).click();
   await expect(page.getByText('Spielstättenfassung gespeichert', { exact: true })).toBeVisible();
+  await revealEditorCommand(page, 'Spielstätte schließen');
   await page.getByRole('button', { name: 'Spielstätte schließen' }).click();
   await expect(page.getByTestId('venue-floor')).toHaveAttribute('d', /^M300 -300/);
 });
 
 test('venue plan drag, rubberband clipboard and escape cancel keep one draft history', async ({ page }) => {
   await create(page);
-  await page.getByRole('button', { name: 'Spielstätte', exact: true }).click();
+  await revealEditorCommand(page, 'Spielstätte');
+  await page.getByRole('button', { name: 'Spielstätte bearbeiten', exact: true }).click();
   await openInspector(page, 'Zwischenablage');
   const svg = 'svg[aria-label="Umriss der Spielstätte"]';
   await page.getByRole('button', { name: 'Feste Wand setzen' }).click();
@@ -112,7 +117,9 @@ test('venue plan drag, rubberband clipboard and escape cancel keep one draft his
   // Rubber band selects only fully enclosed footprints (wall ~3400–4600 × 2986–3014).
   await drag(page, await point(page, 3200, 2800, svg), await point(page, 4800, 3200, svg));
   await expect(page.locator('.venue-editor .clipboard-panel')).toContainText('1 ausgewählt');
+  await revealEditorCommand(page, 'Kopieren');
   await page.getByRole('button', { name: 'Kopieren' }).click();
+  await revealEditorCommand(page, 'Einfügen');
   await page.getByRole('button', { name: 'Einfügen' }).click();
   await expect(page.locator('[data-testid^="venue-wall-"]')).toHaveCount(2);
   await expect(page.locator(`${svg}.placing-cursor`)).toHaveCount(1);
@@ -131,7 +138,8 @@ test('venue plan drag, rubberband clipboard and escape cancel keep one draft his
 
 test('venue wall types author openings on permanent walls', async ({ page }) => {
   await create(page);
-  await page.getByRole('button', { name: 'Spielstätte', exact: true }).click();
+  await revealEditorCommand(page, 'Spielstätte');
+  await page.getByRole('button', { name: 'Spielstätte bearbeiten', exact: true }).click();
   const svg = 'svg[aria-label="Umriss der Spielstätte"]';
   await openInspector(page, 'Wandtypen / Öffnungen');
   await page.locator('.venue-editor').getByRole('button', { name: 'Wandtyp anlegen' }).click();
@@ -154,7 +162,8 @@ test('venue wall types author openings on permanent walls', async ({ page }) => 
 
 test('venue inline cutout is drawn on a permanent wall without a wall type', async ({ page }) => {
   await create(page);
-  await page.getByRole('button', { name: 'Spielstätte', exact: true }).click();
+  await revealEditorCommand(page, 'Spielstätte');
+  await page.getByRole('button', { name: 'Spielstätte bearbeiten', exact: true }).click();
   const svg = 'svg[aria-label="Umriss der Spielstätte"]';
   await page.getByRole('button', { name: 'Feste Wand setzen' }).click();
   await page.mouse.click((await point(page, 1500, 3000, svg)).x, (await point(page, 1500, 3000, svg)).y);
@@ -220,7 +229,8 @@ test('venue inline cutout is drawn on a permanent wall without a wall type', asy
 
 test('venue pins, exits, podiums and chairs can be selected, moved and rotated', async ({ page }) => {
   await create(page);
-  await page.getByRole('button', { name: 'Spielstätte', exact: true }).click();
+  await revealEditorCommand(page, 'Spielstätte');
+  await page.getByRole('button', { name: 'Spielstätte bearbeiten', exact: true }).click();
   const svg = 'svg[aria-label="Umriss der Spielstätte"]';
   const tools = page.locator('.venue-editor .tool-rail');
   async function clickPlan(x: number, y: number) {
@@ -301,6 +311,7 @@ test('Shift-deselect removes the object from every command target', async ({ pag
   await page.keyboard.down('Shift');
   await page.mouse.click(at.x, at.y);
   await page.keyboard.up('Shift');
+  await revealEditorCommand(page, 'Kopieren');
   await expect(page.getByRole('button', { name: 'Kopieren', exact: true })).toBeDisabled();
   await expect(page.locator('#wall-selection')).toHaveValue('');
   await page.keyboard.press('Delete');
@@ -337,7 +348,8 @@ test('mixed wall-platform selection moves from either object and cancels atomica
 
 test('venue Shift toggles without dragging; mixed rotation and cancel preserve selection', async ({ page }) => {
   await create(page);
-  await page.getByRole('button', { name: 'Spielstätte', exact: true }).click();
+  await revealEditorCommand(page, 'Spielstätte');
+  await page.getByRole('button', { name: 'Spielstätte bearbeiten', exact: true }).click();
   await openInspector(page, 'Zwischenablage');
   const svg = 'svg[aria-label="Umriss der Spielstätte"]';
   await page.getByRole('button', { name: 'Feste Wand setzen' }).click();
@@ -350,6 +362,7 @@ test('venue Shift toggles without dragging; mixed rotation and cancel preserve s
   await drag(page, wallAt, await point(page, 4400, 3200, svg));
   await page.keyboard.up('Shift');
   await expect(page.locator('[data-testid^="venue-wall-"]')).toHaveAttribute('transform', 'translate(4000 -3000) rotate(0)');
+  await revealEditorCommand(page, 'Kopieren');
   await expect(page.getByRole('button', { name: 'Kopieren', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: 'Stuhl setzen' }).click();
   await page.mouse.click((await point(page, 5000, 4000, svg)).x, (await point(page, 5000, 4000, svg)).y);
