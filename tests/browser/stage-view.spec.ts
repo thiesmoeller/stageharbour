@@ -1,3 +1,4 @@
+import { revealEditorCommand } from '../helpers/editorMenus.js';
 import { openInspector, placeNamedObjectAt, placeWallAt, planWalls } from '../helpers/inspector.js';
 import { test, expect, type Page } from '@playwright/test';
 import { createProduction, signInToPlans } from '../helpers/plans.js';
@@ -16,6 +17,7 @@ test('edits in the plan update the linked 3D view, including front orientation a
     sceneName: 'Drehansicht',
   });
   await expect(page.getByRole('heading', { name: 'Drehansicht' })).toBeVisible();
+  await page.getByRole('button', { name: '2D + 3D', exact: true }).click();
   await expect(page.getByRole('img', { name: 'Grundriss der Spielstätte' })).toBeVisible();
   await expect(page.getByRole('img', { name: 'Raumsicht der Spielstätte' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Publikumssicht' })).toBeVisible();
@@ -99,13 +101,15 @@ test('edits in the plan update the linked 3D view, including front orientation a
   await expect(stageTable).toHaveAttribute('data-z', '1000');
   await waitUntilSaved(page);
 
-  await page.getByRole('button', { name: 'Spielstätte' }).click();
+  await revealEditorCommand(page, 'Spielstätte');
+  await page.getByRole('button', { name: 'Spielstätte bearbeiten' }).click();
   await openInspector(page, 'Überbauung');
   await page.getByRole('button', { name: 'Überbauung hinzufügen' }).click();
   await expect(page.getByLabel('Überbauung 1 Unterkante über Fußboden (mm)')).toHaveValue('2600');
   const savedVenue = page.waitForResponse(response => /\/scenes\/[^/]+\/venue$/.test(new URL(response.url()).pathname) && response.request().method() === 'PUT');
   await page.getByRole('button', { name: 'Spielstätte speichern' }).click();
   expect((await savedVenue).ok()).toBeTruthy();
+  await revealEditorCommand(page, 'Spielstätte schließen');
   await page.getByRole('button', { name: 'Spielstätte schließen' }).click();
   await expect(page.locator('[data-testid^="overhead-box-"]')).toHaveCount(1);
   await expect(page.locator('[data-testid^="stage-overhead-"]')).toHaveAttribute('data-bottom', '2600');
@@ -148,6 +152,7 @@ test('edits in the plan update the linked 3D view, including front orientation a
     await page.getByRole('button', { name: /Raumprobe · Drehansicht/ }).click();
   }
   await expect(page.getByRole('heading', { name: 'Drehansicht' })).toBeVisible();
+  await page.getByRole('button', { name: '2D + 3D', exact: true }).click();
   await expect(planWall).toHaveCount(1);
   await expect(page.locator('[data-testid^="stage-wall-"]')).toHaveAttribute('data-x', '2500');
   await expect(page.locator('[data-testid^="stage-wall-"]')).toHaveAttribute('data-z', '3000');
@@ -169,6 +174,7 @@ test('edits in the plan update the linked 3D view, including front orientation a
   await expect(planWalls(page)).toHaveCount(2);
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await planWalls(page).nth(1).click({ modifiers: ['Shift'] });
+  await revealEditorCommand(page, 'Gruppieren');
   await page.getByRole('button', { name: 'Gruppieren' }).click();
   await page.getByLabel('Drehpunkt X (mm)').fill('4250');
   await page.locator('.group-panel').getByRole('button', { name: 'Übernehmen' }).click();

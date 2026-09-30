@@ -14,6 +14,7 @@ test('inventory, GLB models and Pascal catalogue items participate in placement,
     venueName: 'Probebühne',
     sceneName: 'Objekte',
   });
+  await page.getByRole('button', { name: '2D + 3D', exact: true }).click();
   await page.getByRole('button', { name: 'Objektbibliothek', exact: true }).click();
   const library = page.getByRole('region', { name: 'Objektbibliothek' });
   await library.getByLabel('Name der Objektvorlage').fill('Standardkulisse');

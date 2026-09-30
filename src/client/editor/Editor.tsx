@@ -1,3 +1,5 @@
+import { createPortal } from 'react-dom';
+import { EditorMenu } from './EditorMenu.js';
 import { openPlanPrint } from './printPlan.js';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type PointerEvent } from 'react';
 import { z } from 'zod';
@@ -89,11 +91,22 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
   }, initial.venue);
   const [state, setState] = useState<History>(() => history<Layout>(boot.layout));
   const root = useRef<HTMLElement>(null);
-  const [inspectorOpen, setInspectorOpen] = useState(true);
-  const [viewMode, setViewMode] = useState<'split' | 'plan' | 'stage'>('split');
+  const [inspectorOpen, setInspectorOpen] = useState(() => readEditorPreference('inspector') !== 'closed');
+  const [fullscreen, setFullscreen] = useState(false);
+  useEffect(() => {
+    const sync = () => setFullscreen(document.fullscreenElement === root.current);
+    document.addEventListener('fullscreenchange', sync);
+    return () => document.removeEventListener('fullscreenchange', sync);
+  }, []);
+  const [viewMode, setViewMode] = useState<'split' | 'plan' | 'stage'>(() => {
+    const saved = readEditorPreference('view');
+    return saved === 'plan' || saved === 'stage' || saved === 'split' ? saved : window.innerWidth <= 1366 ? 'plan' : 'split';
+  });
   const [viewShare, setViewShare] = useState(55);
   const narrowEditor = useNarrowEditor();
   const activeView = canvasModeForWidth(viewMode, narrowEditor);
+  useEffect(() => { writeEditorPreference('view', viewMode); }, [viewMode]);
+  useEffect(() => { writeEditorPreference('inspector', inspectorOpen ? 'open' : 'closed'); }, [inspectorOpen]);
   const current = useRef(state);
   const stageGesture = useRef<{ layout: Layout; members: ClipboardMember[] } | undefined>(undefined);
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -845,44 +858,8 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
     const anchor = document.createElement('a'); anchor.href = url; anchor.download = `buehnenentwurf-${initial.id}.json`; anchor.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
-  return <section ref={root} className="editor" aria-label="Szene bearbeiten">
-    <div className="editor-heading"><button className="quiet back-button" disabled={dirty} onClick={onClose} title="Zur Übersicht" aria-label="Zur Übersicht"><ToolIcon name="back" /></button><div><p className="eyebrow">{initial.productionName} · {venueName}</p><h2>{sceneName}</h2>
-      {canRename && !renamingScene && <button className="quiet" type="button" disabled={renameBusy} onClick={() => { setRenamingScene(true); setRenameError(''); }}>Umbenennen</button>}
-      {canRename && renamingScene && <form className="create-plan" onSubmit={event => void renameScene(event)}>
-        <label htmlFor="rename-open-scene">Neuer Name</label>
-        <input id="rename-open-scene" name="name" required maxLength={120} defaultValue={sceneName} autoFocus />
-        <div className="form-actions">
-          <button type="submit" disabled={renameBusy}>Umbenennen</button>
-          <button type="button" className="quiet" disabled={renameBusy} onClick={() => { setRenamingScene(false); setRenameError(''); }}>Abbrechen</button>
-        </div>
-        {renameError && <p className="error" role="alert">{renameError}</p>}
-      </form>}
-    </div>
-      <span className={`save-status ${inspectorPending ? 'pending' : saveState.status}`} role="status">{permissionReadOnly
-        ? (initial.lease ? `Nur Ansicht · Bearbeitung durch ${initial.lease.holderName}` : 'Nur Ansicht')
-        : saveState.status === 'conflict' && saveState.conflictKind === 'lease' ? 'Bearbeitung abgelaufen'
-          : inspectorPending ? INSPECTOR_PENDING_STATUS : statusText[saveState.status]}</span><div className="document-history">{!readOnly && <>
-      <button className="quiet" disabled={!!groupPreview || !!placing || !state.past.length} onClick={() => afterPending(() => apply(undo(current.current)))} hidden={venueOpen} title="Rückgängig (Strg+Z)" aria-label="Rückgängig"><ToolIcon name="undo" /></button>
-      <button className="quiet" disabled={!!groupPreview || !!placing || !state.future.length} onClick={() => afterPending(() => apply(redo(current.current)))} hidden={venueOpen} title="Wiederholen (Strg+Shift+Z)" aria-label="Wiederholen"><ToolIcon name="redo" /></button>
-      <button className="quiet" type="button" disabled={!!groupPreview || !!placing || selection().length === 0} hidden={venueOpen} onClick={copy}>Kopieren</button>
-      <button className="quiet" type="button" disabled={!!groupPreview || !!placing || selection().length === 0} hidden={venueOpen} onClick={cut}>Ausschneiden</button>
-      <button className="quiet" type="button" disabled={!!groupPreview || !!placing || !clipboard} hidden={venueOpen} onClick={paste}>Einfügen</button>
-      <button className="quiet" type="button" disabled={!!groupPreview || !!placing || !canGroup} hidden={venueOpen}
-        onClick={() => commit(formGroup(current.current.present, groupPicked, crypto.randomUUID()))}>Gruppieren</button>
-      {activeGroup && <button className="quiet" type="button" disabled={!!groupPreview || !!placing} hidden={venueOpen}
-        onClick={() => commit(ungroup(current.current.present, activeGroup.id))}>Gruppe auflösen</button>}
-      <span className="selection-count" hidden={venueOpen || selection().length === 0} data-testid="selection-count">{selection().length} ausgewählt</span>
-      </>}</div><span className="document-kind">{venueOpen ? 'Spielstätte bearbeiten' : 'Szene'}</span></div>
-    <div className="workspace-commandbar">
-    <div className="editor-toolbar">
-      <button className="quiet" aria-expanded={venueOpen} disabled={venueOpen ? venueDirty : dirty} onClick={() => {
-        setVenueOpen(open => {
-          const next = !open;
-          if (!next) setOpenVenueSheet(false);
-          return next;
-        });
-        setExportsOpen(false);
-      }}>{venueOpen ? 'Spielstätte schließen' : 'Spielstätte'}</button>
+  const menus = <nav className="editor-menubar" aria-label="Editor-Menüs">
+    <EditorMenu label="Datei">
       <button className="quiet" aria-expanded={exportsOpen} onClick={() => {
         setExportsOpen(open => !open);
         setLibraryOpen(false);
@@ -890,18 +867,85 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
       {!venueOpen && activeView !== 'stage' && <button type="button" className="quiet" disabled={busyGesture()} onClick={() => {
         if (svg.current && !openPlanPrint(svg.current, `${initial.productionName} · ${initial.name} · ${venueName}`)) setAssetError('Bitte Pop-ups für die 2D-Druckansicht erlauben.');
       }}>2D-Ansicht drucken / PDF</button>}
-      {!readOnly && <SnapToggle enabled={snapEnabled} onChange={setSnapEnabled} />}
-
-    </div>
+      <button className="quiet" aria-expanded={venueOpen} disabled={venueOpen ? venueDirty : dirty} onClick={() => {
+        setVenueOpen(open => {
+          const next = !open;
+          if (!next) setOpenVenueSheet(false);
+          return next;
+        });
+        setExportsOpen(false);
+      }}>{venueOpen ? 'Spielstätte schließen' : 'Spielstätte bearbeiten'}</button>
+      <button className="quiet" disabled={dirty} onClick={onClose}>Zur Übersicht</button>
+    </EditorMenu>
+    <EditorMenu label="Bearbeiten">
+      {!readOnly && !venueOpen ? <>
+      <button className="quiet" type="button" disabled={!!groupPreview || !!placing || selection().length === 0} hidden={venueOpen} onClick={copy}>Kopieren</button>
+      <button className="quiet" type="button" disabled={!!groupPreview || !!placing || selection().length === 0} hidden={venueOpen} onClick={cut}>Ausschneiden</button>
+      <button className="quiet" type="button" disabled={!!groupPreview || !!placing || !clipboard} hidden={venueOpen} onClick={paste}>Einfügen</button>
+      <button className="quiet" type="button" disabled={!!groupPreview || !!placing || !canGroup} hidden={venueOpen}
+        onClick={() => commit(formGroup(current.current.present, groupPicked, crypto.randomUUID()))}>Gruppieren</button>
+      {activeGroup && <button className="quiet" type="button" disabled={!!groupPreview || !!placing} hidden={venueOpen}
+        onClick={() => commit(ungroup(current.current.present, activeGroup.id))}>Gruppe auflösen</button>}
+      </> : <p className="muted">{venueOpen ? 'Werkzeuge in der Spielstätte verwenden.' : 'Nur Ansicht'}</p>}
+    </EditorMenu>
+    <EditorMenu label="Ansicht">
+      <button className="quiet" onClick={() => setInspectorOpen(open => !open)}>{inspectorOpen ? 'Eigenschaften ausblenden' : 'Eigenschaften einblenden'}</button>
+      <label className="split-control" hidden={activeView !== 'split'}>Aufteilung<input aria-label="Ansichten aufteilen" type="range" min="30" max="70" value={viewShare} onChange={event => setViewShare(Number(event.target.value))} /></label>
+      <button className="quiet" onClick={() => { if (document.fullscreenElement) void document.exitFullscreen(); else void root.current?.requestFullscreen(); }}>Vollbild umschalten</button>
+    </EditorMenu>
+    {!venueOpen && <EditorMenu label="Einfügen">
+      <button className="quiet" onClick={() => { setLibraryOpen(true); setExportsOpen(false); }}>Objektbibliothek öffnen</button>
+      {!readOnly && !venueOpen && PLACEHOLDER_KINDS.map(kind => <button key={kind} className="quiet" disabled={busyGesture() || (state.present.placeholders ?? []).length >= 250} onClick={() => {
+        const item = addPlaceholder(kind, venue.width / 2, venue.depth / 2);
+        beginObjectPlacement({ ...current.current.present, placeholders: [...current.current.present.placeholders ?? [], item] }, { kind: 'placeholder', id: item.id });
+      }}>{PLACEHOLDER_KIND_LABELS[kind]} hinzufügen</button>)}
+    </EditorMenu>}
+    <EditorMenu label="Hilfe"><button className="quiet" onClick={() => setHelpOpen(open => !open)}>Bedienung anzeigen</button><a href="#/hilfe">Zur vollständigen Hilfe</a></EditorMenu>
+  </nav>;
+  const menuSlot = !fullscreen && document.getElementById('editor-menu-slot');
+  return <section ref={root} className="editor scene-editor" aria-label="Szene bearbeiten">
+    {menuSlot ? createPortal(menus, menuSlot) : <div className="editor-local-menubar">{menus}</div>}
+    <div className="editor-heading compact-editor-heading">
+      <button className="quiet back-button" disabled={dirty} onClick={onClose} title="Zur Übersicht" aria-label="Zur Übersicht"><ToolIcon name="back" /></button>
+      <EditorMenu className="scene-menu" label={<><span className="scene-context">{initial.productionName} · {venueName}</span><h2>{sceneName}</h2><span aria-hidden="true">▾</span></>}>
+        <p>{initial.productionName} · {venueName}</p>
+        {canRename && <button className="quiet" onClick={() => { setRenamingScene(true); setRenameError(''); }}>Umbenennen</button>}
+      <button className="quiet" aria-expanded={venueOpen} disabled={venueOpen ? venueDirty : dirty} onClick={() => {
+        setVenueOpen(open => {
+          const next = !open;
+          if (!next) setOpenVenueSheet(false);
+          return next;
+        });
+        setExportsOpen(false);
+      }}>{venueOpen ? 'Spielstätte schließen' : 'Spielstätte bearbeiten'}</button>
+      </EditorMenu>
+      <div className="document-history">{!readOnly && <>
+      <button className="quiet" disabled={!!groupPreview || !!placing || !state.past.length} onClick={() => afterPending(() => apply(undo(current.current)))} hidden={venueOpen} title="Rückgängig (Strg+Z)" aria-label="Rückgängig"><ToolIcon name="undo" /></button>
+      <button className="quiet" disabled={!!groupPreview || !!placing || !state.future.length} onClick={() => afterPending(() => apply(redo(current.current)))} hidden={venueOpen} title="Wiederholen (Strg+Shift+Z)" aria-label="Wiederholen"><ToolIcon name="redo" /></button>
+      </>}</div>
+      {!readOnly && !venueOpen && <SnapToggle enabled={snapEnabled} onChange={setSnapEnabled} />}
+      <span className={`save-status ${inspectorPending ? 'pending' : saveState.status}`} role="status">{permissionReadOnly
+        ? (initial.lease ? `Nur Ansicht · Bearbeitung durch ${initial.lease.holderName}` : 'Nur Ansicht')
+        : saveState.status === 'conflict' && saveState.conflictKind === 'lease' ? 'Bearbeitung abgelaufen'
+          : inspectorPending ? INSPECTOR_PENDING_STATUS : statusText[saveState.status]}</span>
     <div className="workspace-viewbar" hidden={venueOpen} role="toolbar" aria-label="Ansichten">
       <div className="view-modes">{(narrowEditor ? (['plan', 'stage'] as const) : (['split', 'plan', 'stage'] as const)).map(mode => <button key={mode} type="button" className="quiet" aria-pressed={activeView === mode} onClick={() => setViewMode(mode)}>{mode === 'split' ? '2D + 3D' : mode === 'plan' ? 'Grundriss' : 'Raumansicht'}</button>)}</div>
-      <label className="split-control" hidden={activeView !== 'split'}>Aufteilung<input aria-label="Ansichten aufteilen" type="range" min="30" max="70" value={viewShare} onChange={event => setViewShare(Number(event.target.value))} /></label>
+
       <button type="button" className="quiet" aria-expanded={inspectorOpen} onClick={() => setInspectorOpen(open => !open)} title={inspectorOpen ? 'Eigenschaften ausblenden' : 'Eigenschaften einblenden'} aria-label="Eigenschaften"><ToolIcon name="tray" /></button>
       <button type="button" className="quiet" onClick={() => { if (document.fullscreenElement) void document.exitFullscreen(); else void root.current?.requestFullscreen(); }} title="Vollbild" aria-label="Vollbild"><ToolIcon name="expand" /></button>
     </div>
     </div>
-    <div className="workspace-feedback" role="status" hidden={venueOpen}>{snapStatus ?? ''}</div>
+    {canRename && renamingScene && <div className="scene-rename-panel"><form className="create-plan" onSubmit={event => void renameScene(event)}>
+        <label htmlFor="rename-open-scene">Neuer Name</label>
+        <input id="rename-open-scene" name="name" required maxLength={120} defaultValue={sceneName} autoFocus />
+        <div className="form-actions">
+          <button type="submit" disabled={renameBusy}>Umbenennen</button>
+          <button type="button" className="quiet" disabled={renameBusy} onClick={() => { setRenamingScene(false); setRenameError(''); }}>Abbrechen</button>
+        </div>
+        {renameError && <p className="error" role="alert">{renameError}</p>}
+      </form></div>}
     <div className="tool-rail" hidden={venueOpen} role="toolbar" aria-label="Objekte hinzufügen">
+      <button className="quiet" title="Auswählen · Platzieren abbrechen" aria-pressed={!placing && !groupPreview && !dimensioning} onClick={() => { cancelPlacing(); setDimensioning(null); setSnapStatus(undefined); }}><ToolIcon name="select" /><span>Auswahl</span></button>
       <button className="quiet" onClick={() => { setLibraryOpen(open => !open); setExportsOpen(false); }} aria-expanded={libraryOpen} title="Objektbibliothek" aria-label="Objektbibliothek"><ToolIcon name="library" /><span>Bibliothek</span></button>
       {!readOnly && <><WallToolButton
         disabled={!!groupPreview || state.present.walls.length >= 250}
@@ -925,19 +969,6 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
         setDimensioning(current => current ? null : {});
         setSnapStatus(dimensioning ? undefined : 'Ersten Punkt wählen. Der rote Punkt zeigt Ecke oder Kantenmitte. Escape bricht ab.');
       }} title="Maß zwischen zwei Punkten, dann die Maßlinie zur Seite ziehen" aria-label="Maß hinzufügen"><ToolIcon name="expand" /><span>Maß</span></button>
-      {PLACEHOLDER_KINDS.map(kind => <button key={kind} type="button" className="quiet"
-        disabled={!!groupPreview || !!placing || (state.present.placeholders ?? []).length >= 250}
-        onClick={() => {
-          const item = addPlaceholder(kind, venue.width / 2, venue.depth / 2);
-          beginObjectPlacement(
-            { ...current.current.present, placeholders: [...current.current.present.placeholders ?? [], item] },
-            { kind: 'placeholder', id: item.id },
-          );
-        }}
-        title={`${PLACEHOLDER_KIND_LABELS[kind]} hinzufügen`}
-        aria-label={`${PLACEHOLDER_KIND_LABELS[kind]} hinzufügen`}>
-        <ToolIcon name="library" /><span>{PLACEHOLDER_KIND_LABELS[kind]}</span>
-      </button>)}
       </>}
     </div>
     {assetError && <p className="error" role="alert">{assetError}</p>}
@@ -1305,7 +1336,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
         onPendingChange={reportInspectorPending} onChange={commit} />
       </div></details>}
     </aside></div>}
-    <div className="workspace-statusbar"><span><span className="status-dot" />{venueOpen ? 'Spielstättenentwurf' : 'Szene'} · {state.present.walls.length} Wände</span><span className="status-hint">Klicken zum Auswählen · Ziehen zum Verschieben · Strg+Z rückgängig</span><button className="quiet" aria-expanded={helpOpen} onClick={() => setHelpOpen(open => !open)}><ToolIcon name="help" /> Bedienung</button><span>Maße in mm</span></div>
+    <div className="workspace-statusbar"><span><span className="status-dot" />{venueOpen ? 'Spielstättenentwurf' : 'Szene'} · {state.present.walls.length} Wände</span><span className="selection-count" hidden={venueOpen || selection().length === 0} data-testid="selection-count">{selection().length} ausgewählt</span><span className="status-hint" role="status" title={snapStatus}>{snapStatus ?? 'Klicken zum Auswählen · Ziehen zum Verschieben · Strg+Z rückgängig'}</span><button className="quiet" aria-expanded={helpOpen} onClick={() => setHelpOpen(open => !open)}><ToolIcon name="help" /> Bedienung</button><span>Maße in mm</span></div>
     {helpOpen && <div className="workspace-help"><h3>Arbeiten im Grundriss</h3>
       <p className="muted viewport-hint">Raster: 1 m / 50 cm · Zwei-Finger-Scroll oder Mittelklick verschieben · Pinch / Strg+Scroll zoomen · Auf dem Boden ziehen: Mehrfachauswahl (nur vollständig umschlossene Objekte) · Orange ↻ dreht · Stützen an Wänden · {SNAP_NOTICE}</p>
       <p>Strg/Cmd+C kopiert die Auswahl, Strg/Cmd+V hängt die Kopie an den Zeiger — Klick setzt, Escape bricht ab. Entf löscht ausgewählte Objekte. Escape bricht Platzieren und Bewegungen ab oder hebt die Auswahl auf (auch in der Raumsicht · Klick in freien Raum). Überschneidungen erscheinen rot auf dem Grundriss.</p>
@@ -1409,4 +1440,11 @@ function VenueDoorOpenForm({ openPercent, readOnly, onPendingChange, onApply }: 
       {pending && <button className="quiet" type="button" onClick={discard}>Verwerfen</button>}
     </div>}
   </fieldset></form>;
+}
+
+function readEditorPreference(key: string): string | null {
+  try { return localStorage.getItem(`stage-planner.editor.${key}`); } catch { return null; }
+}
+function writeEditorPreference(key: string, value: string) {
+  try { localStorage.setItem(`stage-planner.editor.${key}`, value); } catch { /* Storage may be unavailable. */ }
 }

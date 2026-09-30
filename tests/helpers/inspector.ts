@@ -61,6 +61,8 @@ export async function placeWallAt(page: Page, x = 4000, y = 3000) {
 
 /** Start a preview placement from a named button and commit at plan coordinates (mm). */
 export async function placeNamedObjectAt(page: Page, name: string, x = 4000, y = 3000) {
-  await page.getByRole('button', { name, exact: true }).click();
+  const button = page.getByRole('button', { name, exact: true });
+  if (!await button.isVisible()) await page.locator('.editor-menubar summary').filter({ hasText: /^Einfügen$/ }).click();
+  await button.click();
   await commitObjectPlacement(page, x, y);
 }
