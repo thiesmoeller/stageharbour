@@ -289,7 +289,7 @@ export function ExportWorkspace({
           <p className="muted">Ziehen Sie ein Rechteck über den Grundriss. Ohne Rechteck gilt der gewählte Grundrissumfang. Der Ausschnitt bleibt im gewählten Maßstab.</p>
         </fieldset>}
         {scenes.length > 1 && <fieldset>
-          <legend>Szenen</legend>
+          <legend>Bühnenbilder</legend>
           {scenes.map(scene => <label key={scene.id} htmlFor={`export-scene-${scene.id}`}>
             <input id={`export-scene-${scene.id}`} type="checkbox" checked={sceneIds.includes(scene.id)} onChange={event => {
               setSceneIds(current => event.target.checked ? [...current, scene.id] : current.filter(id => id !== scene.id));
@@ -306,7 +306,7 @@ export function ExportWorkspace({
         {repairs.map(item => <p key={item.frameId} className="error" role="alert">{item.message}</p>)}
         <label htmlFor="export-kind">Umfang</label>
         <select id="export-kind" value={documentKind} onChange={event => { setDocumentKind(event.target.value as 'scene' | 'package'); setOutdated(true); }}>
-          <option value="scene">Diese Szene</option>
+          <option value="scene">Dieses Bühnenbild</option>
           <option value="package">Konstruktionspaket</option>
         </select>
         <label htmlFor="export-preset">Ansichten</label>

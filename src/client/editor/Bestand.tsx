@@ -21,7 +21,7 @@ export function Bestand({ me }: { me: Me }) {
     <div className="section-heading">
       <div>
         <h2>Bestand</h2>
-        <p className="muted">Platten, Wandtypen und Beschwerung des Arbeitsbereichs. Szenen zuerst entwerfen; Platten später zuweisen.</p>
+        <p className="muted">Platten, Wandtypen und Beschwerung des Arbeitsbereichs. Bühnenbilder zuerst entwerfen; Platten später zuweisen.</p>
       </div>
     </div>
     <div className="asset-tabs" role="tablist" aria-label="Bestand">
@@ -115,7 +115,7 @@ function InventoryTypesStock({ workspaceId, readOnly }: { workspaceId: string; r
   }
 
   return <div className="inventory-panel" data-testid="bestand-types">
-    <p className="muted">Wandtypen für Platten (inkl. Tür/Fenster). Einmalige Typen bleiben in der Szene möglich.</p>
+    <p className="muted">Wandtypen für Platten (inkl. Tür/Fenster). Einmalige Typen bleiben im Bühnenbild möglich.</p>
     {error && <p role="alert" className="error">{error}</p>}
     {lease.message && <p role="status">{lease.message}</p>}
     {!readOnly && !holding && <div className="form-actions">

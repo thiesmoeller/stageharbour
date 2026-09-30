@@ -13,7 +13,7 @@ test('online help page documents tools, shortcuts and wall surfaces', async ({ p
   await expect(page.getByRole('link', { name: 'Wandoberflächen' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Bestand' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Bestand' })).toBeVisible();
-  await expect(page.getByText('Szene zuerst')).toBeVisible();
+  await expect(page.getByText('Bühnenbild zuerst')).toBeVisible();
   await expect(page.getByText(/keine Live-Synchronisation/)).toBeVisible();
   await expect(page.getByText(/Oberflächen.*Wand-Inspektor/)).toBeVisible();
   await page.getByRole('link', { name: 'Wandoberflächen' }).click();

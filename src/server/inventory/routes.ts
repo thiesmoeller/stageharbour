@@ -143,7 +143,7 @@ export function registerInventoryRoutes(app: FastifyInstance, db: Database, acce
       if (!panel) throw new AccessError(404, 'Platte nicht verfügbar.');
       const records = await tx.select().from(scene).where(eq(scene.workspaceId, workspaceId));
       const used = records.filter(record => record.layout.walls.some(wall => wall.panelId === panelId));
-      if (used.length) throw new AccessError(409, `Platte ist noch zugewiesen: ${used.map(record => record.name).join(', ')}. Zuweisungen zuerst in den Szenen lösen.`);
+      if (used.length) throw new AccessError(409, `Platte ist noch zugewiesen: ${used.map(record => record.name).join(', ')}. Zuweisungen zuerst in den Bühnenbildern lösen.`);
       await tx.delete(inventoryPanel).where(and(eq(inventoryPanel.workspaceId, workspaceId), eq(inventoryPanel.id, panelId)));
     });
     return { ok: true as const };
@@ -241,14 +241,14 @@ export function registerInventoryRoutes(app: FastifyInstance, db: Database, acce
     if (!type) throw new AccessError(404, 'Platte nicht verfügbar.');
     await db.transaction(async tx => {
       const [record] = await tx.select().from(scene).where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, sceneId)));
-      if (!record) throw new AccessError(404, 'Szene nicht verfügbar.');
+      if (!record) throw new AccessError(404, 'Bühnenbild nicht verfügbar.');
       await leases.requireHeld(tx, workspaceId, 'scene', sceneId, user.id);
       const [lockedPanel] = await tx.select().from(inventoryPanel).where(and(eq(inventoryPanel.workspaceId, workspaceId), eq(inventoryPanel.id, panel.id))).for('share');
       if (!lockedPanel) throw new AccessError(404, 'Platte nicht verfügbar.');
       const wall = record.layout.walls.find(item => item.id === wallId);
       if (!wall) throw new AccessError(404, 'Wandelement nicht verfügbar.');
       if (record.layout.walls.some(item => item.id !== wallId && item.panelId === panel.id)) {
-        throw new InventoryError(400, 'Diese Platte ist in der Szene bereits zugewiesen.');
+        throw new InventoryError(400, 'Diese Platte ist im Bühnenbild bereits zugewiesen.');
       }
       if (!typesCompatible(type.definition, placementType(wall, typesOf(record.layout)))) {
         throw new InventoryError(400, 'Diese Platte passt nicht zum Wandelement.');
@@ -267,7 +267,7 @@ export function registerInventoryRoutes(app: FastifyInstance, db: Database, acce
     const { user } = await requireEditor(request, workspaceId);
     await db.transaction(async tx => {
       const [record] = await tx.select().from(scene).where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, sceneId)));
-      if (!record) throw new AccessError(404, 'Szene nicht verfügbar.');
+      if (!record) throw new AccessError(404, 'Bühnenbild nicht verfügbar.');
       await leases.requireHeld(tx, workspaceId, 'scene', sceneId, user.id);
       if (!record.layout.walls.some(item => item.id === wallId)) throw new AccessError(404, 'Wandelement nicht verfügbar.');
       await tx.update(scene).set({

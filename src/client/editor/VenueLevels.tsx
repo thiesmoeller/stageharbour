@@ -11,7 +11,7 @@ export function VenueLevels({ venue, platforms, stairs, readOnly, onPlatforms, o
   const raised = platforms[0];
   return <div className="venue-levels">
     <h4>Permanente Podeste und Treppen</h4>
-    <p className="muted">Beispielmaße, keine gemessene Spielstättenvorgabe. Podeste gehören zur Spielstätte, nicht zur Szene.</p>
+    <p className="muted">Beispielmaße, keine gemessene Spielstättenvorgabe. Podeste gehören zur Spielstätte, nicht zum Bühnenbild.</p>
     {platforms.map((platform, index) => <div className="numeric-fields" key={platform.id}>
       <div><label htmlFor={`perm-platform-label-${index}`}>Podest {index + 1}</label>
         <input id={`perm-platform-label-${index}`} value={platform.label} disabled={readOnly}

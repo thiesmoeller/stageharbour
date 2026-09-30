@@ -55,7 +55,7 @@ export function registerVenueRoutes(
     }).from(scene).innerJoin(adaptation, eq(scene.adaptationId, adaptation.id))
       .innerJoin(venueVersion, eq(adaptation.venueVersionId, venueVersion.id))
       .where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, sceneId)));
-    if (!record) throw new AccessError(404, 'Szene nicht verfügbar.');
+    if (!record) throw new AccessError(404, 'Bühnenbild nicht verfügbar.');
     return record;
   }
   async function retargetAdaptation(
@@ -95,7 +95,7 @@ export function registerVenueRoutes(
       .innerJoin(venueVersion, eq(adaptation.venueVersionId, venueVersion.id))
       .innerJoin(venue, eq(venueVersion.venueId, venue.id))
       .where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, sceneId)));
-    if (!record) throw new AccessError(404, 'Szene nicht verfügbar.');
+    if (!record) throw new AccessError(404, 'Bühnenbild nicht verfügbar.');
     const [newest] = await db.select({ createdAt: sql<string>`max(${venueVersion.createdAt})`.as('createdAt') })
       .from(venueVersion)
       .where(and(eq(venueVersion.workspaceId, workspaceId), eq(venueVersion.venueId, record.venueId)));
@@ -281,10 +281,10 @@ export function registerVenueRoutes(
       await tx.select({ id: venue.id }).from(venue).where(eq(venue.id, pinned.venueId)).for('update');
       const latest = await loadVenue(tx, workspaceId, pinned.venueId);
       if (latest.venueVersionId !== pinned.venueVersionId) {
-        throw new AccessError(409, 'Eine neuere Spielstättenfassung ist vorhanden. Bitte übernehmen Sie diese ausdrücklich in der Szene, bevor Sie eine Blattvorlage speichern.');
+        throw new AccessError(409, 'Eine neuere Spielstättenfassung ist vorhanden. Bitte übernehmen Sie diese ausdrücklich im Bühnenbild, bevor Sie eine Blattvorlage speichern.');
       }
       if (request.body.venueVersionId && request.body.venueVersionId !== pinned.venueVersionId) {
-        throw new AccessError(409, 'Die Blattvorlagen wurden inzwischen geändert. Bitte laden Sie die Szene neu.');
+        throw new AccessError(409, 'Die Blattvorlagen wurden inzwischen geändert. Bitte laden Sie das Bühnenbild neu.');
       }
       const templates = new Map((latest.venue.reportTemplates ?? []).map(template => [template.id, template]));
       for (const template of request.body.reportTemplates) templates.set(template.id, template);
@@ -341,7 +341,7 @@ export function registerVenueRoutes(
             inArray(adaptation.venueVersionId, versions.map(item => item.id)),
           )).limit(1);
         if (inUse.length) {
-          throw new AccessError(409, 'Diese Spielstätte wird noch von Produktionen verwendet. Löschen Sie zuerst die zugehörigen Szenen.');
+          throw new AccessError(409, 'Diese Spielstätte wird noch von Produktionen verwendet. Löschen Sie zuerst die zugehörigen Bühnenbilder.');
         }
       }
       await tx.delete(editingLease).where(and(

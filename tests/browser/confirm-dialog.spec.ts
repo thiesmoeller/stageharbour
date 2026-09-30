@@ -15,7 +15,7 @@ test('delete confirmations use the app modal instead of the browser dialog', asy
   });
   await expect(page.getByRole('heading', { name: 'ConfirmSzene' })).toBeVisible();
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();
-  await expect(page.getByRole('heading', { name: 'Produktionen & Szenen' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Produktionen & Bühnenbilder' })).toBeVisible();
 
   const card = page.locator('.scene-card').filter({
     has: page.getByRole('button', { name: 'ConfirmModal · ConfirmSzene ConfirmSaal' }),
@@ -23,10 +23,10 @@ test('delete confirmations use the app modal instead of the browser dialog', asy
   await card.getByText('Weitere Aktionen').click();
   await card.getByRole('button', { name: 'Löschen', exact: true }).click();
 
-  const dialog = page.getByRole('dialog', { name: 'Szene löschen?' });
+  const dialog = page.getByRole('dialog', { name: 'Bühnenbild löschen?' });
   await expect(dialog).toBeVisible();
   await expect(dialog).toContainText('ConfirmModal · ConfirmSzene');
-  await expect(dialog.getByRole('button', { name: 'Szene löschen' })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Bühnenbild löschen' })).toBeVisible();
   await dialog.getByRole('button', { name: 'Abbrechen' }).click();
   await expect(dialog).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'ConfirmModal · ConfirmSzene ConfirmSaal' })).toBeVisible();
@@ -70,7 +70,7 @@ test('confirmed dirty route leave is not vetoed by the scene editor', async ({ p
   const dialog = page.getByRole('dialog', { name: 'Ort wechseln?' });
   await expect(dialog).toBeVisible();
   await dialog.getByRole('button', { name: 'Verwerfen und wechseln', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Produktionen & Szenen' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Produktionen & Bühnenbilder' })).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page).toHaveURL(/#\/produktionen$/);
 });
@@ -95,7 +95,7 @@ test('venue name edits are pending and protected on leave', async ({ page }) => 
   await page.evaluate(() => { window.location.hash = '#/produktionen'; });
   await page.getByRole('dialog', { name: 'Ort wechseln?' })
     .getByRole('button', { name: 'Verwerfen und wechseln', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Produktionen & Szenen' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Produktionen & Bühnenbilder' })).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 

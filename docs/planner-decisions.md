@@ -80,7 +80,7 @@ Version one includes a small library of resizable placeholders: tables, chairs, 
 
 ## Traversen and lighting
 
-Venue Traversen (hang bars) are first-class venue geometry with length, section, underside height, and optional hang-point slots. They participate in overhead clearance and appear on plan/PDF/3D. Fixture placement on hang points and lighting simulation remain deferred to phase two; Traversen are the attachment seam for that work. Mood lighting (warm/cool preview) is unchanged and is not a fixture plan.
+Venue Traversen (hang bars) are first-class venue geometry with length, section, underside height, and optional hang-point slots. They participate in overhead clearance and appear on plan/PDF/3D. Traversen are the attachment seam for the hang plan. Mood lighting (warm/cool preview) is unchanged and is not a fixture plan. Hang plan, lighting fixtures, and light looks are decided in [ADR 0007](adr/0007-stage-layout-and-light-looks.md): implement as a hang-and-look planner under stage layouts; no console/cue/DMX show control.
 
 ## Molton curtains
 
@@ -88,7 +88,7 @@ Installed venue Molton tracks are first-class venue geometry: track length, drop
 
 ## Lighting
 
-Lighting planning, including basic fixture placement, is deferred to phase two. It will be treated as a separate design workstream covering the desired physical realism, materials, and lighting simulation in Three.js.
+Per [ADR 0007](adr/0007-stage-layout-and-light-looks.md), lighting work is a hang plan on Traversen plus many light looks per stage layout, previewed in Raumsicht. Console integration (cues, sequences, live DMX) stays out of scope unless a later ADR revisits export-only interchange. Coarse mood lighting remains a separate Grundlicht fill.
 
 ## Custom wall types
 

@@ -72,6 +72,6 @@ test('Bestand workspace manages panels and stocked wall types under lease', asyn
   // Leave Bestand so useEditingLease can POST /lease/release. Playwright page
   // teardown aborts that async cleanup and would otherwise leave inventory leased.
   await page.getByRole('navigation', { name: 'Arbeitsbereiche' }).getByRole('button', { name: /Produktionen/ }).click();
-  await expect(page.getByRole('heading', { name: 'Produktionen & Szenen' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Produktionen & Bühnenbilder' })).toBeVisible();
   expect(errors).toEqual([]);
 });

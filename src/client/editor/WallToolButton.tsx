@@ -143,7 +143,7 @@ export function WallToolButton({ disabled, sceneTypes, onAddPlain, onAddType }: 
           {custom.map(type => <button key={type.id} type="button" role="menuitem" className="quiet" disabled={disabled}
             title={`${type.width}×${type.height}×${type.thickness} mm`} onClick={() => chooseSceneType(type)}>
             <strong>{type.name}</strong>
-            <span>Szene</span>
+            <span>Bühnenbild</span>
           </button>)}
         </div>
       </div>,

@@ -40,7 +40,7 @@ export function registerExportRoutes(
       .innerJoin(venueVersion, eq(adaptation.venueVersionId, venueVersion.id))
       .innerJoin(venue, eq(venueVersion.venueId, venue.id))
       .where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, sceneId)));
-    if (!record) throw new AccessError(404, 'Szene nicht verfügbar.');
+    if (!record) throw new AccessError(404, 'Bühnenbild nicht verfügbar.');
     return sceneSchema.parse({ ...record, lease: null });
   }
   async function panelLabels(workspaceId: string, panelIds: string[]) {

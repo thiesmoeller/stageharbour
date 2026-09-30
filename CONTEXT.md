@@ -9,17 +9,24 @@ The product name, tagline, footer text and optional logo shown on the sign-in pa
 _Avoid_: Theme, skin
 
 **Production**:
-A theatre show whose set design can include multiple scene layouts and adaptations for different venues.
+A theatre show whose set design can include multiple stage layouts and adaptations for different venues.
 
-**Scene layout**:
-The arrangement of set elements for a particular scene or state within a production. Different scene layouts can reuse and reposition the same physical wall elements.
-_Avoid_: State
+**Stage layout**:
+The arrangement of set elements (walls, props, braces) for one set picture within a production. Different stage layouts can reuse and reposition the same physical wall elements. Code and API may still say `scene`; product language prefers stage layout / Bühnenbild.
+_Avoid_: Scene (alone), State, Light scene
+_Was_: Scene layout
+
+**Play scene**:
+A dramatic unit in the script (for example II/3). Vocabulary only until made first-class; it is not the editable set document. Several **light looks** may apply while one play scene and one stage layout stay fixed.
+_Avoid_: Using “Szene” for the set document
 
 **Base design**:
 The reusable set design of a production from which venue adaptations are created.
 
-**Scene template**:
-A named, read-only snapshot of a scene arrangement used as a starting point for independent editable copies.
+**Stage layout template**:
+A named, read-only snapshot of a stage layout used as a starting point for independent editable copies.
+_Was_: Scene template
+_Avoid_: Szenenvorlage as the only name once UI migrates
 
 **Venue adaptation**:
 A version of a production's set design arranged for a particular venue and its constraints.
@@ -32,8 +39,8 @@ A location where the group stages a performance, with its own physical layout an
 _Avoid_: Location
 
 **Report template**:
-A reusable construction-sheet layout (plan crops and camera views on paper) that belongs to a **venue**. Every play adapted to that venue shares the same templates; only the stage design content changes per scene.
-_Avoid_: Scene template (that is a set-design starting point)
+A reusable construction-sheet layout (plan crops and camera views on paper) that belongs to a **venue**. Every play adapted to that venue shares the same templates; only the stage design content changes per stage layout.
+_Avoid_: Stage layout template (that is a set-design starting point)
 
 **Venue version**:
 A saved record of a venue's layout and constraints that an adaptation uses until explicitly updated to a newer version.
@@ -63,27 +70,27 @@ The rotation of a patterned library surface on a face (0° / 90° / 180° / 270�
 A definition of a kind of wall element, including distinguishing features such as a window opening.
 
 **Inventory template**:
-A reusable definition of a wall element, weighted rear brace or scenic object. Placing a template creates an independent scene instance; the template is not itself a physical panel label or a count of available pieces.
+A reusable definition of a wall element, weighted rear brace or scenic object. Placing a template creates an independent stage-layout instance; the template is not itself a physical panel label or a count of available pieces.
 
 **Bestand**:
-The workspace home for physical panel stock and stocked wall-element types (including doors and windows as types). Crews design scenes first and assign panels later; one-off wall types may still exist only on a scene. The actual paint or wallpaper on physical panels is recorded here, separately from scene designs.
+The workspace home for physical panel stock and stocked wall-element types (including doors and windows as types). Crews design stage layouts first and assign panels later; one-off wall types may still exist only on a stage layout. The actual paint or wallpaper on physical panels is recorded here, separately from stage-layout designs.
 _Avoid_: Materialien, Inventar (alone), Bibliothek
 
 **Scenic object**:
-A prop or piece of scenery represented by a model with physical outside dimensions and a placement in a scene layout.
+A prop or piece of scenery represented by a model with physical outside dimensions and a placement in a stage layout.
 
 **Panel connection**:
 A physical join between neighbouring wall elements that contributes to keeping the assembled walls upright.
 The group chooses nearly arbitrary connection angles by positioning and screwing on removable-pin scenery hinges during the initial rigging of a stage arrangement.
 
 **Rigging setup**:
-The mounted hinge configuration used across scene layouts within a venue adaptation. Remounting hinges establishes a separate rigging setup; removing and reinserting pins does not.
+The mounted hinge configuration used across stage layouts within a venue adaptation. Remounting hinges establishes a separate rigging setup; removing and reinserting pins does not.
 
 **Weighted rear brace**:
 A large triangular support placed behind a wall and weighted down, used by the group to stabilise longer straight runs of connected panels.
 
 **Panel label**:
-A permanent identifier for a physical wall element in the group's inventory, retained across productions, venues, and scene layouts.
+A permanent identifier for a physical wall element in the group's inventory, retained across productions, venues, and stage layouts.
 _Avoid_: Assembly number
 
 **Assembly number**:
@@ -114,14 +121,34 @@ A set of steps connecting performance surfaces at different heights.
 A physical structure above the stage area, such as a ventilation duct, that locally limits usable space and height.
 
 **Traverse / hang bar**:
-A venue lighting hang bar with plan length, section, and underside height. Optional hang points along the bar are reserved for later fixture placement; they do not place lights in this version.
+A venue lighting hang bar with plan length, section, and underside height. Optional hang points along the bar are the attachment seam for the hang plan ([ADR 0007](docs/adr/0007-stage-layout-and-light-looks.md)).
+
+**Hang point**:
+A reserved position along a Traverse centreline where a lighting fixture may be hung.
+
+**Hang plan**:
+The venue-owned assignment of lighting fixtures to hang points (what is hung where). Distinct from mood lighting and from light looks.
+
+**Lighting fixture**:
+A controllable stage light hung on a hang point (Scheinwerfer). Not a curtain, door, or placeholder.
+_Avoid_: Fixture (alone) in UI — that word is overloaded with venue soft-goods/door selection in code
+
+**Fixture type**:
+A library definition of a lighting fixture (attributes, beam, physical size). GDTF interchange is optional later.
+
+**Light look**:
+A named snapshot of lighting-fixture parameters (intensity, colour, aim/focus, beam, …) for preview with a stage layout. A stage layout may have many light looks; looks are not cues, sequences, or live desk playback.
+_Avoid_: Light scene, Cue, Sequence, Executor
+
+**Mood lighting / Grundlicht**:
+Coarse house or rehearsal fill (front/back/ambient) used in Raumsicht. Not the hang plan or a light look.
 
 **Molton curtain**:
 A venue soft-goods track (theatre molton) with plan length, drop height, and a parametric opening (traveler from centre, or stack to one side). In the ground plan it uses the USITT wavy soft-goods symbol; in 3D it renders as matte black molton with vertical folds that gather when open.
 
 **Placeholder**:
 A labelled, resizable stand-in for furniture, a person figure, a speaker, or a generic box. Placeholders carry example millimetre dimensions, sit on an explicit supporting surface, and are not measured inventory or CAD models. Venue chairs use a built-in low-poly chair form.
-_Avoid_: Fixture, CAD furniture
+_Avoid_: Lighting fixture, CAD furniture
 
 **Venue trace / underlay**:
 An optional image or PDF page behind the venue plan. Authors import via file picker, drag-and-drop onto the underlay dropzone, or the “Aus Zwischenablage” button (not Ctrl+V — that pastes venue objects). Clipboard and non-PNG/JPEG rasters are converted to PNG client-side before upload. Scale and rotation are set inside the import dialog on a zoomable/pannable preview with a known-length measure line (Sweet Home 3D style), then applied to the main plan. Session display toggles can hide the underlay, object names, dimensions, or annotation texts without changing the saved venue.
@@ -134,10 +161,10 @@ An orthogonal construction-plan view of one wall facing from a selected explicit
 _Avoid_: Flattened elevation
 
 **Physical finish**:
-The paint, wallpaper or cladding currently on a real panel, recorded after the work has been carried out. It can differ from the intended finish of a scene wall.
+The paint, wallpaper or cladding currently on a real panel, recorded after the work has been carried out. It can differ from the intended finish of a stage-layout wall.
 
 **Finish assignment**:
-The intended finish captured when a physical panel is assigned to a scene wall. Later scene edits do not change that record; the crew separately confirms when the work is complete.
+The intended finish captured when a physical panel is assigned to a stage-layout wall. Later stage-layout edits do not change that record; the crew separately confirms when the work is complete.
 
 **Technical cutout**:
 A measured outlet or cable opening specific to one physical panel. It is a stock characteristic, distinct from a scenic door or window opening defined by the wall type.

@@ -17,15 +17,15 @@ test('a second session sees who is editing and cannot modify the plan', async ({
     productionName: 'Pachtprobe',
     venueName: 'Probesaal',
   });
-  await expect(adminPage.getByRole('heading', { name: 'Szene 1' })).toBeVisible();
+  await expect(adminPage.getByRole('heading', { name: 'Bühnenbild 1' })).toBeVisible();
   await expect(adminPage.getByRole('button', { name: 'Wand hinzufügen' })).toBeVisible();
   await expect(adminPage.locator('.save-status')).toHaveText('Gespeichert', { timeout: 10_000 });
 
   await signIn(editorPage, testEditor);
-  const card = editorPage.getByRole('button', { name: /Pachtprobe · Szene 1/ });
+  const card = editorPage.getByRole('button', { name: /Pachtprobe · Bühnenbild 1/ });
   await expect(card).toContainText('Bearbeitung durch Test Administration');
   await card.click();
-  await expect(editorPage.getByRole('heading', { name: 'Szene 1' })).toBeVisible();
+  await expect(editorPage.getByRole('heading', { name: 'Bühnenbild 1' })).toBeVisible();
   await expect(editorPage.getByText('Nur Ansicht · Bearbeitung durch Test Administration')).toBeVisible();
   await expect(editorPage.getByRole('button', { name: 'Wand hinzufügen' })).toHaveCount(0);
 
@@ -73,14 +73,14 @@ test('lease loss preserves the local scene and offers separate template recovery
   await expect(page.getByRole('button', { name: 'Wand hinzufügen' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Lokalen Entwurf herunterladen' })).toBeVisible();
   const saved = page.waitForResponse(response => response.url().endsWith('/recover') && response.request().method() === 'POST');
-  await page.getByRole('button', { name: 'Entwurf als Szenenvorlage sichern' }).click();
-  const prompt = page.getByRole('dialog', { name: 'Entwurf als Szenenvorlage sichern' });
+  await page.getByRole('button', { name: 'Entwurf als Bühnenbildvorlage sichern' }).click();
+  const prompt = page.getByRole('dialog', { name: 'Entwurf als Bühnenbildvorlage sichern' });
   await expect(prompt).toBeVisible();
-  await prompt.getByLabel('Name der Szenenvorlage').fill('Gerettete Probebühne');
+  await prompt.getByLabel('Name der Bühnenbildvorlage').fill('Gerettete Probebühne');
   await prompt.getByRole('button', { name: 'Sichern' }).click();
   const response = await saved;
   expect(response.status()).toBe(201);
   expect((await response.json()).layout.walls).toHaveLength(1);
-  await expect(page.getByText('Entwurf als Szenenvorlage gesichert. Sie finden ihn in der Übersicht.')).toBeVisible();
+  await expect(page.getByText('Entwurf als Bühnenbildvorlage gesichert. Sie finden ihn in der Übersicht.')).toBeVisible();
   await expect(page.locator('.save-status')).toHaveText('Bearbeitung abgelaufen');
 });

@@ -246,10 +246,10 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
   const [recovering, setRecovering] = useState(false);
   async function recoverDraft() {
     const name = await askPrompt({
-      title: 'Entwurf als Szenenvorlage sichern',
+      title: 'Entwurf als Bühnenbildvorlage sichern',
       message: 'Unter diesem Namen erscheint die Vorlage in der Übersicht.',
       defaultValue: `${initial.name} – gesicherter Entwurf`,
-      inputLabel: 'Name der Szenenvorlage',
+      inputLabel: 'Name der Bühnenbildvorlage',
       confirmLabel: 'Sichern',
     });
     if (!name) return;
@@ -258,7 +258,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
       await request(`/api/workspaces/${workspaceId}/scenes/${initial.id}/recover`, {
         name, layout: current.current.present, sourceSurfaces: (venue.platforms ?? []).map(({ id, label }) => ({ id, label })),
       });
-      setRecoveryMessage('Entwurf als Szenenvorlage gesichert. Sie finden ihn in der Übersicht.');
+      setRecoveryMessage('Entwurf als Bühnenbildvorlage gesichert. Sie finden ihn in der Übersicht.');
     } catch (error) { setRecoveryMessage(error instanceof ApiError ? error.message : 'Entwurf konnte nicht gesichert werden. Bitte herunterladen.'); }
     finally { setRecovering(false); }
   }
@@ -272,7 +272,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
       setSceneName(result.name);
       setRenamingScene(false);
     } catch (error) {
-      setRenameError(error instanceof ApiError ? error.message : 'Die Szene konnte nicht umbenannt werden.');
+      setRenameError(error instanceof ApiError ? error.message : 'Das Bühnenbild konnte nicht umbenannt werden.');
     } finally { setRenameBusy(false); }
   }
   const dirty = venueDirty || saveState.dirty || !!groupPreview || !!placing || inspectorPending;
@@ -903,7 +903,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
     <EditorMenu label="Hilfe"><button className="quiet" onClick={() => setHelpOpen(open => !open)}>Bedienung anzeigen</button><a href="#/hilfe">Zur vollständigen Hilfe</a></EditorMenu>
   </nav>;
   const menuSlot = !fullscreen && document.getElementById('editor-menu-slot');
-  return <section ref={root} className="editor scene-editor" aria-label="Szene bearbeiten">
+  return <section ref={root} className="editor scene-editor" aria-label="Bühnenbild bearbeiten">
     {menuSlot ? createPortal(menus, menuSlot) : <div className="editor-local-menubar">{menus}</div>}
     <div className="editor-heading compact-editor-heading">
       <button className="quiet back-button" disabled={dirty} onClick={onClose} title="Zur Übersicht" aria-label="Zur Übersicht"><ToolIcon name="back" /></button>
@@ -1014,7 +1014,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
         : 'Ihre Änderungen sind noch nicht gespeichert. Prüfen Sie die Verbindung; bei abgelaufener Anmeldung sichern Sie zunächst den lokalen Entwurf.'}</p>
       {saveState.status === 'failed' && <button onClick={() => saver.retry()}>Speichern erneut versuchen</button>}{' '}
       <button onClick={downloadDraft}>Lokalen Entwurf herunterladen</button>{' '}
-      <button disabled={recovering} onClick={() => void recoverDraft()}>Entwurf als Szenenvorlage sichern</button>
+      <button disabled={recovering} onClick={() => void recoverDraft()}>Entwurf als Bühnenbildvorlage sichern</button>
       {recoveryMessage && <p role="status">{recoveryMessage}</p>}
       <button className="quiet" onClick={() => {
         void askConfirm({
@@ -1100,7 +1100,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
                 </>}
               </g>;
             })}
-            <title>{wall.label} · feste Spielstättenwand{hasDoor ? ' · Öffnung pro Szene' : ''}</title>
+            <title>{wall.label} · feste Spielstättenwand{hasDoor ? ' · Öffnung pro Bühnenbild' : ''}</title>
           </g>;
         })}
         {(venue.placeholders ?? []).map(item => <g key={item.id} data-print-layer="audience" data-print-name={item.label} data-testid={`venue-placeholder-${item.id}`}
@@ -1336,7 +1336,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
         onPendingChange={reportInspectorPending} onChange={commit} />
       </div></details>}
     </aside></div>}
-    <div className="workspace-statusbar"><span><span className="status-dot" />{venueOpen ? 'Spielstättenentwurf' : 'Szene'} · {state.present.walls.length} Wände</span><span className="selection-count" hidden={venueOpen || selection().length === 0} data-testid="selection-count">{selection().length} ausgewählt</span><span className="status-hint" role="status" title={snapStatus}>{snapStatus ?? 'Klicken zum Auswählen · Ziehen zum Verschieben · Strg+Z rückgängig'}</span><button className="quiet" aria-expanded={helpOpen} onClick={() => setHelpOpen(open => !open)}><ToolIcon name="help" /> Bedienung</button><span>Maße in mm</span></div>
+    <div className="workspace-statusbar"><span><span className="status-dot" />{venueOpen ? 'Spielstättenentwurf' : 'Bühnenbild'} · {state.present.walls.length} Wände</span><span className="selection-count" hidden={venueOpen || selection().length === 0} data-testid="selection-count">{selection().length} ausgewählt</span><span className="status-hint" role="status" title={snapStatus}>{snapStatus ?? 'Klicken zum Auswählen · Ziehen zum Verschieben · Strg+Z rückgängig'}</span><button className="quiet" aria-expanded={helpOpen} onClick={() => setHelpOpen(open => !open)}><ToolIcon name="help" /> Bedienung</button><span>Maße in mm</span></div>
     {helpOpen && <div className="workspace-help"><h3>Arbeiten im Grundriss</h3>
       <p className="muted viewport-hint">Raster: 1 m / 50 cm · Zwei-Finger-Scroll oder Mittelklick verschieben · Pinch / Strg+Scroll zoomen · Auf dem Boden ziehen: Mehrfachauswahl (nur vollständig umschlossene Objekte) · Orange ↻ dreht · Stützen an Wänden · {SNAP_NOTICE}</p>
       <p>Strg/Cmd+C kopiert die Auswahl, Strg/Cmd+V hängt die Kopie an den Zeiger — Klick setzt, Escape bricht ab. Entf löscht ausgewählte Objekte. Escape bricht Platzieren und Bewegungen ab oder hebt die Auswahl auf (auch in der Raumsicht · Klick in freien Raum). Überschneidungen erscheinen rot auf dem Grundriss.</p>
@@ -1410,7 +1410,7 @@ function VenueCurtainOpenForm({ openPercent, readOnly, onPendingChange, onApply 
     if (!Number.isFinite(value) || value < 0 || value > 100) return;
     clearPending(); onApply(value);
   }} {...formProps}><fieldset disabled={readOnly}>
-    <p className="muted">Position und Spur kommen von der Spielstätte. Nur die Öffnung gilt für diese Szene.</p>
+    <p className="muted">Position und Spur kommen von der Spielstätte. Nur die Öffnung gilt für dieses Bühnenbild.</p>
     <label htmlFor="venue-curtain-open">Öffnung (%)</label>
     <input id="venue-curtain-open" name="openPercent" type="number" min={0} max={100} step={1} defaultValue={openPercent} data-testid="venue-curtain-open" />
     <p className="muted">0 % geschlossen, 100 % vollständig geöffnet / gerafft.</p>
@@ -1431,7 +1431,7 @@ function VenueDoorOpenForm({ openPercent, readOnly, onPendingChange, onApply }: 
     if (!Number.isFinite(value) || value < 0 || value > 100) return;
     clearPending(); onApply(value);
   }} {...formProps}><fieldset disabled={readOnly}>
-    <p className="muted">Feste Spielstättenwand — nur die Türöffnung ist pro Szene änderbar.</p>
+    <p className="muted">Feste Spielstättenwand — nur die Türöffnung ist pro Bühnenbild änderbar.</p>
     <label htmlFor="venue-door-open">Türöffnung (%)</label>
     <input id="venue-door-open" name="doorOpenPercent" type="number" min={0} max={100} step={1} defaultValue={openPercent} data-testid="venue-door-open" />
     <p className="muted">0 % geschlossen, 100 % = 90° offen.</p>

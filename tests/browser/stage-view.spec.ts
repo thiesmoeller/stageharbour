@@ -145,7 +145,7 @@ test('edits in the plan update the linked 3D view, including front orientation a
   await expect(page.getByTestId('stage-view')).toHaveAttribute('data-view', 'orbit');
 
   await page.reload();
-  const workspace = page.getByRole('region', { name: 'Szene bearbeiten' });
+  const workspace = page.getByRole('region', { name: 'Bühnenbild bearbeiten' });
   try {
     await workspace.waitFor({ state: 'visible', timeout: 8_000 });
   } catch {

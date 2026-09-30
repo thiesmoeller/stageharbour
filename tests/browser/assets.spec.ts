@@ -79,7 +79,7 @@ test('inventory, GLB models and Pascal catalogue items participate in placement,
   await expect(page.locator('.model-error')).toHaveCount(0);
 
   await page.reload();
-  const workspace = page.getByRole('region', { name: 'Szene bearbeiten' });
+  const workspace = page.getByRole('region', { name: 'Bühnenbild bearbeiten' });
   try {
     await workspace.waitFor({ state: 'visible', timeout: 8_000 });
   } catch {

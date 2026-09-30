@@ -39,16 +39,16 @@ export function Help({ topic }: { topic?: string }) {
       <h2>Ablauf</h2>
       <ol>
         <li><strong>Spielstätte</strong> anlegen oder wählen: Umriss, feste Wände, Podeste, Überbauung.</li>
-        <li><strong>Produktion / Szene</strong> öffnen: bewegliche Wände und Requisiten auf dem Grundriss platzieren.</li>
+        <li><strong>Produktion / Bühnenbild</strong> öffnen: bewegliche Wände und Requisiten auf dem Grundriss platzieren.</li>
         <li>In den <strong>Eigenschaften</strong> Maße übernehmen (Übernehmen), in der <strong>Raumsicht</strong> prüfen.</li>
         <li>Bei Bedarf <strong>Export</strong> (Bauzeichnung / PDF) oder Bauplan-Revision einfrieren.</li>
       </ol>
-      <p className="muted">Der Status neben dem Szenennamen zeigt „Gespeichert“ oder Konflikte. Entwürfe mit offenen Änderungen blockieren das Verlassen der Szene.</p>
+      <p className="muted">Der Status neben dem Bühnenbildnamen zeigt „Gespeichert“ oder Konflikte. Entwürfe mit offenen Änderungen blockieren das Verlassen des Bühnenbilds.</p>
     </section>
 
     <section id="hilfe-werkzeuge">
       <h2>Werkzeuge</h2>
-      <h3>Szene (Bühnenbild)</h3>
+      <h3>Bühnenbild</h3>
       <ul>
         <li><strong>Wand / Stütze</strong> — links in der Werkzeugleiste; weitere Platzhalter unter <strong>Einfügen</strong>. Klick im Grundriss setzt das Objekt.</li>
         <li><strong>Auswahl</strong> — Klick wählt; Ziehen auf dem Boden umschließt (nur vollständig enthaltene Objekte).</li>
@@ -56,9 +56,9 @@ export function Help({ topic }: { topic?: string }) {
         <li><strong>Gruppieren</strong> — ausgewählte Teile drehen und verschieben um einen gemeinsamen Drehpunkt.</li>
         <li><strong>Ausschnitte</strong> — an Wänden ohne Wandtyp zeichnen oder in den Eigenschaften bearbeiten.</li>
       </ul>
-      <p>Im Szeneneditor finden Sie Drucken und Konstruktionspläne unter <strong>Datei</strong>,
+      <p>Im Bühnenbildeditor finden Sie Drucken und Konstruktionspläne unter <strong>Datei</strong>,
         Kopieren und Gruppieren unter <strong>Bearbeiten</strong> und weitere Objekte unter <strong>Einfügen</strong>.
-        Der Szenenname öffnet das Menü zum Umbenennen und Bearbeiten der Spielstätte.
+        Der Bühnenbildname öffnet das Menü zum Umbenennen und Bearbeiten der Spielstätte.
         <strong> Auswahl</strong> links beendet das Platzieren; die Werkzeughinweise stehen unten.</p>
       <h3>Spielstätte</h3>
       <ul>
@@ -100,7 +100,7 @@ export function Help({ topic }: { topic?: string }) {
 
     <section id="hilfe-oberflaechen">
       <h2>Wandoberflächen</h2>
-      <p>Unter <strong>Oberflächen</strong> in den Eigenschaften einer Wand (Szene oder feste Spielstättenwand):</p>
+      <p>Unter <strong>Oberflächen</strong> in den Eigenschaften einer Wand (Bühnenbild oder feste Spielstättenwand):</p>
       <ul>
         <li><strong>Alle Seiten gleich</strong> (Standard) — ein Material für Vorderseite, Rückseite und Kante.</li>
         <li><strong>Pro Seite</strong> — Vorderseite / Rückseite / Kante getrennt; optional <strong>Zwei Streifen</strong> (Teilungshöhe von unten, Standard 1200&nbsp;mm).</li>
@@ -125,15 +125,15 @@ export function Help({ topic }: { topic?: string }) {
     <section id="hilfe-bestand">
       <h2>Bestand</h2>
       <p>Unter <strong>Bestand</strong> verwalten Sie den <strong>Plattenbestand</strong> und katalogisierte <strong>Wandtypen</strong>
-        (inkl. Tür und Fenster) ohne eine Szene zu öffnen. Die Objektbibliothek bleibt der Ort zum Platzieren und Entwerfen.</p>
+        (inkl. Tür und Fenster) ohne ein Bühnenbild zu öffnen. Die Objektbibliothek bleibt der Ort zum Platzieren und Entwerfen.</p>
       <ul>
-        <li><strong>Szene zuerst</strong> — Bühnenbild frei anlegen; Platten müssen nicht vorher im Bestand existieren.</li>
-        <li><strong>Zuweisung später</strong> — physische Platten weisen Sie in der Szene an Wände zu, nicht im Bestand.</li>
-        <li><strong>Kopie gehört der Szene</strong> — beim Kopieren/Übernehmen in eine andere Spielstätte werden Platten-IDs gelöscht
+        <li><strong>Bühnenbild zuerst</strong> — Bühnenbild frei anlegen; Platten müssen nicht vorher im Bestand existieren.</li>
+        <li><strong>Zuweisung später</strong> — physische Platten weisen Sie im Bühnenbild an Wände zu, nicht im Bestand.</li>
+        <li><strong>Kopie gehört dem Bühnenbild</strong> — beim Kopieren/Übernehmen in eine andere Spielstätte werden Platten-IDs gelöscht
           (clone-and-own). Es gibt keine Live-Synchronisation mit einem Master-Layout.</li>
         <li><strong>Oberflächen</strong> bleiben am Wand-Inspektor (Pascal/RAL), nicht im Bestand.</li>
       </ul>
-      <p className="muted">Einmalige Wandtypen dürfen weiter nur in der Szene existieren; Bestand speichert die Katalogtypen für Platten.</p>
+      <p className="muted">Einmalige Wandtypen dürfen weiter nur im Bühnenbild existieren; Bestand speichert die Katalogtypen für Platten.</p>
     </section>
 
     <p className="help-footer muted">Kurzhilfe im Editor: Schaltfläche <strong>Bedienung</strong> in der Statusleiste · diese Seite jederzeit unter Hilfe im Arbeitsbereich.</p>

@@ -48,7 +48,7 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
   } }, async (request, reply) => {
     const { workspaceId, sceneId } = request.params;
     await requireEditor(request, workspaceId);
-    if (!(await loadScenes(workspaceId, sceneId)).length) throw new AccessError(404, 'Szene nicht verfügbar.');
+    if (!(await loadScenes(workspaceId, sceneId)).length) throw new AccessError(404, 'Bühnenbild nicht verfügbar.');
     const assetIds = [...new Set((request.body.layout.placeholders ?? []).flatMap(item => item.assetId ? [item.assetId] : []))];
     if (assetIds.length) {
       const assets = await db.select().from(inventoryAsset).where(and(eq(inventoryAsset.workspaceId, workspaceId), inArray(inventoryAsset.id, assetIds)));
@@ -131,7 +131,7 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
   api.get(`${path}/:sceneId`, { schema: { params, response: { 200: sceneSchema, ...errors } } }, async request => {
     await access(request, request.params.workspaceId);
     const [record] = await loadScenes(request.params.workspaceId, request.params.sceneId);
-    if (!record) throw new AccessError(404, 'Szene nicht verfügbar.');
+    if (!record) throw new AccessError(404, 'Bühnenbild nicht verfügbar.');
     return withLease(request.params.workspaceId, record);
   });
   // Rename is metadata-only (like venues): no scene lease required.
@@ -141,7 +141,7 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
     const [updated] = await db.update(scene).set({ name: request.body.name })
       .where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, sceneId)))
       .returning({ id: scene.id });
-    if (!updated) throw new AccessError(404, 'Szene nicht verfügbar.');
+    if (!updated) throw new AccessError(404, 'Bühnenbild nicht verfügbar.');
     const [record] = await loadScenes(workspaceId, sceneId);
     return withLease(workspaceId, record!);
   });
@@ -219,7 +219,7 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
     const [existing] = await db.select({
       id: scene.id, name: scene.name, adaptationId: scene.adaptationId, layout: scene.layout,
     }).from(scene).where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, sceneId)));
-    if (!existing) throw new AccessError(404, 'Szene nicht verfügbar.');
+    if (!existing) throw new AccessError(404, 'Bühnenbild nicht verfügbar.');
     const copyId = randomUUID();
     await db.insert(scene).values({
       id: copyId, workspaceId, adaptationId: existing.adaptationId,
@@ -242,7 +242,7 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
       const [existing] = await tx.select({
         id: scene.id, name: scene.name, layout: scene.layout,
       }).from(scene).where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, sceneId)));
-      if (!existing) throw new AccessError(404, 'Szene nicht verfügbar.');
+      if (!existing) throw new AccessError(404, 'Bühnenbild nicht verfügbar.');
       const [destProduction] = await tx.select({ id: production.id }).from(production)
         .where(and(eq(production.workspaceId, workspaceId), eq(production.id, request.body.productionId)));
       if (!destProduction) throw new AccessError(404, 'Produktion nicht verfügbar.');
@@ -282,7 +282,7 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
     const { workspaceId, sceneId } = request.params;
     await requireEditor(request, workspaceId);
     const [existing] = await readScenes(workspaceId, sceneId);
-    if (!existing) throw new AccessError(404, 'Szene nicht verfügbar.');
+    if (!existing) throw new AccessError(404, 'Bühnenbild nicht verfügbar.');
     const id = randomUUID();
     const layout = captureTemplateLayout(existing.layout);
     const sourceSurfaces = (existing.venue.platforms ?? []).map(platform => ({ id: platform.id, label: platform.label }));
@@ -296,7 +296,7 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
   api.get(`${templatesPath}/:templateId`, { schema: { params: templateParams, response: { 200: sceneTemplateSchema, ...errors } } }, async request => {
     await access(request, request.params.workspaceId);
     const [record] = await readTemplates(request.params.workspaceId, request.params.templateId);
-    if (!record) throw new AccessError(404, 'Szenenvorlage nicht verfügbar.');
+    if (!record) throw new AccessError(404, 'Bühnenbildvorlage nicht verfügbar.');
     return record;
   });
   api.patch(`${templatesPath}/:templateId`, {
@@ -306,7 +306,7 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
     const [updated] = await db.update(sceneTemplate).set({ name: request.body.name })
       .where(and(eq(sceneTemplate.workspaceId, request.params.workspaceId), eq(sceneTemplate.id, request.params.templateId)))
       .returning({ id: sceneTemplate.id, name: sceneTemplate.name });
-    if (!updated) throw new AccessError(404, 'Szenenvorlage nicht verfügbar.');
+    if (!updated) throw new AccessError(404, 'Bühnenbildvorlage nicht verfügbar.');
     return updated;
   });
   // Instantiating reads the template without a lease. The new scene starts
@@ -319,7 +319,7 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
       const [existing] = await tx.select({
         id: sceneTemplate.id, name: sceneTemplate.name, layout: sceneTemplate.layout,
       }).from(sceneTemplate).where(and(eq(sceneTemplate.workspaceId, workspaceId), eq(sceneTemplate.id, templateId)));
-      if (!existing) throw new AccessError(404, 'Szenenvorlage nicht verfügbar.');
+      if (!existing) throw new AccessError(404, 'Bühnenbildvorlage nicht verfügbar.');
       const [destProduction] = await tx.select({ id: production.id }).from(production)
         .where(and(eq(production.workspaceId, workspaceId), eq(production.id, request.body.productionId)));
       if (!destProduction) throw new AccessError(404, 'Produktion nicht verfügbar.');
@@ -351,7 +351,7 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
   api.post(`${path}/:sceneId/lease`, { schema: { params, response: { 200: leaseHolderSchema, ...errors } } }, async request => {
     const { user } = await requireEditor(request, request.params.workspaceId);
     const [record] = await loadScenes(request.params.workspaceId, request.params.sceneId);
-    if (!record) throw new AccessError(404, 'Szene nicht verfügbar.');
+    if (!record) throw new AccessError(404, 'Bühnenbild nicht verfügbar.');
     const result = await leases.acquire(request.params.workspaceId, 'scene', request.params.sceneId, { id: user.id, name: user.name });
     if (!result.acquired) throw new LeaseError(423, `Wird bereits von ${result.lease.holderName} bearbeitet.`);
     return result.lease;
@@ -375,7 +375,7 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
         .innerJoin(adaptation, eq(scene.adaptationId, adaptation.id))
         .innerJoin(venueVersion, eq(adaptation.venueVersionId, venueVersion.id))
         .where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, sceneId)));
-      if (!existing) throw new AccessError(404, 'Szene nicht verfügbar.');
+      if (!existing) throw new AccessError(404, 'Bühnenbild nicht verfügbar.');
       await leases.requireHeld(tx, workspaceId, 'scene', sceneId, user.id);
       const assetIds = [...new Set((request.body.layout.placeholders ?? []).flatMap(item => item.assetId ? [item.assetId] : []))];
       if (assetIds.length) {
@@ -399,7 +399,7 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
       };
     });
     if (result) return result;
-    return reply.code(409).send({ message: 'Die Szene wurde inzwischen geändert. Ihre lokalen Änderungen bleiben erhalten.' });
+    return reply.code(409).send({ message: 'Das Bühnenbild wurde inzwischen geändert. Ihre lokalen Änderungen bleiben erhalten.' });
   });
   api.delete(`${path}/:sceneId`, { schema: { params, response: { 200: okSchema, ...errors } } }, async request => {
     const { workspaceId, sceneId } = request.params;
@@ -411,7 +411,7 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
       }).from(scene).innerJoin(adaptation, eq(scene.adaptationId, adaptation.id))
         .innerJoin(production, eq(adaptation.productionId, production.id))
         .where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, sceneId)));
-      if (!existing) throw new AccessError(404, 'Szene nicht verfügbar.');
+      if (!existing) throw new AccessError(404, 'Bühnenbild nicht verfügbar.');
       await tx.delete(constructionPlanRevision)
         .where(and(eq(constructionPlanRevision.workspaceId, workspaceId), eq(constructionPlanRevision.sceneId, sceneId)));
       await tx.delete(editingLease).where(and(
@@ -442,7 +442,7 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
     const deleted = await db.delete(sceneTemplate)
       .where(and(eq(sceneTemplate.workspaceId, request.params.workspaceId), eq(sceneTemplate.id, request.params.templateId)))
       .returning({ id: sceneTemplate.id });
-    if (!deleted.length) throw new AccessError(404, 'Szenenvorlage nicht verfügbar.');
+    if (!deleted.length) throw new AccessError(404, 'Bühnenbildvorlage nicht verfügbar.');
     return { ok: true as const };
   });
 }

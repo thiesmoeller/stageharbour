@@ -81,7 +81,7 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
       <span className="camera-projection">{view === 'top' || view === 'front' || view === 'side' ? 'Parallelprojektion' : 'Perspektive'}</span>
       {!exportAim && <button type="button" className="quiet renderer-toggle" onClick={() => { setEnhanced(value => !value); chooseView('orbit'); }} title={enhanced ? 'Einfache Darstellung' : 'Erweiterte Darstellung'} aria-label={enhanced ? 'Einfache Darstellung' : 'Erweiterte Darstellung'}><ToolIcon name="settings" /></button>}
     </div>
-    {!exportAim && <LightingPanel value={lighting} onChange={onLightingChange} scope={!onLightingChange ? 'Gespeicherte Lichtstimmung · nur Ansicht.' : editing.venueEditable ? 'Teil des Spielstättenentwurfs · mit der Spielstätte speichern.' : 'Änderungen werden mit dieser Szene gespeichert.'} />}
+    {!exportAim && <LightingPanel value={lighting} onChange={onLightingChange} scope={!onLightingChange ? 'Gespeicherte Lichtstimmung · nur Ansicht.' : editing.venueEditable ? 'Teil des Spielstättenentwurfs · mit der Spielstätte speichern.' : 'Änderungen werden mit diesem Bühnenbild gespeichert.'} />}
     {!simple ? <Suspense fallback={<p role="status">Raumsicht wird geladen …</p>}><PascalStageCanvas model={model} layout={layout} venue={venue} audience={audience} view={view} assets={assets} workspaceId={workspaceId} lighting={lighting} onCaptureReady={onCaptureReady} aimOnly={exportAim} {...editing} /></Suspense> : <div ref={simpleCanvas} className="stage-canvas" role="img" aria-label="Raumsicht der Spielstätte">
       <Canvas shadows key={audience ? 'audience' : 'orbit'} gl={{ antialias: true, alpha: false }} dpr={[1, 2]}>
         <ambientLight intensity={0.85} />

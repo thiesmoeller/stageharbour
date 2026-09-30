@@ -101,13 +101,13 @@ export function ReportSheetEditor({
         <input value={active.name} disabled={readOnly}
           onChange={event => updateActive(template => ({ ...template, name: event.target.value }))} />
       </label>
-      <p className="muted report-sheet-hint">Entwurf — Rahmenplatzierung steuert herausgegebene PDFs noch nicht. Ansichten kommen live aus Szene und Spielstätte.</p>
+      <p className="muted report-sheet-hint">Entwurf — Rahmenplatzierung steuert herausgegebene PDFs noch nicht. Ansichten kommen live aus Bühnenbild und Spielstätte.</p>
     </header>
 
     <div className="report-sheet-workspace">
       <aside className="report-source-rail" aria-label="Ansichten einfügen">
         <h3>Quellen</h3>
-        <p className="muted">Live aus Szene und Spielstätte — nur Anzeige, Einfügen setzt einen Rahmen aufs Blatt.</p>
+        <p className="muted">Live aus Bühnenbild und Spielstätte — nur Anzeige, Einfügen setzt einen Rahmen aufs Blatt.</p>
 
         <div className="report-source-card">
           <div className="report-source-card-head">

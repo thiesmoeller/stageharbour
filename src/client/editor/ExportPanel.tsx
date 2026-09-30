@@ -47,7 +47,7 @@ export function PackageExport({ workspaceId, productionId, sceneId, scenes, read
     const data = new FormData(event.currentTarget);
     const name = String(data.get('name') ?? '').trim();
     const sceneIds = scenes ? data.getAll('sceneIds').map(String) : sceneId ? [sceneId] : [];
-    if (!name || !sceneIds.length) { setError('Bitte wählen Sie mindestens eine Szene.'); return; }
+    if (!name || !sceneIds.length) { setError('Bitte wählen Sie mindestens ein Bühnenbild.'); return; }
     setGenerating(true); setError('');
     try {
       const created = exportRevisionSchema.parse(await request(base, {
@@ -99,7 +99,7 @@ export function PackageExport({ workspaceId, productionId, sceneId, scenes, read
   const busy = loading || generating;
   return <section className="export-panel" aria-label="Konstruktionspaket">
     <h3>Konstruktionspaket</h3>
-    <p className="muted">Stückliste und Konstruktionspläne der gewählten Szenen. Ebenen steuern den Inhalt der Pläne.</p>
+    <p className="muted">Stückliste und Konstruktionspläne der gewählten Bühnenbilder. Ebenen steuern den Inhalt der Pläne.</p>
     {!readOnly && <form onSubmit={event => void freeze(event)}><fieldset disabled={busy || freezeDisabled}>
       <label htmlFor={`${prefix}-name`}>Bezeichnung des Pakets</label>
       <input id={`${prefix}-name`} name="name" required maxLength={120} />
@@ -116,7 +116,7 @@ export function PackageExport({ workspaceId, productionId, sceneId, scenes, read
       </select>
       <LayerToggles idPrefix={`${prefix}-layer`} layers={layers} onChange={setLayers} disabled={busy || freezeDisabled} />
       {scenes && scenes.length > 0 && <div className="elevation-groups">
-        <p>Szenen für das Paket</p>
+        <p>Bühnenbilder für das Paket</p>
         {scenes.map(scene => <label key={scene.id} htmlFor={`${prefix}-scene-${scene.id}`}>
           <input id={`${prefix}-scene-${scene.id}`} type="checkbox" name="sceneIds" value={scene.id} defaultChecked />
           {scene.name}

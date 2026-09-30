@@ -113,7 +113,7 @@ export function InventoryStock({ workspaceId, layout, readOnly, onPanels }: {
     } finally { setBusy(false); }
   }
   async function removePanel(panel: InventoryPanel) {
-    if (!await askConfirm({ title: 'Platte löschen?', message: `„${panel.label}“ aus dem Bestand löschen? Die Platte darf keiner Szene mehr zugewiesen sein.`, confirmLabel: 'Platte löschen', danger: true })) return;
+    if (!await askConfirm({ title: 'Platte löschen?', message: `„${panel.label}“ aus dem Bestand löschen? Die Platte darf keinem Bühnenbild mehr zugewiesen sein.`, confirmLabel: 'Platte löschen', danger: true })) return;
     setBusy(true); setError('');
     try { await request(`${base}/panels/${panel.id}`, undefined, 'DELETE'); await load(); }
     catch (caught) { setError(caught instanceof ApiError ? caught.message : 'Platte konnte nicht gelöscht werden.'); }
@@ -153,7 +153,7 @@ export function InventoryStock({ workspaceId, layout, readOnly, onPanels }: {
         {holding && <button type="button" className="quiet" disabled={busy} onClick={() => void removePanel(panel)}>Platte löschen</button>}
         {work.filter(item => item.panelId === panel.id).map(item => <details key={`${item.sceneId}-${item.wallId}`} className="finish-work">
           <summary>{panel.currentFinish?.assignmentId === item.assignment.id ? 'Ausgeführt' : 'Geplante Oberfläche'} · {item.sceneName} · {item.wallLabel}</summary>
-          <p className="muted">Entwurf zum Zeitpunkt der Plattenzuweisung. Spätere Szenenänderungen verändern diesen Auftrag nicht.</p>
+          <p className="muted">Entwurf zum Zeitpunkt der Plattenzuweisung. Spätere Bühnenbildänderungen verändern diesen Auftrag nicht.</p>
           <div className="panel-faces"><WallTypePreview type={panel.type} cutouts={panel.cutouts} surfaces={item.assignment.surfaces} label="Geplante Vorderseite" /><WallTypePreview type={panel.type} cutouts={panel.cutouts} surfaces={item.assignment.surfaces} label="Geplante Rückseite" side="back" /><span>Vorderseite</span><span>Rückseite</span></div>
           <button type="button" disabled={!holding || busy || panel.currentFinish?.assignmentId === item.assignment.id} onClick={() => void completeFinish(item, panel)}>Arbeit abgeschlossen</button>
         </details>)}

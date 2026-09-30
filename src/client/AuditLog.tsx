@@ -4,11 +4,11 @@ import { request } from './api.js';
 
 const entries = z.array(z.object({ id: z.string(), actorId: z.string(), actorName: z.string().nullable(), action: z.string(), resourceId: z.string(), createdAt: z.string() }));
 function label(action: string) {
-  const area = action.includes('inventory') || action.includes('assets') ? 'Bestand' : action.includes('venue') ? 'Spielstätte' : action.includes('members') || action.includes('invitations') ? 'Mitglieder' : 'Szene';
+  const area = action.includes('inventory') || action.includes('assets') ? 'Bestand' : action.includes('venue') ? 'Spielstätte' : action.includes('members') || action.includes('invitations') ? 'Mitglieder' : 'Bühnenbild';
   if (action.startsWith('lease.')) return `${area}: Bearbeitung ${action.includes('release') ? 'beendet' : action.includes('takeover') ? 'nach Ablauf übernommen' : 'begonnen'}`;
   if (action.includes('invitations')) return 'Mitglied eingeladen';
   if (action.includes('members')) return action.startsWith('DELETE') ? 'Mitgliedszugang entzogen' : 'Berechtigung geändert';
-  if (action.includes('recover')) return 'Entwurf als Szenenvorlage gesichert';
+  if (action.includes('recover')) return 'Entwurf als Bühnenbildvorlage gesichert';
   return `${area}: ${action.startsWith('DELETE') ? 'entfernt / archiviert' : action.startsWith('POST') ? 'angelegt' : 'gespeichert'}`;
 }
 export function AuditLog({ workspaceId }: { workspaceId: string }) {
