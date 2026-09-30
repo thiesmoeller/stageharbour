@@ -13,6 +13,7 @@
     "build": "tsc --noEmit && vite build && tsc -p tsconfig.server.json",
     "start": "HOST=127.0.0.1 node --env-file=.env dist/server/main.js",
     "typecheck": "tsc --noEmit",
+    "check:ci": "npm test && npm run test:integration && npm run test:e2e",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --env-file=.env --import tsx src/server/db/migrate.ts",
     "admin:bootstrap": "node --env-file=.env --import tsx scripts/bootstrap.ts",

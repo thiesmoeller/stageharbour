@@ -37,6 +37,10 @@ The Compose file is for local development only. Its database binds to loopback a
 
 ## Verification
 
+Before pushing, run `npm run check:ci` with PostgreSQL running and Chromium installed
+(`npx playwright install chromium`). This runs the same unit, integration, build and
+full browser checks as the x86 CI gate. The ARM job runs its smaller smoke suite.
+
 ```sh
 npm run typecheck
 npm test
@@ -47,6 +51,12 @@ npm run test:e2e
 ```
 
 Integration/browser tests use local PostgreSQL at port 55432 by default; override `TEST_DATABASE_URL` for a dedicated test server. The test database user needs permission to create databases. Each run creates a uniquely named database, applies migrations twice, and removes that database afterwards. Tests do not reset the application database. Browser tests serve the built application and use a disposable example administrator.
+
+Long browser journeys should use `test.slow()` to scale the configured deadline for
+software rendering on CI, rather than replacing it with a shorter fixed timeout.
+Use named `test.step` phases so timeout locations remain visible in the job log.
+Failure artifacts are retained for three days; changing retention does not expire
+older uploads or immediately clear an existing GitHub storage quota.
 
 Tests cover concurrent/idempotent bootstrap, login, CSRF origin rejection, closed registration, cross-workspace access, non-members, viewer/editor role restrictions, immediate membership revocation, expired sessions, logout, reload, mobile layout and network-error recovery. Layout tests cover millimetre wall geometry and session undo/redo, revision-checked competing saves, pinned venue versions, malformed documents, viewer write denial, serialized autosave including retry after failure, exclusive editing leases with competing clients, and the browser workflow that creates a layout, moves a wall, undoes the move and reloads the saved result without restoring undo history. Duplicating a scene inside a production keeps panel assignments on independent placement records, refuses viewers and foreign workspaces, leaves a frozen source snapshot unchanged after editing the copy, and does not require the source editing lease. Copying into another production or venue clears `panelId`, uses the destination venue version, refuses viewers and foreign workspaces, and also reads the source without a lease. Capturing a Szenenvorlage clones layout JSON including wall types; instantiating into a production/venue clears `panelId` and leaves the template unchanged after later source edits; viewers can list templates but cannot capture or instantiate. Saving a venue inserts a new version; sibling adaptations stay pinned until they apply; a failed apply leaves the previous pin; freeze issued before apply keeps the old geometry. Package tests cover a production stock summary that counts a shared panel once across scenes, listed unassigned/unavailable assignments and spatial warnings, and frozen packages that ignore later inventory or venue edits. Inventory tests cover usable stock excluding unavailable panels, unassigned placements remaining valid, duplicate/incompatible/unavailable assignment warnings that keep the stored reference, create/list/assign/unassign with viewer and cross-workspace denial, and the browser workflow that assigns an example panel, shows a stock warning, and reloads the assignment. Export tests cover a 1200 mm wall measuring 24 mm on the A4 page at 1:50 (and 48 mm at 1:25 / 12 mm at 1:100), A3 paper, tiling a 20000 mm venue across three A4 pages with overlap and registration marks, a 90° wall group producing two labelled elevation faces (1200×2400 mm each at 1:50 as 24×48 mm, not one flattened width), frozen snapshots that ignore later source edits, retry from the same frozen paper and scale after a failed render, viewer freeze denial, and downloading a named revision from the editor. Assembly tests cover left-to-right numbering from the audience that stays put after a later move, connections that do not change coordinates, save/reload of numbers, connections and rigging notes, and frozen PDFs that keep issued labels and the manual-verification notice.
 
