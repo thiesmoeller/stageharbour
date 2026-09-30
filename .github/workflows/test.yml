@@ -28,14 +28,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: npm test
-      - run: npm run test:integration
-      - run: npm run test:e2e
+      - run: npm run check:ci
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: browser-failures
           path: test-results/
+          retention-days: 3
 
   # Native arm64 smoke only — unit + integration + a short login/workspace e2e.
   # CapRover often runs on ARM; we do not re-run the full 3D/layout browser suite here.
@@ -70,6 +69,7 @@ jobs:
         with:
           name: browser-failures-arm64
           path: test-results/
+          retention-days: 3
 
   # Build each architecture natively (no QEMU). Manifest + CapRover deploy follow.
   publish:
