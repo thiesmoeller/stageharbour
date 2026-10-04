@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { z } from 'zod';
 import {
   assetSchema, MAX_MODEL_BYTES, MAX_MODEL_MB, modelAxisSchema, modelDimensionsFromReference, renameAssetSchema,
@@ -10,9 +10,9 @@ import { request } from '../api.js';
 import { measureGlbFile } from './measureGlb.js';
 import { useEditingLease } from './useEditingLease.js';
 import { InventoryStock } from './InventoryPanel.js';
+import PascalCatalog from './PascalCatalog.js';
 import { WallTypePanel } from './WallTypePanel.js';
 
-const PascalCatalog = lazy(() => import('./PascalCatalog.js'));
 const axisLabels: Record<ModelAxis, string> = { width: 'Breite', height: 'Höhe', depth: 'Tiefe' };
 type LibraryTab = 'inventory' | 'panels' | 'wallTypes' | 'import' | 'catalog';
 
@@ -169,12 +169,12 @@ export function AssetLibrary({ workspaceId, assets, layout, readOnly, selected, 
       {dimensions && <p className="muted">Ergebnis: {Math.round(dimensions.width)} × {Math.round(dimensions.height)} × {Math.round(dimensions.depth)} mm (Breite × Höhe × Tiefe).</p>}
       <button type="submit" disabled={!dimensions}>Modell in Objektvorlagen importieren</button>
     </fieldset></form>}
-    {tab === 'catalog' && <Suspense fallback={<p role="status">Katalog wird geladen …</p>}><PascalCatalog disabled={readOnly || busy} onAdd={async (name, definition) => {
+    {tab === 'catalog' && <PascalCatalog disabled={readOnly || busy} onAdd={async (name, definition) => {
       setBusy(true); setError('');
       try { await create(name, definition); setTab('inventory'); }
       catch { setError('Das Katalogmodell konnte nicht übernommen werden.'); }
       finally { setBusy(false); }
-    }} /></Suspense>}
+    }} />}
     {busy && <p role="status">Bibliothek wird gespeichert …</p>}
     {error && <p className="error" role="alert">{error}</p>}
     {lease.message && <p role="status">{lease.message}</p>}
