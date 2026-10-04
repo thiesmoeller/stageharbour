@@ -39,8 +39,9 @@ function CurtainLeaf({ length, height, openPercent, alongCentre }: {
     [length, height, openPercent],
   );
   useLayoutEffect(() => () => geometry.dispose(), [geometry]);
-  return <mesh position={[alongCentre, 0, 0]} geometry={geometry}>
-    <meshStandardMaterial color={MOLTON.color} roughness={MOLTON.roughness} metalness={MOLTON.metalness} side={DoubleSide} />
+  return <mesh position={[alongCentre, 0, 0]} geometry={geometry} castShadow receiveShadow>
+    <meshStandardMaterial color={MOLTON.color} roughness={MOLTON.roughness} metalness={MOLTON.metalness}
+      side={DoubleSide} shadowSide={DoubleSide} />
   </mesh>;
 }
 
@@ -51,7 +52,7 @@ export function StageCurtains({ curtains }: { curtains: Curtain[] }) {
       return <group key={curtain.id} position={[curtain.x, curtain.bottomClearance, curtain.y]}
         rotation={[0, -curtain.rotation * Math.PI / 180, 0]}>
         {/* Thin track rail */}
-        <mesh position={[0, curtain.height + 20, 0]}>
+        <mesh position={[0, curtain.height + 20, 0]} castShadow receiveShadow>
           <boxGeometry args={[curtain.length, 30, 40]} />
           <meshStandardMaterial color="#2a2a2a" roughness={0.7} metalness={0.15} />
         </mesh>

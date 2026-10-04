@@ -1,5 +1,5 @@
 import { revealEditorCommand } from '../helpers/editorMenus.js';
-import { commitObjectPlacement, openInspector, placeNamedObjectAt, placeWallAt } from '../helpers/inspector.js';
+import { commitObjectPlacement, openInspector, placeNamedObjectAt, placeWallAt, showProperties } from '../helpers/inspector.js';
 import { test, expect, type Page } from '@playwright/test';
 import { createProduction, signInToPlans } from '../helpers/plans.js';
 
@@ -77,6 +77,8 @@ test('venue vertex gestures have preview, cancel, one undo and publish semantics
   await create(page);
   await revealEditorCommand(page, 'Spielstätte');
   await page.getByRole('button', { name: 'Spielstätte bearbeiten', exact: true }).click();
+  await showProperties(page);
+  await page.getByRole('button', { name: '2D + 3D', exact: true }).click();
   const svg = 'svg[aria-label="Umriss der Spielstätte"]';
   const start = await point(page, 0, 0, svg), end = await point(page, 300, 300, svg);
   await drag(page, start, end);
@@ -86,6 +88,7 @@ test('venue vertex gestures have preview, cancel, one undo and publish semantics
   await page.getByRole('button', { name: 'Spielstätte wiederholen' }).click();
   await expect(page.locator('#vertex-x-0')).toHaveValue('300');
   await expect(page.locator('[data-renderer="pascal"] canvas')).toBeVisible();
+  await revealEditorCommand(page, 'Spielstätte speichern');
   await page.getByRole('button', { name: 'Spielstätte speichern', exact: true }).click();
   await expect(page.getByText('Spielstättenfassung gespeichert', { exact: true })).toBeVisible();
   await revealEditorCommand(page, 'Spielstätte schließen');
@@ -97,6 +100,7 @@ test('venue plan drag, rubberband clipboard and escape cancel keep one draft his
   await create(page);
   await revealEditorCommand(page, 'Spielstätte');
   await page.getByRole('button', { name: 'Spielstätte bearbeiten', exact: true }).click();
+  await showProperties(page);
   await openInspector(page, 'Zwischenablage');
   const svg = 'svg[aria-label="Umriss der Spielstätte"]';
   await page.getByRole('button', { name: 'Feste Wand setzen' }).click();
@@ -140,6 +144,8 @@ test('venue wall types author openings on permanent walls', async ({ page }) => 
   await create(page);
   await revealEditorCommand(page, 'Spielstätte');
   await page.getByRole('button', { name: 'Spielstätte bearbeiten', exact: true }).click();
+  await showProperties(page);
+  await page.getByRole('button', { name: '2D + 3D', exact: true }).click();
   const svg = 'svg[aria-label="Umriss der Spielstätte"]';
   await openInspector(page, 'Wandtypen / Öffnungen');
   await page.locator('.venue-editor').getByRole('button', { name: 'Wandtyp anlegen' }).click();
@@ -150,6 +156,7 @@ test('venue wall types author openings on permanent walls', async ({ page }) => 
   await page.mouse.click((await point(page, 4000, 3000, svg)).x, (await point(page, 4000, 3000, svg)).y);
   await page.mouse.click((await point(page, 5500, 3000, svg)).x, (await point(page, 5500, 3000, svg)).y);
   await expect(page.locator('[data-testid^="venue-wall-"]')).toHaveCount(1);
+  await showProperties(page);
   const opening = page.locator('[data-testid^="venue-plan-opening-"]');
   await expect(opening).toHaveCount(1);
   await expect(opening).toHaveAttribute('data-width', '800');
@@ -161,9 +168,13 @@ test('venue wall types author openings on permanent walls', async ({ page }) => 
 });
 
 test('venue inline cutout is drawn on a permanent wall without a wall type', async ({ page }) => {
+  // Keep the geometry and painted-canvas checks within one software-rendered journey.
+  test.setTimeout(process.env.CI ? 120_000 : 60_000);
   await create(page);
   await revealEditorCommand(page, 'Spielstätte');
   await page.getByRole('button', { name: 'Spielstätte bearbeiten', exact: true }).click();
+  await showProperties(page);
+  await page.getByRole('button', { name: '2D + 3D', exact: true }).click();
   const svg = 'svg[aria-label="Umriss der Spielstätte"]';
   await page.getByRole('button', { name: 'Feste Wand setzen' }).click();
   await page.mouse.click((await point(page, 1500, 3000, svg)).x, (await point(page, 1500, 3000, svg)).y);
@@ -231,6 +242,7 @@ test('venue pins, exits, podiums and chairs can be selected, moved and rotated',
   await create(page);
   await revealEditorCommand(page, 'Spielstätte');
   await page.getByRole('button', { name: 'Spielstätte bearbeiten', exact: true }).click();
+  await showProperties(page);
   const svg = 'svg[aria-label="Umriss der Spielstätte"]';
   const tools = page.locator('.venue-editor .tool-rail');
   async function clickPlan(x: number, y: number) {
@@ -267,6 +279,7 @@ test('rendered Pascal translation handle moves the shared plan and undoes once',
   page.on('pageerror', error => errors.push(error.message));
   await create(page);
   await placeWallAt(page);
+  await page.getByRole('button', { name: '2D + 3D', exact: true }).click();
   await page.getByRole('button', { name: 'Von oben', exact: true }).click();
   const canvas = page.locator('[data-renderer="pascal"] canvas');
   await canvas.scrollIntoViewIfNeeded();
@@ -350,6 +363,7 @@ test('venue Shift toggles without dragging; mixed rotation and cancel preserve s
   await create(page);
   await revealEditorCommand(page, 'Spielstätte');
   await page.getByRole('button', { name: 'Spielstätte bearbeiten', exact: true }).click();
+  await showProperties(page);
   await openInspector(page, 'Zwischenablage');
   const svg = 'svg[aria-label="Umriss der Spielstätte"]';
   await page.getByRole('button', { name: 'Feste Wand setzen' }).click();
@@ -379,6 +393,7 @@ test('venue Shift toggles without dragging; mixed rotation and cancel preserve s
 test('scene face resizing previews, cancels, commits and undoes once', async ({ page }) => {
   await create(page);
   await placeNamedObjectAt(page, 'Kiste hinzufügen');
+  await page.getByRole('button', { name: '2D + 3D', exact: true }).click();
   const solid = page.locator('[data-testid^="stage-placeholder-"]');
   const dimensions = () => solid.evaluate(element => ['data-width', 'data-depth', 'data-height'].map(key => element.getAttribute(key)).join('/'));
   const initial = await dimensions();

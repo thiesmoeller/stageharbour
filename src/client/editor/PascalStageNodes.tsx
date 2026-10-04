@@ -16,7 +16,23 @@ import { StagePlaceholders } from './StagePlaceholders.js';
 import { StageBraces } from './StageBraces.js';
 import { pascalScene, stageNodeSchema, type StageNode } from './pascalScene.js';
 
-export const StageInteraction = createContext<{ assets: Asset[]; workspaceId: string; mirrorWidth: number; venueEditable?: boolean; model?: StageModel; selectedIds: string[]; onSelect?: (id: string, additive: boolean) => void; onClearSelection?: () => void }>({ assets: [], workspaceId: '', mirrorWidth: 0, selectedIds: [] });
+import type { HangPlan, LightLook } from '../../shared/hangPlan.js';
+import type { PlanDisplayOptions } from '../../shared/planDisplay.js';
+import { defaultPlanDisplay } from '../../shared/planDisplay.js';
+
+export const StageInteraction = createContext<{
+  assets: Asset[]; workspaceId: string; mirrorWidth: number; venueEditable?: boolean; model?: StageModel;
+  selectedIds: string[]; onSelect?: (id: string, additive: boolean) => void; onClearSelection?: () => void;
+  hangPlan?: HangPlan; planDisplay: PlanDisplayOptions;
+  stageWidth?: number; stageDepth?: number;
+  selectedFixtureId?: string | null;
+  onFixtureSelect?: (id: string, additive: boolean) => void;
+  activeLook?: LightLook;
+  blackoutLevel?: number;
+  previewMode?: import('./StageOverhead.js').FixturePreviewMode;
+  liveOn?: (fixtureId: string) => boolean;
+  showFixturePools?: boolean;
+}>({ assets: [], workspaceId: '', mirrorWidth: 0, selectedIds: [], planDisplay: defaultPlanDisplay });
 
 export function PascalSceneBridge({ layout, venue }: { layout: Layout; venue: VenueGeometry }) {
   useLayoutEffect(() => {
@@ -85,7 +101,7 @@ function FinishedWall({ wall, surfaces, interactionScope }: {
 
 function StageNodeRenderer({ node }: { node: StageNode }) {
   const ref = useRef<Group>(null!);
-  const { assets, mirrorWidth, model, venueEditable, selectedIds, onSelect } = useContext(StageInteraction);
+  const { assets, mirrorWidth, model, venueEditable, selectedIds, onSelect, hangPlan, planDisplay, stageWidth, stageDepth, selectedFixtureId, onFixtureSelect, activeLook, blackoutLevel, previewMode, liveOn } = useContext(StageInteraction);
   useRegistry(node.id, node.type, ref);
   const selected = selectedIds.includes(node.element.value.id);
   const element = node.element;
@@ -97,7 +113,15 @@ function StageNodeRenderer({ node }: { node: StageNode }) {
     }
     if (element.kind === 'brace') return <group scale={0.001}><StageBraces braces={model.braces.filter(item => item.id === element.value.id)} lit /></group>;
     if (element.kind === 'platform' || element.kind === 'stair') return <group scale={0.001}><StageLevels lit model={{ ...model, platforms: model.platforms.filter(item => item.id === element.value.id), stairs: model.stairs.filter(item => item.id === element.value.id) }} peerPlatforms={model.platforms} /></group>;
-    if (element.kind === 'overhead' || element.kind === 'truss' || element.kind === 'curtain' || element.kind === 'zone' || element.kind === 'pin' || element.kind === 'corridor') return <group scale={0.001}><StageConstraint element={element} elevation={element.kind === 'zone' ? model.platforms.find(p => p.id === element.value.supportingSurfaceId)?.elevation : 0} /></group>;
+    if (element.kind === 'overhead' || element.kind === 'truss' || element.kind === 'curtain' || element.kind === 'zone' || element.kind === 'pin' || element.kind === 'corridor') {
+      return <group scale={0.001}><StageConstraint element={element}
+        elevation={element.kind === 'zone' ? model.platforms.find(p => p.id === element.value.supportingSurfaceId)?.elevation : 0}
+        hangPlan={hangPlan} activeLook={activeLook} blackoutLevel={blackoutLevel}
+        previewMode={previewMode} liveOn={liveOn}
+        showTrusses={planDisplay.showTrusses} showLightingFixtures={planDisplay.showLightingFixtures}
+        stageWidth={stageWidth ?? model.floor.width} stageDepth={stageDepth ?? model.floor.depth}
+        selectedFixtureId={selectedFixtureId} onFixtureSelect={onFixtureSelect} /></group>;
+    }
     const prop = element.value, solid = model.placeholders.find(item => item.id === prop.id);
     if (!prop.assetId) return <group scale={0.001}><StagePlaceholders lit placeholders={model.placeholders.filter(item => item.id === prop.id)} /></group>;
     const definition = assets.find(asset => asset.id === prop.assetId)?.definition;

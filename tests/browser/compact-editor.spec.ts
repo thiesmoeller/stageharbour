@@ -44,7 +44,7 @@ test('notebook editor keeps commands discoverable and gives the canvas the viewp
   await page.getByLabel('Neuer Name').fill('Umbenannte Szene');
   await page.getByRole('button', { name: 'Umbenennen', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Umbenannte Szene', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Eigenschaften', exact: true }).click();
+  await expect(page.locator('.wall-inspector')).toBeHidden();
   await page.getByRole('button', { name: 'Raumansicht', exact: true }).click();
   await page.reload();
   await expect(page.getByRole('button', { name: 'Raumansicht', exact: true })).toHaveAttribute('aria-pressed', 'true');

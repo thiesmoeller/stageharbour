@@ -26,6 +26,14 @@ export function PlanDisplayToggles({ value, onChange, includeUnderlay = false }:
       <input type="checkbox" checked={value.showTexts} onChange={() => toggle('showTexts')} />
       Texte
     </label>
+    <label className="plan-display-toggle">
+      <input type="checkbox" checked={value.showTrusses} onChange={() => toggle('showTrusses')} />
+      Traversen
+    </label>
+    <label className="plan-display-toggle">
+      <input type="checkbox" checked={value.showLightingFixtures} onChange={() => toggle('showLightingFixtures')} />
+      Scheinwerfer
+    </label>
   </div>;
 }
 

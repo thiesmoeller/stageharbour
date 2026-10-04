@@ -1,5 +1,5 @@
 import { revealEditorCommand } from '../helpers/editorMenus.js';
-import { openInspector, placeNamedObjectAt, placeWallAt, planWalls } from '../helpers/inspector.js';
+import { openInspector, placeNamedObjectAt, placeWallAt, planWalls, showProperties } from '../helpers/inspector.js';
 import { test, expect, type Page } from '@playwright/test';
 import { createProduction, signInToPlans } from '../helpers/plans.js';
 
@@ -8,6 +8,8 @@ async function waitUntilSaved(page: Page) {
 }
 
 test('edits in the plan update the linked 3D view, including front orientation after rotation, undo and reload', async ({ page }) => {
+  // Multiple object edits, undo cycles and reloads share a live software WebGL view.
+  test.setTimeout(process.env.CI ? 120_000 : 60_000);
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await signInToPlans(page);
@@ -21,9 +23,10 @@ test('edits in the plan update the linked 3D view, including front orientation a
   await expect(page.getByRole('img', { name: 'Grundriss der Spielstätte' })).toBeVisible();
   await expect(page.getByRole('img', { name: 'Raumsicht der Spielstätte' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Publikumssicht' })).toBeVisible();
+  await showProperties(page);
   await expect(page.getByText('Vorderseite (Sperrholz, dunkel)')).toBeVisible();
   await expect(page.getByText('Rückseite (Holzrahmen, hell)')).toBeVisible();
-  await expect(page.getByRole('button', { name: /Licht|Leuchte|Scheinwerfer/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Licht', exact: true })).toBeVisible();
 
   await placeWallAt(page);
   const planWall = planWalls(page);
@@ -107,6 +110,7 @@ test('edits in the plan update the linked 3D view, including front orientation a
   await page.getByRole('button', { name: 'Überbauung hinzufügen' }).click();
   await expect(page.getByLabel('Überbauung 1 Unterkante über Fußboden (mm)')).toHaveValue('2600');
   const savedVenue = page.waitForResponse(response => /\/scenes\/[^/]+\/venue$/.test(new URL(response.url()).pathname) && response.request().method() === 'PUT');
+  await revealEditorCommand(page, 'Spielstätte speichern');
   await page.getByRole('button', { name: 'Spielstätte speichern' }).click();
   expect((await savedVenue).ok()).toBeTruthy();
   await revealEditorCommand(page, 'Spielstätte schließen');
@@ -183,4 +187,3 @@ test('edits in the plan update the linked 3D view, including front orientation a
   await waitUntilSaved(page);
   expect(errors).toEqual([]);
 });
-

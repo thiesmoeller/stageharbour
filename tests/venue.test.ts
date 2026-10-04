@@ -113,6 +113,7 @@ test('underlay source and plan coordinates round-trip through scale and rotation
 test('plan display defaults show underlay, names, dimensions and texts', () => {
   assert.deepEqual(defaultPlanDisplay, {
     showUnderlay: true, showObjectNames: true, showDimensions: true, showTexts: true,
+    showTrusses: true, showLightingFixtures: true,
   });
 });
 

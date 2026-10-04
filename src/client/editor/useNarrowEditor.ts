@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-/** Matches workspace.css tablet/phone breakpoint where split stacks both canvases. */
+/** Matches the tablet/phone breakpoint where the dock overlays a single canvas. */
 export const NARROW_EDITOR_QUERY = '(max-width: 1100px)';
 
 export function useNarrowEditor(): boolean {

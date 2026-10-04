@@ -19,6 +19,7 @@ test('ballast choices persist and stock appears in play/venue requirements', asy
   expect((await savedStock).ok()).toBe(true);
   await navigation.getByRole('button', { name: /Produktionen/ }).click();
   await createProduction(page, { productionName: 'Beschwerungsprobe', venueName: 'Beschwerungssaal', sceneName: 'Ballastszene' });
+  await page.getByRole('button', { name: '2D + 3D', exact: true }).click();
   await placeNamedObjectAt(page, 'Stütze hinzufügen');
   await page.getByLabel('Beschwerung', { exact: true }).selectOption('single');
   await page.getByLabel('Seite bei einfacher Beschwerung').selectOption('right');

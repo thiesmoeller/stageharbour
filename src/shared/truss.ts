@@ -64,6 +64,40 @@ export function trussHangWorld(truss: Truss, hang: HangPoint): PlanPoint {
   };
 }
 
+/** Project a plan point onto the truss centreline; offset is clamped to ±length/2. */
+export function projectOntoTruss(truss: Pick<Truss, 'x' | 'y' | 'rotation' | 'length'>, point: PlanPoint): {
+  offsetMm: number;
+  distanceMm: number;
+} {
+  const angle = (truss.rotation ?? 0) * Math.PI / 180;
+  const dx = point.x - truss.x;
+  const dy = point.y - truss.y;
+  const along = dx * Math.cos(angle) + dy * Math.sin(angle);
+  const across = -dx * Math.sin(angle) + dy * Math.cos(angle);
+  const half = truss.length / 2;
+  const offsetMm = Math.max(-half, Math.min(half, Math.round(along)));
+  const clampedAlong = Math.max(-half, Math.min(half, along));
+  const distanceMm = Math.hypot(along - clampedAlong, across);
+  return { offsetMm, distanceMm };
+}
+
+/** Nearest Traverse for hang placement. Without maxDistanceMm always returns the closest chord. */
+export function nearestTrussForHang(
+  trusses: readonly Truss[],
+  point: PlanPoint,
+  maxDistanceMm?: number,
+): { truss: Truss; offsetMm: number; distanceMm: number } | undefined {
+  let best: { truss: Truss; offsetMm: number; distanceMm: number } | undefined;
+  for (const truss of trusses) {
+    const hit = projectOntoTruss(truss, point);
+    if (maxDistanceMm !== undefined && hit.distanceMm > maxDistanceMm) continue;
+    if (!best || hit.distanceMm < best.distanceMm) {
+      best = { truss, offsetMm: hit.offsetMm, distanceMm: hit.distanceMm };
+    }
+  }
+  return best;
+}
+
 /** Build a truss from two plan points (SketchUp-like click start / click end). */
 export function trussFromSegment(id: string, start: PlanPoint, end: PlanPoint, bottomHeight = EXAMPLE_TRUSS_BOTTOM_HEIGHT): Truss | undefined {
   const length = Math.hypot(end.x - start.x, end.y - start.y);

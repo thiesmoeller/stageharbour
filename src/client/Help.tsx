@@ -48,6 +48,11 @@ export function Help({ topic }: { topic?: string }) {
 
     <section id="hilfe-werkzeuge">
       <h2>Werkzeuge</h2>
+      <p>Bühnenbild und Spielstätte starten mit einem großen Grundriss. Oben wechseln Sie zwischen
+        <strong> Grundriss</strong>, <strong>Raumansicht</strong> und auf größeren Bildschirmen <strong>2D + 3D</strong>.
+        Rechts öffnen Sie <strong>Details</strong> (Eigenschaften), <strong>Bibliothek</strong>, <strong>Licht</strong> oder <strong>Anzeige</strong>.
+        Es ist jeweils eine Seitenleiste geöffnet; Eingaben bleiben beim Wechsel erhalten.
+        <strong> Anheften</strong> hält die Bibliothek nach dem Platzieren geöffnet. Ansicht und Seitenleiste werden für den nächsten Besuch gemerkt.</p>
       <h3>Bühnenbild</h3>
       <ul>
         <li><strong>Wand / Stütze</strong> — links in der Werkzeugleiste; weitere Platzhalter unter <strong>Einfügen</strong>. Klick im Grundriss setzt das Objekt.</li>
@@ -115,6 +120,9 @@ export function Help({ topic }: { topic?: string }) {
 
     <section id="hilfe-raumsicht">
       <h2>Raumsicht</h2>
+      <p>Unter <strong>Licht</strong> rechts finden Sie Grundlicht, Scheinwerfer und Lichtlooks.
+        Unter <strong>Anzeige</strong> schalten Sie Beschriftungen, Traversen und Scheinwerfer ein oder aus und stellen die Renderqualität ein.
+        Diese Einstellungen lassen der Zeichenfläche ihre volle Höhe.</p>
       <ul>
         <li>Ansichten: Von oben, vorne, Seite, Publikum, Umlauf — und Bühne einpassen.</li>
         <li><strong>Erweiterte Darstellung</strong> nutzt Pascal-Beleuchtung und Texturen; dort wirken Oberflächen.</li>

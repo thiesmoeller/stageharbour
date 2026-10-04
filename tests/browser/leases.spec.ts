@@ -48,7 +48,7 @@ test('venue editing shows the holder and becomes writable after release', async 
     await first.getByRole('button', { name: 'Neue Spielstätte', exact: true }).click();
     await first.getByLabel('Name der Spielstätte').fill('Gemeinsamer Saal');
     await first.getByRole('button', { name: 'Spielstätte anlegen', exact: true }).click();
-    await expect(first.getByText('Sie bearbeiten diesen Bereich.', { exact: true })).toBeVisible();
+    await expect(first.getByRole('button', { name: 'Feste Wand setzen', exact: true })).toBeEnabled();
     await signIn(second, testEditor);
     await second.getByRole('button', { name: /Spielstätten & Bühnen/ }).click();
     await second.getByRole('button', { name: /Gemeinsamer Saal.*gestalten/ }).click();

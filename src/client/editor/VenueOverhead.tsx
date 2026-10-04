@@ -1,7 +1,8 @@
 import { EXAMPLE_CEILING_HEIGHT, newOverheadBox, overheadBoxCorners, type OverheadBox } from '../../shared/overhead.js';
-import { trussCorners, type Truss } from '../../shared/truss.js';
+import { trussCorners, trussHangWorld, type Truss } from '../../shared/truss.js';
 import { curtainEndTicks, curtainWavyPoints, type Curtain } from '../../shared/curtains.js';
 import type { VenueGeometry } from '../../shared/layout.js';
+import type { HangPlan } from '../../shared/hangPlan.js';
 import type { PlanDisplayOptions } from '../../shared/planDisplay.js';
 import { defaultPlanDisplay } from '../../shared/planDisplay.js';
 import type { PointerEvent } from 'react';
@@ -29,37 +30,67 @@ export function OverheadMarks({ boxes, selectedIds = [], display = defaultPlanDi
   </g>;
 }
 
-export function TrussMarks({ trusses, selectedIds = [], drawing, display = defaultPlanDisplay, onPointerDown }: {
+export function TrussMarks({ trusses, selectedIds = [], drawing, display = defaultPlanDisplay, hangPlan, highlightTrussId, hangPreview, onPointerDown }: {
   trusses: Truss[]; selectedIds?: readonly string[];
   drawing?: { start: { x: number; y: number }; end?: { x: number; y: number } };
   display?: PlanDisplayOptions;
+  /** Hang plan fixtures — used for Scheinwerfer markers when showLightingFixtures. */
+  hangPlan?: HangPlan;
+  /** Traversen snap target while placing a Scheinwerfer. */
+  highlightTrussId?: string;
+  hangPreview?: { pointer: { x: number; y: number }; snap: { x: number; y: number }; label?: string };
   onPointerDown?: (event: PointerEvent<SVGGElement>, id: string) => void;
 }) {
+  if (!display.showTrusses && !display.showLightingFixtures && !drawing && !hangPreview) return null;
+  const fixtureHangIds = new Set((hangPlan?.fixtures ?? []).map(fixture => fixture.hangPointId));
   return <g aria-label="Traversen" pointerEvents={onPointerDown ? undefined : 'none'}>
-    {trusses.map(truss => {
+    {display.showTrusses && trusses.map(truss => {
       const corners = trussCorners(truss);
       const chosen = selectedIds.includes(truss.id);
+      const highlighted = truss.id === highlightTrussId;
       const angle = (truss.rotation ?? 0) * Math.PI / 180;
       const hx = Math.cos(angle) * truss.length / 2, hy = Math.sin(angle) * truss.length / 2;
       const caption = [
         display.showObjectNames ? truss.label : undefined,
         display.showDimensions ? `${truss.bottomHeight} mm` : undefined,
       ].filter(Boolean).join(' · ');
-      return <g key={truss.id} data-print-layer="overhead" data-print-name={truss.label} data-testid={`truss-${truss.id}`} className={onPointerDown ? 'draggable-wall' : undefined}
+      return <g key={truss.id} data-print-layer="overhead" data-print-name={truss.label} data-testid={`truss-${truss.id}`}
+        data-hang-target={highlighted || undefined}
+        className={onPointerDown ? 'draggable-wall' : undefined}
         onPointerDown={onPointerDown ? event => onPointerDown(event, truss.id) : undefined}>
         <path d={`${corners.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')} Z`}
-          fill={chosen ? '#4f86ba55' : '#4f86ba22'} stroke="#4f86ba" strokeWidth="2" strokeDasharray="40 30" vectorEffect="non-scaling-stroke" />
+          fill={highlighted ? '#c9a22744' : chosen ? '#4f86ba55' : '#4f86ba22'}
+          stroke={highlighted ? '#c9a227' : '#4f86ba'} strokeWidth={highlighted ? 4 : 2}
+          strokeDasharray={highlighted ? undefined : '40 30'} vectorEffect="non-scaling-stroke" />
         <line x1={truss.x - hx} y1={-(truss.y - hy)} x2={truss.x + hx} y2={-(truss.y + hy)}
-          stroke="#4f86ba" strokeWidth="3" vectorEffect="non-scaling-stroke" />
+          stroke={highlighted ? '#c9a227' : '#4f86ba'} strokeWidth={highlighted ? 5 : 3} vectorEffect="non-scaling-stroke" />
         {truss.hangPoints.map(hang => {
-          const x = truss.x + hang.offsetMm * Math.cos(angle);
-          const y = truss.y + hang.offsetMm * Math.sin(angle);
-          return <circle key={hang.id} cx={x} cy={-y} r="40" fill="#2f5f8a" pointerEvents="none" />;
+          const point = trussHangWorld(truss, hang);
+          return <circle key={hang.id} cx={point.x} cy={-point.y} r="40" fill="#2f5f8a" pointerEvents="none" />;
         })}
         {caption && <text x={truss.x} y={-truss.y} textAnchor="middle" fontSize="140" pointerEvents="none">{caption}</text>}
       </g>;
     })}
-    {drawing && <g data-testid="truss-drawing" pointerEvents="none">
+    {display.showLightingFixtures && trusses.flatMap(truss => truss.hangPoints
+      .filter(hang => fixtureHangIds.has(hang.id))
+      .map(hang => {
+        const point = trussHangWorld(truss, hang);
+        return <rect key={`light-${hang.id}`} data-testid={`lighting-fixture-mark-${hang.id}`}
+          x={point.x - 55} y={-point.y - 55} width="110" height="110"
+          fill="#c9a227" stroke="#8a7010" strokeWidth="2" vectorEffect="non-scaling-stroke" pointerEvents="none" />;
+      }))}
+    {hangPreview && <g data-testid="hang-placement-preview" pointerEvents="none">
+      <line x1={hangPreview.pointer.x} y1={-hangPreview.pointer.y} x2={hangPreview.snap.x} y2={-hangPreview.snap.y}
+        stroke="#c9a227" strokeWidth="2" strokeDasharray="50 40" vectorEffect="non-scaling-stroke" opacity="0.7" />
+      <circle cx={hangPreview.pointer.x} cy={-hangPreview.pointer.y} r="28" fill="#c9a22766" stroke="#8a7010"
+        strokeWidth="2" vectorEffect="non-scaling-stroke" />
+      <rect x={hangPreview.snap.x - 55} y={-hangPreview.snap.y - 55} width="110" height="110"
+        fill="#c9a227aa" stroke="#8a7010" strokeWidth="3" vectorEffect="non-scaling-stroke" />
+      <circle cx={hangPreview.snap.x} cy={-hangPreview.snap.y} r="40" fill="#2f5f8a" />
+      {hangPreview.label && <text x={hangPreview.snap.x} y={-hangPreview.snap.y - 100} textAnchor="middle"
+        fontSize="140" fill="#8a7010">{hangPreview.label}</text>}
+    </g>}
+    {display.showTrusses && drawing && <g data-testid="truss-drawing" pointerEvents="none">
       <line x1={drawing.start.x} y1={-drawing.start.y} x2={(drawing.end ?? drawing.start).x} y2={-(drawing.end ?? drawing.start).y}
         stroke="#4f86ba" strokeWidth="3" strokeDasharray="40 40" vectorEffect="non-scaling-stroke" />
       <circle cx={drawing.start.x} cy={-drawing.start.y} r="50" fill="#4f86ba" />

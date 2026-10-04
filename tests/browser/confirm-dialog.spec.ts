@@ -1,3 +1,4 @@
+import { showProperties } from '../helpers/inspector.js';
 import { test, expect } from '@playwright/test';
 import { signInToPlans, createProduction } from '../helpers/plans.js';
 
@@ -82,6 +83,7 @@ test('venue name edits are pending and protected on leave', async ({ page }) => 
   await page.getByLabel('Name der Spielstätte').fill('Namensaal');
   await page.getByRole('button', { name: 'Spielstätte anlegen', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Namensaal', exact: true })).toBeVisible();
+  await showProperties(page);
   await page.locator('.inspector-section').filter({ has: page.locator('summary', { hasText: 'Umriss' }) })
     .evaluate(element => { (element as HTMLDetailsElement).open = true; });
   await page.getByLabel('Name der Spielstätte').fill('Namensaal geändert');
@@ -113,6 +115,7 @@ test('venue stage-deck sizes buffer typing before snap', async ({ page }) => {
   });
   await page.mouse.click(spot.x, spot.y);
   await expect(page.locator('[data-testid^="venue-platform-"]')).toHaveCount(1);
+  await showProperties(page);
   await page.getByLabel('Podest Bauweise').selectOption({ label: 'Bühnenelement' });
   const width = page.getByLabel('Podest Breite');
   await width.click();

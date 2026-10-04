@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 import { venueGeometrySchema } from '../src/shared/layout.js';
 import { nearFirstVertex, commitDrawnKeepClear } from '../src/shared/keepClear.js';
-import { newTruss, trussFromSegment, trussCorners } from '../src/shared/truss.js';
+import { nearestTrussForHang, newTruss, projectOntoTruss, trussFromSegment, trussCorners } from '../src/shared/truss.js';
 import { placeholderSchema, newPlaceholder } from '../src/shared/placeholders.js';
 import { overheadClearance } from '../src/shared/overhead.js';
 import { AUDIENCE_FLOOR_ID } from '../src/shared/levels.js';
@@ -29,6 +29,25 @@ test('truss schema and segment construction', () => {
     trusses: [truss],
   });
   assert.equal(parsed.success, true, parsed.success ? '' : JSON.stringify(parsed.error.issues));
+});
+
+test('projectOntoTruss places hang offset along the chord', () => {
+  const truss = newTruss(randomUUID(), 4000, 3000, { length: 6000, rotation: 0 });
+  const mid = projectOntoTruss(truss, { x: 4000, y: 3050 });
+  assert.equal(mid.offsetMm, 0);
+  assert.ok(mid.distanceMm < 60);
+  const right = projectOntoTruss(truss, { x: 5500, y: 3000 });
+  assert.equal(right.offsetMm, 1500);
+  const beyond = projectOntoTruss(truss, { x: 9000, y: 3000 });
+  assert.equal(beyond.offsetMm, 3000);
+  const hit = nearestTrussForHang([truss], { x: 4500, y: 3100 });
+  assert.ok(hit);
+  assert.equal(hit!.truss.id, truss.id);
+  assert.equal(hit!.offsetMm, 500);
+  const far = nearestTrussForHang([truss], { x: 4500, y: 5000 });
+  assert.ok(far);
+  assert.equal(far!.offsetMm, 500);
+  assert.equal(nearestTrussForHang([truss], { x: 4500, y: 5000 }, 200), undefined);
 });
 
 test('chair seatedFigure is optional on placeholders', () => {

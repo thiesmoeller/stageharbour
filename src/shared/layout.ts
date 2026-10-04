@@ -14,6 +14,7 @@ import { placeholdersSchema } from './placeholders.js';
 import { panelConnectionSchema } from './assembly.js';
 import { groupSchema, groupsReferenceLayout } from './groups.js';
 import { trussesSchema } from './truss.js';
+import { hangPlanFitsTrusses, hangPlanSchema, lightLooksSchema } from './hangPlan.js';
 import { curtainsSchema } from './curtains.js';
 import { measureLinesSchema } from './measurements.js';
 import { playDimensionsSchema } from './dimensionSchema.js';
@@ -112,6 +113,9 @@ export const braceSchema = z.strictObject({
 export type Brace = z.infer<typeof braceSchema>;
 export const layoutSchema = z.strictObject({
   lighting: stageLightingSchema.optional(),
+  /** Named lighting looks for hung Scheinwerfer (ADR 0007). Not cues. */
+  lightLooks: lightLooksSchema.optional(),
+  activeLightLookId: z.uuid().optional(),
   schemaVersion: z.literal(1),
   wallTypes: z.array(wallTypeSchema).max(250).refine(
     types => new Set(types.map(type => type.id)).size === types.length, 'Wall type IDs must be unique',
@@ -153,7 +157,11 @@ export const layoutSchema = z.strictObject({
 }, 'Assembly numbers must be unique').refine(layout => {
   const pairs = (layout.connections ?? []).map(connection => connection.a < connection.b ? `${connection.a}:${connection.b}` : `${connection.b}:${connection.a}`);
   return new Set(pairs).size === pairs.length;
-}, 'Connection pairs must be unique').refine(layout => groupsReferenceLayout(layout), 'Groups must reference unique layout members');
+}, 'Connection pairs must be unique').refine(layout => groupsReferenceLayout(layout), 'Groups must reference unique layout members').refine(layout => {
+  const looks = layout.lightLooks ?? [];
+  if (!layout.activeLightLookId) return true;
+  return looks.some(look => look.id === layout.activeLightLookId);
+}, 'Active light look must exist in lightLooks');
 export type Layout = z.infer<typeof layoutSchema>;
 const venueGeometryObject = z.strictObject({
   lighting: stageLightingSchema.optional(),
@@ -169,6 +177,8 @@ const venueGeometryObject = z.strictObject({
   ceilingHeight: ceilingHeightSchema.optional(),
   overheadBoxes: overheadBoxesSchema.optional(),
   trusses: trussesSchema.optional(),
+  /** Scheinwerfer on Traverse hang points (ADR 0007 hang plan). */
+  hangPlan: hangPlanSchema.optional(),
   curtains: curtainsSchema.optional(),
   keepClearZones: keepClearZonesSchema.optional(),
   stageCentreline: stageCentrelineSchema.optional(),
@@ -194,7 +204,8 @@ function stripConstructionPoints(value: object) {
 export const venueGeometrySchema = z.codec(venueGeometryStored, venueGeometryStored, {
   decode: value => stripConstructionPoints(value) as z.input<typeof venueGeometryStored>,
   encode: value => stripConstructionPoints(value) as z.output<typeof venueGeometryStored>,
-}).refine(venue => uniqueLevelIds(venue.platforms ?? [], venue.stairs ?? []), 'Platform and stair IDs must be unique');
+}).refine(venue => uniqueLevelIds(venue.platforms ?? [], venue.stairs ?? []), 'Platform and stair IDs must be unique')
+  .refine(venue => !venue.hangPlan || hangPlanFitsTrusses(venue.hangPlan, venue.trusses ?? []), 'Hang plan fixtures must reference hang points on venue trusses');
 export type VenueGeometry = z.infer<typeof venueGeometrySchema>;
 export const saveVenueSchema = z.strictObject({ venue: venueGeometrySchema });
 export const saveVenueResultSchema = z.strictObject({

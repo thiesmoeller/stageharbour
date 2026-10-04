@@ -1,6 +1,16 @@
-import { test, expect } from '@playwright/test';
+import { showProperties } from '../helpers/inspector.js';
+import { revealEditorCommand } from '../helpers/editorMenus.js';
+import { test, expect, type Page } from '@playwright/test';
 import { testAdministrator } from '../helpers/database.js';
 import { createProduction } from '../helpers/plans.js';
+
+async function toggleLighting(page: Page) {
+  const button = page.getByRole('button', { name: 'Licht', exact: true });
+  if (await button.getAttribute('aria-expanded') !== 'true') await button.click();
+  const showStage = page.getByRole('button', { name: 'Raumansicht öffnen', exact: true });
+  if (await showStage.isVisible()) await showStage.click();
+  await page.locator('.lighting-panel summary').click();
+}
 
 // Bound a stuck interaction separately from this journey's total render time.
 test.use({ actionTimeout: 30_000 });
@@ -35,11 +45,13 @@ test('design a venue independently, reuse it in a production, and save scene lig
     }
     await clickPlan(1000, 3000);
     await clickPlan(7000, 3000);
+    await showProperties(page);
     await page.getByLabel('Feste Wand 1 width').fill('6000');
     await page.getByLabel('Feste Wand 1 y').fill('4500');
-    await page.locator('.lighting-panel summary').click();
+    await toggleLighting(page);
     await page.locator('.lighting-presets').getByRole('button', { name: 'Warm', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Zur Spielstättenübersicht' })).toBeDisabled();
+    await revealEditorCommand(page, 'Spielstätte speichern');
     await page.getByRole('button', { name: 'Spielstätte speichern', exact: true }).click();
     await expect(page.getByText('Spielstättenfassung gespeichert', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Zur Spielstättenübersicht' }).click();
@@ -57,7 +69,7 @@ test('design a venue independently, reuse it in a production, and save scene lig
   });
   await test.step('Render scene lighting, undo and redo, and verify blackout', async () => {
     await page.getByRole('button', { name: 'Raumansicht', exact: true }).click();
-    await page.locator('.lighting-panel summary').click();
+    await toggleLighting(page);
     await expect(page.getByLabel('Bühnenlicht aktivieren')).toBeChecked();
     await expect(page.getByLabel('Frontlichtfarbe')).toHaveValue('#ffd19a');
     await page.locator('.lighting-presets').getByRole('button', { name: 'Kühl', exact: true }).click();
@@ -70,18 +82,18 @@ test('design a venue independently, reuse it in a production, and save scene lig
     await expect(page.locator('.save-status')).toHaveText('Gespeichert', { timeout: 15_000 });
     const canvas = page.locator('[data-renderer="pascal"] canvas');
     await expect(canvas).toBeVisible();
-    await page.locator('.lighting-panel summary').click();
+    await toggleLighting(page);
     await page.waitForTimeout(1000);
     const lit = await canvas.screenshot({ path: 'test-results/stage-lighting-cool.png' });
-    await page.locator('.lighting-panel summary').click();
+    await toggleLighting(page);
     await page.getByLabel('Frontlicht (%)', { exact: true }).fill('0');
     await page.getByLabel('Gegenlicht (%)', { exact: true }).fill('0');
     await page.getByLabel('Grundhelligkeit (%)', { exact: true }).fill('0');
-    await page.locator('.lighting-panel summary').click();
+    await toggleLighting(page);
     await page.waitForTimeout(500);
     const dark = await canvas.screenshot({ path: 'test-results/stage-lighting-blackout.png' });
     expect(lit.equals(dark)).toBe(false);
-    await page.locator('.lighting-panel summary').click();
+    await toggleLighting(page);
     await page.locator('.lighting-presets').getByRole('button', { name: 'Kühl', exact: true }).click();
     await expect(page.locator('.save-status')).toHaveText('Gespeichert', { timeout: 15_000 });
   });
@@ -96,19 +108,21 @@ test('design a venue independently, reuse it in a production, and save scene lig
       await card.click();
     }
     await expect(editor).toBeVisible();
-    await page.locator('.lighting-panel summary').click();
+    await toggleLighting(page);
     await expect(page.getByLabel('Frontlichtfarbe')).toHaveValue('#c1d8ff');
     await page.getByRole('button', { name: 'Zur Übersicht' }).click();
     await page.getByRole('button', { name: /Spielstätten & Bühnen/ }).click();
     await page.getByRole('button', { name: /Studiobühne.*gestalten/ }).click();
-    await page.locator('.lighting-panel summary').click();
+    await toggleLighting(page);
     await expect(page.getByLabel('Frontlichtfarbe')).toHaveValue('#ffd19a');
   });
   await test.step('Publish a venue update and copy the scene to another venue', async () => {
+    await showProperties(page);
     await page.getByLabel('Spielstättenobjekt auswählen').selectOption({ label: 'Feste Wand 1' });
     await expect(page.getByLabel('Feste Wand 1 width')).toHaveValue('6000');
     await page.locator('.inspector-section').filter({ has: page.locator('summary', { hasText: 'Überbauung' }) }).locator('summary').click();
     await page.getByLabel('Deckenhöhe über Fußboden (mm)').fill('5500');
+    await revealEditorCommand(page, 'Spielstätte speichern');
     await page.getByRole('button', { name: 'Spielstätte speichern', exact: true }).click();
     await expect(page.getByText('Spielstättenfassung gespeichert', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Zur Spielstättenübersicht' }).click();

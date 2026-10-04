@@ -127,21 +127,27 @@ A venue lighting hang bar with plan length, section, and underside height. Optio
 A reserved position along a Traverse centreline where a lighting fixture may be hung.
 
 **Hang plan**:
-The venue-owned assignment of lighting fixtures to hang points (what is hung where). Distinct from mood lighting and from light looks.
+The venue-owned assignment of lighting fixtures to hang points (what is hung where), including **default focus** (Grundausrichtung toward stage centre, pan/tilt, beam, Flügelblenden). Positions are usually fixed; technicians mainly adjust aim and barn doors. Full rehang is rare. Distinct from mood lighting and from light looks.
 
 **Lighting fixture**:
 A controllable stage light hung on a hang point (Scheinwerfer). Not a curtain, door, or placeholder.
 _Avoid_: Fixture (alone) in UI — that word is overloaded with venue soft-goods/door selection in code
 
 **Fixture type**:
-A library definition of a lighting fixture (attributes, beam, physical size). GDTF interchange is optional later.
+A library definition of a lighting fixture (attributes, beam, physical size). Built-in first: Fresnel, Flood, Wash. GDTF interchange is optional later.
+
+**Barn doors / Flügelblenden**:
+Four hinged flaps on a Fresnel or flood that shape the beam. Attachment and flap angles belong to the **hang plan** focus (ladder work). Not profile shutters.
 
 **Light look**:
-A named snapshot of lighting-fixture parameters (intensity, colour, aim/focus, beam, …) for preview with a stage layout. A stage layout may have many light looks; looks are not cues, sequences, or live desk playback.
-_Avoid_: Light scene, Cue, Sequence, Executor
+A named snapshot of per-fixture **intensity and colour** for preview with a stage layout. Aim/focus lives on the hang. Looks are not cues or desk playback.
+_Avoid_: Light scene, Cue, Sequence, Executor, grandMA programmer
+
+**Einrichten (session)**:
+Raumsicht switch strip to turn fixtures full on / off / solo while focusing — not saved, not a console.
 
 **Mood lighting / Grundlicht**:
-Coarse house or rehearsal fill (front/back/ambient) used in Raumsicht. Not the hang plan or a light look.
+Coarse house or rehearsal fill (front/back/ambient) used in Raumsicht. Not the hang plan or a light look. Session toggles can hide Traversen and Scheinwerfer in plan/3D so ground modelling stays clear.
 
 **Molton curtain**:
 A venue soft-goods track (theatre molton) with plan length, drop height, and a parametric opening (traveler from centre, or stack to one side). In the ground plan it uses the USITT wavy soft-goods symbol; in 3D it renders as matte black molton with vertical folds that gather when open.
