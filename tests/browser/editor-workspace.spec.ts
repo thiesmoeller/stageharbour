@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openLibrary, placeWallAt } from '../helpers/inspector.js';
+import { openLibrary, placeWallAt, showProperties } from '../helpers/inspector.js';
 import { createProduction, signInToPlans } from '../helpers/plans.js';
 
 test('editor keeps the canvas in view, preserves tray drafts, and adapts to smaller screens', async ({ page }) => {
@@ -13,18 +13,20 @@ test('editor keeps the canvas in view, preserves tray drafts, and adapts to smal
     venueName: 'Theatersaal',
     sceneName: 'Erster Akt · Das Zimmer',
   });
+  await showProperties(page);
   await expect(page.getByRole('heading', { name: 'Keine Auswahl' })).toBeVisible();
   await expect(page.getByText(/Werkzeugleiste und die Bibliothek/)).toBeVisible();
   const library = await openLibrary(page, 'Wandtypen');
   await library.getByRole('button', { name: 'Wandtyp anlegen' }).click();
   await library.getByLabel('Wandtyp-Bezeichnung').fill('Türwand im Entwurf');
   const viewsWidth = (await page.locator('.editor-views').boundingBox())!.width;
-  await page.getByRole('button', { name: 'Eigenschaften', exact: true }).click();
-  await expect(page.locator('.wall-inspector')).toBeHidden();
+  await page.getByRole('button', { name: 'Bibliothek', exact: true }).click();
+  await expect(library).toBeHidden();
   expect((await page.locator('.editor-views').boundingBox())!.width).toBeGreaterThan(viewsWidth + 200);
-  await page.getByRole('button', { name: 'Eigenschaften', exact: true }).click();
+  await page.getByRole('button', { name: 'Bibliothek', exact: true }).click();
   await expect(library.getByLabel('Wandtyp-Bezeichnung')).toHaveValue('Türwand im Entwurf');
-  await page.getByRole('button', { name: 'Objektbibliothek', exact: true }).click();
+  await library.getByRole('button', { name: 'Verwerfen', exact: true }).click();
+  await page.getByRole('button', { name: 'Bibliothek', exact: true }).click();
 
   for (const [x, y, rotation] of [[2000, 4500, 0], [3200, 4500, 0], [4400, 4500, 0], [5600, 4500, 0], [1400, 3900, 90]]) {
     await placeWallAt(page, x, y);
@@ -35,7 +37,7 @@ test('editor keeps the canvas in view, preserves tray drafts, and adapts to smal
   }
   await expect(page.locator('.save-status')).toHaveText('Gespeichert');
   await expect(page.getByRole('img', { name: 'Grundriss der Spielstätte', exact: true })).toBeInViewport();
-  await expect(page.getByRole('img', { name: 'Raumsicht der Spielstätte', exact: true })).toBeInViewport();
+  await expect(page.getByRole('img', { name: 'Raumsicht der Spielstätte', exact: true })).toHaveCount(0);
   await page.locator('#wall-x').scrollIntoViewIfNeeded();
   await expect(page.locator('#wall-x')).toBeInViewport();
   expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true);
@@ -80,6 +82,7 @@ test('editor keeps the canvas in view, preserves tray drafts, and adapts to smal
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.locator('#wall-x').scrollIntoViewIfNeeded();
   await expect(page.locator('#wall-x')).toBeInViewport();
+  await page.getByRole('button', { name: 'Seitenleiste schließen' }).click();
   await page.screenshot({ path: 'test-results/editor-workspace-mobile.png', fullPage: true });
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();
   await expect(page.getByRole('heading', { name: 'Produktionen & Bühnenbilder', exact: true })).toBeVisible();

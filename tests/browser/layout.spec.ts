@@ -1,5 +1,5 @@
 import { revealEditorCommand } from '../helpers/editorMenus.js';
-import { commitObjectPlacement, openInspector, openLibrary, placeWallAt, commitWallPlacement, placeNamedObjectAt } from '../helpers/inspector.js';
+import { commitObjectPlacement, openInspector, openLibrary, placeWallAt, commitWallPlacement, placeNamedObjectAt, showProperties } from '../helpers/inspector.js';
 import { test, expect, type Page } from '@playwright/test';
 import { pngBytes } from '../helpers/references.js';
 import { createProduction, signInToPlans } from '../helpers/plans.js';
@@ -138,7 +138,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
 
   await revealEditorCommand(page, 'Spielstätte');
   await page.getByRole('button', { name: 'Spielstätte bearbeiten' }).click();
-  await expect(page.getByRole('heading', { name: 'Spielstätte' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'LayoutSaal', exact: true })).toBeVisible();
   await openInspector(page, 'Umriss');
   await page.getByLabel('Eckpunkt 2 X (mm)').fill('4000');
   await page.getByLabel('Eckpunkt 3 X (mm)').fill('4200');
@@ -201,8 +201,11 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByLabel('Freihaltezone 1 Bezeichnung').fill('Notausgang Ost');
   await page.getByLabel('Freihaltezone 1 Grund').fill('Notausgang');
   const saved = page.waitForResponse(response => /\/scenes\/[^/]+\/venue$/.test(new URL(response.url()).pathname) && response.request().method() === 'PUT');
+  await revealEditorCommand(page, 'Spielstätte speichern');
   await page.getByRole('button', { name: 'Spielstätte speichern' }).click();
   expect((await saved).ok()).toBeTruthy();
+  await revealEditorCommand(page, 'Spielstätte schließen');
+  await page.getByRole('button', { name: 'Spielstätte schließen' }).click();
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();
   await reopenScene(page, 'LayoutSzene', 'LayoutJourney · LayoutSzene LayoutSaal');
   await expect(page.locator('.plan-canvas [data-testid^="connection-point-"]')).toHaveCount(1);
@@ -265,29 +268,34 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await library.getByRole('button', { name: 'Platte anlegen' }).click();
   await expect(library.getByText('Beispiel-P01 · Glattwand')).toBeVisible();
   await expect(page.getByTestId('inventory-panel-count')).toHaveText(String(stockBefore + 1));
-  await page.getByRole('button', { name: 'Objektbibliothek', exact: true }).click();
+  await page.getByRole('button', { name: 'Bibliothek', exact: true }).click();
+  await showProperties(page);
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await page.getByLabel('Platte zuweisen').selectOption({ label: 'Beispiel-P01' });
-  await expect(page.getByTestId('inventory-warnings')).toContainText('keine Platte zugewiesen');
-  await expect(page.getByTestId('inventory-warnings')).toContainText('Plattenbestand reicht nicht');
+  await expect(page.getByTestId('inventory-assignment').getByTestId('inventory-warnings')).toContainText('keine Platte zugewiesen');
+  await expect(page.getByTestId('inventory-assignment').getByTestId('inventory-warnings')).toContainText('Plattenbestand reicht nicht');
   await waitUntilSaved(page);
   await reopenScene(page, 'LayoutSzene', 'LayoutJourney · LayoutSzene LayoutSaal');
   await expect(page.getByRole('heading', { name: 'LayoutSzene' })).toBeVisible();
   await expect(page.locator('.plan-canvas [data-testid^="placeholder-"]')).toHaveCount(1);
   await page.locator('.plan-canvas [data-testid^="placeholder-"]').click();
   await expect(page.locator('#placeholder-depth')).toHaveValue('900');
+  await showProperties(page);
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await expect(page.getByText('Zugewiesen: Beispiel-P01')).toBeVisible();
   await expect(page.getByTestId('inventory-warnings')).toContainText('keine Platte zugewiesen');
+  await showProperties(page);
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await page.getByLabel('X (mm)').fill('1500');
   await page.getByRole('button', { name: 'Übernehmen' }).click();
   await waitUntilSaved(page);
+  await showProperties(page);
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '2. Wand' });
   await page.getByLabel('X (mm)').fill('5500');
   await page.getByRole('button', { name: 'Übernehmen' }).click();
   await waitUntilSaved(page);
   await expect(page.getByText('V Vorderseite · R Rückseite')).toBeVisible();
+  await showProperties(page);
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await openInspector(page, 'Aufbau & Verbindungen');
   await expect(page.getByText('Verbindungskompatibilität prüft die Crew manuell')).toBeVisible();
@@ -305,6 +313,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.locator('[data-testid^="assembly-label-"]')).toHaveText([
     '1Beispiel-P01', '2',
   ]);
+  await showProperties(page);
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   const assembledX = await page.getByLabel('X (mm)').inputValue();
   await page.getByLabel('Verbinden mit').selectOption({ label: 'Position 2' });
@@ -318,12 +327,14 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.locator('[data-testid^="assembly-label-"]')).toHaveText([
     '1Beispiel-P01', '2',
   ]);
+  await showProperties(page);
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await openInspector(page, 'Aufbau & Verbindungen');
   await expect(page.getByTestId('assembly-connections')).toContainText('Position 1 – Position 2');
   await expect(page.getByLabel('Rigginghinweise')).toHaveValue('Stifte belassen.');
   await revealEditorCommand(page, 'Gruppieren');
   await expect(page.getByRole('button', { name: 'Gruppieren' })).toBeDisabled();
+  await showProperties(page);
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await page.locator('[data-testid^="wall-"]').nth(1).click({ modifiers: ['Shift'] });
   await revealEditorCommand(page, 'Gruppieren');
@@ -336,22 +347,27 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByLabel('Drehpunkt X (mm)').fill('3900');
   await page.getByLabel('Gruppendrehung (°)').fill('180');
   await page.locator('.group-panel').getByRole('button', { name: 'Übernehmen' }).click();
+  await showProperties(page);
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('5900');
   await expect(page.getByLabel('Drehung (°)', { exact: true })).toHaveValue('180');
+  await showProperties(page);
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '2. Wand' });
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('1900');
   await waitUntilSaved(page);
   await page.getByRole('button', { name: 'Rückgängig' }).click();
+  await showProperties(page);
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('1500');
   await expect(page.getByLabel('Drehung (°)', { exact: true })).toHaveValue('0');
+  await showProperties(page);
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '2. Wand' });
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('5500');
   await expect(page.getByLabel('Drehpunkt X (mm)')).toHaveValue('3500');
   await waitUntilSaved(page);
   await reopenScene(page, 'LayoutSzene', 'LayoutJourney · LayoutSzene LayoutSaal');
   await expect(page.getByRole('heading', { name: 'LayoutSzene' })).toBeVisible();
+  await showProperties(page);
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await expect(page.getByLabel('Drehpunkt X (mm)')).toHaveValue('3500');
   await revealEditorCommand(page, 'Gruppe auflösen');
@@ -359,8 +375,10 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByLabel('X (mm)', { exact: true }).fill('1800');
   await page.locator('#wall-x').locator('xpath=ancestor::form').getByRole('button', { name: 'Übernehmen' }).click();
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('1800');
+  await showProperties(page);
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '2. Wand' });
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('5500');
+  await showProperties(page);
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   // Selecting a group member selects its whole group; Shift would deselect the second wall.
   await expect(page.getByRole('heading', { name: '2 Wandelemente', exact: true })).toBeVisible();
@@ -372,12 +390,14 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await commitObjectPlacement(page, 3950, 3000, { bypassSnap: true });
   await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(4);
   await waitUntilSaved(page);
+  await showProperties(page);
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '3. Wand' });
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('2100');
   await expect(page.getByLabel('Platte zuweisen')).toHaveValue('');
   await expect(page.getByText('Zugewiesen: Beispiel-P01')).toHaveCount(0);
   await page.getByRole('button', { name: 'Rückgängig' }).click();
   await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(2);
+  await showProperties(page);
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await expect(page.getByText('Zugewiesen: Beispiel-P01')).toBeVisible();
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('1800');
@@ -405,6 +425,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByRole('button', { name: /LayoutSzene Zwei/ })).toBeVisible();
   await page.getByRole('button', { name: /LayoutSzene Zwei/ }).click();
   await expect(page.getByRole('heading', { name: 'LayoutSzene Zwei' })).toBeVisible();
+  await showProperties(page);
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await expect(page.getByText('Zugewiesen: Beispiel-P01')).toBeVisible();
   await page.getByLabel('X (mm)', { exact: true }).fill('2200');
@@ -414,6 +435,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();
   await reopenScene(page, 'LayoutSzene', 'LayoutJourney · LayoutSzene LayoutSaal');
   await expect(page.getByRole('heading', { name: 'LayoutSzene', exact: true })).toBeVisible();
+  await showProperties(page);
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('1800');
   await expect(page.getByText('Zugewiesen: Beispiel-P01')).toBeVisible();
@@ -436,6 +458,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
     response => /\/scenes\/[^/]+\/venue$/.test(new URL(response.url()).pathname) && response.request().method() === 'PUT',
     { timeout: 30_000 },
   );
+  await revealEditorCommand(page, 'Spielstätte speichern');
   await page.getByRole('button', { name: 'Spielstätte speichern' }).click({ force: true });
   expect((await savedCentreline).ok()).toBeTruthy();
   await expect(page.getByText('Spielstättenfassung gespeichert', { exact: true })).toBeVisible({ timeout: 15_000 });
@@ -445,6 +468,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByRole('button', { name: 'Spielstätte schließen' }).click({ force: true });
   await expect(page.getByTestId('stage-centreline')).toBeVisible();
   await expect(page.getByText('Einrasten', { exact: true })).toBeVisible();
+  await showProperties(page);
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   // Keep this snap probe clear of the brace/table assembled earlier in the journey.
   await page.locator('#wall-y').fill('1000');
@@ -471,6 +495,8 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await expect(page.getByLabel('Mittellinie Y (mm)')).toHaveValue('2500');
   await expect(page.getByLabel('Mittellinie Drehung (°)')).toHaveValue('90');
 
+  await revealEditorCommand(page, 'Spielstätte schließen');
+  await page.getByRole('button', { name: 'Spielstätte schließen' }).click();
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();
   await expect(page.getByRole('heading', { name: 'Produktionen & Bühnenbilder' })).toBeVisible();
   await createProduction(page, {
@@ -505,6 +531,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await openInspector(page, 'Überbauung');
   await page.getByLabel('Deckenhöhe über Fußboden (mm)').fill('2000');
   const savedGuestVenue = page.waitForResponse(response => /\/scenes\/[^/]+\/venue$/.test(new URL(response.url()).pathname) && response.request().method() === 'PUT');
+  await revealEditorCommand(page, 'Spielstätte speichern');
   await page.getByRole('button', { name: 'Spielstätte speichern' }).click();
   expect((await savedGuestVenue).ok()).toBeTruthy();
   await revealEditorCommand(page, 'Spielstätte schließen');
@@ -524,6 +551,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByRole('button', { name: /Gastspiel · LayoutSzene \(Kopie\)/ }).click();
   await expect(page.getByRole('heading', { name: 'LayoutSzene (Kopie)' })).toBeVisible();
   await expect(page.locator('.scene-context').filter({ hasText: 'Gastspiel · Stadthalle' })).toBeVisible();
+  await showProperties(page);
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await expect(page.getByText('Zugewiesen: Beispiel-P01')).toHaveCount(0);
   await expect(page.getByLabel('Platte zuweisen')).toHaveValue('');
@@ -552,6 +580,7 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await page.getByRole('button', { name: /Gastspiel · Grundriss A/ }).click();
   await expect(page.getByRole('heading', { name: 'Grundriss A' })).toBeVisible();
   await expect(page.locator('.scene-context').filter({ hasText: 'Gastspiel · Stadthalle' })).toBeVisible();
+  await showProperties(page);
   await page.getByLabel('Auswahl', { exact: true }).selectOption({ label: '1. Wand' });
   await expect(page.getByText('Zugewiesen: Beispiel-P01')).toHaveCount(0);
   await expect(page.getByLabel('Platte zuweisen')).toHaveValue('');
@@ -576,8 +605,11 @@ test('create a layout, move a panel, undo the move, and reload the saved result'
   await openInspector(page, 'Überbauung');
   await page.getByLabel('Deckenhöhe über Fußboden (mm)').fill('1800');
   const savedCeiling = page.waitForResponse(response => /\/scenes\/[^/]+\/venue$/.test(new URL(response.url()).pathname) && response.request().method() === 'PUT');
+  await revealEditorCommand(page, 'Spielstätte speichern');
   await page.getByRole('button', { name: 'Spielstätte speichern' }).click();
   expect((await savedCeiling).ok()).toBeTruthy();
+  await revealEditorCommand(page, 'Spielstätte schließen');
+  await page.getByRole('button', { name: 'Spielstätte schließen' }).click();
   await page.getByRole('button', { name: 'Zur Übersicht' }).click();
   await expect(page.getByRole('heading', { name: 'Produktionen & Bühnenbilder' })).toBeVisible();
   await expect(page.getByRole('button', { name: /Gastspiel · Rückkehr/ })).toContainText('Aktualisierung verfügbar');
@@ -621,7 +653,7 @@ test('create a wall type with a rectangular opening, place it, and export the pl
 
   await page.getByRole('button', { name: 'Wandtyp platzieren' }).click();
   if (await page.getByRole('region', { name: 'Objektbibliothek' }).isVisible()) {
-    await page.getByRole('button', { name: 'Objektbibliothek', exact: true }).click();
+    await page.getByRole('button', { name: 'Bibliothek', exact: true }).click();
   }
   await commitWallPlacement(page);
   await expect(page.locator('[data-testid^="wall-"]')).toHaveCount(1);

@@ -3,8 +3,24 @@ import { Line } from '@react-three/drei';
 import { Shape, ShapeGeometry, DoubleSide } from 'three';
 import type { StageNode } from './pascalScene.js';
 import { StageCurtains } from './StageCurtains.js';
+import { LightingFixtureMesh, fixtureHangPose, lookLevelForFixture } from './StageOverhead.js';
+import type { HangPlan, LightLook } from '../../shared/hangPlan.js';
 
-export function StageConstraint({ element, elevation = 0 }: { element: StageNode['element']; elevation?: number }) {
+export function StageConstraint({ element, elevation = 0, hangPlan, activeLook, blackoutLevel = 1, previewMode = 'look', liveOn, showTrusses = true, showLightingFixtures = true, stageWidth = 0, stageDepth = 0, selectedFixtureId, onFixtureSelect }: {
+  element: StageNode['element'];
+  elevation?: number;
+  hangPlan?: HangPlan;
+  activeLook?: LightLook;
+  blackoutLevel?: number;
+  previewMode?: import('./StageOverhead.js').FixturePreviewMode;
+  liveOn?: (fixtureId: string) => boolean;
+  showTrusses?: boolean;
+  showLightingFixtures?: boolean;
+  stageWidth?: number;
+  stageDepth?: number;
+  selectedFixtureId?: string | null;
+  onFixtureSelect?: (id: string, additive: boolean) => void;
+}) {
   const geometry = useMemo(() => {
     if (element.kind !== 'zone') return undefined;
     const shape = new Shape();
@@ -22,20 +38,38 @@ export function StageConstraint({ element, elevation = 0 }: { element: StageNode
   }
   if (element.kind === 'truss') {
     const truss = element.value;
-    return <group position={[truss.x, truss.bottomHeight + truss.thickness / 2, truss.y]} rotation={[0, -truss.rotation * Math.PI / 180, 0]}>
-      <mesh>
-        <boxGeometry args={[truss.length, truss.thickness * 0.35, truss.sectionWidth]} />
-        <meshStandardMaterial color="#4f86ba" transparent opacity={.55} />
-      </mesh>
-      <mesh position={[0, truss.thickness * 0.25, 0]}>
-        <boxGeometry args={[truss.length * 0.98, truss.thickness * 0.2, truss.sectionWidth * 0.35]} />
-        <meshStandardMaterial color="#2f5f8a" transparent opacity={.7} />
-      </mesh>
-      {truss.hangPoints.map(hang => <mesh key={hang.id} position={[hang.offsetMm, -truss.thickness * 0.4, 0]}>
-        <sphereGeometry args={[60, 10, 8]} />
-        <meshStandardMaterial color="#1e3f5c" />
-      </mesh>)}
-    </group>;
+    const fixtures = (hangPlan?.fixtures ?? []).filter(fixture => fixture.trussId === truss.id);
+    return <>
+      {showTrusses && <group position={[truss.x, truss.bottomHeight + truss.thickness / 2, truss.y]} rotation={[0, -truss.rotation * Math.PI / 180, 0]}>
+        <mesh>
+          <boxGeometry args={[truss.length, truss.thickness * 0.35, truss.sectionWidth]} />
+          <meshStandardMaterial color="#4f86ba" transparent opacity={.55} />
+        </mesh>
+        <mesh position={[0, truss.thickness * 0.25, 0]}>
+          <boxGeometry args={[truss.length * 0.98, truss.thickness * 0.2, truss.sectionWidth * 0.35]} />
+          <meshStandardMaterial color="#2f5f8a" transparent opacity={.7} />
+        </mesh>
+        {truss.hangPoints.map(hang => <mesh key={hang.id} position={[hang.offsetMm, -truss.thickness * 0.4, 0]}>
+          <boxGeometry args={[80, 80, 80]} />
+          <meshBasicMaterial color="#1e3f5c" />
+        </mesh>)}
+      </group>}
+      {showLightingFixtures && fixtures.map(fixture => {
+        const pose = fixtureHangPose(fixture, [truss], stageWidth, stageDepth);
+        if (!pose) return null;
+        const level = lookLevelForFixture(activeLook, fixture.id, {
+          blackoutLevel, mode: previewMode, liveOn: liveOn?.(fixture.id) ?? true,
+        });
+        const beamDeg = fixture.focus?.beam ?? 40;
+        return <LightingFixtureMesh key={fixture.id} id={fixture.id}
+          x={pose.hang.x} y={pose.hang.y} z={pose.hang.z}
+          aimX={pose.aim.x} aimY={pose.aim.y} aimZ={pose.aim.z}
+          selected={fixture.id === selectedFixtureId}
+          intensity={level.intensity} color={level.color} beamDeg={beamDeg}
+          showPool={false}
+          onSelect={onFixtureSelect} />;
+      })}
+    </>;
   }
   if (element.kind === 'curtain') return <StageCurtains curtains={[element.value]} />;
   if (element.kind === 'pin') return <mesh position={[element.value.x, 100, element.value.y]}><sphereGeometry args={[80, 12, 8]} /><meshStandardMaterial color={element.value.kind === 'power' ? '#d69d34' : '#4f86ba'} /></mesh>;

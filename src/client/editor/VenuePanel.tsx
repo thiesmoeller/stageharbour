@@ -1,3 +1,6 @@
+import { EditorDock, EditorDockContext, useEditorDock, readWorkspacePreference, writeWorkspacePreference } from './EditorDock.js';
+import { EditorMenuBar } from './EditorMenuBar.js';
+import { EditorMenu } from './EditorMenu.js';
 import { BufferedNumberInput } from './BufferedNumberInput.js';
 import { useCallback, useEffect, useRef, useState, lazy, Suspense, type DragEvent, type FormEvent, type PointerEvent } from 'react';
 import { wallFromDrawnSegment, applyVenueResultSchema, saveVenueResultSchema, venueGeometrySchema, type Layout, type VenueGeometry, type Wall } from '../../shared/layout.js';
@@ -20,7 +23,10 @@ import { clipPlatformToStageDeck, layoutStageDeckModules, snapStageDeckElevation
 import { type OverheadBox, newOverheadBox, EXAMPLE_CEILING_HEIGHT } from '../../shared/overhead.js';
 import { objectOverlapWarnings, overlappingObjectIds } from '../../shared/overlap.js';
 import { newPlaceholder, type Placeholder, type PlaceholderKind } from '../../shared/placeholders.js';
-import { trussFromSegment, type Truss } from '../../shared/truss.js';
+import { nearestTrussForHang, trussFromSegment, trussHangWorld, type Truss } from '../../shared/truss.js';
+import {
+  builtInFixtureTypes, defaultFocusTowardCentre, emptyHangPlan, newLightingFixture, type BuiltInFixtureTypeId, type HangPlan, type LightingFixture,
+} from '../../shared/hangPlan.js';
 import { clampCurtainDrop, curtainFromSegment, type Curtain } from '../../shared/curtains.js';
 import { applyVenuePlatformFinish } from '../../shared/editing.js';
 import { defaultCentreline, planRotationAt, snapDrawSegment, SNAP_NOTICE, snapStatusText, type SnapGuide, type StageCentreline } from '../../shared/snapping.js';
@@ -45,13 +51,14 @@ import { useViewportWheel } from './viewportWheel.js';
 import { ApiError, request, upload } from '../api.js';
 import { ReportSheetEditor } from './ReportSheetEditor.js';
 import { type ReportTemplate } from '../../shared/reportTemplate.js';
+import { HangToolButton } from './HangToolButton.js';
 import { ToolIcon } from './ToolIcon.js';
 import { defaultLighting, type StageLightingSettings } from '../../shared/lighting.js';
 import { canvasModeForWidth, useNarrowEditor } from './useNarrowEditor.js';
 import { WallSurfaceEditor } from './WallSurfaceEditor.js';
 
 const MaterialPicker = lazy(() => import('./MaterialPicker.js'));
-type ClickMode = 'select' | 'vertex' | 'edge-parallel' | 'draw-opening' | 'pin' | 'corridor' | 'draw-zone' | 'zone-vertex' | 'place' | 'draw-wall' | 'draw-truss' | 'draw-curtain';
+type ClickMode = 'select' | 'vertex' | 'edge-parallel' | 'draw-opening' | 'pin' | 'corridor' | 'draw-zone' | 'zone-vertex' | 'place' | 'draw-wall' | 'draw-truss' | 'draw-curtain' | 'place-hang';
 type PlaceKind = 'platform' | 'stair' | 'chair' | 'table' | 'person' | 'speaker' | 'box' | 'overhead' | 'power' | 'audio';
 const CENTRELINE_SELECTION = 'stage-centreline';
 type ViewMode = 'split' | 'plan' | 'stage';
@@ -60,18 +67,26 @@ type VenueDraft = {
   walls: NonNullable<VenueGeometry['walls']>; wallTypes: WallElementType[]; vertices: PlanPoint[]; platforms: Platform[]; stairs: StairUnit[];
   placeholders: Placeholder[];
   ceilingHeight: number | ''; overheadBoxes: OverheadBox[]; trusses: Truss[]; curtains: Curtain[];
+  hangPlan: HangPlan;
   fileId: string | undefined; page: number; rotationDeg: number; calibration: Calibration;
   pins: ConnectionPoint[]; corridors: CableRoutingCorridor[]; zones: KeepClearZone[]; centreline: StageCentreline;
   floorFinish: string | undefined;
   reportTemplates: ReportTemplate[];
 };
 
+function pruneHangPlan(plan: HangPlan, trusses: readonly Truss[]): HangPlan {
+  const valid = new Set(trusses.flatMap(truss => truss.hangPoints.map(point => point.id)));
+  return { fixtures: plan.fixtures.filter(fixture => valid.has(fixture.hangPointId)) };
+}
+
 function draftFromVenue(venue: VenueGeometry, draft: VenueDraft): VenueDraft {
+  const trusses = venue.trusses ?? [];
   return {
     ...draft,
     walls: venue.walls ?? [], wallTypes: typesOf(venue), platforms: venue.platforms ?? [], stairs: venue.stairs ?? [],
     placeholders: venue.placeholders ?? [],
-    overheadBoxes: venue.overheadBoxes ?? [], trusses: venue.trusses ?? [], curtains: venue.curtains ?? [],
+    overheadBoxes: venue.overheadBoxes ?? [], trusses, curtains: venue.curtains ?? [],
+    hangPlan: pruneHangPlan(venue.hangPlan ?? draft.hangPlan, trusses),
     pins: venue.connectionPoints ?? [],
     corridors: venue.cableRoutingCorridors ?? [], zones: venue.keepClearZones ?? [],
     reportTemplates: venue.reportTemplates ?? draft.reportTemplates,
@@ -99,7 +114,8 @@ type VenuePersistence = {
   onPublish: (venue: VenueGeometry) => Promise<void>;
 };
 
-export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, venueUpdateAvailable = false, readOnly, onSaved, onDirty, onPublish, onVenueRenamed, sceneLayout, openSheetEditor = false }: {
+export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, venueUpdateAvailable = false, readOnly, onSaved, onDirty, onPublish, onVenueRenamed, sceneLayout, openSheetEditor = false, onClose, closeDisabled = false, closeLabel = 'Zur Spielstättenübersicht' }: {
+  onClose?: () => void; closeDisabled?: boolean; closeLabel?: string;
   workspaceId: string; venue: VenueGeometry; venueUpdateAvailable?: boolean; readOnly: boolean;
   venueId?: string; venueName?: string; onVenueRenamed?: (update: { name: string; venueVersionId: string }) => void;
   onDirty?: (dirty: boolean) => void;
@@ -114,6 +130,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
     placeholders: venue.placeholders ?? [],
     ceilingHeight: (venue.ceilingHeight ?? '') as number | '', overheadBoxes: venue.overheadBoxes ?? [], trusses: venue.trusses ?? [],
     curtains: venue.curtains ?? [],
+    hangPlan: venue.hangPlan ?? emptyHangPlan,
     fileId: venue.trace?.fileId, page: venue.trace?.page ?? 1,
     rotationDeg: venue.trace?.rotationDeg ?? 0,
     calibration: venue.trace?.calibration ?? { pointA: { x: 0, y: 0 }, pointB: { x: 0, y: 0 }, distanceMm: 1000 },
@@ -133,6 +150,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
   const [overheadBoxes, setOverheadBoxes] = draft.field('overheadBoxes');
   const [trusses, setTrusses] = draft.field('trusses');
   const [curtains, setCurtains] = draft.field('curtains');
+  const [hangPlan, setHangPlan] = draft.field('hangPlan');
   const [fileId, setFileId] = draft.field('fileId');
   const [page, setPage] = draft.field('page');
   const [rotationDeg, setRotationDeg] = draft.field('rotationDeg');
@@ -157,6 +175,10 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedTypeId, setSelectedTypeId] = useState<string | undefined>();
   const [placeTypeId, setPlaceTypeId] = useState<string | undefined>();
+  const [hangFixtureTypeId, setHangFixtureTypeId] = useState<BuiltInFixtureTypeId>('fresnel');
+  const [hangHover, setHangHover] = useState<{
+    trussId: string; offsetMm: number; pointer: PlanPoint; snap: PlanPoint;
+  } | undefined>();
   const [clipboard, setClipboard] = useState<VenueClipboard>();
   const [marqueeBox, setMarqueeBox] = useState<PlanBounds>();
   const [drawingZone, setDrawingZone] = useState<PlanPoint[]>([]);
@@ -187,8 +209,13 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
   const panDrag = useRef<{ clientX: number; clientY: number; panX: number; panY: number } | undefined>(undefined);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [inspectorOpen, setInspectorOpen] = useState(true);
-  const [viewMode, setViewMode] = useState<ViewMode>('split');
+  const dock = useEditorDock('venue');
+  const panelRoot = useRef<HTMLElement>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    const saved = readWorkspacePreference('venue.view');
+    return saved === 'stage' || saved === 'split' ? saved : 'plan';
+  });
+  useEffect(() => { writeWorkspacePreference('venue.view', viewMode); }, [viewMode]);
   const [viewShare, setViewShare] = useState(55);
   const narrowEditor = useNarrowEditor();
   const activeView = canvasModeForWidth(viewMode, narrowEditor);
@@ -410,6 +437,33 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
       const clamped = clampCurtainDrop(curtain, { ceilingHeight: Number(ceilingHeight) || undefined, platforms, trusses });
       setCurtains(current => [...current, clamped]); setSelectedIds([clamped.id]); setClick('select');
     }
+    else if (click === 'place-hang') {
+      const hit = nearestTrussForHang(trusses, point);
+      if (!hit) {
+        setSnapStatus('Keine Traverse vorhanden');
+        return;
+      }
+      if (hit.truss.hangPoints.length >= 250) return;
+      const hangPointId = crypto.randomUUID();
+      const hangPoint = { id: hangPointId, offsetMm: hit.offsetMm };
+      const world = trussHangWorld(hit.truss, hangPoint);
+      const focus = defaultFocusTowardCentre(
+        { x: world.x, y: hit.truss.bottomHeight, z: world.y },
+        venue.width, venue.depth,
+      );
+      setTrusses(items => items.map(item => item.id !== hit.truss.id ? item : {
+        ...item,
+        hangPoints: [...item.hangPoints, hangPoint],
+      }));
+      setHangPlan(plan => ({
+        fixtures: [
+          ...plan.fixtures,
+          newLightingFixture(crypto.randomUUID(), hit.truss.id, hangPointId, hangFixtureTypeId, { focus }),
+        ],
+      }));
+      setSelectedIds([hit.truss.id]);
+      setSnapStatus(`${builtInFixtureTypes[hangFixtureTypeId].label} bei Offset ${hit.offsetMm} mm · Grundausrichtung Mitte · weiter klicken oder Auswahl`);
+    }
 
   }
   function startMarquee(event: PointerEvent) {
@@ -541,6 +595,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
       walls, wallTypes, platforms, stairs, placeholders, lighting,
       ...(ceilingHeight === '' ? {} : { ceilingHeight }),
       overheadBoxes, trusses, curtains, keepClearZones: zones, stageCentreline: centreline,
+      hangPlan,
       ...(floorFinish ? { floorFinish } : {}),
       reportTemplates,
     });
@@ -598,6 +653,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
   const viewW = planWidth / zoom;
   const viewH = planHeight / zoom;
   const candidate = venueGeometrySchema.safeParse({ ...venue, lighting, outline: vertices, walls, wallTypes, platforms, stairs, placeholders, overheadBoxes, trusses, curtains,
+    hangPlan,
     ceilingHeight: ceilingHeight === '' ? undefined : ceilingHeight, keepClearZones: zones, connectionPoints: pins, cableRoutingCorridors: corridors, stageCentreline: centreline,
     ...(floorFinish ? { floorFinish } : { floorFinish: undefined }),
     reportTemplates,
@@ -617,7 +673,8 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
   function sourceFromDraft(start: VenueDraft): VenueGeometry {
     return {
       ...previewVenue, walls: start.walls, wallTypes: start.wallTypes, platforms: start.platforms, stairs: start.stairs, placeholders: start.placeholders,
-      overheadBoxes: start.overheadBoxes, trusses: start.trusses, curtains: start.curtains, connectionPoints: start.pins,
+      overheadBoxes: start.overheadBoxes, trusses: start.trusses, curtains: start.curtains, hangPlan: start.hangPlan,
+      connectionPoints: start.pins,
       cableRoutingCorridors: start.corridors, keepClearZones: start.zones, stageCentreline: start.centreline,
       reportTemplates: start.reportTemplates,
     };
@@ -752,6 +809,14 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
     }
     if (click === 'draw-truss' && trussDrawStart) setTrussDrawHover(point);
     if (click === 'draw-curtain' && curtainDrawStart) setCurtainDrawHover(point);
+    if (click === 'place-hang') {
+      const hit = nearestTrussForHang(trusses, point);
+      if (!hit) { setHangHover(undefined); return; }
+      const snap = trussHangWorld(hit.truss, { id: 'preview', offsetMm: hit.offsetMm });
+      setHangHover({ trussId: hit.truss.id, offsetMm: hit.offsetMm, pointer: point, snap });
+      setSnapStatus(`${builtInFixtureTypes[hangFixtureTypeId].label} · Offset ${hit.offsetMm} mm · klicken zum Hängen`);
+      return;
+    }
     if (click === 'draw-wall' && wallDrawStart) {
       const bypass = event.altKey || !snapEnabled;
       const segment = snapDrawSegment(wallDrawStart, point, { bypass });
@@ -864,7 +929,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
   }
   function paste() {
     if (busyGesture() || !clipboard) return;
-    if (viewMode === 'stage') setViewMode(narrowEditor ? 'plan' : 'split');
+    if (viewMode === 'stage') setViewMode('plan');
     const cursor = lastPlanPoint.current;
     const pivot = venueSelectionPivot(clipboard.source, clipboard.ids) ?? cursor;
     const result = pasteVenueSelection(previewVenue, clipboard, () => crypto.randomUUID(), {
@@ -906,7 +971,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
           setWallDrawStart(undefined); setWallDrawHover(undefined); setPlaceTypeId(undefined);
           setSnapStatus(undefined);
         }
-        else if (!transformStart.current) { setSelectedIds([]); setClick('select'); setHoverEdgeIndex(undefined); setOpeningCutAlong(undefined); }
+        else if (!transformStart.current) { setSelectedIds([]); setClick('select'); setHoverEdgeIndex(undefined); setOpeningCutAlong(undefined); setHangHover(undefined); }
         return;
       }
       if (event.key === 'Enter' && click === 'draw-zone' && drawingZone.length >= 3) {
@@ -953,14 +1018,14 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
   const selectedWall = walls.find(wall => wall.id === selected);
   const selectedWallIndex = selectedWall ? walls.findIndex(wall => wall.id === selectedWall.id) : -1;
   const selectedObject = venueObjects(previewVenue).find(item => item.id === selected);
-  return <section className="venue-editor" aria-label="Spielstätte">
-    <div className="workspace-commandbar">
-      <div className="editor-toolbar">
-        {!readOnly && <>
-          <button type="button" className="quiet" disabled={!draft.canUndo || busy || busyGesture()} onClick={draft.undo} title="Spielstätte rückgängig" aria-label="Spielstätte rückgängig"><ToolIcon name="undo" /></button>
-          <button type="button" className="quiet" disabled={!draft.canRedo || busy || busyGesture()} onClick={draft.redo} title="Spielstätte wiederholen" aria-label="Spielstätte wiederholen"><ToolIcon name="redo" /></button>
-          <button type="button" disabled={!draft.dirty || busy} onClick={() => void save()}>Spielstätte speichern</button>
-        </>}
+  function toggleFullscreen() {
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void panelRoot.current?.closest('.editor')?.requestFullscreen();
+  }
+  return <EditorDockContext value={dock}><section ref={panelRoot} className="venue-editor" aria-label="Spielstätte">
+    <EditorMenuBar>
+      <EditorMenu label="Datei">
+        {!readOnly && <button type="button" disabled={!draft.dirty || busy} onClick={() => void save()}>Spielstätte speichern</button>}
         {(!readOnly || draft.dirty) && <>
           <button type="button" className="quiet" disabled={!dirty || busy} onClick={() => {
             draft.discard(); setNameDraft(venueName ?? ''); setNumberFormKey(key => key + 1); setError('');
@@ -972,22 +1037,43 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
           }}>Entwurf herunterladen</button>
         </>}
         {venueUpdateAvailable && !readOnly && <button type="button" disabled={busy} onClick={() => void applyUpdate()}>Spielstättenfassung übernehmen</button>}
-        {!readOnly && <SnapToggle enabled={snapEnabled} onChange={setSnapEnabled} />}
-        <button type="button" className="quiet" aria-pressed={sheetEditorOpen}
-          onClick={() => setSheetEditorOpen(open => !open)}>
+        <button type="button" className="quiet" aria-pressed={sheetEditorOpen} onClick={() => setSheetEditorOpen(open => !open)}>
           {sheetEditorOpen ? 'Blatt-Layout schließen' : 'Blatt-Layout'}
         </button>
-        <span className={`save-status ${dirty ? 'pending' : ''}`} role="status">{namePending ? 'Nicht gespeicherter Spielstättenname' : numberPending ? 'Nicht übernommene Eingaben' : draft.dirty ? 'Unveröffentlichter Spielstättenentwurf' : 'Spielstättenfassung gespeichert'}</span>
-      </div>
-      {!sheetEditorOpen && <div className="workspace-viewbar" role="toolbar" aria-label="Ansichten">
-        <div className="view-modes">{(narrowEditor ? (['plan', 'stage'] as const) : (['split', 'plan', 'stage'] as const)).map(mode => <button key={mode} type="button" className="quiet" aria-pressed={activeView === mode} onClick={() => setViewMode(mode)}>{mode === 'split' ? '2D + 3D' : mode === 'plan' ? 'Grundriss' : 'Raumansicht'}</button>)}</div>
+        {onClose && <button type="button" disabled={closeDisabled} onClick={onClose}>{closeLabel}</button>}
+      </EditorMenu>
+      <EditorMenu label="Bearbeiten">
+        <button type="button" disabled={readOnly || !selectedIds.length || busyGesture()} onClick={copy}>Kopieren</button>
+        <button type="button" disabled={readOnly || !selectedIds.length || busyGesture()} onClick={cut}>Ausschneiden</button>
+        <button type="button" disabled={readOnly || !clipboard || busyGesture()} onClick={paste}>Einfügen</button>
+      </EditorMenu>
+      <EditorMenu label="Ansicht">
+        <button type="button" onClick={() => dock.setOpen('properties', open => !open)}>Eigenschaften ein-/ausblenden</button>
+        <button type="button" onClick={() => dock.setActive('library')}>Wandtypen / Öffnungen</button>
+        <button type="button" onClick={() => dock.setActive('lighting')}>Licht einstellen</button>
+        <button type="button" onClick={() => dock.setActive('display')}>Anzeige einstellen</button>
         <label className="split-control" hidden={activeView !== 'split'}>Aufteilung<input aria-label="Ansichten aufteilen" type="range" min="30" max="70" value={viewShare} onChange={event => setViewShare(Number(event.target.value))} /></label>
-      <button type="button" className="quiet" aria-expanded={inspectorOpen} onClick={() => setInspectorOpen(open => !open)} title={inspectorOpen ? 'Eigenschaften ausblenden' : 'Eigenschaften einblenden'} aria-label="Eigenschaften"><ToolIcon name="tray" /></button>
+        <button type="button" onClick={toggleFullscreen}>Vollbild umschalten</button>
+      </EditorMenu>
+      <EditorMenu label="Hilfe"><button type="button" onClick={() => setHelpOpen(open => !open)}>Bedienung anzeigen</button><a href="#/hilfe">Zur vollständigen Hilfe</a></EditorMenu>
+    </EditorMenuBar>
+    <div className="editor-heading compact-editor-heading venue-document-heading">
+      {onClose && <button type="button" className="quiet back-button" disabled={closeDisabled} onClick={onClose} aria-label={closeLabel} title={closeLabel}><ToolIcon name="back" /></button>}
+      <div className="venue-document-name"><h2>{venueName ?? 'Spielstätte'}</h2><span className="document-kind">Spielstätte</span></div>
+      <div className="document-history">{!readOnly && <>
+        <button type="button" className="quiet" disabled={!draft.canUndo || busy || busyGesture()} onClick={draft.undo} title="Spielstätte rückgängig" aria-label="Spielstätte rückgängig"><ToolIcon name="undo" /></button>
+        <button type="button" className="quiet" disabled={!draft.canRedo || busy || busyGesture()} onClick={draft.redo} title="Spielstätte wiederholen" aria-label="Spielstätte wiederholen"><ToolIcon name="redo" /></button>
+      </>}</div>
+      {!readOnly && <SnapToggle enabled={snapEnabled} onChange={setSnapEnabled} />}
+      <span className={`save-status ${dirty ? 'pending' : ''}`} role="status">{namePending ? 'Nicht gespeicherter Spielstättenname' : numberPending ? 'Nicht übernommene Eingaben' : draft.dirty ? 'Unveröffentlichter Spielstättenentwurf' : 'Spielstättenfassung gespeichert'}</span>
+      {!readOnly && <button type="button" disabled={!draft.dirty || busy} onClick={() => void save()}>Speichern</button>}
+      {!sheetEditorOpen && <div className="workspace-viewbar" role="toolbar" aria-label="Ansichten">
+        <div className="view-modes">{(narrowEditor ? (['plan', 'stage'] as const) : (['plan', 'stage', 'split'] as const)).map(mode => <button key={mode} type="button" className="quiet" aria-pressed={activeView === mode} onClick={() => setViewMode(mode)}>{mode === 'split' ? '2D + 3D' : mode === 'plan' ? 'Grundriss' : 'Raumansicht'}</button>)}</div>
+        <button type="button" className="quiet" onClick={toggleFullscreen} aria-label="Vollbild" title="Vollbild"><ToolIcon name="expand" /></button>
       </div>}
     </div>
-    {sheetEditorOpen ? null : <div className="workspace-feedback" role="status">{snapStatus ?? ''}</div>}
     {!sheetEditorOpen && !readOnly && <div className="tool-rail" role="toolbar" aria-label="Spielstättenwerkzeuge" inert={busyGesture()}>
-      <button type="button" className="quiet" aria-pressed={click === 'select'} onClick={() => { setClick('select'); setDrawingZone([]); setTrussDrawStart(undefined); setCurtainDrawStart(undefined); setWallDrawStart(undefined); setWallDrawHover(undefined); setPlaceTypeId(undefined); setOpeningCutAlong(undefined); setHoverEdgeIndex(undefined); }} title="Auswählen" aria-label="Auswählen"><ToolIcon name="settings" /><span>Auswahl</span></button>
+      <button type="button" className="quiet" aria-pressed={click === 'select'} onClick={() => { setClick('select'); setDrawingZone([]); setTrussDrawStart(undefined); setCurtainDrawStart(undefined); setWallDrawStart(undefined); setWallDrawHover(undefined); setPlaceTypeId(undefined); setOpeningCutAlong(undefined); setHoverEdgeIndex(undefined); setHangHover(undefined); }} title="Auswählen" aria-label="Auswählen"><ToolIcon name="settings" /><span>Auswahl</span></button>
       <button type="button" className="quiet" aria-pressed={click === 'vertex'} onClick={() => setClick('vertex')} title="Eckpunkt auf eine Umrisskante setzen" aria-label="Eckpunkt hinzufügen"><ToolIcon name="plus" /><span>Eckpunkt</span></button>
       <button type="button" className="quiet" aria-pressed={click === 'edge-parallel'} onClick={() => { setHoverEdgeIndex(undefined); setClick('edge-parallel'); }} title="Umrisskante parallel verschieben" aria-label="Kante parallel"><ToolIcon name="edge" /><span>Kante</span></button>
       <button type="button" className="quiet" aria-pressed={click === 'draw-opening'} disabled={!selectedWall || !!selectedWall.typeId} onClick={() => beginDrawOpening()} title="Ausschnitt in feste Wand zeichnen" aria-label="Ausschnitt zeichnen"><ToolIcon name="expand" /><span>Ausschnitt</span></button>
@@ -1004,17 +1090,24 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
       <button type="button" className="quiet" aria-pressed={click === 'draw-zone'} disabled={zones.length >= 250} onClick={() => { setDrawingZone([]); setClick('draw-zone'); }} title="Freihaltezone zeichnen" aria-label="Freihaltezone zeichnen"><ToolIcon name="expand" /><span>Notausgang</span></button>
       <button type="button" className="quiet" aria-pressed={click === 'place' && placeKind === 'overhead'} disabled={overheadBoxes.length >= 250} onClick={() => { setPlaceKind('overhead'); setClick('place'); }} title="Lüftungskanal setzen" aria-label="Lüftungskanal setzen"><ToolIcon name="expand" /><span>Lüftung</span></button>
       <button type="button" className="quiet" aria-pressed={click === 'draw-truss'} disabled={trusses.length >= 250} onClick={() => { setTrussDrawStart(undefined); setTrussDrawHover(undefined); setCurtainDrawStart(undefined); setClick('draw-truss'); }} title="Traverse zeichnen (Start und Ende)" aria-label="Traverse zeichnen"><ToolIcon name="expand" /><span>Traverse</span></button>
+      <HangToolButton disabled={!trusses.length || readOnly} active={click === 'place-hang'} typeId={hangFixtureTypeId}
+        onPlace={() => { setClick('place-hang'); setHangHover(undefined); setSnapStatus(`Scheinwerfer (${builtInFixtureTypes[hangFixtureTypeId].label}): Zeiger folgt, rastet an nächster Traverse`); }}
+        onChooseType={typeId => {
+          setHangFixtureTypeId(typeId);
+          setClick('place-hang');
+          setHangHover(undefined);
+          setSnapStatus(`Scheinwerfer (${builtInFixtureTypes[typeId].label}): Zeiger folgt, rastet an nächster Traverse`);
+        }} />
       <button type="button" className="quiet" aria-pressed={click === 'draw-curtain'} disabled={curtains.length >= 250} onClick={() => { setCurtainDrawStart(undefined); setCurtainDrawHover(undefined); setTrussDrawStart(undefined); setClick('draw-curtain'); }} title="Molton zeichnen (Start und Ende)" aria-label="Molton zeichnen"><ToolIcon name="wall" /><span>Molton</span></button>
       <button type="button" className="quiet" aria-pressed={selectedIds.includes(CENTRELINE_SELECTION)} onClick={() => setSelectedIds([CENTRELINE_SELECTION])} title="Mittellinie wählen" aria-label="Mittellinie wählen"><ToolIcon name="settings" /><span>Mitte</span></button>
     </div>}
-    {!sheetEditorOpen && <div className="editor-grid" data-inspector-open={inspectorOpen} data-narrow={narrowEditor}>
+    {!sheetEditorOpen && <div className="editor-grid dock-grid" data-dock-open={!!dock.active} data-narrow={narrowEditor}>
       <div className="editor-views venue-editor-views" data-mode={activeView} style={activeView === 'split' ? { gridTemplateColumns: `minmax(0, ${viewShare}fr) minmax(0, ${100 - viewShare}fr)` } : { gridTemplateColumns: 'minmax(0, 1fr)' }}>
         <div className="plan-canvas venue-plan" hidden={activeView === 'stage'}
           data-underlay-drag={underlayDrag || undefined}
           onDragEnter={underlayDragOver} onDragOver={underlayDragOver} onDragLeave={underlayDragLeave}
           onDrop={event => { event.preventDefault(); setUnderlayDrag(false); void acceptUnderlayTransfer(event.dataTransfer); }}>
           <div className="plan-viewbar"><h3>Spielstättengrundriss <span>2D</span></h3>
-            <PlanDisplayToggles value={planDisplay} onChange={setPlanDisplay} includeUnderlay={!!overlay || !!fileId} />
             <div className="plan-zoom">
             <button type="button" className="quiet" onClick={() => setZoom(z => Math.min(8, z * 1.25))} title="Vergrößern" aria-label="Vergrößern"><ToolIcon name="plus" /></button>
             <button type="button" className="quiet" onClick={() => setZoom(z => Math.max(0.4, z / 1.25))} title="Verkleinern" aria-label="Verkleinern"><ToolIcon name="minus" /></button>
@@ -1022,7 +1115,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
             <span className="muted">{Math.round(zoom * 100)} %</span>
           </div></div>
           <svg ref={svg} role="img" aria-label="Umriss der Spielstätte" viewBox={`${viewX} ${viewY} ${viewW} ${viewH}`}
-            className={pastePlacing ? 'placing-cursor' : undefined}
+            className={pastePlacing || click === 'place-hang' ? 'placing-cursor' : undefined}
             onPointerDownCapture={event => {
               if (!pastePlacement.current || event.button !== 0 || readOnly) return;
               updatePasteAt(planPoint(event), event.altKey || !snapEnabled);
@@ -1209,7 +1302,15 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
                 corridorVertexDrag.current = { corridorId, index }; draft.begin(); svg.current?.setPointerCapture(event.pointerId);
               }} />
             <OverheadMarks boxes={overheadBoxes} selectedIds={selectedIds} display={planDisplay} onPointerDown={beginObjectDrag} />
-            <TrussMarks trusses={trusses} selectedIds={selectedIds} display={planDisplay} onPointerDown={beginObjectDrag}
+            <TrussMarks trusses={trusses} selectedIds={selectedIds}
+              display={click === 'place-hang' ? { ...planDisplay, showTrusses: true, showLightingFixtures: true } : planDisplay}
+              hangPlan={hangPlan}
+              highlightTrussId={click === 'place-hang' ? hangHover?.trussId : undefined}
+              hangPreview={click === 'place-hang' && hangHover ? {
+                pointer: hangHover.pointer, snap: hangHover.snap,
+                label: builtInFixtureTypes[hangFixtureTypeId].label,
+              } : undefined}
+              onPointerDown={click === 'place-hang' ? undefined : beginObjectDrag}
               drawing={trussDrawStart ? { start: trussDrawStart, end: trussDrawHover } : undefined} />
             <CurtainMarks curtains={curtains} selectedIds={selectedIds} display={planDisplay} onPointerDown={beginObjectDrag}
               drawing={curtainDrawStart ? { start: curtainDrawStart, end: curtainDrawHover } : undefined} />
@@ -1291,10 +1392,25 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
             </p>}
           </div>
         </div>
-        {activeView !== 'plan' && <StageView onLightingChange={readOnly ? undefined : setLighting} layout={liveLayout} venue={previewVenue} venueEditable workspaceId={workspaceId} selectedIds={selectedIds} pivot={pivot} onSelect={(id, additive) => { if (!busyGesture()) setSelectedIds(ids => additive ? ids.includes(id) ? ids.filter(value => value !== id) : [id, ...ids] : [id]); }} onClearSelection={() => { if (!busyGesture()) setSelectedIds([]); }} onTransform={readOnly ? undefined : transform} onPushPull={readOnly ? undefined : pushPull} snapEnabled={snapEnabled} />}
+        {activeView !== 'plan' && <StageView onLightingChange={readOnly ? undefined : setLighting}
+          onHangPlanChange={readOnly ? undefined : setHangPlan}
+          layout={liveLayout} venue={previewVenue} venueEditable workspaceId={workspaceId} planDisplay={planDisplay}
+          selectedIds={selectedIds} pivot={pivot}
+          onSelect={(id, additive) => { if (!busyGesture()) setSelectedIds(ids => additive ? ids.includes(id) ? ids.filter(value => value !== id) : [id, ...ids] : [id]); }}
+          onClearSelection={() => { if (!busyGesture()) setSelectedIds([]); }}
+          onTransform={readOnly ? undefined : transform} onPushPull={readOnly ? undefined : pushPull} snapEnabled={snapEnabled} />}
       </div>
-      <aside className="wall-inspector" inert={busyGesture()}>
-        <div className="inspector-title"><ToolIcon name="settings" /><h3>Eigenschaften</h3><span>mm</span></div>
+      <EditorDock dock={dock} stageVisible={activeView !== 'plan'} onShowStage={() => setViewMode('stage')}
+        library={<details className="inspector-section" open><summary>Wandtypen / Öffnungen</summary><div className="inspector-section-body">
+          <WallTypePanel types={wallTypes} selectedId={selectedTypeId} readOnly={readOnly}
+            onSelect={setSelectedTypeId}
+            onCreate={type => { applyWallType(type); }}
+            onApply={applyWallType}
+            onPlace={type => { dock.closeAfterPlacement(); placeWallType(type); }}
+            onRemove={removeWallType} />
+        </div></details>}
+        display={<PlanDisplayToggles value={planDisplay} onChange={setPlanDisplay} includeUnderlay={!!overlay || !!fileId} />}
+        properties={<aside className="wall-inspector" inert={busyGesture()}>
         <div className="selection-properties">
           <h3>{selectedWall ? `Feste Wand ${selectedWallIndex + 1}` : selectedIds.includes(CENTRELINE_SELECTION) ? 'Bühnenmittellinie' : selectedObject?.label ?? 'Keine Auswahl'}</h3>
           <label htmlFor="venue-selection">Spielstättenobjekt auswählen</label>
@@ -1483,13 +1599,134 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
             })()}
             {selectedObject?.kind === 'truss' && (() => {
               const truss = trusses.find(item => item.id === selected)!;
-              return <div className="numeric-fields">
-                <label>Bezeichnung<input value={truss.label} onChange={event => setTrusses(items => items.map(item => item.id === truss.id ? { ...item, label: event.target.value } : item))} /></label>
-                {([['x', 'X'], ['y', 'Y'], ['rotation', 'Drehung'], ['length', 'Länge'], ['sectionWidth', 'Querschnitt'], ['bottomHeight', 'Unterkante'], ['thickness', 'Höhe']] as const).map(([key, label]) =>
-                  <label key={key}>{label}<input aria-label={`${truss.label} ${label}`} type="number" value={truss[key]}
-                    onChange={event => setTrusses(items => items.map(item => item.id === truss.id ? { ...item, [key]: Number(event.target.value) } : item))} /></label>)}
-                <p className="muted">Aufhängepunkte sind vorbereitet für spätere Leuchtenplanung.</p>
-              </div>;
+              const half = truss.length / 2;
+              function updateTruss(patch: Partial<Truss> | ((item: Truss) => Truss)) {
+                setTrusses(items => items.map(item => {
+                  if (item.id !== truss.id) return item;
+                  const next = typeof patch === 'function' ? patch(item) : { ...item, ...patch };
+                  if (next.length !== item.length) {
+                    const limit = next.length / 2;
+                    return {
+                      ...next,
+                      hangPoints: next.hangPoints.map(hang => ({
+                        ...hang,
+                        offsetMm: Math.max(-limit, Math.min(limit, hang.offsetMm)),
+                      })),
+                    };
+                  }
+                  return next;
+                }));
+              }
+              function addHangPoint() {
+                if (truss.hangPoints.length >= 250) return;
+                updateTruss(item => ({
+                  ...item,
+                  hangPoints: [...item.hangPoints, { id: crypto.randomUUID(), offsetMm: 0 }],
+                }));
+              }
+              function removeHangPoint(hangPointId: string) {
+                updateTruss(item => ({
+                  ...item,
+                  hangPoints: item.hangPoints.filter(hang => hang.id !== hangPointId),
+                }));
+                setHangPlan(plan => ({
+                  fixtures: plan.fixtures.filter(fixture => fixture.hangPointId !== hangPointId),
+                }));
+              }
+              function setHangOffset(hangPointId: string, offsetMm: number) {
+                const clamped = Math.max(-half, Math.min(half, offsetMm));
+                updateTruss(item => ({
+                  ...item,
+                  hangPoints: item.hangPoints.map(hang => hang.id === hangPointId ? { ...hang, offsetMm: clamped } : hang),
+                }));
+              }
+              function assignLightingFixture(hangPointId: string, typeId: BuiltInFixtureTypeId | '') {
+                setHangPlan(plan => {
+                  const without = plan.fixtures.filter(fixture => fixture.hangPointId !== hangPointId);
+                  if (!typeId) return { fixtures: without };
+                  const existing = plan.fixtures.find(fixture => fixture.hangPointId === hangPointId);
+                  const hang = truss.hangPoints.find(point => point.id === hangPointId);
+                  const world = hang ? trussHangWorld(truss, hang) : null;
+                  const focus = existing?.focus ?? (world
+                    ? defaultFocusTowardCentre({ x: world.x, y: truss.bottomHeight, z: world.y }, venue.width, venue.depth)
+                    : undefined);
+                  const next: LightingFixture = existing && existing.typeId === typeId
+                    ? existing
+                    : newLightingFixture(
+                      existing?.id ?? crypto.randomUUID(),
+                      truss.id,
+                      hangPointId,
+                      typeId,
+                      {
+                        label: existing?.label,
+                        barnDoorsAttached: builtInFixtureTypes[typeId].barnDoorsCapable ? existing?.barnDoorsAttached : false,
+                        focus,
+                      },
+                    );
+                  return { fixtures: [...without, next] };
+                });
+              }
+              function updateLightingFixture(hangPointId: string, patch: Partial<Pick<LightingFixture, 'label' | 'barnDoorsAttached'>>) {
+                setHangPlan(plan => ({
+                  fixtures: plan.fixtures.map(fixture => {
+                    if (fixture.hangPointId !== hangPointId) return fixture;
+                    const barnDoorsAttached = patch.barnDoorsAttached ?? fixture.barnDoorsAttached;
+                    return {
+                      ...fixture,
+                      ...patch,
+                      barnDoorsAttached: builtInFixtureTypes[fixture.typeId].barnDoorsCapable ? barnDoorsAttached : false,
+                    };
+                  }),
+                }));
+              }
+              return <>
+                <div className="numeric-fields">
+                  <label>Bezeichnung<input value={truss.label} onChange={event => updateTruss({ label: event.target.value })} /></label>
+                  {([['x', 'X'], ['y', 'Y'], ['rotation', 'Drehung'], ['length', 'Länge'], ['sectionWidth', 'Querschnitt'], ['bottomHeight', 'Unterkante'], ['thickness', 'Höhe']] as const).map(([key, label]) =>
+                    <label key={key}>{label}<input aria-label={`${truss.label} ${label}`} type="number" value={truss[key]}
+                      onChange={event => updateTruss({ [key]: Number(event.target.value) })} /></label>)}
+                </div>
+                <h4>Aufhängepunkte</h4>
+                <p className="muted">Offset von der Mitte entlang der Traverse (±Länge/2). Oder Werkzeug „Scheinwerfer“ und auf die Traverse klicken.</p>
+                {truss.hangPoints.map((hang, index) => {
+                  const lighting = hangPlan.fixtures.find(fixture => fixture.hangPointId === hang.id);
+                  return <div key={hang.id} className="opening-fields" data-testid={`hang-point-fields-${hang.id}`}>
+                    <p>{index + 1}. Aufhängepunkt</p>
+                    <label>Offset (mm)
+                      <input aria-label={`${truss.label} Aufhängepunkt ${index + 1} Offset`} type="number"
+                        min={-half} max={half} value={hang.offsetMm}
+                        onChange={event => setHangOffset(hang.id, Number(event.target.value))} />
+                    </label>
+                    <label>Scheinwerfer
+                      <select aria-label={`${truss.label} Aufhängepunkt ${index + 1} Scheinwerfer`}
+                        value={lighting?.typeId ?? ''}
+                        onChange={event => assignLightingFixture(hang.id, event.target.value as BuiltInFixtureTypeId | '')}>
+                        <option value="">Kein Scheinwerfer</option>
+                        <option value="fresnel">Fresnel</option>
+                        <option value="flood">Flood</option>
+                        <option value="wash">Wash</option>
+                      </select>
+                    </label>
+                    {lighting && <>
+                      <label>Bezeichnung
+                        <input aria-label={`${truss.label} Scheinwerfer ${index + 1} Bezeichnung`} maxLength={120}
+                          value={lighting.label}
+                          onChange={event => updateLightingFixture(hang.id, { label: event.target.value })} />
+                      </label>
+                      {builtInFixtureTypes[lighting.typeId].barnDoorsCapable && <label>
+                        <input type="checkbox" checked={lighting.barnDoorsAttached}
+                          onChange={event => updateLightingFixture(hang.id, { barnDoorsAttached: event.target.checked })} />
+                        Flügelblenden
+                      </label>}
+                    </>}
+                    <button type="button" className="quiet" onClick={() => removeHangPoint(hang.id)}>Aufhängepunkt entfernen</button>
+                  </div>;
+                })}
+                <div className="form-actions">
+                  <button type="button" className="quiet" disabled={truss.hangPoints.length >= 250}
+                    onClick={addHangPoint}>Aufhängepunkt hinzufügen</button>
+                </div>
+              </>;
             })()}
             {selectedObject?.kind === 'curtain' && (() => {
               const curtain = curtains.find(item => item.id === selected)!;
@@ -1528,14 +1765,6 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
         <details className="inspector-section"><summary>Zwischenablage</summary><div className="inspector-section-body">
           <ClipboardPanel selection={selectedIds.map(id => ({ kind: 'wall', id }))} canPaste={!!clipboard} busy={busy} readOnly={readOnly}
             onCopy={copy} onCut={cut} onPaste={paste} />
-        </div></details>
-        <details className="inspector-section"><summary>Wandtypen / Öffnungen</summary><div className="inspector-section-body">
-          <WallTypePanel types={wallTypes} selectedId={selectedTypeId} readOnly={readOnly}
-            onSelect={setSelectedTypeId}
-            onCreate={type => { applyWallType(type); }}
-            onApply={applyWallType}
-            onPlace={placeWallType}
-            onRemove={removeWallType} />
         </div></details>
         <details className="inspector-section"><summary>Umriss</summary><div className="inspector-section-body">
           <fieldset disabled={readOnly || busy || busyGesture()}>
@@ -1622,7 +1851,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
         <details className="inspector-section"><summary>Bühnenmittellinie</summary><div className="inspector-section-body">
           <fieldset disabled={readOnly || busy || busyGesture()}><CentrelineFields centreline={centreline} onChange={setCentreline} /></fieldset>
         </div></details>
-      </aside>
+      </aside>} />
     </div>}
     {sheetEditorOpen && <ReportSheetEditor
       templates={reportTemplates}
@@ -1642,16 +1871,16 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
     {error && <p className="error" role="alert">{error}</p>}
     {!sheetEditorOpen && <div className="workspace-statusbar">
       <span><span className="status-dot" />Spielstättenentwurf · {walls.length} feste Wände</span>
-      <span className="status-hint">Ziehen zum Verschieben · Orange ↻ dreht · Entf löscht · {SNAP_NOTICE}</span>
+      <span className="status-hint" role="status" title={snapStatus}>{snapStatus ?? `Ziehen zum Verschieben · Orange ↻ dreht · Entf löscht · ${SNAP_NOTICE}`}</span>
       <button type="button" className="quiet" aria-expanded={helpOpen} onClick={() => setHelpOpen(open => !open)}><ToolIcon name="help" /> Bedienung</button>
       <span>Maße in mm</span>
     </div>}
     {helpOpen && !sheetEditorOpen && <div className="workspace-help"><h3>Spielstätte gestalten</h3>
-      <p className="muted">Werkzeuge links setzen Objekte per Klick. Freihaltezonen und Traversen werden gezeichnet (Eckpunkte bzw. Start/Ende). Zoneneckpunkte ziehen. Einrasten wie im Bühnenbild (Alt umgeht). Zwei-Finger-Scroll oder Mittelklick verschieben · Pinch / Strg+Scroll zoomen.</p>
-      <p>Entf entfernt die Auswahl. Traversen modellieren Hängehöhen für spätere Lichtplanung. Speichern schreibt eine neue Spielstättenfassung.</p>
+      <p className="muted">Werkzeuge links setzen Objekte per Klick. Freihaltezonen und Traversen werden gezeichnet (Eckpunkte bzw. Start/Ende). Scheinwerfer: kurz klicken zum Setzen, lang drücken oder ▾ für Gerätetyp (Fresnel / Flood / Wash), dann auf die Traverse klicken. Zoneneckpunkte ziehen. Einrasten wie im Bühnenbild (Alt umgeht). Zwei-Finger-Scroll oder Mittelklick verschieben · Pinch / Strg+Scroll zoomen.</p>
+      <p>Entf entfernt die Auswahl. Traversen tragen den Hängeplan der Spielstätte; Lichtlooks (Intensität, Farbe) gehören zum Bühnenbild. Speichern schreibt eine neue Spielstättenfassung.</p>
       <p><a href="#/hilfe">Zur vollständigen Hilfe</a> — Werkzeuge, Tastatur und Wandoberflächen.</p>
     </div>}
-  </section>;
+  </section></EditorDockContext>;
 }
 
 function CentrelineFields({ centreline, onChange }: {

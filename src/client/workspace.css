@@ -331,7 +331,7 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
   font-size: 10px; color: var(--ui-muted); background: #fff; border-bottom: 1px solid var(--ui-line);
 }
 .lease-banner button, .venue-workspace > p[role=status] button { margin-left: 8px; min-height: 22px; padding: 2px 8px; font-size: 10px; }
-.lighting-panel { flex-shrink: 0; border-bottom: 1px solid var(--ui-line); background: #fff; font-size: 11px; }
+.lighting-panel { flex-shrink: 0; border-bottom: 1px solid var(--ui-line); background: #fff; font-size: 11px; position: relative; z-index: 4; }
 .lighting-panel summary { padding: 7px 10px; cursor: pointer; font-weight: 600; }
 .lighting-panel fieldset { padding: 0 12px 10px; }
 .lighting-toggle { display: flex; gap: 7px; align-items: center; margin: 7px 0 10px; font-size: 11px; }
@@ -342,9 +342,52 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
 .lighting-fields input { display: block; margin-top: 4px; }
 .lighting-fields input[type=color] { height: 30px; padding: 2px; }
 .lighting-panel p { margin: 0; padding: 0 12px 12px; color: var(--ui-muted); font-size: 10px; }
-@media (max-width: 760px) { .workspace-navigation { flex-direction: column; } }
-.lighting-panel { position: relative; z-index: 4; }
-.lighting-controls { position: absolute; top: 100%; right: 8px; width: min(320px, calc(100% - 16px)); max-height: 420px; overflow-y: auto; padding-top: 8px; background: #fff; border: 1px solid var(--ui-line); border-radius: 0 0 6px 6px; box-shadow: 0 8px 24px #20304026; }
+/* In-flow dropdown body — absolute stacking made Grundlicht + Lichtlook + fixture desk overlap as blank white slabs. */
+.lighting-controls { max-height: min(32vh, 360px); overflow-y: auto; padding-top: 4px; background: #fff; }
+.light-looks-panel { z-index: 3; }
+.light-looks-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; margin: 8px 0; }
+.light-looks-toolbar label { flex: 1; min-width: 140px; font-size: 10px; }
+.light-looks-toolbar select { display: block; width: 100%; margin-top: 4px; }
+.light-look-fixtures { display: grid; gap: 12px; margin-top: 10px; }
+.light-look-fixture { padding-top: 8px; border-top: 1px solid var(--ui-line); }
+.light-look-fixture.is-selected { background: #fff8e8; margin: 0 -8px; padding: 8px; border-radius: 4px; }
+.light-look-fixture > p, .light-look-fixture .fixture-pick { margin: 0 0 6px; padding: 0; color: inherit; font-size: 11px; text-align: left; }
+.fixture-desk {
+  background: #fff; border: 1px solid var(--ui-line); border-radius: 6px;
+  padding: 10px 12px; font-size: 11px; margin: 0 0 10px;
+}
+.fixture-inspector-host:empty { display: none; }
+.wall-inspector:has(.fixture-inspector-host:not(:empty)) > .selection-properties,
+.wall-inspector:has(.fixture-inspector-host:not(:empty)) > .inspector-section {
+  display: none;
+}
+.fixture-desk-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+.fixture-desk-head strong { flex: 1; }
+.fixture-desk-head span { color: var(--ui-muted); }
+.fixture-desk-blackout { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.fixture-desk fieldset { border: 0; margin: 0; padding: 0; }
+.fixture-desk .fixture-fader { display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; align-items: center; margin: 6px 0; }
+.fixture-desk .fixture-fader input[type=range] { grid-column: 1 / -1; width: 100%; }
+.fixture-focus { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--ui-line); }
+.fixture-focus legend { font-weight: 600; padding: 0; }
+.fixture-preview-mode { display: flex; gap: 4px; padding: 6px 10px; border-bottom: 1px solid var(--ui-line); background: #f8fafb; }
+.fixture-preview-mode button[aria-pressed=true] { background: #fff; border-color: #b9d5ce; }
+.fixture-hang-panel { flex-shrink: 0; border-bottom: 1px solid var(--ui-line); background: #fff; font-size: 11px; }
+.fixture-hang-panel > summary { padding: 7px 10px; cursor: pointer; font-weight: 600; }
+.fixture-live-board { flex-shrink: 0; padding: 8px 10px 10px; border-bottom: 0; background: #fff; font-size: 11px; }
+.fixture-live-board-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; margin-bottom: 6px; }
+.fixture-live-board-head span { color: var(--ui-muted); font-size: 10px; }
+.fixture-live-board-actions { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.fixture-live-switches { display: flex; flex-wrap: wrap; gap: 4px; }
+.fixture-live-switch { display: inline-flex; align-items: center; gap: 5px; min-height: 28px; padding: 3px 8px; font-size: 10px; }
+.fixture-live-switch.is-on { background: #fff8e0; border-color: #c9a227; }
+.fixture-live-switch.is-selected { outline: 2px solid #67968b; outline-offset: 1px; }
+.fixture-live-dot { width: 8px; height: 8px; border-radius: 50%; background: #9aa7b0; }
+.fixture-live-switch.is-on .fixture-live-dot { background: #e0b84a; box-shadow: 0 0 6px #e0b84a88; }
+.fixture-live-board > .muted { margin: 8px 0 0; padding: 0; font-size: 10px; }
+.stage-canvas[data-focus-aim] { cursor: crosshair; }
+.barn-door-flaps { margin-top: 8px; }
+.barn-door-flaps > p { margin: 0 0 4px; padding: 0; font-size: 10px; color: var(--ui-muted); }
 
 /* Compact camera tools leave the stage visible while adjusting the workspace. */
 .editor-grid[data-inspector-open=false] { grid-template-columns: minmax(0, 1fr); }
@@ -540,3 +583,85 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
   .scene-editor > .workspace-statusbar, .editor-local-menubar { margin-left: 0; }
   .scene-editor > .workspace-statusbar .status-hint { flex-basis: 100%; order: 1; }
 }
+
+/* Shared document workspace: canvas, one optional dock, and a persistent panel rail. */
+.app:has(.editor) { height: 100dvh; min-height: 0; overflow: hidden; }
+.app:has(.editor) > .masthead { height: 38px; padding: 0 12px; gap: 12px; position: relative; z-index: 25; }
+.app:has(.editor) > .masthead > .quiet { margin-left: auto; }
+.app:has(.editor) > .masthead .brand { font-size: 12px; white-space: nowrap; }
+.workspace:has(.editor) { overflow: hidden; }
+.editor, .editor:fullscreen { min-height: 0; overflow: hidden; }
+.venue-document-heading { height: 42px; min-height: 42px; padding: 3px 8px; flex-wrap: nowrap; }
+.venue-document-name { display: flex; flex: 1; align-items: center; gap: 8px; overflow: hidden; }
+.venue-document-name h2 { font-size: 13px; }
+.venue-document-heading .save-status { max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+.venue-editor .tool-rail { top: 48px; bottom: 34px; max-height: calc(100% - 82px); }
+.venue-editor:has(> .editor-local-menubar) .tool-rail { top: 82px; max-height: calc(100% - 116px); }
+.editor-grid.dock-grid { display: grid; position: relative; grid-template-columns: minmax(0, 1fr) 320px 64px; min-height: 0; overflow: hidden; }
+.editor-grid.dock-grid[data-dock-open=false] { grid-template-columns: minmax(0, 1fr) 64px; }
+.dock-grid > .editor-views { min-width: 0; min-height: 0; grid-template-rows: minmax(0, 1fr); padding: 4px 4px 4px 0; overflow: hidden; }
+.editor-dock { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: #fff; border-left: 1px solid var(--ui-line); overflow: hidden; }
+.dock-heading { display: flex; align-items: center; gap: 4px; flex-shrink: 0; min-height: 40px; padding: 4px 8px; border-bottom: 1px solid var(--ui-line); }
+.dock-heading h3 { flex: 1; margin: 0; font-size: 13px; }
+.editor .dock-heading button { font-size: 11px; min-height: 30px; }
+.dock-pane { min-height: 0; flex: 1; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.dock-pane > .wall-inspector { margin: 0; padding: 0; border: 0; overflow: visible; }
+.dock-pane > .asset-library { margin: 0; padding: 12px; border: 0; border-radius: 0; background: #fff; }
+.dock-pane .asset-library .section-heading { flex-wrap: wrap; }
+.dock-pane .asset-tabs { flex-wrap: wrap; }
+.dock-pane .asset-grid { grid-template-columns: minmax(0, 1fr); }
+.dock-pane .numeric-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.dock-pane input, .dock-pane select { max-width: 100%; box-sizing: border-box; }
+.dock-pane .plan-display-toggles { display: flex; flex-direction: column; align-items: stretch; gap: 12px; padding: 16px; }
+.dock-pane .plan-display-toggle { font-size: 13px; }
+.dock-pane .lighting-controls { max-height: none; overflow: visible; }
+.dock-pane .render-settings { margin: 0; padding: 8px; font-size: 13px; }
+.dock-pane .render-settings-body { position: static; width: auto; box-shadow: none; border: 0; padding: 8px; }
+.dock-pane .fixture-desk { margin: 12px 8px; }
+.dock-pane .stage-measurements { font-size: 12px; }
+.dock-pane > div > .muted { padding: 12px; font-size: 12px; }
+.dock-empty { padding: 16px; font-size: 13px; line-height: 1.5; }
+.panel-rail { display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 6px 3px; border-left: 1px solid var(--ui-line); background: #fff; overflow-y: auto; }
+.editor .panel-rail button { flex-direction: column; gap: 4px; min-height: 54px; padding: 5px 1px; }
+.panel-rail button span { font-size: 10px; }
+/* View controls float at the edges; they never consume a row of drawing height. */
+.dock-grid .plan-canvas, .dock-grid .stage-view { overflow: hidden; }
+.dock-grid .plan-viewbar { position: absolute; z-index: 3; top: 8px; right: 8px; left: 8px; padding: 0; border: 0; background: transparent; pointer-events: none; }
+.dock-grid .plan-viewbar h3, .dock-grid .plan-zoom { pointer-events: auto; background: #fffffff0; border: 1px solid var(--ui-line); border-radius: 5px; padding: 3px 6px; }
+.editor .dock-grid .plan-canvas > svg, .editor .dock-grid .venue-plan > svg { flex: 1 1 0; height: 100%; min-height: 0; }
+.editor .dock-grid .stage-canvas { flex: 1 1 0; height: 100%; min-height: 0; }
+.dock-grid .stage-toolbar { position: absolute; z-index: 5; top: 8px; left: 8px; right: 8px; border: 1px solid var(--ui-line); border-radius: 5px; background: #fffffff0; padding: 3px 6px; flex-wrap: wrap; }
+.dock-grid .render-toolbar { position: absolute; z-index: 4; left: 8px; bottom: 8px; right: 8px; border: 1px solid var(--ui-line); border-radius: 5px; background: #fffffff0; padding: 3px; flex-wrap: wrap; }
+.dock-grid .plan-status:empty { display: none; }
+.dock-grid .plan-status:not(:empty) { position: absolute; z-index: 3; bottom: 6px; left: 6px; right: 6px; min-height: 0; max-height: 90px; overflow: auto; border: 1px solid #e0c98a; border-radius: 4px; background: #fff8e6; }
+.workspace-statusbar .status-hint { display: block; visibility: visible; flex: 1; min-width: 0; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+@media (max-width: 1100px) {
+  .editor-grid.dock-grid, .editor-grid.dock-grid[data-dock-open=false] { grid-template-columns: minmax(0, 1fr) 64px; }
+  .dock-grid > .editor-dock { position: absolute; z-index: 15; top: 0; bottom: 0; right: 64px; width: min(320px, calc(100% - 64px)); box-shadow: -6px 0 20px #20304020; }
+  .dock-grid > .panel-rail { grid-column: 2; }
+  .app:has(.editor) > .masthead .brand { max-width: 160px; overflow: hidden; }
+  .venue-document-heading .save-status { max-width: 140px; font-size: 11px; }
+}
+@media (max-width: 760px) {
+  .app:has(.editor) > .masthead { gap: 4px; padding: 0 4px; }
+  .app:has(.editor) > .masthead .brand { font-size: 0; gap: 0; flex-shrink: 0; }
+  .editor, .editor:fullscreen { padding: 0; }
+  .venue-editor { margin-left: 0; width: 100%; padding-left: 0; }
+  .venue-document-heading { height: auto; min-height: 42px; flex-wrap: wrap; gap: 4px; }
+  .venue-document-heading .save-status { margin-left: 0; }
+  .venue-document-heading .workspace-viewbar { flex: 1; width: auto; justify-content: flex-end; }
+  .editor-grid.dock-grid, .editor-grid.dock-grid[data-dock-open=false] { grid-template-columns: minmax(0, 1fr) 58px; }
+  .dock-grid > .editor-dock { right: 58px; width: min(320px, calc(100% - 58px)); }
+  .dock-grid > .editor-views, .scene-editor > .editor-grid > .editor-views { padding: 2px; }
+  .editor .panel-rail button { min-height: 48px; }
+  .panel-rail button span { font-size: 9px; }
+  .workspace-statusbar { flex-wrap: nowrap; min-height: 28px; padding: 0 6px; gap: 5px; }
+  .workspace-statusbar > span:first-child, .workspace-statusbar > span:last-child { display: none; }
+  .scene-editor > .workspace-statusbar .status-hint { flex-basis: auto; order: 0; }
+  .dock-grid .stage-toolbar h3, .dock-grid .camera-projection { display: none; }
+  .editor .tool-rail button { min-height: 40px; }
+  .tool-rail { margin: 0; border-radius: 0; padding: 2px; }
+}
+.dock-pane .plan-display-toggles { width: auto; margin: 0; }
+.dock-pane .plan-display-toggle input { flex: 0 0 auto; width: auto; }
+.dock-pane .lighting-toggle input { width: auto; }

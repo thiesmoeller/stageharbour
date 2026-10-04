@@ -1,4 +1,5 @@
-import { createPortal } from 'react-dom';
+import { EditorDock, EditorDockContext, useEditorDock } from './EditorDock.js';
+import { EditorMenuBar } from './EditorMenuBar.js';
 import { EditorMenu } from './EditorMenu.js';
 import { openPlanPrint } from './printPlan.js';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type PointerEvent } from 'react';
@@ -91,22 +92,15 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
   }, initial.venue);
   const [state, setState] = useState<History>(() => history<Layout>(boot.layout));
   const root = useRef<HTMLElement>(null);
-  const [inspectorOpen, setInspectorOpen] = useState(() => readEditorPreference('inspector') !== 'closed');
-  const [fullscreen, setFullscreen] = useState(false);
-  useEffect(() => {
-    const sync = () => setFullscreen(document.fullscreenElement === root.current);
-    document.addEventListener('fullscreenchange', sync);
-    return () => document.removeEventListener('fullscreenchange', sync);
-  }, []);
+  const dock = useEditorDock('scene');
   const [viewMode, setViewMode] = useState<'split' | 'plan' | 'stage'>(() => {
     const saved = readEditorPreference('view');
-    return saved === 'plan' || saved === 'stage' || saved === 'split' ? saved : window.innerWidth <= 1366 ? 'plan' : 'split';
+    return saved === 'plan' || saved === 'stage' || saved === 'split' ? saved : 'plan';
   });
   const [viewShare, setViewShare] = useState(55);
   const narrowEditor = useNarrowEditor();
   const activeView = canvasModeForWidth(viewMode, narrowEditor);
   useEffect(() => { writeEditorPreference('view', viewMode); }, [viewMode]);
-  useEffect(() => { writeEditorPreference('inspector', inspectorOpen ? 'open' : 'closed'); }, [inspectorOpen]);
   const current = useRef(state);
   const stageGesture = useRef<{ layout: Layout; members: ClipboardMember[] } | undefined>(undefined);
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -115,7 +109,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
   const [renamingScene, setRenamingScene] = useState(false);
   const [renameBusy, setRenameBusy] = useState(false);
   const [renameError, setRenameError] = useState('');
-  const [libraryOpen, setLibraryOpen] = useState(false);
+  const setLibraryOpen = (value: import('react').SetStateAction<boolean>) => dock.setOpen('library', value);
   const [helpOpen, setHelpOpen] = useState(false);
   const persistLiftedTemplates = useRef(
     (initial.layout.reportTemplates?.length ?? 0) > 0
@@ -517,7 +511,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
   }
   function paste() {
     if (busyGesture() || !clipboard) return;
-    if (viewMode === 'stage') setViewMode(narrowEditor ? 'plan' : 'split');
+    if (viewMode === 'stage') setViewMode('plan');
     const cursor = lastPlanPoint.current;
     const pivot = clipboardPivot(clipboard) ?? cursor;
     const result = pasteClipboard(current.current.present, clipboard, () => crypto.randomUUID(), {
@@ -784,8 +778,8 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
   }
   function placeAsset(asset: Asset) {
     if (readOnly || busyGesture()) return;
-    setLibraryOpen(false);
-    if (viewMode === 'stage') setViewMode(narrowEditor ? 'plan' : 'split');
+    dock.closeAfterPlacement();
+    if (viewMode === 'stage') setViewMode('plan');
     const definition = asset.definition, id = crypto.randomUUID(), x = venue.width / 2, y = venue.depth / 2;
     if (definition.kind === 'wall') {
       const { typeId: _type, panelId: _panel, finishAssignment: _finishAssignment, assemblyNumber: _assembly, ...template } = definition.template;
@@ -858,7 +852,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
     const anchor = document.createElement('a'); anchor.href = url; anchor.download = `buehnenentwurf-${initial.id}.json`; anchor.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
-  const menus = <nav className="editor-menubar" aria-label="Editor-Menüs">
+  const menus = <EditorMenuBar>
     <EditorMenu label="Datei">
       <button className="quiet" aria-expanded={exportsOpen} onClick={() => {
         setExportsOpen(open => !open);
@@ -889,7 +883,9 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
       </> : <p className="muted">{venueOpen ? 'Werkzeuge in der Spielstätte verwenden.' : 'Nur Ansicht'}</p>}
     </EditorMenu>
     <EditorMenu label="Ansicht">
-      <button className="quiet" onClick={() => setInspectorOpen(open => !open)}>{inspectorOpen ? 'Eigenschaften ausblenden' : 'Eigenschaften einblenden'}</button>
+      <button className="quiet" onClick={() => dock.setOpen('properties', open => !open)}>{dock.active === 'properties' ? 'Eigenschaften ausblenden' : 'Eigenschaften einblenden'}</button>
+      <button className="quiet" onClick={() => dock.setActive('display')}>Anzeige einstellen</button>
+      <button className="quiet" onClick={() => dock.setActive('lighting')}>Licht einstellen</button>
       <label className="split-control" hidden={activeView !== 'split'}>Aufteilung<input aria-label="Ansichten aufteilen" type="range" min="30" max="70" value={viewShare} onChange={event => setViewShare(Number(event.target.value))} /></label>
       <button className="quiet" onClick={() => { if (document.fullscreenElement) void document.exitFullscreen(); else void root.current?.requestFullscreen(); }}>Vollbild umschalten</button>
     </EditorMenu>
@@ -901,11 +897,10 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
       }}>{PLACEHOLDER_KIND_LABELS[kind]} hinzufügen</button>)}
     </EditorMenu>}
     <EditorMenu label="Hilfe"><button className="quiet" onClick={() => setHelpOpen(open => !open)}>Bedienung anzeigen</button><a href="#/hilfe">Zur vollständigen Hilfe</a></EditorMenu>
-  </nav>;
-  const menuSlot = !fullscreen && document.getElementById('editor-menu-slot');
-  return <section ref={root} className="editor scene-editor" aria-label="Bühnenbild bearbeiten">
-    {menuSlot ? createPortal(menus, menuSlot) : <div className="editor-local-menubar">{menus}</div>}
-    <div className="editor-heading compact-editor-heading">
+  </EditorMenuBar>;
+  return <EditorDockContext value={dock}><section ref={root} className="editor scene-editor" aria-label="Bühnenbild bearbeiten">
+    {!venueOpen && menus}
+    <div className="editor-heading compact-editor-heading" hidden={venueOpen}>
       <button className="quiet back-button" disabled={dirty} onClick={onClose} title="Zur Übersicht" aria-label="Zur Übersicht"><ToolIcon name="back" /></button>
       <EditorMenu className="scene-menu" label={<><span className="scene-context">{initial.productionName} · {venueName}</span><h2>{sceneName}</h2><span aria-hidden="true">▾</span></>}>
         <p>{initial.productionName} · {venueName}</p>
@@ -929,9 +924,9 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
         : saveState.status === 'conflict' && saveState.conflictKind === 'lease' ? 'Bearbeitung abgelaufen'
           : inspectorPending ? INSPECTOR_PENDING_STATUS : statusText[saveState.status]}</span>
     <div className="workspace-viewbar" hidden={venueOpen} role="toolbar" aria-label="Ansichten">
-      <div className="view-modes">{(narrowEditor ? (['plan', 'stage'] as const) : (['split', 'plan', 'stage'] as const)).map(mode => <button key={mode} type="button" className="quiet" aria-pressed={activeView === mode} onClick={() => setViewMode(mode)}>{mode === 'split' ? '2D + 3D' : mode === 'plan' ? 'Grundriss' : 'Raumansicht'}</button>)}</div>
+      <div className="view-modes">{(narrowEditor ? (['plan', 'stage'] as const) : (['plan', 'stage', 'split'] as const)).map(mode => <button key={mode} type="button" className="quiet" aria-pressed={activeView === mode} onClick={() => setViewMode(mode)}>{mode === 'split' ? '2D + 3D' : mode === 'plan' ? 'Grundriss' : 'Raumansicht'}</button>)}</div>
 
-      <button type="button" className="quiet" aria-expanded={inspectorOpen} onClick={() => setInspectorOpen(open => !open)} title={inspectorOpen ? 'Eigenschaften ausblenden' : 'Eigenschaften einblenden'} aria-label="Eigenschaften"><ToolIcon name="tray" /></button>
+
       <button type="button" className="quiet" onClick={() => { if (document.fullscreenElement) void document.exitFullscreen(); else void root.current?.requestFullscreen(); }} title="Vollbild" aria-label="Vollbild"><ToolIcon name="expand" /></button>
     </div>
     </div>
@@ -946,7 +941,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
       </form></div>}
     <div className="tool-rail" hidden={venueOpen} role="toolbar" aria-label="Objekte hinzufügen">
       <button className="quiet" title="Auswählen · Platzieren abbrechen" aria-pressed={!placing && !groupPreview && !dimensioning} onClick={() => { cancelPlacing(); setDimensioning(null); setSnapStatus(undefined); }}><ToolIcon name="select" /><span>Auswahl</span></button>
-      <button className="quiet" onClick={() => { setLibraryOpen(open => !open); setExportsOpen(false); }} aria-expanded={libraryOpen} title="Objektbibliothek" aria-label="Objektbibliothek"><ToolIcon name="library" /><span>Bibliothek</span></button>
+
       {!readOnly && <><WallToolButton
         disabled={!!groupPreview || state.present.walls.length >= 250}
         sceneTypes={wallTypes}
@@ -972,24 +967,9 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
       </>}
     </div>
     {assetError && <p className="error" role="alert">{assetError}</p>}
-    {libraryOpen && !venueOpen && <AssetLibrary key={inspectorEpoch} workspaceId={workspaceId} assets={assets} layout={state.present}
-      readOnly={readOnly || busyGesture()} selected={selectedWall ?? selectedBraceItem}
-      wallTypes={wallTypes} selectedTypeId={selectedType}
-      onCreated={asset => setAssets(items => [...items, asset])}
-      onArchive={id => setAssets(items => items.map(asset => asset.id === id ? { ...asset, archived: true } : asset))}
-      onRenamed={updated => setAssets(items => items.map(asset => asset.id === updated.id ? updated : asset).sort((a, b) => a.name.localeCompare(b.name, 'de')))}
-      onPlace={asset => { setLibraryOpen(false); placeAsset(asset); }}
-      onWallTypeSelect={setSelectedType} onWallTypeCreate={applyType} onWallTypeApply={applyType}
-      onWallTypePlace={type => {
-        setLibraryOpen(false);
-        setExportsOpen(false);
-        placeType(type);
-      }}
-      onWallTypeRemove={removeType} onPendingChange={reportInspectorPending}
-      onPanels={adoptPanels} />}
     <span className="sr-only" data-testid="inventory-panel-count">{inventoryPanels.length}</span>
     {venueOpen && !readOnly && !venueLease.holding && <p className="lease-banner" role="status">{venueLease.message || 'Bearbeitung wird angefordert …'} <button type="button" className="quiet" onClick={() => void venueLease.acquire()}>Bearbeitung erneut anfordern</button></p>}
-    {venueOpen && <VenuePanel workspaceId={workspaceId} sceneId={initial.id} venue={venue} venueId={initial.venueId} venueName={venueName}
+    {venueOpen && <VenuePanel onClose={() => { setVenueOpen(false); setOpenVenueSheet(false); }} closeDisabled={venueDirty} closeLabel="Spielstätte schließen" workspaceId={workspaceId} sceneId={initial.id} venue={venue} venueId={initial.venueId} venueName={venueName}
       venueUpdateAvailable={updateAvailable} readOnly={readOnly || !venueLease.holding} onDirty={setVenueDirty} onSaved={adoptVenue}
       onVenueRenamed={({ name }) => setVenueName(name)} sceneLayout={state.present} openSheetEditor={openVenueSheet} />}
     {exportsOpen && <ExportWorkspace workspaceId={workspaceId} sceneId={initial.id} productionId={initial.productionId}
@@ -1030,9 +1010,8 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
       }}>Gespeicherte Fassung laden</button>
     </div>}
     {permissionReadOnly && onRequestEditing && <p role="status">Eine Bearbeitung ist möglich, sobald die bisherige Freigabe endet (spätestens 45 Sekunden nach dem letzten Lebenszeichen). <button onClick={onRequestEditing}>Bearbeitung erneut anfordern</button></p>}
-    {!venueOpen && <div className="editor-grid" data-inspector-open={inspectorOpen} data-narrow={narrowEditor}><div className="editor-views" data-mode={activeView} style={activeView === 'split' ? { gridTemplateColumns: `minmax(0, ${viewShare}fr) minmax(0, ${100 - viewShare}fr)` } : { gridTemplateColumns: 'minmax(0, 1fr)' }}><div className="plan-canvas" hidden={activeView === 'stage'}>
+    {!venueOpen && <div className="editor-grid dock-grid" data-dock-open={!!dock.active} data-narrow={narrowEditor}><div className="editor-views" data-mode={activeView} style={activeView === 'split' ? { gridTemplateColumns: `minmax(0, ${viewShare}fr) minmax(0, ${100 - viewShare}fr)` } : { gridTemplateColumns: 'minmax(0, 1fr)' }}><div className="plan-canvas" hidden={activeView === 'stage'}>
       <div className="plan-viewbar"><h3>Grundriss <span>2D</span></h3>
-      <PlanDisplayToggles value={planDisplay} onChange={setPlanDisplay} />
       <div className="plan-zoom">
       <button type="button" className="quiet" onClick={() => setViewZoom(z => Math.min(8, z * 1.25))} title="Grundriss vergrößern" aria-label="Vergrößern"><ToolIcon name="plus" /></button>
       <button type="button" className="quiet" onClick={() => setViewZoom(z => Math.max(0.4, z / 1.25))} title="Grundriss verkleinern" aria-label="Verkleinern"><ToolIcon name="minus" /></button>
@@ -1185,7 +1164,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
           readOnly={readOnly} groupedIds={groupedIds} display={planDisplay} onPointerDown={startPlaceholder} />
         <InfrastructureMarks pins={venue.connectionPoints ?? []} corridors={venue.cableRoutingCorridors ?? []} display={planDisplay} />
         <OverheadMarks boxes={venue.overheadBoxes ?? []} display={planDisplay} />
-        <TrussMarks trusses={venue.trusses ?? []} display={planDisplay} />
+        <TrussMarks trusses={venue.trusses ?? []} display={planDisplay} hangPlan={venue.hangPlan} />
         <CurtainMarks curtains={sceneCurtains}
           selectedIds={fixtureSelection?.kind === 'curtain' ? [fixtureSelection.id] : []}
           display={planDisplay}
@@ -1268,11 +1247,34 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
     } : shown} venue={venue} assets={assets} workspaceId={workspaceId}
       selectedIds={selection().map(item => item.id)} pivot={selectionPivot(state.present, selection())} snapEnabled={snapEnabled}
       onLightingChange={readOnly ? undefined : lighting => { if (!busyGesture()) commit({ ...current.current.present, lighting }); }}
+      onLightLooksChange={readOnly ? undefined : patch => { if (!busyGesture()) commit({ ...current.current.present, ...patch }); }}
+      onHangPlanChange={readOnly ? undefined : plan => {
+        if (busyGesture()) return;
+        setVenue(currentVenue => ({ ...currentVenue, hangPlan: plan }));
+        setVenueDirty(true);
+      }}
+      planDisplay={planDisplay}
       onSelect={stageSelect} onClearSelection={() => { if (!busyGesture() && !stageGesture.current) { clearSelection(); } }}
       onTransform={readOnly ? undefined : stageTransform} onPushPull={readOnly ? undefined : stageResize}
       resizeScope="scene" resizeDocument={sceneResizeDocument(shown, venue)} />}
-    </div><aside key={inspectorEpoch} className="wall-inspector" inert={busyGesture()}>
-      <div className="inspector-title"><ToolIcon name="settings" /><h3>Eigenschaften</h3><span>mm</span></div>
+    </div><EditorDock dock={dock} stageVisible={activeView !== 'plan' && !exportsOpen} onShowStage={() => setViewMode('stage')}
+      library={<AssetLibrary key={inspectorEpoch} workspaceId={workspaceId} assets={assets} layout={state.present}
+      readOnly={readOnly || busyGesture()} selected={selectedWall ?? selectedBraceItem}
+      wallTypes={wallTypes} selectedTypeId={selectedType}
+      onCreated={asset => setAssets(items => [...items, asset])}
+      onArchive={id => setAssets(items => items.map(asset => asset.id === id ? { ...asset, archived: true } : asset))}
+      onRenamed={updated => setAssets(items => items.map(asset => asset.id === updated.id ? updated : asset).sort((a, b) => a.name.localeCompare(b.name, 'de')))}
+      onPlace={placeAsset}
+      onWallTypeSelect={setSelectedType} onWallTypeCreate={applyType} onWallTypeApply={applyType}
+      onWallTypePlace={type => {
+        dock.closeAfterPlacement();
+        setExportsOpen(false);
+        placeType(type);
+      }}
+      onWallTypeRemove={removeType} onPendingChange={reportInspectorPending}
+      onPanels={adoptPanels} />}
+      display={<PlanDisplayToggles value={planDisplay} onChange={setPlanDisplay} />}
+      properties={<aside key={inspectorEpoch} className="wall-inspector" inert={busyGesture()}>
       <div className="selection-properties">
       <h3>{selectedCurtain ? 'Molton-Vorhang' : selectedVenueDoor ? 'Spielstättentür' : selectedPlaceholderItem ? 'Platzhalter' : selectedPlatformItem ? 'Podest' : selectedStairItem ? 'Treppe' : selectedBraceItem ? 'Gewichtete Stütze' : selectedWall ? (selectedWallCount > 1 ? `${selectedWallCount} Wandelemente` : 'Wandelement') : 'Keine Auswahl'}</h3>
       <label htmlFor="wall-selection">Auswahl</label>
@@ -1335,14 +1337,14 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
       <GroupInspector layout={state.present} picked={groupPicked} readOnly={readOnly}
         onPendingChange={reportInspectorPending} onChange={commit} />
       </div></details>}
-    </aside></div>}
+    </aside>} /></div>}
     <div className="workspace-statusbar"><span><span className="status-dot" />{venueOpen ? 'Spielstättenentwurf' : 'Bühnenbild'} · {state.present.walls.length} Wände</span><span className="selection-count" hidden={venueOpen || selection().length === 0} data-testid="selection-count">{selection().length} ausgewählt</span><span className="status-hint" role="status" title={snapStatus}>{snapStatus ?? 'Klicken zum Auswählen · Ziehen zum Verschieben · Strg+Z rückgängig'}</span><button className="quiet" aria-expanded={helpOpen} onClick={() => setHelpOpen(open => !open)}><ToolIcon name="help" /> Bedienung</button><span>Maße in mm</span></div>
     {helpOpen && <div className="workspace-help"><h3>Arbeiten im Grundriss</h3>
       <p className="muted viewport-hint">Raster: 1 m / 50 cm · Zwei-Finger-Scroll oder Mittelklick verschieben · Pinch / Strg+Scroll zoomen · Auf dem Boden ziehen: Mehrfachauswahl (nur vollständig umschlossene Objekte) · Orange ↻ dreht · Stützen an Wänden · {SNAP_NOTICE}</p>
       <p>Strg/Cmd+C kopiert die Auswahl, Strg/Cmd+V hängt die Kopie an den Zeiger — Klick setzt, Escape bricht ab. Entf löscht ausgewählte Objekte. Escape bricht Platzieren und Bewegungen ab oder hebt die Auswahl auf (auch in der Raumsicht · Klick in freien Raum). Überschneidungen erscheinen rot auf dem Grundriss.</p>
       <p><a href="#/hilfe">Zur vollständigen Hilfe</a> — Werkzeuge, Tastatur und Wandoberflächen.</p>
     </div>}
-  </section>;
+  </section></EditorDockContext>;
 }
 
 function WallForm({ wall, openings, typed, surfaces, readOnly, bulkWallCount = 1, onPendingChange, onApply, onRemove }: {

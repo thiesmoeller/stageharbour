@@ -3,9 +3,10 @@ import { defaultLighting, lightingPresets, type StageLightingSettings } from '..
 
 export function LightingPanel({ value = defaultLighting, scope, onChange }: { value?: StageLightingSettings; scope: string; onChange?: (value: StageLightingSettings) => void }) {
   function change(patch: Partial<StageLightingSettings>) { onChange?.({ ...value, ...patch }); }
-  return <details className="lighting-panel"><summary>Lichtstimmung{value.enabled ? ' · aktiv' : ''}</summary>
+  return <details className="lighting-panel"><summary>Grundlicht{value.enabled ? ' · Bühnenlicht' : ' · Konstruktion'}</summary>
     <div className="lighting-controls"><p>{scope}</p><fieldset disabled={!onChange}>
       <label className="lighting-toggle"><input type="checkbox" checked={value.enabled} onChange={event => change({ enabled: event.target.checked })} /> Bühnenlicht aktivieren</label>
+      <p className="muted" style={{ padding: '0 0 8px', margin: 0 }}>Aus = Konstruktion (hell, CAD-artig). An = Theater / Scheinwerfer arbeiten.</p>
       <div className="lighting-presets">{Object.entries(lightingPresets).map(([key, preset]) => <button key={key} type="button" className="quiet" onClick={() => {
         const { label: _label, ...settings } = preset;
         change({ ...settings, enabled: true });
@@ -16,11 +17,11 @@ export function LightingPanel({ value = defaultLighting, scope, onChange }: { va
         <label>Frontlichtfarbe<input type="color" value={value.frontColor} onChange={event => change({ frontColor: event.target.value })} /></label>
         <label>Gegenlichtfarbe<input type="color" value={value.backColor} onChange={event => change({ backColor: event.target.value })} /></label>
         <LightNumber label="Grundhelligkeit (%)" value={value.ambient} min={0} max={100} step={1} onChange={ambient => change({ ambient })} />
-        <LightNumber label="Aufhängepunkt (mm)" value={value.height} min={1000} max={12000} step={100} onChange={height => change({ height })} />
+        <LightNumber label="Lichthöhe (mm)" value={value.height} min={1000} max={12000} step={100} onChange={height => change({ height })} />
         <LightNumber label="Öffnungswinkel (°)" value={value.beam} min={20} max={120} step={1} onChange={beam => change({ beam })} />
       </div>
     </fieldset>
-    <p>Frontlicht kommt von der Publikumseite (−Z); Pascals Studio-Licht von hinten wird dafür abgeschaltet. Gegenlicht bleibt Randlicht ohne Schatten. Grundhelligkeit 0 % ist dunkles Theater (kein Ambient/IBL); höhere Werte füllen Schatten. Die Vorschau ist gestalterisch, keine gemessene Beleuchtungsstärke.</p></div>
+    <p>Mit Bühnenlicht: Hauslicht (Front/Gegen/Ambient) und — wenn Scheinwerfer·Hang offen — die Hängeplan-Geräte. Ohne Bühnenlicht bleibt die Raumsicht hell zum Konstruieren; Hang-Daten lassen sich trotzdem bearbeiten.</p></div>
   </details>;
 }
 
