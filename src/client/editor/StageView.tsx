@@ -1,3 +1,4 @@
+import { editorCommand } from './interactionKeys.js';
 import { DockPortal, EditorDockContext } from './EditorDock.js';
 import { defaultLighting, type StageLightingSettings } from '../../shared/lighting.js';
 import { ToolIcon } from './ToolIcon.js';
@@ -86,6 +87,17 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
   useEffect(() => {
     if (!boardOpen) setFocusAimMode(false);
   }, [boardOpen]);
+  useEffect(() => {
+    if (!focusAimMode) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (editorCommand(event) !== 'cancel') return;
+      event.preventDefault();
+      event.stopPropagation();
+      setFocusAimMode(false);
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [focusAimMode]);
   function selectFixture(id: string | null, additive = false) {
     if (!id) { setSelectedFixtureId(null); setFocusAimMode(false); return; }
     setSelectedFixtureId(id);

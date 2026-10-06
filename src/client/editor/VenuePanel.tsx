@@ -34,7 +34,7 @@ import { CentrelineMark, AlignmentGuides, SnapToggle } from './SnapGuides.js';
 import { RotationHandle } from './RotationHandle.js';
 import { PlaceholderLayer } from './PlaceholderLayer.js';
 import {
-  copyVenueSelection, cutVenueSelection, pasteVenueSelection, removeVenueSelection,
+  copyVenueSelection, cutVenueSelection, pasteVenueSelection, pruneHangPlan, removeVenueSelection,
   venueObjects, venueObjectsInBounds, venueSelectionPivot, type VenueClipboard,
 } from '../../shared/venueEditing.js';
 import { normalizeBounds, type PlanBounds } from '../../shared/selection.js';
@@ -73,11 +73,6 @@ type VenueDraft = {
   floorFinish: string | undefined;
   reportTemplates: ReportTemplate[];
 };
-
-function pruneHangPlan(plan: HangPlan, trusses: readonly Truss[]): HangPlan {
-  const valid = new Set(trusses.flatMap(truss => truss.hangPoints.map(point => point.id)));
-  return { fixtures: plan.fixtures.filter(fixture => valid.has(fixture.hangPointId)) };
-}
 
 function draftFromVenue(venue: VenueGeometry, draft: VenueDraft): VenueDraft {
   const trusses = venue.trusses ?? [];
