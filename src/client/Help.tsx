@@ -120,9 +120,10 @@ export function Help({ topic }: { topic?: string }) {
 
     <section id="hilfe-raumsicht">
       <h2>Raumsicht</h2>
-      <p>Unter <strong>Licht</strong> rechts finden Sie Grundlicht, Scheinwerfer und Lichtlooks.
-        Unter <strong>Anzeige</strong> schalten Sie Beschriftungen, Traversen und Scheinwerfer ein oder aus und stellen die Renderqualität ein.
-        Diese Einstellungen lassen der Zeichenfläche ihre volle Höhe.</p>
+      <p>Unter <strong>Licht</strong> rechts finden Sie Grundlicht und Lichtlooks.
+        Das <strong>Lichtpult</strong> öffnen Sie in der Raumsicht-Toolbar — es erscheint unter der 3D-Ansicht
+        (Master, Grundlicht, Blackout, Fader je Scheinwerfer; Look laden/speichern).
+        Unter <strong>Anzeige</strong> schalten Sie Beschriftungen, Traversen und Scheinwerfer ein oder aus und stellen die Renderqualität ein.</p>
       <ul>
         <li>Ansichten: Von oben, vorne, Seite, Publikum, Umlauf — und Bühne einpassen.</li>
         <li><strong>Erweiterte Darstellung</strong> nutzt Pascal-Beleuchtung und Texturen; dort wirken Oberflächen.</li>

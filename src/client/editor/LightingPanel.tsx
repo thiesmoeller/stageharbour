@@ -21,7 +21,7 @@ export function LightingPanel({ value = defaultLighting, scope, onChange }: { va
         <LightNumber label="Öffnungswinkel (°)" value={value.beam} min={20} max={120} step={1} onChange={beam => change({ beam })} />
       </div>
     </fieldset>
-    <p>Mit Bühnenlicht: Hauslicht (Front/Gegen/Ambient) und — wenn Scheinwerfer·Hang offen — die Hängeplan-Geräte. Ohne Bühnenlicht bleibt die Raumsicht hell zum Konstruieren; Hang-Daten lassen sich trotzdem bearbeiten.</p></div>
+    <p>Mit Bühnenlicht: Hauslicht (Front/Gegen/Ambient). Offenes Lichtpult steuert Scheinwerfer und skaliert das Grundlicht per Master. Ohne Bühnenlicht bleibt die Raumsicht hell zum Konstruieren.</p></div>
   </details>;
 }
 

@@ -3,10 +3,10 @@ import { defaultLighting, type StageLightingSettings } from '../../shared/lighti
 import { ToolIcon } from './ToolIcon.js';
 import { LightingPanel } from './LightingPanel.js';
 import { LightLooksPanel, type LightLooksPatch } from './LightLooksPanel.js';
-import { FixtureControlOverlay, useBlackoutLevel } from './FixtureControlOverlay.js';
-import { FixtureLiveBoard, useFixtureLiveBoard } from './FixtureLiveBoard.js';
-import type { FixturePreviewMode } from './StageOverhead.js';
-import { lazy, Suspense, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { FixtureControlOverlay } from './FixtureControlOverlay.js';
+import { LightBoardHost } from './LightBoardPanel.js';
+import { createLightBoardLive } from './lightBoardLive.js';
+import { lazy, Suspense, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
 import { WallMesh } from './WallMesh.js';
@@ -20,8 +20,7 @@ import { StageCurtainList } from './StageCurtains.js';
 import { StagePlaceholderList, StagePlaceholders } from './StagePlaceholders.js';
 import type { PlanDisplayOptions } from '../../shared/planDisplay.js';
 import { defaultPlanDisplay } from '../../shared/planDisplay.js';
-import type { HangPlan, LightLookFixtureState } from '../../shared/hangPlan.js';
-import { newLightLook } from '../../shared/hangPlan.js';
+import type { HangPlan } from '../../shared/hangPlan.js';
 
 import type { Asset } from '../../shared/assets.js';
 import type { StageCameraView } from './StageCamera.js';
@@ -70,16 +69,13 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
   const [view, setView] = useState<StageCameraView>(initialView ?? 'orbit');
   const [selectedFixtureId, setSelectedFixtureId] = useState<string | null>(null);
   const [focusAimMode, setFocusAimMode] = useState(false);
-  /** Hang tools (Einrichten / Looks) are optional — closed keeps construction brightness. */
-  const [hangToolsOpen, setHangToolsOpen] = useState(false);
+  /** Lichtpult under the canvas — session faders; open + Bühnenlicht → Scheinwerfer lit. */
+  const [boardOpen, setBoardOpen] = useState(false);
   useEffect(() => { if (dock && dock.active !== 'lighting') setFocusAimMode(false); }, [dock?.active]);
-  const [previewMode, setPreviewMode] = useState<FixturePreviewMode>('setup');
-  const blackout = useBlackoutLevel(1);
-  const live = useFixtureLiveBoard(hangPlan?.fixtures ?? []);
+  /** Stable live store: fader UI writes here; SpotLights read in useFrame (no Pascal remount). */
+  const lightBoardLive = useMemo(() => createLightBoardLive(), []);
   const hasHangFixtures = !!hangPlan?.fixtures.length;
-  /** Live on/off + dark house only with Bühnenlicht + Hang + Einrichten. */
-  const focusPreview = hangToolsOpen && hasHangFixtures && previewMode === 'setup' && lighting.enabled;
-  const canvasPreviewMode: FixturePreviewMode = focusPreview ? 'setup' : 'look';
+  const hangLit = boardOpen && hasHangFixtures && lighting.enabled;
   useEffect(() => { if (initialView) setView(initialView); }, [initialView]);
   useEffect(() => {
     if (!hangPlan?.fixtures.some(fixture => fixture.id === selectedFixtureId)) {
@@ -88,8 +84,8 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
     }
   }, [hangPlan, selectedFixtureId]);
   useEffect(() => {
-    if (!hangToolsOpen) setFocusAimMode(false);
-  }, [hangToolsOpen]);
+    if (!boardOpen) setFocusAimMode(false);
+  }, [boardOpen]);
   function selectFixture(id: string | null, additive = false) {
     if (!id) { setSelectedFixtureId(null); setFocusAimMode(false); return; }
     setSelectedFixtureId(id);
@@ -100,31 +96,12 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
     setView(next);
     onViewChange?.(next);
   }
-  function ensureLookAndPatch(fixtureId: string, patch: Partial<LightLookFixtureState>) {
-    if (!onLightLooksChange) return;
-    let looks = lightLooks;
-    let active = activeLook;
-    if (!active) {
-      active = newLightLook(crypto.randomUUID(), 'Look 1');
-      looks = [active];
-    }
-    const prior = active.fixtures[fixtureId];
-    const nextState: LightLookFixtureState = {
-      intensity: prior?.intensity ?? 100,
-      color: prior?.color ?? '#ffe0b3',
-      ...patch,
-    };
-    const next = { ...active, fixtures: { ...active.fixtures, [fixtureId]: nextState } };
-    onLightLooksChange({
-      lightLooks: looks.map(look => look.id === next.id ? next : look),
-      activeLightLookId: next.id,
-    });
-  }
   const audience = view === 'audience';
   const exportAim = !!onCaptureReady;
   const [enhanced, setEnhanced] = useState(true);
   const simple = !exportAim && !enhanced;
   const simpleCanvas = useRef<HTMLDivElement>(null);
+  const [toolbarHost, setToolbarHost] = useState<HTMLDivElement | null>(null);
   useBlockBrowserZoom(simpleCanvas, simple);
   const [glBroken, setGlBroken] = useState(false);
   useEffect(() => {
@@ -155,6 +132,16 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
           aria-pressed={view === preset.id} onClick={() => chooseView(preset.id)}><ToolIcon name={preset.id} /></button>)}
       </div>
       <span className="camera-projection">{view === 'top' || view === 'front' || view === 'side' ? 'Parallelprojektion' : 'Perspektive'}</span>
+      {!simple && <div ref={setToolbarHost} className="stage-toolbar-tools" role="group" aria-label="3D-Werkzeuge" />}
+      {!exportAim && hasHangFixtures && <button type="button" className="quiet" aria-pressed={boardOpen}
+        onClick={() => {
+          const next = !boardOpen;
+          setBoardOpen(next);
+          if (next && !lighting.enabled && onLightingChange) {
+            onLightingChange({ ...lighting, enabled: true });
+          }
+        }}
+        title="Lichtpult unter der Raumsicht" aria-label="Lichtpult">Lichtpult</button>}
       {!exportAim && <button type="button" className="quiet renderer-toggle" onClick={() => { setEnhanced(value => !value); chooseView('orbit'); }} title={enhanced ? 'Einfache Darstellung' : 'Erweiterte Darstellung'} aria-label={enhanced ? 'Einfache Darstellung' : 'Erweiterte Darstellung'}><ToolIcon name="settings" /></button>}
     </div>
     {glBroken && <p className="error" role="alert">
@@ -164,52 +151,31 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
     </p>}
     <DockPortal panel="lighting">
     {!exportAim && <LightingPanel value={lighting} onChange={onLightingChange} scope={grundlichtScope} />}
-    {!exportAim && hasHangFixtures ? <details className="fixture-hang-panel" open={hangToolsOpen}
-      onToggle={event => setHangToolsOpen(event.currentTarget.open)}>
-      <summary>Scheinwerfer · Hang{hangToolsOpen ? '' : ` (${hangPlan!.fixtures.length})`}</summary>
-      {!lighting.enabled && <p className="muted" style={{ margin: '0 10px 8px', padding: 0, fontSize: 10 }}>
-        Bühnenlicht aus · Konstruktion hell. Zum Vorschau der Scheinwerfer: Bühnenlicht aktivieren.
-      </p>}
-      <div className="fixture-preview-mode" role="group" aria-label="Lichtvorschau">
-        <button type="button" className="quiet" aria-pressed={previewMode === 'setup'}
-          onClick={() => setPreviewMode('setup')}>Einrichten</button>
-        <button type="button" className="quiet" aria-pressed={previewMode === 'look'}
-          onClick={() => setPreviewMode('look')}>Lichtlook</button>
-      </div>
-      {previewMode === 'setup'
-        ? <FixtureLiveBoard hangPlan={hangPlan!} selectedFixtureId={selectedFixtureId}
-          onSelectFixture={selectFixture} live={live} />
-        : <LightLooksPanel looks={lightLooks} activeLookId={layout.activeLightLookId ?? activeLook?.id}
-          hangPlan={hangPlan!} selectedFixtureId={selectedFixtureId}
-          onSelectFixture={id => selectFixture(id)}
-          onChange={onLightLooksChange} />}
-    </details> : null}
-    {!exportAim && hangToolsOpen && selectedFixture && hangPlan && <FixtureControlOverlay
+    {!exportAim && hasHangFixtures && <LightLooksPanel looks={lightLooks} activeLookId={layout.activeLightLookId ?? activeLook?.id}
+      hangPlan={hangPlan!} selectedFixtureId={selectedFixtureId}
+      onSelectFixture={id => selectFixture(id)}
+      onChange={onLightLooksChange} />}
+    {!exportAim && boardOpen && selectedFixture && hangPlan && <FixtureControlOverlay
       fixture={selectedFixture}
-      lookState={activeLook?.fixtures[selectedFixture.id]}
       hangPlan={hangPlan}
       trusses={venue.trusses ?? []}
       stageWidth={venue.width}
       stageDepth={venue.depth}
-      canEditLook={!!onLightLooksChange && previewMode === 'look'}
       canEditFocus={!!onHangPlanChange}
       focusAimMode={focusAimMode}
       onFocusAimMode={setFocusAimMode}
-      onLookPatch={patch => ensureLookAndPatch(selectedFixture.id, patch)}
       onHangPlanChange={onHangPlanChange}
-      blackout={blackout}
       onClose={() => selectFixture(null)}
     />}
     </DockPortal>
     {!simple ? <Suspense fallback={<p role="status">Raumsicht wird geladen …</p>}><PascalStageCanvas model={model} layout={layout} venue={venue} audience={audience} view={view} assets={assets} workspaceId={workspaceId} lighting={lighting} planDisplay={planDisplay} onCaptureReady={onCaptureReady} aimOnly={exportAim}
-      selectedFixtureId={hangToolsOpen ? selectedFixtureId : null}
-      onFixtureSelect={hangToolsOpen ? id => selectFixture(id) : undefined}
-      focusAimMode={hangToolsOpen && focusAimMode}
+      selectedFixtureId={boardOpen ? selectedFixtureId : null}
+      onFixtureSelect={boardOpen ? id => selectFixture(id) : undefined}
+      focusAimMode={boardOpen && focusAimMode}
       onHangPlanChange={onHangPlanChange}
-      blackoutLevel={hangToolsOpen ? blackout.level : 1}
-      previewMode={canvasPreviewMode}
-      liveOn={focusPreview ? id => live.isOn(id) : undefined}
-      showFixturePools={hangToolsOpen}
+      lightBoardLive={lightBoardLive}
+      showFixturePools={boardOpen}
+      toolbarHost={toolbarHost}
       {...editing} /></Suspense> : <div ref={simpleCanvas} className="stage-canvas" role="img" aria-label="Raumsicht der Spielstätte">
       <Canvas shadows key={audience ? 'audience' : 'orbit'} gl={{ antialias: true, alpha: false }} dpr={[1, 2]}>
         <ambientLight intensity={0.85} />
@@ -234,14 +200,25 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
         {!audience && <OrbitControls makeDefault enableDamping={false} target={[target.x, target.y, target.z]} />}
       </Canvas>
     </div>}
+    {!exportAim && boardOpen && hasHangFixtures && hangPlan && <LightBoardHost
+      hangPlan={hangPlan}
+      live={lightBoardLive}
+      activeLook={activeLook}
+      selectedFixtureId={selectedFixtureId}
+      onSelectFixture={selectFixture}
+      looks={lightLooks}
+      canSaveLook={!!onLightLooksChange}
+      onLightLooksChange={onLightLooksChange}
+    />}
+    {!hangLit && boardOpen && hasHangFixtures && !lighting.enabled && <p className="muted light-board-hint">
+      Bühnenlicht aus · nur Ansicht. Scheinwerfer-Vorschau braucht Bearbeitungsrecht für Bühnenlicht.
+    </p>}
     <DockPortal panel="properties"><p className="muted">{audience
       ? 'Publikumssicht · Blick von vorne auf die Bühne (wie der Pfeil im Grundriss) · links im Grundriss = links hier · Vorderseite dunkel'
       : focusAimMode
         ? 'Zielpunkt: auf Boden, Wand oder Bühnenobjekt klicken'
-        : hasHangFixtures && hangToolsOpen
-          ? previewMode === 'setup'
-            ? 'Einrichten · Schalterleiste Alle an/aus · Solo · Ausrichtung/Klappen am Hang'
-            : 'Lichtlook · Stimmung je Scheinwerfer · Hang bleibt'
+        : hasHangFixtures && boardOpen
+          ? 'Lichtpult · Master / Grundlicht / Blackout / Fader · Look laden oder speichern · Ausrichtung am Hang'
           : 'Vorderseite (Sperrholz, dunkel) · Rückseite (Holzrahmen, hell) · Stützen als Dreieckskörper · Ziehen zum Drehen · links/rechts wie im Grundriss'}</p>
     {!exportAim && <details className="stage-measurements"><summary>Objektmaße und Ausrichtung</summary>
     <ul aria-label="Wände in der Raumsicht">{model.walls.map(wall => <li key={wall.id} data-testid={`stage-wall-${wall.id}`}

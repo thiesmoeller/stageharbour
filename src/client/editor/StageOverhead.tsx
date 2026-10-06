@@ -1,5 +1,5 @@
 import type { OverheadBox } from '../../shared/overhead.js';
-import type { HangPlan, LightLook } from '../../shared/hangPlan.js';
+import type { HangPlan } from '../../shared/hangPlan.js';
 import { fixtureFloorPool, resolveFixtureAim } from '../../shared/hangPlan.js';
 import { trussHangWorld, type Truss } from '../../shared/truss.js';
 
@@ -118,24 +118,4 @@ export function fixtureHangPose(fixture: HangPlan['fixtures'][number], trusses: 
   const hangPos = { x: world.x, y: truss.bottomHeight, z: world.y };
   const { aim } = resolveFixtureAim(hangPos, fixture.focus, { x: stageWidth / 2, z: stageDepth / 2 }, 50);
   return { hang: hangPos, aim };
-}
-
-export type FixturePreviewMode = 'setup' | 'look';
-
-export function lookLevelForFixture(
-  look: LightLook | undefined,
-  fixtureId: string,
-  options: { blackoutLevel?: number; mode?: FixturePreviewMode; liveOn?: boolean } = {},
-) {
-  const blackout = Math.max(0, Math.min(1, options.blackoutLevel ?? 1));
-  const state = look?.fixtures[fixtureId];
-  const color = state?.color ?? '#ffe0b3';
-  if (options.mode === 'setup') {
-    if (options.liveOn === false) return { intensity: 0, color };
-    return { intensity: 100 * blackout, color };
-  }
-  return {
-    intensity: (state?.intensity ?? 100) * blackout,
-    color,
-  };
 }

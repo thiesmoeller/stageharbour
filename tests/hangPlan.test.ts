@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 import {
   clippedBeamDegrees, defaultFocusTowardCentre, emptyHangPlan, fixtureAimPoint, fixtureFloorPool, focusTowardPoint, hangPlanFitsTrusses, hangPlanSchema, lightLookSchema,
-  newLightLook, newLightingFixture, openBarnDoors, planMmToViewMetres, resolveFixtureAim,
+  newLightLook, newLightingFixture, openBarnDoors, patchFixtureType, planMmToViewMetres, resolveFixtureAim,
 } from '../src/shared/hangPlan.js';
 import { layoutSchema, venueGeometrySchema } from '../src/shared/layout.js';
 import { defaultPlanDisplay } from '../src/shared/planDisplay.js';
@@ -132,13 +132,23 @@ test('hang fixture focus stores pan/tilt; looks keep intensity only', () => {
   assert.equal(lightLookSchema.parse(look).fixtures[fixture.id]!.intensity, 40);
 });
 
-test('planMmToViewMetres mirrors X to match Raumsicht audience-left flip', () => {
-  const width = 10000;
-  // Plan-left (x=1000) must land on the right in view metres after mirror.
-  const left = planMmToViewMetres(1000, 3500, 2000, width, 1);
-  assert.equal(left.x, 9);
-  assert.equal(left.y, 3.5);
-  assert.equal(left.z, 2);
-  const centre = planMmToViewMetres(5000, 0, 3000, width, 1);
-  assert.equal(centre.x, 5);
+test('patchFixtureType switches Gerätetyp and clears barn doors on wash', () => {
+  const trussId = randomUUID();
+  const hangId = randomUUID();
+  const id = randomUUID();
+  const plan = hangPlanSchema.parse({
+    fixtures: [newLightingFixture(id, trussId, hangId, 'fresnel', {
+      barnDoorsAttached: true,
+      focus: { pan: 5, tilt: 20, beam: 50, barnDoors: openBarnDoors },
+    })],
+  });
+  const wash = patchFixtureType(plan, id, 'wash');
+  assert.equal(wash.fixtures[0]!.typeId, 'wash');
+  assert.equal(wash.fixtures[0]!.barnDoorsAttached, false);
+  assert.equal(wash.fixtures[0]!.focus?.barnDoors, undefined);
+  assert.equal(wash.fixtures[0]!.focus?.beam, undefined);
+  assert.equal(wash.fixtures[0]!.focus?.pan, 5);
+  const flood = patchFixtureType(wash, id, 'flood');
+  assert.equal(flood.fixtures[0]!.typeId, 'flood');
+  assert.equal(flood.fixtures[0]!.barnDoorsAttached, false);
 });

@@ -25,8 +25,8 @@ The product used **scene** for the editable set document, which collides with a 
 
 - **Venue** owns Traversen, hang points, and the **hang plan** (what is hung where **and** default focus: pan/tilt, beam, Flügelblenden). New fixtures get a **Grundausrichtung** toward stage centre. Rehanging is rare; typical work is aim / barn doors on the existing hang. Per-Stück tweaks edit that hang (venue dirty until saved).
 - **Stage layout** owns set geometry and **light looks** (intensity + colour snapshots for moods). Looks do not move the hang.
-- **Raumsicht** has two preview modes: **Einrichten** (switch strip — Alle an / Alle aus / Solo / per-fixture on=full off=0, like focus workflow) and **Lichtlook** (mood levels). Click a Scheinwerfer for aim/klappen when hang is editable.
-- **No** cue lists, console playback, or DMX live control.
+- **Raumsicht** uses one **session light board** under the 3D view (Master, Grundlicht master, Blackout, Alle an/aus, Solo, per-fixture faders). Output priority is fixed: `blackout × master × (on ? level : 0)`. Looks are **load/save** only (“Look laden” / “In Look speichern”); fader moves are not auto-saved. Click a Scheinwerfer for aim/klappen when hang is editable.
+- **No** cue lists, console playback, or DMX live control. The light board is preview, not a desk.
 - The millimetre layout stays authoritative ([ADR 0003](0003-keep-owned-layout-editor.md)); visualisation reads hang + look from that model.
 
 This narrows “phase two lighting” in [planner decisions](../planner-decisions.md): hang + looks yes; console no.
