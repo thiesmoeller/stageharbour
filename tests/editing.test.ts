@@ -12,6 +12,7 @@ import {
   copyVenueSelection, cutVenueSelection, pasteVenueSelection, removeVenueSelection, transformVenue, venueObjectsInBounds,
 } from '../src/shared/venueEditing.js';
 import { stageModel } from '../src/shared/transforms.js';
+import { newLightingFixture } from '../src/shared/hangPlan.js';
 
 test('mixed 2D/3D transforms rotate around one pivot, preserve model identity and undo in one step', () => {
   const wall = newWall(randomUUID(), 1000, 1000), brace = newBrace(randomUUID(), 3000, 1000);
@@ -115,6 +116,51 @@ test('venue rubberband, clipboard and dependent deletion keep platform reference
   assert.equal(cut.venue.walls!.length, 1);
   const restored = pasteVenueSelection(cut.venue, cut.clipboard!, randomUUID);
   assert.equal(restored.venue.walls!.find(item => item.id === wall.id)?.x, wall.x);
+});
+
+test('copying a truss duplicates hang points and lighting fixtures with new identities', () => {
+  const trussId = randomUUID();
+  const hangA = randomUUID();
+  const hangB = randomUUID();
+  const fixtureA = randomUUID();
+  const fixtureB = randomUUID();
+  const truss = {
+    id: trussId, label: 'T1', x: 4000, y: 3000, rotation: 0,
+    length: 6000, sectionWidth: 400, bottomHeight: 3500, thickness: 300,
+    hangPoints: [{ id: hangA, offsetMm: -1000 }, { id: hangB, offsetMm: 1000 }],
+  };
+  const venue = {
+    schemaVersion: 1 as const, width: 12000, depth: 8000,
+    trusses: [truss],
+    hangPlan: {
+      fixtures: [
+        newLightingFixture(fixtureA, trussId, hangA, 'fresnel', { label: 'F1' }),
+        newLightingFixture(fixtureB, trussId, hangB, 'flood', { label: 'F2' }),
+      ],
+    },
+  };
+  const pasted = pasteVenueSelection(venue, copyVenueSelection(venue, [trussId])!, randomUUID, { x: 0, y: 1500 });
+  assert.equal(pasted.venue.trusses!.length, 2);
+  assert.equal(pasted.venue.hangPlan!.fixtures.length, 4);
+  const copyTruss = pasted.venue.trusses!.find(item => item.id !== trussId)!;
+  assert.notEqual(copyTruss.hangPoints[0]!.id, hangA);
+  assert.notEqual(copyTruss.hangPoints[1]!.id, hangB);
+  const copyFixtures = pasted.venue.hangPlan!.fixtures.filter(item => item.trussId === copyTruss.id);
+  assert.equal(copyFixtures.length, 2);
+  assert.deepEqual(copyFixtures.map(item => item.label).sort(), ['F1', 'F2']);
+  assert.ok(copyFixtures.every(item => item.id !== fixtureA && item.id !== fixtureB));
+  assert.ok(copyFixtures.every(item => copyTruss.hangPoints.some(hang => hang.id === item.hangPointId)));
+  const removed = removeVenueSelection(venue, [trussId]);
+  assert.equal(removed.blocked, false);
+  assert.equal(removed.venue.trusses!.length, 0);
+  assert.equal(removed.venue.hangPlan?.fixtures.length ?? 0, 0);
+  const cut = cutVenueSelection(venue, [trussId]);
+  assert.equal(cut.blocked, false);
+  assert.equal(cut.venue.hangPlan?.fixtures.length ?? 0, 0);
+  const restored = pasteVenueSelection(cut.venue, cut.clipboard!, randomUUID, { x: 500, y: 0 });
+  assert.equal(restored.venue.trusses!.length, 1);
+  assert.equal(restored.venue.hangPlan!.fixtures.length, 2);
+  assert.equal(restored.venue.hangPlan!.fixtures[0]!.id, fixtureA);
 });
 
 test('marquee clipboard and deletion include models; copy keeps asset references, cut keeps placement identities', () => {

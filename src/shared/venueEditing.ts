@@ -5,8 +5,9 @@ import { normalizeRotation, type PlanTransform } from './editing.js';
 import { resolveWall } from './wall-types.js';
 import { boundsContain, type PlanBounds } from './selection.js';
 import { overheadBoxCorners } from './overhead.js';
-import { trussCorners } from './truss.js';
+import { trussCorners, type Truss } from './truss.js';
 import { curtainCorners } from './curtains.js';
+import { type HangPlan, type LightingFixture } from './hangPlan.js';
 
 export function venueObjects(venue: VenueGeometry) {
   return [
@@ -63,6 +64,12 @@ export function cutVenueSelection(venue: VenueGeometry, ids: readonly string[]) 
   const removed = removeVenueSelection(venue, ids);
   return removed.blocked ? { venue, blocked: true as const } : { venue: removed.venue, clipboard, blocked: false as const };
 }
+/** Keep hang fixtures whose hang points still exist on remaining trusses. */
+export function pruneHangPlan(plan: HangPlan | undefined, trusses: readonly Truss[]): HangPlan {
+  const valid = new Set(trusses.flatMap(truss => truss.hangPoints.map(point => point.id)));
+  return { fixtures: (plan?.fixtures ?? []).filter(fixture => valid.has(fixture.hangPointId)) };
+}
+
 /** Deletion is atomic: retaining a dependent object must not leave an unknown platform reference. */
 export function removeVenueSelection(venue: VenueGeometry, ids: readonly string[]): { venue: VenueGeometry; blocked: boolean } {
   const platforms = new Set((venue.platforms ?? []).filter(p => ids.includes(p.id)).map(p => p.id));
@@ -71,9 +78,11 @@ export function removeVenueSelection(venue: VenueGeometry, ids: readonly string[
   if (dependent) return { venue, blocked: true };
   const next = { ...venue };
   for (const key of objectFields) Object.assign(next, { [key]: venue[key]?.filter(item => !ids.includes(item.id)) });
+  next.hangPlan = pruneHangPlan(venue.hangPlan, next.trusses ?? []);
   return { venue: next, blocked: false };
 }
-/** Clipboard stays within its venue draft; selected platform references are remapped together. */
+/** Clipboard stays within its venue draft; selected platform references are remapped together.
+ *  Copy remaps truss hang-point and lighting-fixture IDs so Scheinwerfer stay attached. */
 export function pasteVenueSelection(
   venue: VenueGeometry,
   clipboard: VenueClipboard,
@@ -81,6 +90,13 @@ export function pasteVenueSelection(
   offset = clipboard.offset,
 ) {
   const ids = new Map(clipboard.ids.map(old => [old, clipboard.cut ? old : id()]));
+  const hangPointIds = new Map<string, string>();
+  if (!clipboard.cut) {
+    for (const truss of clipboard.source.trusses ?? []) {
+      if (!ids.has(truss.id)) continue;
+      for (const hang of truss.hangPoints) hangPointIds.set(hang.id, id());
+    }
+  }
   const source = transformVenue(clipboard.source, clipboard.ids, { x: offset.x, y: offset.y, rotation: 0 });
   // Never silently paste at the original location when a non-zero offset exceeded coordinate limits.
   if ((offset.x || offset.y) && source === clipboard.source) return { venue, ids: [] as string[] };
@@ -91,9 +107,39 @@ export function pasteVenueSelection(
       if ('supportingSurfaceId' in copy && copy.supportingSurfaceId) copy.supportingSurfaceId = ids.get(copy.supportingSurfaceId) ?? copy.supportingSurfaceId;
       if ('lowerSurfaceId' in copy) { copy.lowerSurfaceId = ids.get(copy.lowerSurfaceId) ?? copy.lowerSurfaceId; copy.upperSurfaceId = ids.get(copy.upperSurfaceId) ?? copy.upperSurfaceId; }
       if ('panelId' in copy && !clipboard.cut) { delete copy.panelId; delete copy.finishAssignment; delete copy.assemblyNumber; }
+      if (key === 'trusses' && !clipboard.cut) {
+        (copy as Truss).hangPoints = (item as Truss).hangPoints.map(hang => ({
+          ...hang,
+          id: hangPointIds.get(hang.id) ?? hang.id,
+        }));
+      }
       return copy;
     }) ?? [];
     Object.assign(next, { [key]: [...venue[key] ?? [], ...added] });
+  }
+  const existingFixtureIds = new Set((venue.hangPlan?.fixtures ?? []).map(fixture => fixture.id));
+  const addedFixtures: LightingFixture[] = [];
+  for (const fixture of source.hangPlan?.fixtures ?? []) {
+    const nextTrussId = ids.get(fixture.trussId);
+    if (!nextTrussId) continue;
+    if (clipboard.cut) {
+      if (existingFixtureIds.has(fixture.id)) continue;
+      addedFixtures.push({ ...fixture, trussId: nextTrussId });
+      continue;
+    }
+    const nextHangId = hangPointIds.get(fixture.hangPointId);
+    if (!nextHangId) continue;
+    addedFixtures.push({
+      ...fixture,
+      id: id(),
+      trussId: nextTrussId,
+      hangPointId: nextHangId,
+    });
+  }
+  if (addedFixtures.length || venue.hangPlan || source.hangPlan) {
+    next.hangPlan = {
+      fixtures: [...(venue.hangPlan?.fixtures ?? []), ...addedFixtures],
+    };
   }
   const all = venueObjects(next).map(item => item.id);
   if (new Set(all).size !== all.length || !venueGeometrySchema.safeParse(next).success) return { venue, ids: [] as string[] };
