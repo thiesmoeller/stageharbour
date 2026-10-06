@@ -3,17 +3,15 @@ import { Line } from '@react-three/drei';
 import { Shape, ShapeGeometry, DoubleSide } from 'three';
 import type { StageNode } from './pascalScene.js';
 import { StageCurtains } from './StageCurtains.js';
-import { LightingFixtureMesh, fixtureHangPose, lookLevelForFixture } from './StageOverhead.js';
-import type { HangPlan, LightLook } from '../../shared/hangPlan.js';
+import { LightingFixtureMesh, fixtureHangPose } from './StageOverhead.js';
+import type { HangPlan } from '../../shared/hangPlan.js';
+import type { FixtureBoardOutput } from '../../shared/lightBoard.js';
 
-export function StageConstraint({ element, elevation = 0, hangPlan, activeLook, blackoutLevel = 1, previewMode = 'look', liveOn, showTrusses = true, showLightingFixtures = true, stageWidth = 0, stageDepth = 0, selectedFixtureId, onFixtureSelect }: {
+export function StageConstraint({ element, elevation = 0, hangPlan, fixtureLevel, showTrusses = true, showLightingFixtures = true, stageWidth = 0, stageDepth = 0, selectedFixtureId, onFixtureSelect }: {
   element: StageNode['element'];
   elevation?: number;
   hangPlan?: HangPlan;
-  activeLook?: LightLook;
-  blackoutLevel?: number;
-  previewMode?: import('./StageOverhead.js').FixturePreviewMode;
-  liveOn?: (fixtureId: string) => boolean;
+  fixtureLevel?: (fixtureId: string) => FixtureBoardOutput;
   showTrusses?: boolean;
   showLightingFixtures?: boolean;
   stageWidth?: number;
@@ -57,9 +55,7 @@ export function StageConstraint({ element, elevation = 0, hangPlan, activeLook, 
       {showLightingFixtures && fixtures.map(fixture => {
         const pose = fixtureHangPose(fixture, [truss], stageWidth, stageDepth);
         if (!pose) return null;
-        const level = lookLevelForFixture(activeLook, fixture.id, {
-          blackoutLevel, mode: previewMode, liveOn: liveOn?.(fixture.id) ?? true,
-        });
+        const level = fixtureLevel?.(fixture.id) ?? { intensity: 0, color: '#ffe0b3' };
         const beamDeg = fixture.focus?.beam ?? 40;
         return <LightingFixtureMesh key={fixture.id} id={fixture.id}
           x={pose.hang.x} y={pose.hang.y} z={pose.hang.z}

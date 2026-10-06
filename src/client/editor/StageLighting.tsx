@@ -3,6 +3,8 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { Color, Group, type Light, Object3D } from 'three';
 import type { StageLightingSettings } from '../../shared/lighting.js';
 import { planMmToViewMetres } from '../../shared/hangPlan.js';
+import { resolveHouseScale } from '../../shared/lightBoard.js';
+import type { LightBoardLive } from './lightBoardLive.js';
 
 function underTheatre(object: Object3D, root: Object3D) {
   for (let node: Object3D | null = object; node; node = node.parent) if (node === root) return true;
@@ -15,14 +17,11 @@ function isFixtureSpot(light: Light) {
 
 /**
  * Theatre mood lights (Grundlicht) + studio fill when Bühnenlicht is off.
- *
- * `fixtureFocus`: Hang/Einrichten — almost no fill so fixture SpotLights + shadows
- * read between objects (ambient would otherwise light “through” molton).
+ * House scale is read from `lightBoardLive` each frame (no React remount on fader).
  */
-export function StageLighting({ settings, width, depth, environmentKey = '', units = 1, setupDim = 1, fixtureFocus = false }: {
+export function StageLighting({ settings, width, depth, environmentKey = '', units = 1, lightBoardLive }: {
   settings: StageLightingSettings; width: number; depth: number; environmentKey?: string; units?: number;
-  setupDim?: number;
-  fixtureFocus?: boolean;
+  lightBoardLive?: LightBoardLive;
 }) {
   const root = useRef<Group>(null);
   const scene = useThree(state => state.scene);
@@ -31,10 +30,11 @@ export function StageLighting({ settings, width, depth, environmentKey = '', uni
   const priorBackground = useRef<typeof scene.background>(undefined);
   const house = useRef(new Color());
   const theatre = settings.enabled;
-  const dim = fixtureFocus ? Math.min(setupDim, 0.08) : Math.max(0.05, Math.min(1, setupDim));
+  const bases = useRef(new Map<Light, number>());
 
   useLayoutEffect(() => {
     priorBackground.current = scene.background;
+    bases.current.clear();
     return () => {
       for (const [light, prior] of suppressed.current) {
         light.visible = prior.visible;
@@ -44,23 +44,28 @@ export function StageLighting({ settings, width, depth, environmentKey = '', uni
       suppressed.current.clear();
       if (priorBackground.current !== undefined) scene.background = priorBackground.current;
     };
-  }, [environmentKey, scene]);
+  }, [environmentKey, scene, settings]);
 
   useFrame(() => {
     if (!root.current) return;
+    const dim = lightBoardLive ? resolveHouseScale(lightBoardLive.get()) : 1;
     const fill = theatre ? settings.ambient / 100 : 0;
-    if (fixtureFocus) {
-      scene.environmentIntensity = 0.04;
-      scene.background = house.current.setRGB(0.01, 0.011, 0.013);
-    } else if (theatre) {
+    if (theatre) {
       scene.environmentIntensity = fill * 0.55 * dim;
       const g = fill * dim * 0.07;
       scene.background = house.current.setRGB(0.004 + g, 0.004 + g * 1.05, 0.006 + g * 1.1);
     } else {
-      const studioEnv = Math.max(0.55, Math.min(scene.environmentIntensity || 0.7, 1)) * dim;
+      const studioEnv = Math.max(0.55, Math.min(scene.environmentIntensity || 0.7, 1)) * Math.max(dim, 0.55);
       scene.environmentIntensity = studioEnv;
       if (priorBackground.current !== undefined) scene.background = priorBackground.current;
     }
+    root.current.traverse(object => {
+      if (!object.type.endsWith('Light')) return;
+      const light = object as Light;
+      if (!bases.current.has(light)) bases.current.set(light, light.intensity);
+      const base = bases.current.get(light) ?? light.intensity;
+      light.intensity = base * dim;
+    });
     scene.traverse(object => {
       if (!object.type.endsWith('Light')) return;
       const light = object as Light;
@@ -79,20 +84,13 @@ export function StageLighting({ settings, width, depth, environmentKey = '', uni
   const w = width / 1000 * units, d = depth / 1000 * units, h = (theatre ? settings.height : 4500) / 1000 * units;
   const frontZ = -Math.max(d * 0.45, 2 * units);
   const backZ = d + Math.max(d * 0.2, 1 * units);
-  const front = (theatre ? settings.front : 90) * dim;
-  const back = (theatre ? settings.back : 25) * dim;
-  const ambient = (theatre ? settings.ambient : 35) * dim;
+  const front = theatre ? settings.front : 90;
+  const back = theatre ? settings.back : 25;
+  const ambient = theatre ? settings.ambient : 35;
   const frontColor = theatre ? settings.frontColor : '#ffffff';
   const backColor = theatre ? settings.backColor : '#d0d8e8';
-  const ambientIntensity = fixtureFocus ? 0.035 : ambient / 40;
+  const ambientIntensity = ambient / 40;
   const keyTarget = planMmToViewMetres(width / 2, 800, depth * 0.45, width, units);
-
-  // Hang focus: only a whisper of fill — fixture spots do the lighting.
-  if (fixtureFocus) {
-    return <group ref={root} name="theatre-lighting">
-      <ambientLight intensity={ambientIntensity} />
-    </group>;
-  }
 
   return <group ref={root} name="theatre-lighting">
     <primitive object={target} position={[keyTarget.x, keyTarget.y, keyTarget.z]} />

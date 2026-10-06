@@ -61,24 +61,26 @@ test('Traversen hang points, Scheinwerfer assign, and display toggles', async ({
   await expect(page.getByTestId('stage-view')).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('[data-renderer="pascal"]')).toBeVisible({ timeout: 30_000 });
   await page.getByRole('button', { name: 'Licht', exact: true }).click();
-  const canvasHeight = (await page.locator('[data-renderer="pascal"]').boundingBox())!.height;
-  await page.locator('details.fixture-hang-panel > summary').click();
-  await expect(page.getByRole('button', { name: 'Einrichten' })).toBeVisible();
   const theatre = page.getByLabel('Bühnenlicht aktivieren');
-  if (!(await theatre.isChecked())) {
-    // Panel may be collapsed — open Grundlicht if needed
-    const grund = page.locator('details.lighting-panel');
-    if (!(await grund.getAttribute('open'))) await grund.locator('summary').click();
-    await theatre.check();
-  }
-  await expect(page.getByTestId('fixture-live-board')).toBeVisible();
+  const grund = page.locator('details.lighting-panel').first();
+  if (!(await grund.getAttribute('open'))) await grund.locator('summary').click();
+  if (await theatre.isChecked()) await theatre.uncheck();
+  await expect(theatre).not.toBeChecked();
+  await page.getByRole('button', { name: 'Lichtpult', exact: true }).click();
+  await expect(theatre).toBeChecked();
+  await expect(page.getByTestId('light-board')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Alle an' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Alle aus' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Blackout', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Alle aus' }).click();
-  await page.locator('.fixture-live-switch').first().click();
+  await page.locator('.light-board-on').first().click();
   await expect(page.getByTestId('fixture-desk')).toBeVisible();
   await expect(page.getByRole('region', { name: 'Licht', exact: true }).getByTestId('fixture-desk')).toBeVisible();
-  expect((await page.locator('[data-renderer="pascal"]').boundingBox())!.height).toBe(canvasHeight);
+  const typeSelect = page.getByLabel('F1 Gerätetyp');
+  await expect(typeSelect).toBeVisible();
+  await typeSelect.selectOption('flood');
+  await expect(typeSelect).toHaveValue('flood');
+  await expect(page.getByTestId('light-board')).toBeVisible();
   const started = Date.now();
   await expect.poll(() => (Date.now() - started < 2000 ? -1 : glErrors.length)).toBe(0);
 });

@@ -1,7 +1,5 @@
-import { useEffect, useState } from 'react';
 import {
-  builtInFixtureTypes, newLightLook, type HangPlan, type LightLook, type LightLookFixtureState,
-  type LightingFixture,
+  builtInFixtureTypes, newLightLook, type HangPlan, type LightLook,
 } from '../../shared/hangPlan.js';
 
 export type LightLooksPatch = {
@@ -9,6 +7,7 @@ export type LightLooksPatch = {
   activeLightLookId?: string;
 };
 
+/** Look list management — intensity/colour live on the session light board. */
 export function LightLooksPanel({ looks = [], activeLookId, hangPlan, selectedFixtureId, onSelectFixture, onChange }: {
   looks?: LightLook[];
   activeLookId?: string;
@@ -42,26 +41,11 @@ export function LightLooksPanel({ looks = [], activeLookId, hangPlan, selectedFi
     commit(looks.map(look => look.id === id ? { ...look, name } : look), activeLookId);
   }
 
-  function patchFixture(fixtureId: string, patch: Partial<LightLookFixtureState>) {
-    if (!active) return;
-    const prior = active.fixtures[fixtureId];
-    const nextState: LightLookFixtureState = {
-      intensity: prior?.intensity ?? 100,
-      color: prior?.color ?? '#ffe0b3',
-      ...patch,
-    };
-    const next: LightLook = {
-      ...active,
-      fixtures: { ...active.fixtures, [fixtureId]: nextState },
-    };
-    commit(looks.map(look => look.id === active.id ? next : look), active.id);
-  }
-
   return <details className="lighting-panel light-looks-panel" data-testid="light-looks-panel">
     <summary>Lichtlook{active ? ` · ${active.name}` : ''}</summary>
     <div className="lighting-controls">
       <p>{onChange
-        ? 'Looks = Intensität und Farbe je Scheinwerfer (kein grandMA). Ausrichtung gehört zum Hang auf der Spielstätte.'
+        ? 'Looks speichern Intensität und Farbe. Pegel stellen Sie im Lichtpult unter der Raumsicht; Ausrichtung gehört zum Hang.'
         : 'Gespeicherter Lichtlook · nur Ansicht.'}</p>
       <fieldset disabled={!onChange}>
         <div className="light-looks-toolbar">
@@ -75,49 +59,23 @@ export function LightLooksPanel({ looks = [], activeLookId, hangPlan, selectedFi
         </div>
         {active && <label>Name<input aria-label="Lichtlook umbenennen" value={active.name}
           onChange={event => renameLook(active.id, event.target.value)} /></label>}
-        {active && <div className="light-look-fixtures">
-          {fixtures.map(fixture => <FixtureLookRow key={fixture.id} fixture={fixture}
-            state={active.fixtures[fixture.id]}
-            selected={fixture.id === selectedFixtureId}
-            onSelect={() => onSelectFixture?.(fixture.id === selectedFixtureId ? null : fixture.id)}
-            onChange={patch => patchFixture(fixture.id, patch)} />)}
-        </div>}
+        {active && <ul className="light-look-fixtures" aria-label="Scheinwerfer im Look">
+          {fixtures.map(fixture => {
+            const state = active.fixtures[fixture.id];
+            const type = builtInFixtureTypes[fixture.typeId];
+            const selected = fixture.id === selectedFixtureId;
+            return <li key={fixture.id} className={selected ? 'is-selected' : ''} data-testid={`light-look-fixture-${fixture.id}`}>
+              <button type="button" className="quiet fixture-pick"
+                aria-pressed={selected}
+                onClick={() => onSelectFixture?.(fixture.id === selectedFixtureId ? null : fixture.id)}>
+                <strong>{fixture.label}</strong> · {type.label}
+                <span className="muted"> · {state?.intensity ?? 100} % · {state?.color ?? '#ffe0b3'}</span>
+              </button>
+            </li>;
+          })}
+        </ul>}
         {!active && <p className="muted">Noch kein Lichtlook — „Look hinzufügen“ anlegen.</p>}
       </fieldset>
     </div>
   </details>;
-}
-
-function FixtureLookRow({ fixture, state, selected, onSelect, onChange }: {
-  fixture: LightingFixture;
-  state?: LightLookFixtureState;
-  selected: boolean;
-  onSelect: () => void;
-  onChange: (patch: Partial<LightLookFixtureState>) => void;
-}) {
-  const defaults = builtInFixtureTypes[fixture.typeId];
-  const intensity = state?.intensity ?? 100;
-  const color = state?.color ?? '#ffe0b3';
-  return <div className={`light-look-fixture${selected ? ' is-selected' : ''}`} data-testid={`light-look-fixture-${fixture.id}`}>
-    <button type="button" className="quiet fixture-pick" onClick={onSelect} aria-pressed={selected}>
-      <strong>{fixture.label}</strong> · {defaults.label}
-    </button>
-    <div className="lighting-fields">
-      <LookNumber label="Intensität (%)" value={intensity} min={0} max={200} step={1} onChange={value => onChange({ intensity: value })} />
-      <label>Farbe<input type="color" aria-label={`${fixture.label} Farbe`} value={color}
-        onChange={event => onChange({ color: event.target.value })} /></label>
-    </div>
-  </div>;
-}
-
-function LookNumber({ label, value, min, max, step, onChange }: {
-  label: string; value: number; min: number; max: number; step: number; onChange: (value: number) => void;
-}) {
-  const [text, setText] = useState(String(value));
-  useEffect(() => setText(String(value)), [value]);
-  return <label>{label}<input type="number" value={text} min={min} max={max} step={step}
-    onChange={event => {
-      setText(event.target.value);
-      if (event.target.value !== '' && event.target.validity.valid) onChange(Number(event.target.value));
-    }} onBlur={() => setText(String(value))} /></label>;
 }

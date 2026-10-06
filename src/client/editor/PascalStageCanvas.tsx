@@ -4,6 +4,7 @@ import { ToolIcon } from './ToolIcon.js';
 import { StageLighting } from './StageLighting.js';
 import { FixtureSpotLights } from './FixtureSpotLights.js';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { OrbitControls } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
 import { Viewer, useViewer } from '@pascal-app/viewer';
@@ -23,6 +24,7 @@ import { captureViewportPng } from './StageCapture.js';
 import type { PlanDisplayOptions } from '../../shared/planDisplay.js';
 import { defaultPlanDisplay } from '../../shared/planDisplay.js';
 import { focusTowardPoint, patchFixtureFocus, type HangPlan } from '../../shared/hangPlan.js';
+import type { LightBoardLive } from './lightBoardLive.js';
 import { trussHangWorld } from '../../shared/truss.js';
 
 /** Viewer owns the R3F Canvas, so pointer-miss must be detected via raycast. */
@@ -178,7 +180,7 @@ function PascalCaptureBridge({ onCaptureReady }: { onCaptureReady?: (handle: Sta
   return null;
 }
 
-export default function PascalStageCanvas({ model, layout, venue, audience, view = audience ? 'audience' : 'orbit', assets, workspaceId, lighting = defaultLighting, planDisplay = defaultPlanDisplay, onCaptureReady, aimOnly = false, selectedFixtureId, onFixtureSelect, focusAimMode, onHangPlanChange, blackoutLevel = 1, previewMode = 'look', liveOn, showFixturePools = false, ...editing }: {
+export default function PascalStageCanvas({ model, layout, venue, audience, view = audience ? 'audience' : 'orbit', assets, workspaceId, lighting = defaultLighting, planDisplay = defaultPlanDisplay, onCaptureReady, aimOnly = false, selectedFixtureId, onFixtureSelect, focusAimMode, onHangPlanChange, lightBoardLive, showFixturePools = false, toolbarHost = null, ...editing }: {
   model: StageModel; layout: Layout; venue: VenueGeometry; audience: boolean; view?: StageCameraView; assets: Asset[]; workspaceId: string; lighting?: StageLightingSettings;
   planDisplay?: PlanDisplayOptions;
   onCaptureReady?: (handle: StageCaptureHandle | null) => void;
@@ -187,10 +189,10 @@ export default function PascalStageCanvas({ model, layout, venue, audience, view
   onFixtureSelect?: (id: string | null) => void;
   focusAimMode?: boolean;
   onHangPlanChange?: (plan: HangPlan) => void;
-  blackoutLevel?: number;
-  previewMode?: import('./StageOverhead.js').FixturePreviewMode;
-  liveOn?: (fixtureId: string) => boolean;
+  lightBoardLive?: LightBoardLive;
   showFixturePools?: boolean;
+  /** Host in the top floating stage toolbar (FreeCAD-style); avoids overlapping Lichtpult. */
+  toolbarHost?: HTMLElement | null;
 } & StageEditing) {
   const [focusSelection, setFocusSelection] = useState(false);
   const [frameRevision, setFrameRevision] = useState(0);
@@ -208,7 +210,7 @@ export default function PascalStageCanvas({ model, layout, venue, audience, view
     useViewer.getState().setCameraMode('perspective');
     useViewer.getState().setRenderPaused(false);
   }, []);
-  /** Bühnenlicht + Hang open → Scheinwerfer preview. Hang alone keeps CAD bright. */
+  /** Bühnenlicht + Lichtpult open → Scheinwerfer preview. */
   const hangLit = !!showFixturePools && lighting.enabled;
   useLayoutEffect(() => {
     useViewer.getState().setShadows(hangLit);
@@ -219,26 +221,29 @@ export default function PascalStageCanvas({ model, layout, venue, audience, view
   const mirroredCameraX = mirrorWidth - camera.x;
   const mirroredTargetX = mirrorWidth - target.x;
   const hangPlan = venue.hangPlan;
-  const activeLook = (layout.lightLooks ?? []).find(look => look.id === layout.activeLightLookId)
-    ?? (layout.lightLooks ?? [])[0];
+  const tools = !aimOnly ? <>
+    <button type="button" className="quiet" disabled={!editing.pivot} onClick={() => frame(true)} title="Auswahl einpassen" aria-label="Auswahl einpassen"><ToolIcon name="expand" /></button>
+    <button type="button" className="quiet" onClick={() => frame(false)} title="Bühne einpassen" aria-label="Bühne einpassen"><ToolIcon name="expand" /></button>
+    {editing.onTransform && <>
+      <button type="button" className="quiet" aria-pressed={mode === 'translate'} onClick={() => setMode('translate')} title="3D verschieben" aria-label="3D verschieben"><ToolIcon name="move" /></button>
+      <button type="button" className="quiet" aria-pressed={mode === 'rotate'} onClick={() => setMode('rotate')} title="3D drehen" aria-label="3D drehen"><ToolIcon name="rotate" /></button>
+    </>}
+    {editing.onPushPull && <button type="button" className="quiet" aria-pressed={mode === 'pushPull'} onClick={() => setMode('pushPull')} title="Größe ziehen" aria-label="Größe ziehen"><ToolIcon name="pushPull" /></button>}
+    <DockPortal panel="display"><details className="render-settings" open><summary>Darstellung</summary><div className="render-settings-body"><label>Umgebung <select value={theme} onChange={event => setTheme(event.target.value)}>
+      <option value="studio">Studio</option><option value="paper">Warm</option>
+      <option value="sunset">Abend</option>
+    </select></label>
+    <label><input type="checkbox" checked={detailed} onChange={event => setDetailed(event.target.checked)} /> Hohe Renderqualität</label></div></details></DockPortal>
+  </> : null;
   return <StageInteraction.Provider value={{
     assets, workspaceId, mirrorWidth, model, venueEditable: editing.venueEditable,
     selectedIds: editing.selectedIds ?? [], onSelect: editing.onSelect, onClearSelection: editing.onClearSelection,
     hangPlan, planDisplay, stageWidth: venue.width, stageDepth: venue.depth,
     selectedFixtureId, onFixtureSelect: onFixtureSelect ? (id, _additive) => onFixtureSelect(id) : undefined,
-    activeLook, blackoutLevel, previewMode, liveOn, showFixturePools,
+    lightBoardLive: hangLit ? lightBoardLive : undefined, showFixturePools,
   }}>
     <PascalSceneBridge layout={layout} venue={venue} />
-    {!aimOnly && <div className="render-toolbar">
-      <button type="button" className="quiet" disabled={!editing.pivot} onClick={() => frame(true)}><ToolIcon name="expand" />Auswahl einpassen</button><button type="button" className="quiet" onClick={() => frame(false)}><ToolIcon name="expand" />Bühne einpassen</button>
-      {editing.onTransform && <><button type="button" className="quiet" aria-pressed={mode === 'translate'} onClick={() => setMode('translate')} title="3D verschieben"><ToolIcon name="move" />3D verschieben</button><button type="button" className="quiet" aria-pressed={mode === 'rotate'} onClick={() => setMode('rotate')} title="3D drehen"><ToolIcon name="rotate" />3D drehen</button></>}
-      {editing.onPushPull && <button type="button" className="quiet" aria-pressed={mode === 'pushPull'} onClick={() => setMode('pushPull')} title="Größe ziehen" aria-label="Größe ziehen"><ToolIcon name="expand" />Größe ziehen</button>}
-      <DockPortal panel="display"><details className="render-settings" open><summary>Darstellung</summary><div className="render-settings-body"><label>Umgebung <select value={theme} onChange={event => setTheme(event.target.value)}>
-        <option value="studio">Studio</option><option value="paper">Warm</option>
-        <option value="sunset">Abend</option>
-      </select></label>
-      <label><input type="checkbox" checked={detailed} onChange={event => setDetailed(event.target.checked)} /> Hohe Renderqualität</label></div></details></DockPortal>
-    </div>}
+    {tools && (toolbarHost ? createPortal(tools, toolbarHost) : <div className="render-toolbar">{tools}</div>)}
     <div ref={canvas} className="stage-canvas" role="img" aria-label="Raumsicht der Spielstätte" data-renderer="pascal" data-lighting={lighting.enabled ? 'theatre' : 'studio'}
       data-focus-aim={focusAimMode || undefined}>
       <Viewer defaultRender={{ shading: 'rendered' }} selectionManager="custom" useBvh={false} renderContext="viewer"
@@ -248,10 +253,9 @@ export default function PascalStageCanvas({ model, layout, venue, audience, view
         {!aimOnly && <FocusAimOnSurface enabled={!!focusAimMode} mirrorWidth={mirrorWidth} selectedFixtureId={selectedFixtureId}
           hangPlan={hangPlan} trusses={venue.trusses} onHangPlanChange={onHangPlanChange} />}
         <StageLighting settings={lighting} width={venue.width} depth={venue.depth} environmentKey={theme}
-          fixtureFocus={hangLit && previewMode === 'setup'} />
+          lightBoardLive={hangLit ? lightBoardLive : undefined} />
         <FixtureSpotLights hangPlan={hangPlan} trusses={venue.trusses ?? []} stageWidth={venue.width} stageDepth={venue.depth}
-          activeLook={activeLook} blackoutLevel={blackoutLevel} previewMode={previewMode} liveOn={liveOn}
-          enabled={hangLit} />
+          lightBoardLive={lightBoardLive} enabled={hangLit} />
         <StageCamera key={frameRevision} view={view} span={focusSelection && editing.pivot ? 3 : span} target={[mirroredTargetX / 1000, target.y / 1000, target.z / 1000]}
           position={view === 'top' ? [mirroredTargetX / 1000, span * 2, target.z / 1000] : view === 'side' ? [-span * 2, 2, target.z / 1000] : view === 'front' ? [mirroredTargetX / 1000, 2, -span] : focusSelection && editing.pivot ? [mirroredTargetX / 1000 + 2, 4, target.z / 1000 - 5] : [mirroredCameraX / 1000, camera.y / 1000, camera.z / 1000]} />
         <group position={[mirrorWidth / 1000, 0, 0]} scale={[-1, 1, 1]}>

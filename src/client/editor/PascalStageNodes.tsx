@@ -16,7 +16,10 @@ import { StagePlaceholders } from './StagePlaceholders.js';
 import { StageBraces } from './StageBraces.js';
 import { pascalScene, stageNodeSchema, type StageNode } from './pascalScene.js';
 
-import type { HangPlan, LightLook } from '../../shared/hangPlan.js';
+import type { HangPlan } from '../../shared/hangPlan.js';
+import type { FixtureBoardOutput } from '../../shared/lightBoard.js';
+import { resolveFixtureOutput } from '../../shared/lightBoard.js';
+import type { LightBoardLive } from './lightBoardLive.js';
 import type { PlanDisplayOptions } from '../../shared/planDisplay.js';
 import { defaultPlanDisplay } from '../../shared/planDisplay.js';
 
@@ -27,10 +30,8 @@ export const StageInteraction = createContext<{
   stageWidth?: number; stageDepth?: number;
   selectedFixtureId?: string | null;
   onFixtureSelect?: (id: string, additive: boolean) => void;
-  activeLook?: LightLook;
-  blackoutLevel?: number;
-  previewMode?: import('./StageOverhead.js').FixturePreviewMode;
-  liveOn?: (fixtureId: string) => boolean;
+  fixtureLevel?: (fixtureId: string) => FixtureBoardOutput;
+  lightBoardLive?: LightBoardLive;
   showFixturePools?: boolean;
 }>({ assets: [], workspaceId: '', mirrorWidth: 0, selectedIds: [], planDisplay: defaultPlanDisplay });
 
@@ -101,11 +102,14 @@ function FinishedWall({ wall, surfaces, interactionScope }: {
 
 function StageNodeRenderer({ node }: { node: StageNode }) {
   const ref = useRef<Group>(null!);
-  const { assets, mirrorWidth, model, venueEditable, selectedIds, onSelect, hangPlan, planDisplay, stageWidth, stageDepth, selectedFixtureId, onFixtureSelect, activeLook, blackoutLevel, previewMode, liveOn } = useContext(StageInteraction);
+  const { assets, mirrorWidth, model, venueEditable, selectedIds, onSelect, hangPlan, planDisplay, stageWidth, stageDepth, selectedFixtureId, onFixtureSelect, lightBoardLive } = useContext(StageInteraction);
   useRegistry(node.id, node.type, ref);
   const selected = selectedIds.includes(node.element.value.id);
   const element = node.element;
   if (!model) return null;
+  const fixtureLevel = lightBoardLive
+    ? (fixtureId: string) => resolveFixtureOutput(lightBoardLive.get(), fixtureId)
+    : undefined;
   const content = (() => {
     if (element.kind === 'wall') {
       const wall = model.walls.find(item => item.id === element.value.id);
@@ -116,8 +120,7 @@ function StageNodeRenderer({ node }: { node: StageNode }) {
     if (element.kind === 'overhead' || element.kind === 'truss' || element.kind === 'curtain' || element.kind === 'zone' || element.kind === 'pin' || element.kind === 'corridor') {
       return <group scale={0.001}><StageConstraint element={element}
         elevation={element.kind === 'zone' ? model.platforms.find(p => p.id === element.value.supportingSurfaceId)?.elevation : 0}
-        hangPlan={hangPlan} activeLook={activeLook} blackoutLevel={blackoutLevel}
-        previewMode={previewMode} liveOn={liveOn}
+        hangPlan={hangPlan} fixtureLevel={fixtureLevel}
         showTrusses={planDisplay.showTrusses} showLightingFixtures={planDisplay.showLightingFixtures}
         stageWidth={stageWidth ?? model.floor.width} stageDepth={stageDepth ?? model.floor.depth}
         selectedFixtureId={selectedFixtureId} onFixtureSelect={onFixtureSelect} /></group>;

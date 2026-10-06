@@ -155,6 +155,30 @@ export function patchFixtureFocus(plan: HangPlan, fixtureId: string, focus: Fixt
   };
 }
 
+/** Change Gerätetyp on an existing hang; drop barn doors when the type cannot carry them. */
+export function patchFixtureType(plan: HangPlan, fixtureId: string, typeId: BuiltInFixtureTypeId): HangPlan {
+  return {
+    fixtures: plan.fixtures.map(fixture => {
+      if (fixture.id !== fixtureId || fixture.typeId === typeId) return fixture;
+      const capable = builtInFixtureTypes[typeId].barnDoorsCapable;
+      const oldDefault = builtInFixtureTypes[fixture.typeId].defaultBeam;
+      const prior = fixture.focus;
+      const beam = prior?.beam;
+      const focus = prior ? {
+        ...prior,
+        beam: beam === undefined || beam === oldDefault ? undefined : beam,
+        barnDoors: capable ? prior.barnDoors : undefined,
+      } : undefined;
+      return {
+        ...fixture,
+        typeId,
+        barnDoorsAttached: capable ? fixture.barnDoorsAttached : false,
+        focus,
+      };
+    }),
+  };
+}
+
 /**
  * Look-owned levels only: intensity + colour.
  * Legacy pan/tilt/beam/barnDoors keys still parse (ignored at render) so old layouts load.

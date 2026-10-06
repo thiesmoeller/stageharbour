@@ -8,6 +8,8 @@ const paths = {
   side: 'm6 20 12-3V4L6 7v13Zm0-8 12-3M3 21h18',
   move: 'M12 2v20M2 12h20M9 5l3-3 3 3M9 19l3 3 3-3M5 9l-3 3 3 3m14-6 3 3-3 3',
   rotate: 'M20 7v5h-5M20 12a8 8 0 1 0-2 6',
+  /** Face + outward arrow — Größe ziehen / push-pull (not the fit-corners expand). */
+  pushPull: 'M4 5h10v14H4V5Zm10 5h6m-2.5-3L21 12l-3.5 3',
   tray: 'M3 4h18v16H3V4Zm11 0v16m3-12h1m-1 4h1m-1 4h1',
   back: 'M15 5 8 12l7 7M8 12h13',
   undo: 'M8 4 3 9l5 5M3 9h10a7 7 0 0 1 7 7v3',

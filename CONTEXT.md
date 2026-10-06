@@ -139,15 +139,16 @@ A library definition of a lighting fixture (attributes, beam, physical size). Bu
 **Barn doors / Flügelblenden**:
 Four hinged flaps on a Fresnel or flood that shape the beam. Attachment and flap angles belong to the **hang plan** focus (ladder work). Not profile shutters.
 
+**Light board (session)**:
+Raumsicht preview panel under the 3D view: Master, Grundlicht master, Blackout, and per-fixture on/level/colour. Session only until “In Look speichern”. Not a console or cue playback.
+_Avoid_: Cue, Sequence, Executor, Playback, grandMA programmer
+
 **Light look**:
 A named snapshot of per-fixture **intensity and colour** for preview with a stage layout. Aim/focus lives on the hang. Looks are not cues or desk playback.
 _Avoid_: Light scene, Cue, Sequence, Executor, grandMA programmer
 
-**Einrichten (session)**:
-Raumsicht switch strip to turn fixtures full on / off / solo while focusing — not saved, not a console.
-
 **Mood lighting / Grundlicht**:
-Coarse house or rehearsal fill (front/back/ambient) used in Raumsicht. Not the hang plan or a light look. Session toggles can hide Traversen and Scheinwerfer in plan/3D so ground modelling stays clear.
+Coarse house or rehearsal fill (front/back/ambient) used in Raumsicht. Session board can scale it with one master. Not the hang plan or a light look. Session toggles can hide Traversen and Scheinwerfer in plan/3D so ground modelling stays clear.
 
 **Molton curtain**:
 A venue soft-goods track (theatre molton) with plan length, drop height, and a parametric opening (traveler from centre, or stack to one side). In the ground plan it uses the USITT wavy soft-goods symbol; in 3D it renders as matte black molton with vertical folds that gather when open.
