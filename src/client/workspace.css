@@ -371,7 +371,7 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
 .light-board {
   flex-shrink: 0; display: flex; flex-direction: row; align-items: stretch; gap: 0;
   border-top: 1px solid var(--ui-line); background: #f4f6f7;
-  padding: 6px 8px; font-size: 11px; height: 168px; overflow: hidden;
+  padding: 8px 8px 10px; font-size: 11px; height: 220px; overflow: hidden;
 }
 .light-board-channels {
   flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: nowrap; gap: 4px;
@@ -396,13 +396,17 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
 }
 .light-board-master input[type=range] {
   writing-mode: vertical-lr; direction: rtl;
-  width: 28px; height: 88px; padding: 0; margin: 0; flex: 1 1 auto;
+  width: 28px; height: 110px; padding: 0; margin: 0; flex: 1 1 auto;
 }
 .light-board-cmds {
   flex: 0 0 118px; display: flex; flex-direction: column; gap: 2px; justify-content: center;
-  padding: 0 2px;
+  padding: 0 2px; overflow: hidden;
 }
-.light-board-actions, .light-board-look {
+.light-board-actions {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 2px; align-items: stretch;
+}
+.light-board-actions .quiet:first-child { grid-column: 1 / -1; }
+.light-board-look {
   display: flex; flex-direction: column; gap: 2px; align-items: stretch;
 }
 .light-board-actions .quiet, .light-board-look .quiet {
@@ -416,7 +420,7 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .light-board-channel {
-  flex: 0 0 56px; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  flex: 0 0 64px; display: flex; flex-direction: column; align-items: center; gap: 2px;
   padding: 4px 3px; border: 1px solid var(--ui-line); border-radius: 4px; background: #f8fafb;
 }
 .light-board-channel.is-on { background: #fff8e0; border-color: #c9a227; }
@@ -429,10 +433,18 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
 .light-board-channel-fader { display: flex; flex-direction: column; align-items: center; gap: 1px; width: 100%; font-size: 9px; color: var(--ui-muted); }
 .light-board-channel-fader input[type=range] {
   writing-mode: vertical-lr; direction: rtl;
-  width: 26px; height: 72px; padding: 0; margin: 0;
+  width: 26px; height: 88px; padding: 0; margin: 0;
 }
-.light-board-channel input[type=color] { width: 100%; height: 18px; padding: 1px; }
+.light-board-channel input[type=color] { width: 100%; height: 16px; padding: 0; }
+.light-board-name {
+  width: 100%; box-sizing: border-box; font-size: 9px; padding: 1px 2px; min-height: 0;
+  text-align: center; border: 1px solid var(--ui-line); border-radius: 2px; background: #fff;
+}
 .light-board-label { font-size: 9px; padding: 1px 2px; min-height: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.light-board-type {
+  font-size: 8px; color: var(--ui-muted); line-height: 1.1; max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .light-board-hint { margin: 6px 0 0; padding: 0 10px; font-size: 10px; }
 .light-look-fixtures { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 4px; }
 .light-look-fixtures li.is-selected { background: #fff8e8; border-radius: 4px; }

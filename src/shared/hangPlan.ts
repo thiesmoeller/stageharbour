@@ -155,6 +155,25 @@ export function patchFixtureFocus(plan: HangPlan, fixtureId: string, focus: Fixt
   };
 }
 
+/** Rename a hang fixture (venue Bezeichnung). */
+export function patchFixtureLabel(plan: HangPlan, fixtureId: string, label: string): HangPlan {
+  const next = name.safeParse(label);
+  if (!next.success) return plan;
+  return {
+    fixtures: plan.fixtures.map(fixture => fixture.id === fixtureId
+      ? { ...fixture, label: next.data }
+      : fixture),
+  };
+}
+
+/** Suggest S1, S2, … for newly hung fixtures so the board is not all “Fresnel”. */
+export function nextFixtureLabel(plan: HangPlan): string {
+  const used = new Set(plan.fixtures.map(fixture => fixture.label));
+  let n = plan.fixtures.length + 1;
+  while (used.has(`S${n}`)) n += 1;
+  return `S${n}`;
+}
+
 /** Change Gerätetyp on an existing hang; drop barn doors when the type cannot carry them. */
 export function patchFixtureType(plan: HangPlan, fixtureId: string, typeId: BuiltInFixtureTypeId): HangPlan {
   return {

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   newLightLook, type HangPlan, type LightLook, type LightingFixture,
+  builtInFixtureTypes, patchFixtureLabel,
 } from '../../shared/hangPlan.js';
 import {
   boardChannelsDirty,
@@ -257,7 +258,7 @@ export function useLightBoard(
 export type LightBoardApi = ReturnType<typeof useLightBoard>;
 
 /** Owns board React state so fader ticks do not re-render the 3D StageView. */
-export function LightBoardHost({ hangPlan, live, activeLook, selectedFixtureId, onSelectFixture, looks, canSaveLook, onLightLooksChange }: {
+export function LightBoardHost({ hangPlan, live, activeLook, selectedFixtureId, onSelectFixture, looks, canSaveLook, onLightLooksChange, onHangPlanChange }: {
   hangPlan: HangPlan;
   live: LightBoardLive;
   activeLook?: LightLook;
@@ -266,6 +267,7 @@ export function LightBoardHost({ hangPlan, live, activeLook, selectedFixtureId, 
   looks: readonly LightLook[];
   canSaveLook?: boolean;
   onLightLooksChange?: (patch: LightLooksPatch) => void;
+  onHangPlanChange?: (plan: HangPlan) => void;
 }) {
   const board = useLightBoard(hangPlan.fixtures, activeLook, live);
   return <LightBoardPanel
@@ -278,11 +280,12 @@ export function LightBoardHost({ hangPlan, live, activeLook, selectedFixtureId, 
     canSaveLook={canSaveLook}
     onLoadLook={() => board.loadLook()}
     onSaveLook={() => board.saveToLook(looks, onLightLooksChange)}
+    onHangPlanChange={onHangPlanChange}
   />;
 }
 
 /** Preview panel under the 3D view — session faders, not a console. */
-export function LightBoardPanel({ hangPlan, board, selectedFixtureId, onSelectFixture, looks, activeLook, canSaveLook, onSaveLook, onLoadLook }: {
+export function LightBoardPanel({ hangPlan, board, selectedFixtureId, onSelectFixture, looks, activeLook, canSaveLook, onSaveLook, onLoadLook, onHangPlanChange }: {
   hangPlan: HangPlan;
   board: LightBoardApi;
   selectedFixtureId?: string | null;
@@ -292,6 +295,7 @@ export function LightBoardPanel({ hangPlan, board, selectedFixtureId, onSelectFi
   canSaveLook?: boolean;
   onSaveLook?: () => void;
   onLoadLook?: () => void;
+  onHangPlanChange?: (plan: HangPlan) => void;
 }) {
   const fixtures = hangPlan.fixtures;
   if (!fixtures.length) return null;
@@ -299,13 +303,15 @@ export function LightBoardPanel({ hangPlan, board, selectedFixtureId, onSelectFi
   const lookHint = activeLook
     ? `${activeLook.name}${board.dirty ? ' · geändert' : ''}`
     : 'Vorschau · Rechtsklick = Solo';
+  const canRename = !!onHangPlanChange;
   return <div className="light-board" data-testid="light-board" role="region" aria-label="Lichtpult Vorschau"
-    title="Vorschau · Rechtsklick = Solo · In Look speichern schreibt Intensität/Farbe · Ausrichtung bleibt am Hang">
+    title="Vorschau · Rechtsklick = Solo · Bezeichnung am Hang · In Look speichern schreibt Intensität/Farbe">
     <div className="light-board-channels" role="group" aria-label="Scheinwerfer Fader">
       {fixtures.map(fixture => {
         const on = board.isOn(fixture.id);
         const level = board.level(fixture.id);
         const selected = fixture.id === selectedFixtureId;
+        const typeLabel = builtInFixtureTypes[fixture.typeId].label;
         return <div key={fixture.id}
           className={`light-board-channel${on ? ' is-on' : ''}${selected ? ' is-selected' : ''}`}
           data-testid={`light-board-channel-${fixture.id}`}>
@@ -336,11 +342,19 @@ export function LightBoardPanel({ hangPlan, board, selectedFixtureId, onSelectFi
           </label>
           <input type="color" value={board.color(fixture.id)} aria-label={`${fixture.label} Farbe`}
             onChange={event => board.setColor(fixture.id, event.target.value)} />
-          <button type="button" className="quiet light-board-label"
-            aria-pressed={selected}
-            onClick={() => onSelectFixture?.(selected ? null : fixture.id, false)}>
-            {fixture.label}
-          </button>
+          {canRename
+            ? <input className="light-board-name" type="text" maxLength={120} value={fixture.label}
+              aria-label={`${fixture.label} Bezeichnung`}
+              title={`${fixture.label} · ${typeLabel}`}
+              onFocus={() => onSelectFixture?.(fixture.id, false)}
+              onChange={event => onHangPlanChange(patchFixtureLabel(hangPlan, fixture.id, event.target.value))} />
+            : <button type="button" className="quiet light-board-label"
+              aria-pressed={selected}
+              title={`${fixture.label} · ${typeLabel}`}
+              onClick={() => onSelectFixture?.(selected ? null : fixture.id, false)}>
+              {fixture.label}
+            </button>}
+          <span className="light-board-type">{typeLabel}</span>
         </div>;
       })}
     </div>

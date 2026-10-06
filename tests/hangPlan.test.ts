@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 import {
   clippedBeamDegrees, defaultFocusTowardCentre, emptyHangPlan, fixtureAimPoint, fixtureFloorPool, focusTowardPoint, hangPlanFitsTrusses, hangPlanSchema, lightLookSchema,
-  newLightLook, newLightingFixture, openBarnDoors, patchFixtureType, planMmToViewMetres, resolveFixtureAim,
+  newLightLook, newLightingFixture, nextFixtureLabel, openBarnDoors, patchFixtureLabel, patchFixtureType, planMmToViewMetres, resolveFixtureAim,
 } from '../src/shared/hangPlan.js';
 import { layoutSchema, venueGeometrySchema } from '../src/shared/layout.js';
 import { defaultPlanDisplay } from '../src/shared/planDisplay.js';
@@ -151,4 +151,18 @@ test('patchFixtureType switches Gerätetyp and clears barn doors on wash', () =>
   const flood = patchFixtureType(wash, id, 'flood');
   assert.equal(flood.fixtures[0]!.typeId, 'flood');
   assert.equal(flood.fixtures[0]!.barnDoorsAttached, false);
+});
+
+test('patchFixtureLabel renames hang fixtures; nextFixtureLabel suggests S1…', () => {
+  const trussId = randomUUID();
+  const hangId = randomUUID();
+  const id = randomUUID();
+  const plan = hangPlanSchema.parse({
+    fixtures: [newLightingFixture(id, trussId, hangId, 'fresnel')],
+  });
+  assert.equal(nextFixtureLabel(emptyHangPlan), 'S1');
+  assert.equal(nextFixtureLabel(plan), 'S2');
+  const renamed = patchFixtureLabel(plan, id, '  Front links  ');
+  assert.equal(renamed.fixtures[0]!.label, 'Front links');
+  assert.equal(patchFixtureLabel(plan, id, '   ').fixtures[0]!.label, plan.fixtures[0]!.label);
 });
