@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  builtInFixtureTypes, focusTowardPoint, openBarnDoors, patchFixtureFocus, patchFixtureType,
+  builtInFixtureTypes, focusTowardPoint, openBarnDoors, patchFixtureFocus, patchFixtureLabel, patchFixtureType,
   type BarnDoorFlaps, type BuiltInFixtureTypeId, type HangPlan, type LightingFixture,
 } from '../../shared/hangPlan.js';
 import { trussHangWorld, type Truss } from '../../shared/truss.js';
@@ -63,6 +63,10 @@ export function FixtureControlOverlay({ fixture, hangPlan, trusses, stageWidth, 
     {canEditFocus ? <fieldset className="fixture-focus">
       <legend>Ausrichtung &amp; Klappen (Hang)</legend>
       <p className="muted">Venue-Default · selten umhängen · typisch nur zielen / Flügelblenden. Pegel im Lichtpult.</p>
+      <label>Bezeichnung
+        <input aria-label={`${fixture.label} Bezeichnung`} maxLength={120} value={fixture.label}
+          onChange={event => onHangPlanChange?.(patchFixtureLabel(hangPlan, fixture.id, event.target.value))} />
+      </label>
       <label>Gerätetyp
         <select aria-label={`${fixture.label} Gerätetyp`} value={fixture.typeId}
           onChange={event => setType(event.target.value as BuiltInFixtureTypeId)}>

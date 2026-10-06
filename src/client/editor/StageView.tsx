@@ -209,6 +209,7 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
       looks={lightLooks}
       canSaveLook={!!onLightLooksChange}
       onLightLooksChange={onLightLooksChange}
+      onHangPlanChange={onHangPlanChange}
     />}
     {!hangLit && boardOpen && hasHangFixtures && !lighting.enabled && <p className="muted light-board-hint">
       Bühnenlicht aus · nur Ansicht. Scheinwerfer-Vorschau braucht Bearbeitungsrecht für Bühnenlicht.

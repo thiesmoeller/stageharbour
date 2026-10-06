@@ -25,7 +25,7 @@ import { objectOverlapWarnings, overlappingObjectIds } from '../../shared/overla
 import { newPlaceholder, type Placeholder, type PlaceholderKind } from '../../shared/placeholders.js';
 import { nearestTrussForHang, trussFromSegment, trussHangWorld, type Truss } from '../../shared/truss.js';
 import {
-  builtInFixtureTypes, defaultFocusTowardCentre, emptyHangPlan, newLightingFixture, type BuiltInFixtureTypeId, type HangPlan, type LightingFixture,
+  builtInFixtureTypes, defaultFocusTowardCentre, emptyHangPlan, newLightingFixture, nextFixtureLabel, type BuiltInFixtureTypeId, type HangPlan, type LightingFixture,
 } from '../../shared/hangPlan.js';
 import { clampCurtainDrop, curtainFromSegment, type Curtain } from '../../shared/curtains.js';
 import { applyVenuePlatformFinish } from '../../shared/editing.js';
@@ -458,7 +458,10 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
       setHangPlan(plan => ({
         fixtures: [
           ...plan.fixtures,
-          newLightingFixture(crypto.randomUUID(), hit.truss.id, hangPointId, hangFixtureTypeId, { focus }),
+          newLightingFixture(crypto.randomUUID(), hit.truss.id, hangPointId, hangFixtureTypeId, {
+            focus,
+            label: nextFixtureLabel(plan),
+          }),
         ],
       }));
       setSelectedIds([hit.truss.id]);
@@ -1658,7 +1661,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
                       hangPointId,
                       typeId,
                       {
-                        label: existing?.label,
+                        label: existing?.label ?? nextFixtureLabel({ fixtures: without }),
                         barnDoorsAttached: builtInFixtureTypes[typeId].barnDoorsCapable ? existing?.barnDoorsAttached : false,
                         focus,
                       },
