@@ -1,3 +1,7 @@
+import { FeedbackButton, useFeedbackAdapter } from '../feedback/Feedback.js';
+import { captureWorkView } from '../feedback/capture.js';
+import { recordFeedbackActivity } from '../feedback/activity.js';
+import type { StageCaptureHandle } from './StageCapture.js';
 import { EditorDock, EditorDockContext, useEditorDock, readWorkspacePreference, writeWorkspacePreference } from './EditorDock.js';
 import { EditorMenuBar } from './EditorMenuBar.js';
 import { EditorMenu } from './EditorMenu.js';
@@ -239,6 +243,8 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const svg = useRef<SVGSVGElement>(null);
+  const feedbackCapture = useRef<StageCaptureHandle | null>(null);
+  const setFeedbackCapture = useCallback((handle: StageCaptureHandle | null) => { feedbackCapture.current = handle; }, []);
   const parsed = calibrationSchema.safeParse(calibration);
   const unit = parsed.success ? millimetresPerUnit(parsed.data) : 1;
   useEffect(() => {
@@ -588,6 +594,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
     } finally { setBusy(false); }
   }
   async function save(event?: FormEvent) {
+    recordFeedbackActivity({ action: 'editor.save', area: 'venues' });
     event?.preventDefault();
     const trace = fileId ? {
       fileId, ...(meta?.kind === 'pdf' ? { page } : {}),
@@ -1051,6 +1058,16 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
     if (document.fullscreenElement) void document.exitFullscreen();
     else void panelRoot.current?.closest('.editor')?.requestFullscreen();
   }
+  useFeedbackAdapter(() => ({
+    work: {
+      venueId, sceneId, venue: venueName, view: activeView, tool: click, dirty, unappliedInputs: numberPending > 0 || namePending, readOnly,
+      saveStatus: busy ? 'saving' : error ? 'failed' : dirty ? 'pending' : 'saved',
+      selection: selectedIds.slice(0, 200),
+      display: { ...planDisplay, snapEnabled, zoom, panX: pan.x, panY: pan.y, panel: dock.active ?? '', sheetEditorOpen },
+    },
+    snapshot: candidate.success ? JSON.stringify({ version: 1, kind: 'venue', venue: { ...previewVenue, trace: fileId ? { fileId, ...(meta?.kind === 'pdf' ? { page } : {}), rotationDeg, ...(parsed.success ? { calibration: parsed.data } : {}) } : undefined } }) : undefined,
+    capture: sheetEditorOpen ? undefined : () => captureWorkView(activeView, svg.current, feedbackCapture.current),
+  }), 2);
   return <SurfaceRegistryProvider workspaceId={workspaceId}>
     <EditorDockContext value={dock}><section ref={panelRoot} className="venue-editor" aria-label="Spielstätte">
     <EditorMenuBar>
@@ -1085,7 +1102,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
         <label className="split-control" hidden={activeView !== 'split'}>Aufteilung<input aria-label="Ansichten aufteilen" type="range" min="30" max="70" value={viewShare} onChange={event => setViewShare(Number(event.target.value))} /></label>
         <button type="button" onClick={toggleFullscreen}>Vollbild umschalten</button>
       </EditorMenu>
-      <EditorMenu label="Hilfe"><button type="button" onClick={() => setHelpOpen(open => !open)}>Bedienung anzeigen</button><a href="#/hilfe">Zur vollständigen Hilfe</a></EditorMenu>
+      <EditorMenu label="Hilfe"><FeedbackButton /><button type="button" onClick={() => setHelpOpen(open => !open)}>Bedienung anzeigen</button><a href="#/hilfe">Zur vollständigen Hilfe</a></EditorMenu>
     </EditorMenuBar>
     <div className="editor-heading compact-editor-heading venue-document-heading">
       {onClose && <button type="button" className="quiet back-button" disabled={closeDisabled} onClick={onClose} aria-label={closeLabel} title={closeLabel}><ToolIcon name="back" /></button>}
@@ -1438,7 +1455,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
             </p>}
           </div>
         </div>
-        {activeView !== 'plan' && <StageView onLightingChange={readOnly ? undefined : setLighting}
+        {activeView !== 'plan' && <StageView onFeedbackCaptureReady={setFeedbackCapture} onLightingChange={readOnly ? undefined : setLighting}
           onHangPlanChange={readOnly ? undefined : setHangPlan}
           layout={liveLayout} venue={previewVenue} venueEditable workspaceId={workspaceId} planDisplay={planDisplay}
           selectedIds={selectedIds} pivot={pivot}

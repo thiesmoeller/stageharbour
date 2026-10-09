@@ -21,6 +21,7 @@ const schema = z.object({
   OIDC_CLIENT_ID: optionalSecret,
   OIDC_CLIENT_SECRET: optionalSecret,
   OIDC_REDIRECT_URI: optionalUrl,
+  FEEDBACK_TO_EMAIL: z.preprocess(blank, z.email().optional()),
   MAIL_FROM: z.preprocess(blank, z.string().optional()),
   MAIL_HOST: z.preprocess(blank, z.string().min(1).optional()),
   MAIL_PORT: z.preprocess(blank, z.coerce.number().int().min(1).max(65535).optional()),

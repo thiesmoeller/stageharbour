@@ -110,7 +110,8 @@ test('venue uses the same menus and dock in normal, fullscreen and narrow layout
   const canvas = page.getByRole('img', { name: 'Umriss der Spielstätte', exact: true });
   await expect(canvas).toBeVisible();
   await expect(page.locator('.editor-dock')).toBeHidden();
-  expect((await canvas.boundingBox())!.height).toBeGreaterThan(768 * .84);
+  await expect(page.locator('.lease-banner')).toBeHidden();
+  await expect.poll(async () => (await canvas.boundingBox())?.height ?? 0).toBeGreaterThan(768 * .84);
   await page.getByRole('button', { name: 'Eigenschaften', exact: true }).click();
   await expect(page.locator('.wall-inspector')).toBeVisible();
   await page.getByRole('button', { name: 'Bibliothek', exact: true }).click();

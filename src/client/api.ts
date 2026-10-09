@@ -1,3 +1,4 @@
+import { recordApiFailure } from './feedback/activity.js';
 export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
@@ -20,9 +21,11 @@ export async function request(path: string, body?: unknown, method?: string): Pr
     }
     response = await fetch(path, init);
   } catch {
+    recordApiFailure(path, 0);
     throw new ApiError(0, 'Keine Verbindung zum Server. Bitte versuchen Sie es erneut.');
   }
   if (!response.ok) {
+    recordApiFailure(path, response.status);
     const payload = await response.json().catch(() => undefined) as { message?: unknown } | undefined;
     if (typeof payload?.message === 'string' && payload.message.trim()) throw new ApiError(response.status, payload.message);
     failure(response.status);
@@ -44,9 +47,10 @@ export async function upload(path: string, file: File): Promise<unknown> {
       body: file,
     });
   } catch {
+    recordApiFailure(path, 0);
     throw new ApiError(0, 'Keine Verbindung zum Server. Bitte versuchen Sie es erneut.');
   }
-  if (!response.ok) failure(response.status);
+  if (!response.ok) { recordApiFailure(path, response.status); failure(response.status); }
   return response.json();
 }
 

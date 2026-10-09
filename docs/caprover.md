@@ -204,3 +204,21 @@ Port `587` uses STARTTLS (recommended). Port `465` uses SSL/TLS if you prefer.
 If invite returns a mail error, check CapRover logs: wrong SMTP key (not API key), unverified `MAIL_FROM`, or incomplete `MAIL_HOST` / `MAIL_USER` / `MAIL_PASS`.
 
 `BREVO_API_KEY` remains supported as a fallback when SMTP is unset. Do not put an SMTP key in `BREVO_API_KEY`.
+
+## Optional: user feedback by email
+
+After configuring SMTP or the Brevo HTTP API above, set this in **App Configs** and restart:
+
+```env
+FEEDBACK_TO_EMAIL=maintainer@example.org
+```
+
+Signed-in members (including viewers) then see **Feedback** in the header and editor Help menu. The recipient stays server-side; mail uses `MAIL_FROM`, with the reporting member as Reply-To. If the recipient or mail delivery is unset, the entry is hidden. No database migration or extra service is needed.
+
+Users choose a problem or feature request and write one short message. They can preview/remove work details, recent activity, and screenshots before sending. In editors, the visible work panes are captured automatically; elsewhere users can paste or upload a screenshot. A separate, unchecked option attaches the current design, including unsaved model changes but excluding unapplied form inputs and binary assets. Capturing feedback does not save or change the design.
+
+Reports include the app version, canonical page link, browser/viewport, sender, and workspace. Recent activity contains at most 30 named actions/status codes from five minutes in memory, with no typed text, raw URLs, console logs, or request bodies. Activity is selected initially for problems and unselected for feature requests. Two PNG/JPEG images (2 MiB each) and a diagnostic design snapshot (2 MiB) are supported. JSON attachments use `.json.txt` names for Brevo attachment compatibility. The design snapshot is diagnostic data, not an import/restore package.
+
+Successful submission means the mail provider accepted the message, not that it reached the inbox. Delivery failures retain the draft for retry; a draft also survives closing the dialog, but not logout or a page reload. Feedback is not stored in the app database or filesystem. The mail provider and recipient mailbox retain their copies. Each user is limited to five submission attempts per minute per running app instance; this in-memory limit resets on restart. There is no delivery queue or retry worker.
+
+For a deployment check, submit one report, reply to its sender, and check the screenshot and diagnostic attachments in the maintainer inbox.

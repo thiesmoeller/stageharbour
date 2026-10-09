@@ -1,7 +1,8 @@
 import nodemailer from 'nodemailer';
 import type SMTPTransport from 'nodemailer/lib/smtp-transport/index.js';
 
-export type MailMessage = { to: string; subject: string; text: string };
+export type MailAttachment = { filename: string; contentType: string; content: Buffer };
+export type MailMessage = { to: string; subject: string; text: string; replyTo?: string; attachments?: MailAttachment[] };
 export type MailTransport = { send(message: MailMessage): Promise<void> };
 
 export type FakeMailTransport = MailTransport & {
@@ -29,7 +30,7 @@ export type MailTransportConfig = {
 };
 
 type SmtpSender = {
-  sendMail(mail: { from: string; to: string; subject: string; text: string }): Promise<unknown>;
+  sendMail(mail: MailMessage & { from: string }): Promise<unknown>;
 };
 
 export function createFakeMailTransport(): FakeMailTransport {
@@ -61,6 +62,8 @@ export function createBrevoTransport(options: { apiKey: string; from: string; fe
           to: [{ email: message.to }],
           subject: message.subject,
           textContent: message.text,
+          ...(message.replyTo ? { replyTo: { email: message.replyTo } } : {}),
+          ...(message.attachments?.length ? { attachment: message.attachments.map(item => ({ name: item.filename, content: item.content.toString('base64') })) } : {}),
         }),
       });
       if (!response.ok) throw new Error('Versand fehlgeschlagen.');
@@ -93,6 +96,8 @@ export function createSmtpTransport(
           to: message.to,
           subject: message.subject,
           text: message.text,
+          ...(message.replyTo ? { replyTo: message.replyTo } : {}),
+          ...(message.attachments ? { attachments: message.attachments } : {}),
         });
       } catch {
         throw new Error('Versand fehlgeschlagen.');

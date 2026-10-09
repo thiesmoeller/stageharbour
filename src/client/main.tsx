@@ -1,3 +1,4 @@
+import { FeedbackProvider, FeedbackButton } from './feedback/Feedback.js';
 import { StrictMode, useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { z } from 'zod';
@@ -132,7 +133,7 @@ function App() {
     finally { setSigningOut(false); }
   }
   const homeLabel = `${branding.productName} Startseite`;
-  return <div className="app">
+  return <FeedbackProvider me={screen.kind === 'workspace' && route.kind === 'app' ? screen.me : undefined}><div className="app">
     <header className="masthead">
       <a className="brand" href="/" aria-label={homeLabel}>
         {branding.hasLogo
@@ -141,6 +142,7 @@ function App() {
         {branding.productName}
       </a>
       <div id="editor-menu-slot" />
+      <FeedbackButton />
       {branding.tagline ? <span className="edition">{branding.tagline}</span> : null}
       {(screen.kind === 'workspace' || (screen.kind === 'error' && screen.denied)) && route.kind === 'app' && <button className="quiet" onClick={() => void signOut()} disabled={signingOut || dirty} title={dirty ? 'Bitte zuerst Änderungen speichern oder sichern.' : undefined}>{signingOut ? 'Abmeldung …' : 'Abmelden'}</button>}
     </header>
@@ -154,7 +156,7 @@ function App() {
     {route.kind === 'app' && screen.kind === 'error' && <main className="error-page"><p className="eyebrow">ARBEITSBEREICH</p><h1>{screen.denied ? 'Zugang erforderlich' : 'Verbindung unterbrochen'}</h1><p role="alert">{screen.message}</p><button onClick={() => void load()}>Erneut versuchen</button></main>}
     <footer>{branding.footerText}</footer>
     <ConfirmHost />
-  </div>;
+  </div></FeedbackProvider>;
 }
 
 function Login({ onSuccess }: { onSuccess: () => Promise<void> }) {

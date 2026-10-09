@@ -1,3 +1,7 @@
+import { FeedbackButton, useFeedbackAdapter } from '../feedback/Feedback.js';
+import { captureWorkView } from '../feedback/capture.js';
+import { recordFeedbackActivity } from '../feedback/activity.js';
+import type { StageCaptureHandle } from './StageCapture.js';
 import { EditorDock, EditorDockContext, useEditorDock } from './EditorDock.js';
 import { EditorMenuBar } from './EditorMenuBar.js';
 import { EditorMenu } from './EditorMenu.js';
@@ -94,6 +98,8 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
   }, initial.venue);
   const [state, setState] = useState<History>(() => history<Layout>(boot.layout));
   const root = useRef<HTMLElement>(null);
+  const feedbackCapture = useRef<StageCaptureHandle | null>(null);
+  const setFeedbackCapture = useCallback((handle: StageCaptureHandle | null) => { feedbackCapture.current = handle; }, []);
   const dock = useEditorDock('scene');
   const [viewMode, setViewMode] = useState<'split' | 'plan' | 'stage'>(() => {
     const saved = readEditorPreference('view');
@@ -218,6 +224,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
     }
   }));
   const saveState = useSyncExternalStore(saver.subscribe, saver.getSnapshot);
+  useEffect(() => { recordFeedbackActivity({ action: `save.${saveState.status}`, area: 'plans' }); }, [saveState.status]);
   useEffect(() => {
     if (!persistLiftedTemplates.current || permissionReadOnly) return;
     const templates = boot.venue.reportTemplates;
@@ -315,6 +322,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
     current.current = next;
     setState(next);
     saver.queue(next.present);
+    recordFeedbackActivity({ action: 'editor.change', area: 'plans' });
   }
   function commit(layout: Layout) {
     const withSupports = reassignLayoutSupports(stripLayoutReportTemplates(layout), venue);
@@ -898,8 +906,20 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
         beginObjectPlacement({ ...current.current.present, placeholders: [...current.current.present.placeholders ?? [], item] }, { kind: 'placeholder', id: item.id });
       }}>{PLACEHOLDER_KIND_LABELS[kind]} hinzufügen</button>)}
     </EditorMenu>}
-    <EditorMenu label="Hilfe"><button className="quiet" onClick={() => setHelpOpen(open => !open)}>Bedienung anzeigen</button><a href="#/hilfe">Zur vollständigen Hilfe</a></EditorMenu>
+    <EditorMenu label="Hilfe"><FeedbackButton /><button className="quiet" onClick={() => setHelpOpen(open => !open)}>Bedienung anzeigen</button><a href="#/hilfe">Zur vollständigen Hilfe</a></EditorMenu>
   </EditorMenuBar>;
+  useFeedbackAdapter(() => ({
+    work: {
+      productionId: initial.productionId, sceneId: initial.id, venueId: initial.venueId,
+      production: initial.productionName, layout: sceneName, venue: venueName, revision: saveState.revision,
+      venueVersionId, view: activeView, tool: placing ? 'place-wall' : dimensioning ? 'dimension' : 'select',
+      saveStatus: saveState.status, dirty, unappliedInputs: inspectorPending, readOnly,
+      selection: picked.map(item => `${item.kind}:${item.id}`).slice(0, 200),
+      display: { ...planDisplay, snapEnabled, zoom: viewZoom, panX: viewPan.x, panY: viewPan.y, panel: dock.active ?? '' },
+    },
+    snapshot: JSON.stringify({ version: 1, kind: 'layout', layout: current.current.present, venue }),
+    capture: exportsOpen ? undefined : () => captureWorkView(activeView, svg.current, feedbackCapture.current),
+  }));
   return <SurfaceRegistryProvider workspaceId={workspaceId} productionId={initial.productionId}>
     <EditorDockContext value={dock}><section ref={root} className="editor scene-editor" aria-label="Bühnenbild bearbeiten">
     {!venueOpen && menus}
@@ -1243,7 +1263,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
         </p>}
       </div>
     </div>
-    {activeView !== 'plan' && !exportsOpen && <StageView layout={placing ? {
+    {activeView !== 'plan' && !exportsOpen && <StageView onFeedbackCaptureReady={setFeedbackCapture} layout={placing ? {
       ...shown,
       wallTypes: placing.pendingType ? [...typesOf(shown), placing.pendingType] : shown.wallTypes,
       walls: [...shown.walls, placing.wall],

@@ -1,3 +1,4 @@
+import { recordFeedbackActivity } from '../feedback/activity.js';
 import { useRef, useState, type SetStateAction } from 'react';
 import { execute, history, redo, undo } from '../../shared/history.js';
 
@@ -13,6 +14,7 @@ export function useDocumentDraft<T>(initial: T) {
   function commit(value: T) {
     if (base.current !== undefined) return;
     if (JSON.stringify(value) === JSON.stringify(current.current.present)) return;
+    recordFeedbackActivity({ action: 'editor.change', area: 'venues' });
     const next = execute(current.current, value); current.current = next; setState(next);
   }
   function field<K extends keyof T>(key: K): [T[K], (value: SetStateAction<T[K]>) => void] {

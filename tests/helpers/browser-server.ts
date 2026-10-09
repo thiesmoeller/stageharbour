@@ -38,7 +38,7 @@ const surfaceCatalog: SurfaceCatalogClient = {
 };
 
 const mail = createFakeMailTransport();
-const fixture = await testDatabase('http://127.0.0.1:4173');
+const fixture = await testDatabase('http://127.0.0.1:4173', { FEEDBACK_TO_EMAIL: 'maintainer@example.test' });
 await bootstrapAdministrator(fixture.db, fixture.config, testAdministrator);
 const editorId = randomUUID();
 await fixture.db.insert(user).values({ id: editorId, name: testEditor.name, email: testEditor.email });
