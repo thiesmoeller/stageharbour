@@ -12,6 +12,7 @@ import { captureTemplateLayout, copiedSceneName, copyLayoutIntoVenue, duplicateL
 import { overheadClearance, overheadWarningSchema } from '../../shared/overhead.js';
 import { keepClearWarningSchema, keepClearWarnings } from '../../shared/keepClear.js';
 import { leaseHolderSchema } from '../../shared/leases.js';
+import { requireRegistrySurfaces } from '../surfaces/validate.js';
 import { resolveWall } from '../../shared/wall-types.js';
 import type { Database } from '../db/connection.js';
 import {
@@ -371,12 +372,15 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
     const { workspaceId, sceneId } = request.params;
     const { user } = await requireEditor(request, workspaceId);
     const result = await db.transaction(async tx => {
-      const [existing] = await tx.select({ id: scene.id, layout: scene.layout, venue: venueVersion.geometry }).from(scene)
+      const [existing] = await tx.select({
+        id: scene.id, layout: scene.layout, venue: venueVersion.geometry, productionId: adaptation.productionId,
+      }).from(scene)
         .innerJoin(adaptation, eq(scene.adaptationId, adaptation.id))
         .innerJoin(venueVersion, eq(adaptation.venueVersionId, venueVersion.id))
         .where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, sceneId)));
       if (!existing) throw new AccessError(404, 'Bühnenbild nicht verfügbar.');
       await leases.requireHeld(tx, workspaceId, 'scene', sceneId, user.id);
+      await requireRegistrySurfaces(tx, workspaceId, existing.productionId, request.body.layout);
       const assetIds = [...new Set((request.body.layout.placeholders ?? []).flatMap(item => item.assetId ? [item.assetId] : []))];
       if (assetIds.length) {
         const assets = await tx.select().from(inventoryAsset).where(and(eq(inventoryAsset.workspaceId, workspaceId), inArray(inventoryAsset.id, assetIds)));

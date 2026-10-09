@@ -7,18 +7,15 @@ import { LightLooksPanel, type LightLooksPatch } from './LightLooksPanel.js';
 import { FixtureControlOverlay } from './FixtureControlOverlay.js';
 import { LightBoardHost } from './LightBoardPanel.js';
 import { createLightBoardLive } from './lightBoardLive.js';
-import { lazy, Suspense, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Canvas, useThree } from '@react-three/fiber';
-import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
-import { WallMesh } from './WallMesh.js';
+import { lazy, Suspense, useContext, useEffect, useMemo, useState } from 'react';
 import type { Layout, VenueGeometry } from '../../shared/layout.js';
-import { stageModel, type Vec3 } from '../../shared/transforms.js';
+import { stageModel } from '../../shared/transforms.js';
 import { effectiveCurtains } from '../../shared/venueFixtures.js';
-import { StageBraceList, StageBraces } from './StageBraces.js';
-import { StageLevelList, StageLevels } from './StageLevels.js';
-import { StageOverhead, StageOverheadList } from './StageOverhead.js';
+import { StageBraceList } from './StageBraces.js';
+import { StageLevelList } from './StageLevels.js';
+import { StageOverheadList } from './StageOverhead.js';
 import { StageCurtainList } from './StageCurtains.js';
-import { StagePlaceholderList, StagePlaceholders } from './StagePlaceholders.js';
+import { StagePlaceholderList } from './StagePlaceholders.js';
 import type { PlanDisplayOptions } from '../../shared/planDisplay.js';
 import { defaultPlanDisplay } from '../../shared/planDisplay.js';
 import type { HangPlan } from '../../shared/hangPlan.js';
@@ -26,7 +23,6 @@ import type { HangPlan } from '../../shared/hangPlan.js';
 import type { Asset } from '../../shared/assets.js';
 import type { StageCameraView } from './StageCamera.js';
 import type { StageEditing } from './StageEditing.js';
-import { useBlockBrowserZoom } from './viewportWheel.js';
 const PascalStageCanvas = lazy(() => import('./PascalStageCanvas.js'));
 
 import type { StageCaptureHandle } from './StageCapture.js';
@@ -38,17 +34,6 @@ function facing(normal: { x: number; z: number }) {
 }
 
 /** Keep the camera looking from the audience toward upstage (+Z). Scene is X-mirrored so plan-left stays screen-left. */
-function LookFromAudience({ position, target }: { position: Vec3; target: Vec3 }) {
-  const { camera } = useThree();
-  useLayoutEffect(() => {
-    camera.position.set(position.x, position.y, position.z);
-    camera.up.set(0, 1, 0);
-    camera.lookAt(target.x, target.y, target.z);
-    camera.updateProjectionMatrix();
-  }, [camera, position.x, position.y, position.z, target.x, target.y, target.z]);
-  return null;
-}
-
 export function StageView({ layout, venue, assets = [], workspaceId = '', onLightingChange, onLightLooksChange, onHangPlanChange, planDisplay = defaultPlanDisplay, onCaptureReady, initialView, onViewChange, title = 'Raumsicht', ...editing }: {
   layout: Layout; venue: VenueGeometry; assets?: Asset[]; workspaceId?: string;
   onLightingChange?: (value: StageLightingSettings) => void;
@@ -112,9 +97,7 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
   const exportAim = !!onCaptureReady;
   const [enhanced, setEnhanced] = useState(true);
   const simple = !exportAim && !enhanced;
-  const simpleCanvas = useRef<HTMLDivElement>(null);
   const [toolbarHost, setToolbarHost] = useState<HTMLDivElement | null>(null);
-  useBlockBrowserZoom(simpleCanvas, simple);
   const [glBroken, setGlBroken] = useState(false);
   useEffect(() => {
     const canvas = document.createElement('canvas');
@@ -127,8 +110,6 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
     if (err !== gl.NO_ERROR && err !== gl.CONTEXT_LOST_WEBGL) setGlBroken(true);
     return () => canvas.removeEventListener('webglcontextlost', lost);
   }, []);
-  const camera = audience ? model.audience.position : { x: model.orbitTarget.x, y: 5500, z: -venue.depth * 0.35 };
-  const target = audience ? model.audience.target : model.orbitTarget;
   const grundlichtScope = !onLightingChange
     ? 'Gespeichertes Grundlicht · nur Ansicht.'
     : editing.venueEditable
@@ -139,12 +120,12 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
     <div className="stage-toolbar"><h3>{title}</h3>
       <div className="camera-presets" role="group" aria-label="Kamerablick">
         {([{ id: 'orbit', label: 'Umlaufansicht' }, { id: 'audience', label: 'Publikumssicht' },
-          ...(!simple ? [{ id: 'top', label: 'Von oben' }, { id: 'front', label: 'Von vorne' }, { id: 'side', label: 'Von der Seite' }] as const : []),
+          { id: 'top', label: 'Von oben' }, { id: 'front', label: 'Von vorne' }, { id: 'side', label: 'Von der Seite' },
         ] as const).map(preset => <button key={preset.id} type="button" className="quiet" aria-label={preset.label} title={preset.label}
           aria-pressed={view === preset.id} onClick={() => chooseView(preset.id)}><ToolIcon name={preset.id} /></button>)}
       </div>
       <span className="camera-projection">{view === 'top' || view === 'front' || view === 'side' ? 'Parallelprojektion' : 'Perspektive'}</span>
-      {!simple && <div ref={setToolbarHost} className="stage-toolbar-tools" role="group" aria-label="3D-Werkzeuge" />}
+      <div ref={setToolbarHost} className="stage-toolbar-tools" role="group" aria-label="3D-Werkzeuge" />
       {!exportAim && hasHangFixtures && <button type="button" className="quiet" aria-pressed={boardOpen}
         onClick={() => {
           const next = !boardOpen;
@@ -180,7 +161,8 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
       onClose={() => selectFixture(null)}
     />}
     </DockPortal>
-    {!simple ? <Suspense fallback={<p role="status">Raumsicht wird geladen …</p>}><PascalStageCanvas model={model} layout={layout} venue={venue} audience={audience} view={view} assets={assets} workspaceId={workspaceId} lighting={lighting} planDisplay={planDisplay} onCaptureReady={onCaptureReady} aimOnly={exportAim}
+    <Suspense fallback={<p role="status">Raumsicht wird geladen …</p>}><PascalStageCanvas model={model} layout={layout} venue={venue} audience={audience} view={view} assets={assets} workspaceId={workspaceId} lighting={lighting} planDisplay={planDisplay} onCaptureReady={onCaptureReady} aimOnly={exportAim}
+      enhanced={!simple}
       selectedFixtureId={boardOpen ? selectedFixtureId : null}
       onFixtureSelect={boardOpen ? id => selectFixture(id) : undefined}
       focusAimMode={boardOpen && focusAimMode}
@@ -188,30 +170,7 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
       lightBoardLive={lightBoardLive}
       showFixturePools={boardOpen}
       toolbarHost={toolbarHost}
-      {...editing} /></Suspense> : <div ref={simpleCanvas} className="stage-canvas" role="img" aria-label="Raumsicht der Spielstätte">
-      <Canvas shadows key={audience ? 'audience' : 'orbit'} gl={{ antialias: true, alpha: false }} dpr={[1, 2]}>
-        <ambientLight intensity={0.85} />
-        <directionalLight position={[camera.x, Math.max(camera.y, 4000), camera.z]} intensity={0.55} />
-        <color attach="background" args={['#eef2e8']} />
-        <PerspectiveCamera makeDefault fov={40} near={10} far={250000} position={[camera.x, camera.y, camera.z]} />
-        {audience && <LookFromAudience position={camera} target={target} />}
-        <group position={[venue.width / 2, 0, 0]} scale={[-1, 1, 1]}>
-          <group position={[-venue.width / 2, 0, 0]}>
-            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[venue.width / 2, 0, venue.depth / 2]}>
-              <planeGeometry args={[venue.width, venue.depth]} />
-              <meshBasicMaterial color="#dce4d4" />
-            </mesh>
-            <StageLevels model={model} lit={false} />
-            <StageOverhead boxes={venue.overheadBoxes ?? []} trusses={venue.trusses ?? []} hangPlan={hangPlan}
-              showTrusses={planDisplay.showTrusses} showLightingFixtures={planDisplay.showLightingFixtures} />
-            {model.walls.map(wall => <WallMesh key={wall.id} wall={wall} lit={false} />)}
-            <StageBraces braces={model.braces} lit={false} />
-            <StagePlaceholders placeholders={model.placeholders} lit={false} />
-          </group>
-        </group>
-        {!audience && <OrbitControls makeDefault enableDamping={false} target={[target.x, target.y, target.z]} />}
-      </Canvas>
-    </div>}
+      {...editing} /></Suspense>
     {!exportAim && boardOpen && hasHangFixtures && hangPlan && <LightBoardHost
       hangPlan={hangPlan}
       live={lightBoardLive}
@@ -227,7 +186,7 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
       Bühnenlicht aus · nur Ansicht. Scheinwerfer-Vorschau braucht Bearbeitungsrecht für Bühnenlicht.
     </p>}
     <DockPortal panel="properties"><p className="muted">{audience
-      ? 'Publikumssicht · Blick von vorne auf die Bühne (wie der Pfeil im Grundriss) · links im Grundriss = links hier · Vorderseite dunkel'
+      ? 'Publikumssicht · Blick vom Zuschauer-Blickpunkt der Spielstätte · Mittelklick dreht den Blick · links im Grundriss = links hier · Vorderseite dunkel'
       : focusAimMode
         ? 'Zielpunkt: auf Boden, Wand oder Bühnenobjekt klicken'
         : hasHangFixtures && boardOpen

@@ -7,6 +7,7 @@ import type { PhysicalFinish } from '../../shared/surfaces.js';
 import type { Opening } from '../../shared/wall-types.js';
 import type { WallElementType } from '../../shared/wall-types.js';
 import type { AssetDefinition } from '../../shared/assets.js';
+import type { SurfaceDefinition } from '../../shared/surfaceRegistry.js';
 
 const dates = () => ({
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -130,6 +131,31 @@ export const assetFile = pgTable('asset_file', {
   id: uuid('id').primaryKey(), workspaceId: uuid('workspace_id').notNull().references(() => workspace.id),
   storageKey: text('storage_key').notNull(),
 }, t => [index('asset_file_workspace_idx').on(t.workspaceId)]);
+export const surfaceTextureFile = pgTable('surface_texture_file', {
+  id: uuid('id').primaryKey(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspace.id),
+  mediaType: text('media_type').notNull().$type<'image/png' | 'image/jpeg' | 'image/webp'>(),
+  originalName: text('original_name').notNull(),
+  storageKey: text('storage_key').notNull(),
+  pixelWidth: integer('pixel_width').notNull(),
+  pixelHeight: integer('pixel_height').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [uniqueIndex('surface_texture_file_workspace_id').on(t.workspaceId, t.id)]);
+export const surfaceDefinition = pgTable('surface_definition', {
+  id: uuid('id').primaryKey(),
+  workspaceId: uuid('workspace_id').notNull(),
+  productionId: uuid('production_id'),
+  name: text('name').notNull(),
+  description: text('description').notNull().default(''),
+  definition: jsonb('definition').notNull().$type<SurfaceDefinition>(),
+  archived: boolean('archived').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [
+  uniqueIndex('surface_definition_workspace_id').on(t.workspaceId, t.id),
+  index('surface_definition_scope_idx').on(t.workspaceId, t.productionId, t.archived),
+  foreignKey({ columns: [t.workspaceId, t.productionId], foreignColumns: [production.workspaceId, production.id] }),
+]);
 export const auditEvent = pgTable('audit_event', {
   id: uuid('id').primaryKey(),
   workspaceId: uuid('workspace_id').notNull().references(() => workspace.id),

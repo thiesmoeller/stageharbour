@@ -30,9 +30,18 @@ export const librarySurfaceFinishSchema = z.strictObject({
   rotationDeg: z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]).optional(),
 });
 
+export const registrySurfaceFinishSchema = z.strictObject({
+  kind: z.literal('registry'),
+  surfaceId: z.uuid(),
+  /** Optional override; otherwise the registry definition's real-world tile width is used. */
+  scaleMm: z.number().finite().min(50).max(20000).optional(),
+  rotationDeg: z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]).optional(),
+});
+
 export const surfaceFinishSchema = z.discriminatedUnion('kind', [
   paintSurfaceFinishSchema,
   librarySurfaceFinishSchema,
+  registrySurfaceFinishSchema,
 ]);
 export type SurfaceFinish = z.infer<typeof surfaceFinishSchema>;
 
@@ -215,6 +224,11 @@ export function finishesEqual(a: SurfaceFinish | undefined, b: SurfaceFinish | u
   if (a.kind === 'library' && b.kind === 'library') {
     return a.ref === b.ref
       && (a.scaleMm ?? DEFAULT_LIBRARY_SCALE_MM) === (b.scaleMm ?? DEFAULT_LIBRARY_SCALE_MM)
+      && (a.rotationDeg ?? 0) === (b.rotationDeg ?? 0);
+  }
+  if (a.kind === 'registry' && b.kind === 'registry') {
+    return a.surfaceId === b.surfaceId
+      && a.scaleMm === b.scaleMm
       && (a.rotationDeg ?? 0) === (b.rotationDeg ?? 0);
   }
   return false;

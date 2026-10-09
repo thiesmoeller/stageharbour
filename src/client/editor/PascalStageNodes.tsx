@@ -43,10 +43,16 @@ export function PascalSceneBridge({ layout, venue }: { layout: Layout; venue: Ve
     useScene.temporal.getState().pause();
     useScene.getState().setReadOnly(true);
     const previous = useScene.getState();
+    let changed = previous.rootNodeIds.length !== scene.rootNodeIds.length
+      || previous.rootNodeIds.some((id, index) => id !== scene.rootNodeIds[index]);
     const nodes = Object.fromEntries(Object.entries(scene.nodes).map(([id, node]) => {
       const old = previous.nodes[id as AnyNodeId];
-      return [id, old && JSON.stringify(old) === JSON.stringify(node) ? old : node];
+      if (old && JSON.stringify(old) === JSON.stringify(node)) return [id, old];
+      changed = true;
+      return [id, node];
     })) as Record<AnyNodeId, AnyNode>;
+    if (Object.keys(previous.nodes).length !== Object.keys(nodes).length) changed = true;
+    if (!changed) return;
     useScene.setState({ nodes, rootNodeIds: scene.rootNodeIds });
   }, [layout, venue]);
   useLayoutEffect(() => () => {

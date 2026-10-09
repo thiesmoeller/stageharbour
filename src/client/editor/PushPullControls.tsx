@@ -3,8 +3,8 @@ import { useThree } from '@react-three/fiber';
 import { DoubleSide, Mesh, Plane, Quaternion, Vector2, Vector3, type Material, type Object3D } from 'three';
 import type { VenueGeometry } from '../../shared/layout.js';
 import {
-  applyPushPull, classifyLocalFace, inferenceDeltaMm, localNormalFromWorld, planRotationFor, resolveDragDeltaMm,
-  resolvePushPullFace,
+  applyPushPull, classifyLocalFace, inferenceDeltaMm, inferenceFaceAligned, localNormalFromWorld, planRotationFor,
+  resolveDragDeltaMm, resolvePushPullFace, stageDeckDragAxisMm,
   type OpeningEdge, type PushPullHandle,
 } from '../../shared/pushPull.js';
 
@@ -17,6 +17,7 @@ type DragState = {
   plane: Plane;
   bypass: boolean;
   latest: VenueGeometry;
+  lastDeltaMm?: number;
 };
 
 type NodeHit = { id: string; kind: PushPullKind; openingId?: string; edge?: OpeningEdge };
@@ -122,8 +123,11 @@ export function PushPullControls({
         return !!kindFromNode(hit.object, scope) && !!hit.face;
       });
     }
-    /** First solid under the cursor that is not the face/edge currently being dragged. */
-    function inferencePoint(clientX: number, clientY: number, handle: PushPullHandle) {
+    /**
+     * First solid under the cursor whose face is parallel to the drag axis.
+     * Tops / floors / angled hits are ignored so side-face pulls do not collapse.
+     */
+    function inferencePoint(clientX: number, clientY: number, handle: PushPullHandle, axisNormal: Vector3) {
       const rect = target.getBoundingClientRect();
       ndc.set((clientX - rect.left) / rect.width * 2 - 1, -(clientY - rect.top) / rect.height * 2 + 1);
       raycaster.setFromCamera(ndc, camera);
@@ -131,6 +135,12 @@ export function PushPullControls({
         if (!hit.object.visible || hit.object.name === 'venue-floor' || hit.object.userData?.pushPullIgnore) continue;
         if (isInvisiblePickProxy(hit.object)) continue;
         if (isSameHandle(kindFromNode(hit.object, scope), handle)) continue;
+        if (!hit.face) continue;
+        const faceNormal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld).normalize();
+        if (!inferenceFaceAligned(
+          { x: axisNormal.x, y: axisNormal.y, z: axisNormal.z },
+          { x: faceNormal.x, y: faceNormal.y, z: faceNormal.z },
+        )) continue;
         return hit.point;
       }
     }
@@ -165,7 +175,9 @@ export function PushPullControls({
       if (!raycaster.ray.intersectPlane(active.plane, hitPoint)) return;
       const freeDeltaMm = hitPoint.clone().sub(active.origin).dot(active.normal) * 1000;
       active.bypass = event.altKey || !snapEnabled;
-      const pointed = !active.bypass ? inferencePoint(event.clientX, event.clientY, active.handle) : undefined;
+      const pointed = !active.bypass
+        ? inferencePoint(event.clientX, event.clientY, active.handle, active.normal)
+        : undefined;
       const inferenceMm = pointed
         ? inferenceDeltaMm(
           { x: active.origin.x, y: active.origin.y, z: active.origin.z },
@@ -175,11 +187,15 @@ export function PushPullControls({
         : undefined;
       const { deltaMm, inferred } = resolveDragDeltaMm(freeDeltaMm, inferenceMm, {
         snapEnabled, bypass: active.bypass,
+        stageDeckCurrentMm: stageDeckDragAxisMm(active.start, active.handle),
       });
-      const next = applyPushPull(active.start, active.handle, deltaMm);
-      active.latest = next;
       snapPoint.copy(active.origin).addScaledVector(active.normal, deltaMm / 1000);
       setHover({ handle: active.handle, point: snapPoint.clone(), normal: active.normal, inferred });
+      // Skip redundant previews — stage-deck remounts thrash WebGL buffers otherwise.
+      if (active.lastDeltaMm === deltaMm) return;
+      const next = applyPushPull(active.start, active.handle, deltaMm);
+      active.lastDeltaMm = deltaMm;
+      active.latest = next;
       publish('preview', next, active.bypass);
     }
     function onDown(event: PointerEvent) {

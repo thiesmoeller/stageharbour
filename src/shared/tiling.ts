@@ -1,5 +1,10 @@
 /** ISO 216 millimetre paper sizes used for construction-plan PDFs. */
-export const PAPER_SIZE_MM = { A4: { width: 210, height: 297 }, A3: { width: 297, height: 420 } } as const;
+export const PAPER_SIZE_MM = {
+  A4: { width: 210, height: 297 },
+  A3: { width: 297, height: 420 },
+  A2: { width: 420, height: 594 },
+  A1: { width: 594, height: 841 },
+} as const;
 export type PaperSize = keyof typeof PAPER_SIZE_MM;
 /** 1:25 detail, 1:50 default construction (1200 mm → 24 mm on A4), 1:100 overview. */
 export const DRAWING_SCALES = [25, 50, 100] as const;

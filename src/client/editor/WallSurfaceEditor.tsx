@@ -7,6 +7,7 @@ import {
   type FaceBandId, type SurfaceFinish, type SurfaceRotationDeg, type WallFaceId, type WallSurfaces,
 } from '../../shared/surfaces.js';
 import { RAL_PAINT_SWATCHES, ralLabel } from '../../shared/ral.js';
+import { useSurfaceRegistry } from './SurfaceRegistryContext.js';
 
 const TEXTURED_CATEGORIES = new Set([
   'wood', 'stone', 'brick', 'tile', 'concrete', 'metal', 'fabric', 'leather', 'roofing', 'ground', 'glass',
@@ -14,7 +15,7 @@ const TEXTURED_CATEGORIES = new Set([
 
 const libraryItems = MATERIAL_CATALOG.filter(item => TEXTURED_CATEGORIES.has(item.category));
 
-function FinishEditor({
+export function FinishEditor({
   id, finish, onChange, faceHeightMm,
 }: {
   id: string;
@@ -22,6 +23,11 @@ function FinishEditor({
   onChange: (next: SurfaceFinish | undefined) => void;
   faceHeightMm: number;
 }) {
+  const registry = useSurfaceRegistry();
+  const availableRegistry = registry.surfaces.filter(surface => !surface.archived);
+  const selectedRegistry = finish?.kind === 'registry'
+    ? registry.surfaces.find(surface => surface.id === finish.surfaceId)
+    : undefined;
   const kind = finish?.kind ?? 'none';
   return <div className="surface-finish-editor" data-testid={id}>
     <label>
@@ -30,18 +36,22 @@ function FinishEditor({
         const value = event.target.value;
         if (value === 'none') onChange(undefined);
         else if (value === 'paint') onChange({ kind: 'paint', ral: finish?.kind === 'paint' ? finish.ral : '9010' });
-        else {
+        else if (value === 'library') {
           const ref = finish?.kind === 'library' ? finish.ref : toLibraryMaterialRef(libraryItems[0]?.id ?? 'wood-finewood27');
           onChange({
             kind: 'library', ref,
             scaleMm: finish?.kind === 'library' ? finish.scaleMm : DEFAULT_LIBRARY_SCALE_MM,
             rotationDeg: finish?.kind === 'library' ? finish.rotationDeg : 0,
           });
+        } else {
+          const surface = availableRegistry[0];
+          if (surface) onChange({ kind: 'registry', surfaceId: surface.id, rotationDeg: 0 });
         }
       }}>
         <option value="none">Sperrholz (Standard)</option>
         <option value="paint">RAL-Wandfarbe</option>
         <option value="library">Bibliothek (Holz, Stoff, …)</option>
+        {(availableRegistry.length > 0 || finish?.kind === 'registry') && <option value="registry">Eigene Oberflächen</option>}
       </select>
     </label>
     {finish?.kind === 'paint' && <div className="ral-picker" data-testid={`${id}-paint`}>
@@ -76,6 +86,31 @@ function FinishEditor({
         </select>
       </label>
       <p className="muted">Mustermaß ≈ Kachelbreite auf der Fläche ({Math.round(faceHeightMm)} mm hoch).</p>
+    </>}
+    {finish?.kind === 'registry' && selectedRegistry && <>
+      <label>
+        Oberfläche
+        <select aria-label={`${id} Eigene Oberfläche`} value={finish.surfaceId}
+          onChange={event => onChange({ ...finish, surfaceId: event.target.value })}>
+          {registry.surfaces.filter(surface => !surface.archived || surface.id === finish.surfaceId).map(surface => <option key={surface.id} value={surface.id}>
+            {surface.name}{surface.archived ? ' (archiviert)' : ''} · {surface.scope === 'workspace' ? 'Arbeitsbereich' : 'Produktion'}
+          </option>)}
+        </select>
+      </label>
+      <label>
+        Mustermaß (mm)
+        <input aria-label={`${id} Mustermaß`} type="number" min={50} max={20000} step={10}
+          value={finish.scaleMm ?? selectedRegistry.definition.tileWidthMm}
+          onChange={event => onChange({ ...finish, scaleMm: Number(event.target.value) || selectedRegistry.definition.tileWidthMm })} />
+      </label>
+      <label>
+        Faserrichtung
+        <select aria-label={`${id} Faserrichtung`} value={finish.rotationDeg ?? 0}
+          onChange={event => onChange({ ...finish, rotationDeg: Number(event.target.value) as SurfaceRotationDeg })}>
+          {SURFACE_ROTATIONS_DEG.map(deg => <option key={deg} value={deg}>{deg}°</option>)}
+        </select>
+      </label>
+      <p className="muted">glTF-PBR · Originalmaß {selectedRegistry.definition.tileWidthMm} × {selectedRegistry.definition.tileHeightMm} mm.</p>
     </>}
   </div>;
 }

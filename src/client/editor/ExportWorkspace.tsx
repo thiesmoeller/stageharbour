@@ -6,9 +6,11 @@ import {
 import {
   defaultCamera, documentPagesFromTemplate, editablePagesFromSettings, viewFrameId, type CameraPreset, type DocumentFrame, type DocumentPage, type ExportDocumentSpec, type FrameCrop, type SheetOrientation,
 } from '../../shared/exportDocument.js';
+import type { PaperSize } from '../../shared/tiling.js';
 import type { Asset } from '../../shared/assets.js';
 import type { Group } from '../../shared/groups.js';
 import type { Layout, VenueGeometry, Wall } from '../../shared/layout.js';
+import { defaultAudienceViewpoint } from '../../shared/venue.js';
 import type { PlanPreviewData } from './PlanPreview.js';
 import { REPORT_VIEW_LABELS, type ReportTemplate } from '../../shared/reportTemplate.js';
 import { StageView, type StageCaptureHandle } from './StageView.js';
@@ -57,10 +59,14 @@ export function ExportWorkspace({
   const selectedDefault = sceneId ? [sceneId] : scenes.map(scene => scene.id);
   const [sceneIds, setSceneIds] = useState<string[]>(selectedDefault);
   const [revisionName, setRevisionName] = useState('Fassung');
-  const [paper, setPaper] = useState<'A4' | 'A3'>('A4');
+  const [paper, setPaper] = useState<PaperSize>('A4');
   const [orientation, setOrientation] = useState<'auto' | SheetOrientation>('auto');
   const [scale, setScale] = useState<25 | 50 | 100>(50);
   const [preset, setPreset] = useState<'construction' | 'presentation'>('construction');
+  const audienceViewpoint = useMemo(
+    () => venue?.audienceViewpoint ?? (venue ? defaultAudienceViewpoint(venue) : undefined),
+    [venue?.audienceViewpoint, venue?.width, venue?.depth, venue?.placeholders],
+  );
   const [planScope, setPlanScope] = useState<'venue' | 'scenery'>('venue');
   const [planCrop, setPlanCrop] = useState<FrameCrop | undefined>();
   const [viewCameras, setViewCameras] = useState<{ id: string; label: string; preset: CameraPreset }[]>([]);
@@ -114,12 +120,12 @@ export function ExportWorkspace({
           id: view.id, label,
           camera: defaultCamera({
             minX: 0, minY: 0, maxX: venueSize?.width ?? 8000, maxY: venueSize?.depth ?? 6000,
-          }, view.preset),
+          }, view.preset, audienceViewpoint),
         }];
       }),
       customPages,
     };
-  }, [sceneIds, revisionName, preset, documentKind, paper, orientation, scale, layers, elevationGroupIds, sceneId, templateId, customPages, planScope, planCrop, viewCameras, venueSize?.width, venueSize?.depth]);
+  }, [sceneIds, revisionName, preset, documentKind, paper, orientation, scale, layers, elevationGroupIds, sceneId, templateId, customPages, planScope, planCrop, viewCameras, venueSize?.width, venueSize?.depth, audienceViewpoint]);
 
   const preparePayload = useMemo(() => {
     if (!spec) return undefined;
@@ -311,13 +317,15 @@ export function ExportWorkspace({
         </select>
         <label htmlFor="export-preset">Ansichten</label>
         <select id="export-preset" value={preset} onChange={event => { setPreset(event.target.value as 'construction' | 'presentation'); setOutdated(true); }}>
-          <option value="construction">Konstruktion</option>
-          <option value="presentation">Mit Raumsicht</option>
+          <option value="construction">Aufbau &amp; Werkstatt (Stage-Hands)</option>
+          <option value="presentation">Präsentation &amp; Inszenierung</option>
         </select>
         <label htmlFor="export-paper">Papierformat</label>
-        <select id="export-paper" value={paper} onChange={event => { setPaper(event.target.value as 'A4' | 'A3'); setOutdated(true); }}>
+        <select id="export-paper" value={paper} onChange={event => { setPaper(event.target.value as PaperSize); setOutdated(true); }}>
           <option value="A4">A4</option>
           <option value="A3">A3</option>
+          <option value="A2">A2</option>
+          <option value="A1">A1</option>
         </select>
         <label htmlFor="export-orientation">Ausrichtung</label>
         <select id="export-orientation" value={orientation} onChange={event => { setOrientation(event.target.value as 'auto' | SheetOrientation); setOutdated(true); }}>
@@ -450,7 +458,7 @@ export function ExportWorkspace({
         {editing && selected?.kind === 'view3d' && <div role="group" aria-label="Kamerablick">
           {(['orbit', 'audience', 'top', 'front', 'side'] as const).map(presetId => <button key={presetId} type="button" className="quiet" onClick={() => {
             if (!customPages) return;
-            const camera = defaultCamera({ minX: 0, minY: 0, maxX: 8000, maxY: 6000 }, presetId);
+            const camera = defaultCamera({ minX: 0, minY: 0, maxX: venueSize?.width ?? 8000, maxY: venueSize?.depth ?? 6000 }, presetId, audienceViewpoint);
             editPages(customPages.map(pageItem => ({ ...pageItem, frames: pageItem.frames.map(frame => frame.id === selected.id ? { ...frame, camera } : frame) })));
           }}>{REPORT_VIEW_LABELS[presetId]} übernehmen</button>)}
         </div>}
