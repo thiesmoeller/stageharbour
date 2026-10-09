@@ -101,3 +101,22 @@ test('createMailTransport prefers SMTP over Brevo API and defaults port 587', as
   const unconfigured = createMailTransport({ NODE_ENV: 'production' });
   await assert.rejects(unconfigured.send(message), /nicht konfiguriert/);
 });
+
+test('feedback reply-to and attachment bytes survive SMTP and Brevo delivery', async () => {
+  const feedback = { ...message, replyTo: 'reporter@example.test', attachments: [{ filename: 'context.json.txt', contentType: 'text/plain', content: Buffer.from('{"view":"plan"}') }] };
+  const smtp = createSmtpTransport(
+    { host: 'smtp.example.test', port: 587, user: 'u', pass: 'p', from: 'app@example.test' },
+    () => ({ async sendMail(options) {
+      assert.equal(options.replyTo, feedback.replyTo);
+      assert.deepEqual(options.attachments, feedback.attachments);
+    } }),
+  );
+  await smtp.send(feedback);
+  const brevo = createBrevoTransport({ apiKey: 'test', from: 'app@example.test', fetch: async (_, init) => {
+    const body = JSON.parse(String(init?.body));
+    assert.deepEqual(body.replyTo, { email: feedback.replyTo });
+    assert.deepEqual(body.attachment, [{ name: 'context.json.txt', content: feedback.attachments[0]!.content.toString('base64') }]);
+    return new Response('{}', { status: 201 });
+  } });
+  await brevo.send(feedback);
+});

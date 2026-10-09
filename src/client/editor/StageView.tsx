@@ -33,14 +33,14 @@ function facing(normal: { x: number; z: number }) {
   return normal.z <= 0 ? 'zeigt zum Publikum' : 'zeigt von Publikum weg';
 }
 
-/** Keep the camera looking from the audience toward upstage (+Z). Scene is X-mirrored so plan-left stays screen-left. */
-export function StageView({ layout, venue, assets = [], workspaceId = '', onLightingChange, onLightLooksChange, onHangPlanChange, planDisplay = defaultPlanDisplay, onCaptureReady, initialView, onViewChange, title = 'Raumsicht', ...editing }: {
+export function StageView({ layout, venue, assets = [], workspaceId = '', onLightingChange, onLightLooksChange, onHangPlanChange, planDisplay = defaultPlanDisplay, onCaptureReady, onFeedbackCaptureReady, initialView, onViewChange, title = 'Raumsicht', ...editing }: {
   layout: Layout; venue: VenueGeometry; assets?: Asset[]; workspaceId?: string;
   onLightingChange?: (value: StageLightingSettings) => void;
   onLightLooksChange?: (patch: LightLooksPatch) => void;
   onHangPlanChange?: (plan: HangPlan) => void;
   planDisplay?: PlanDisplayOptions;
   onCaptureReady?: (handle: StageCaptureHandle | null) => void;
+  onFeedbackCaptureReady?: (handle: StageCaptureHandle | null) => void;
   initialView?: StageCameraView;
   onViewChange?: (view: StageCameraView) => void;
   title?: string;
@@ -161,7 +161,7 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
       onClose={() => selectFixture(null)}
     />}
     </DockPortal>
-    <Suspense fallback={<p role="status">Raumsicht wird geladen …</p>}><PascalStageCanvas model={model} layout={layout} venue={venue} audience={audience} view={view} assets={assets} workspaceId={workspaceId} lighting={lighting} planDisplay={planDisplay} onCaptureReady={onCaptureReady} aimOnly={exportAim}
+    <Suspense fallback={<p role="status">Raumsicht wird geladen …</p>}><PascalStageCanvas model={model} layout={layout} venue={venue} audience={audience} view={view} assets={assets} workspaceId={workspaceId} lighting={lighting} planDisplay={planDisplay} onCaptureReady={onCaptureReady ?? onFeedbackCaptureReady} aimOnly={exportAim}
       enhanced={!simple}
       selectedFixtureId={boardOpen ? selectedFixtureId : null}
       onFixtureSelect={boardOpen ? id => selectFixture(id) : undefined}

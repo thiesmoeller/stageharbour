@@ -1,3 +1,4 @@
+import { registerFeedbackRoutes } from './feedback/routes.js';
 import Fastify, { type FastifyError } from 'fastify';
 import swagger from '@fastify/swagger';
 import fastifyStatic from '@fastify/static';
@@ -52,6 +53,7 @@ export async function createApp(db: Database, config: Config, options: {
   const mail = options.mail ?? (config.NODE_ENV === 'test' ? createFakeMailTransport() : createMailTransport(config));
   const storage = options.storage ?? localFilesystem(config.STORAGE_DIR);
   const leases = createLeases(db, options.clock);
+  registerFeedbackRoutes(app, access, config, mail, options.clock ?? (() => new Date()));
   registerIdentityRoutes(app, access, createMembership(db, mail, config.APP_ORIGIN), config.APP_ORIGIN);
   registerProductionRoutes(app, db, access, config.APP_ORIGIN, leases);
   registerInventoryRoutes(app, db, access, config.APP_ORIGIN, leases);
@@ -66,7 +68,7 @@ export async function createApp(db: Database, config: Config, options: {
   app.addHook('onResponse', async (request, reply) => {
     if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method) || reply.statusCode >= 400) return;
     const route = request.routeOptions.url ?? '';
-    if (!route.startsWith('/api/workspaces/') || route.includes('/lease')) return;
+    if (!route.startsWith('/api/workspaces/') || route.includes('/lease') || route.endsWith('/feedback')) return;
     const params = request.params as { workspaceId: string };
     const session = await auth.api.getSession({ headers: fromNodeHeaders(request.headers) });
     if (session) await audit(db, params.workspaceId, session.user.id, `${request.method} ${route}`, request.url.split('?')[0]!);
