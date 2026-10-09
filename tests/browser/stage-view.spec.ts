@@ -9,7 +9,7 @@ async function waitUntilSaved(page: Page) {
 
 test('edits in the plan update the linked 3D view, including front orientation after rotation, undo and reload', async ({ page }) => {
   // Multiple object edits, undo cycles and reloads share a live software WebGL view.
-  test.setTimeout(process.env.CI ? 120_000 : 60_000);
+  test.setTimeout(120_000);
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await signInToPlans(page);

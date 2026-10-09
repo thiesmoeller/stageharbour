@@ -737,3 +737,26 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
 .dock-pane .plan-display-toggles { width: auto; margin: 0; }
 .dock-pane .plan-display-toggle input { flex: 0 0 auto; width: auto; }
 .dock-pane .lighting-toggle input { width: auto; }
+.surface-registry-list { display: grid; gap: 8px; margin: 8px 0 12px; }
+.surface-registry-item {
+  display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; align-items: center;
+  gap: 8px; padding: 6px; border: 1px solid var(--line, #d4d9d2); border-radius: 6px;
+}
+.surface-registry-item img { width: 48px; height: 48px; object-fit: cover; border-radius: 4px; }
+.surface-registry form { display: grid; gap: 8px; margin-top: 10px; }
+.surface-catalog {
+  display: grid; gap: 10px; margin-top: 10px; padding-top: 10px;
+  border-top: 1px solid var(--line, #d4d9d2);
+}
+.surface-registry .surface-catalog-search {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; margin: 0;
+}
+.surface-catalog-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px; max-height: 420px; overflow: auto;
+}
+.surface-catalog-item {
+  display: grid; gap: 6px; align-content: start; padding: 6px;
+  border: 1px solid var(--line, #d4d9d2); border-radius: 6px;
+}
+.surface-catalog-item img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 4px; }

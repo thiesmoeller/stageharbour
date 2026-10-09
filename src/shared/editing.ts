@@ -1,5 +1,5 @@
 import { layoutSchema, type Layout, type Wall } from './layout.js';
-import { platformCentroid, type Platform } from './levels.js';
+import { platformCentroid, type Platform, type PlatformSurfaces } from './levels.js';
 import type { SelectableMember } from './selection.js';
 import { applyUniformFinish, patchWallSurfaces, type WallSurfaces } from './surfaces.js';
 
@@ -57,6 +57,22 @@ export function applyPlatformFinish(layout: Layout, platformIds: readonly string
     return rest;
   });
   return { ...layout, platforms };
+}
+
+/** Apply top/side surfacing to every selected stage-layout podium. */
+export function applyPlatformSurfaces(
+  layout: Layout, platformIds: readonly string[], surfaces: PlatformSurfaces | undefined,
+): Layout {
+  const ids = new Set(platformIds);
+  if (!ids.size || !layout.platforms?.length) return layout;
+  return {
+    ...layout,
+    platforms: layout.platforms.map(platform => {
+      if (!ids.has(platform.id)) return platform;
+      const { finish: _legacy, surfaces: _old, ...rest } = platform;
+      return surfaces ? { ...rest, surfaces } : rest;
+    }),
+  };
 }
 
 /** Apply finish to venue platforms by id (permanent Spielstätte podiums). */

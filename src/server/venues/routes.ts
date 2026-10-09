@@ -17,6 +17,7 @@ import type { FileStorage } from '../exports/storage.js';
 import { AccessError, type createAccess } from '../identity/access.js';
 import { type Leases } from '../productions/leases.js';
 import { inspectReference, MAX_REFERENCE_BYTES, originalFileName } from './files.js';
+import { requireRegistrySurfaces } from '../surfaces/validate.js';
 
 export class VenueError extends Error {
   constructor(public statusCode: 400, message: string) { super(message); }
@@ -140,6 +141,7 @@ export function registerVenueRoutes(
       .send(await storage.get(row.storageKey));
   });
   async function validateReference(workspaceId: string, input: VenueGeometry) {
+    await requireRegistrySurfaces(db, workspaceId, null, input);
     if (input.trace) {
       const [file] = await db.select().from(venueReference)
         .where(and(eq(venueReference.workspaceId, workspaceId), eq(venueReference.id, input.trace.fileId)));

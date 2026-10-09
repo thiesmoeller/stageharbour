@@ -13,12 +13,12 @@ import { VenueLevels } from './VenueLevels.js';
 import { CurtainMarks, OverheadMarks, TrussMarks, VenueOverhead } from './VenueOverhead.js';
 import { KeepClearMarks, KeepClearZones } from './KeepClearZones.js';
 import { commitDrawnKeepClear, nearFirstVertex, type KeepClearZone } from '../../shared/keepClear.js';
-import { calibrationSchema, insertOutlineVertex, measuredOutline, millimetresPerUnit, nearestOutlineEdge, offsetOutlineEdge, outlineEdgeOutwardNormal, underlaySourceToPlan, type Calibration, type PlanPoint } from '../../shared/venue.js';
+import { calibrationSchema, defaultAudienceViewpoint, insertOutlineVertex, measuredOutline, millimetresPerUnit, nearestOutlineEdge, offsetOutlineEdge, outlineEdgeOutwardNormal, underlaySourceToPlan, type AudienceViewpoint, type Calibration, type PlanPoint } from '../../shared/venue.js';
 import { defaultPlanDisplay, type PlanDisplayOptions } from '../../shared/planDisplay.js';
 import { PlanDisplayToggles } from './PlanDisplayToggles.js';
 import { VenueUnderlayDialog } from './VenueUnderlayDialog.js';
 import { prepareUnderlayFile, prepareUnderlayFromDataTransfer, prepareUnderlayFromClipboardRead } from './underlayImport.js';
-import { type Platform, type StairUnit, AUDIENCE_FLOOR_ID, PLATFORM_STYLE_LABELS, axisAlignedPlatformOutline, newPlatform, newStair, orientedPlatformBox, platformCentroid, reassignVenueSupports, stairCorners, type PlatformStyle } from '../../shared/levels.js';
+import { type Platform, type StairUnit, AUDIENCE_FLOOR_ID, PLATFORM_DECK_GRAIN_LABELS, PLATFORM_STYLE_LABELS, axisAlignedPlatformOutline, newPlatform, newStair, orientedPlatformBox, platformCentroid, platformSurfaceFinish, reassignVenueSupports, stairCorners, type PlatformDeckGrain, type PlatformStyle, type PlatformSurfaces } from '../../shared/levels.js';
 import { clipPlatformToStageDeck, layoutStageDeckModules, snapStageDeckElevation, snapStageDeckSize } from '../../shared/stageDeck.js';
 import { type OverheadBox, newOverheadBox, EXAMPLE_CEILING_HEIGHT } from '../../shared/overhead.js';
 import { objectOverlapWarnings, overlappingObjectIds } from '../../shared/overlap.js';
@@ -28,9 +28,9 @@ import {
   builtInFixtureTypes, defaultFocusTowardCentre, emptyHangPlan, newLightingFixture, nextFixtureLabel, type BuiltInFixtureTypeId, type HangPlan, type LightingFixture,
 } from '../../shared/hangPlan.js';
 import { clampCurtainDrop, curtainFromSegment, type Curtain } from '../../shared/curtains.js';
-import { applyVenuePlatformFinish } from '../../shared/editing.js';
 import { defaultCentreline, planRotationAt, snapDrawSegment, SNAP_NOTICE, snapStatusText, type SnapGuide, type StageCentreline } from '../../shared/snapping.js';
 import { CentrelineMark, AlignmentGuides, SnapToggle } from './SnapGuides.js';
+import { AudienceViewpointMark } from './AudienceViewpointMark.js';
 import { RotationHandle } from './RotationHandle.js';
 import { PlaceholderLayer } from './PlaceholderLayer.js';
 import {
@@ -55,12 +55,15 @@ import { HangToolButton } from './HangToolButton.js';
 import { ToolIcon } from './ToolIcon.js';
 import { defaultLighting, type StageLightingSettings } from '../../shared/lighting.js';
 import { canvasModeForWidth, useNarrowEditor } from './useNarrowEditor.js';
-import { WallSurfaceEditor } from './WallSurfaceEditor.js';
+import { FinishEditor, WallSurfaceEditor } from './WallSurfaceEditor.js';
+import { SurfaceRegistryProvider } from './SurfaceRegistryContext.js';
+import { SurfaceRegistryPanel } from './SurfaceRegistryPanel.js';
 
 const MaterialPicker = lazy(() => import('./MaterialPicker.js'));
 type ClickMode = 'select' | 'vertex' | 'edge-parallel' | 'draw-opening' | 'pin' | 'corridor' | 'draw-zone' | 'zone-vertex' | 'place' | 'draw-wall' | 'draw-truss' | 'draw-curtain' | 'place-hang';
 type PlaceKind = 'platform' | 'stair' | 'chair' | 'table' | 'person' | 'speaker' | 'box' | 'overhead' | 'power' | 'audio';
 const CENTRELINE_SELECTION = 'stage-centreline';
+const AUDIENCE_VIEWPOINT_SELECTION = 'audience-viewpoint';
 type ViewMode = 'split' | 'plan' | 'stage';
 type VenueDraft = {
   lighting: StageLightingSettings;
@@ -70,6 +73,7 @@ type VenueDraft = {
   hangPlan: HangPlan;
   fileId: string | undefined; page: number; rotationDeg: number; calibration: Calibration;
   pins: ConnectionPoint[]; corridors: CableRoutingCorridor[]; zones: KeepClearZone[]; centreline: StageCentreline;
+  audienceViewpoint: AudienceViewpoint;
   floorFinish: string | undefined;
   reportTemplates: ReportTemplate[];
 };
@@ -131,6 +135,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
     calibration: venue.trace?.calibration ?? { pointA: { x: 0, y: 0 }, pointB: { x: 0, y: 0 }, distanceMm: 1000 },
     pins: venue.connectionPoints ?? [], corridors: venue.cableRoutingCorridors ?? [], zones: venue.keepClearZones ?? [],
     centreline: venue.stageCentreline ?? defaultCentreline(venue),
+    audienceViewpoint: venue.audienceViewpoint ?? defaultAudienceViewpoint(venue),
     floorFinish: venue.floorFinish,
     reportTemplates: venue.reportTemplates ?? [],
   });
@@ -154,6 +159,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
   const [corridors, setCorridors] = draft.field('corridors');
   const [zones, setZones] = draft.field('zones');
   const [centreline, setCentreline] = draft.field('centreline');
+  const [audienceViewpoint, setAudienceViewpoint] = draft.field('audienceViewpoint');
   const [floorFinish, setFloorFinish] = draft.field('floorFinish');
   const [reportTemplates, setReportTemplates] = draft.field('reportTemplates');
   const [sheetEditorOpen, setSheetEditorOpen] = useState(openSheetEditor);
@@ -194,6 +200,8 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
   const zoneVertexDrag = useRef<{ zoneId: string; index: number } | undefined>(undefined);
   const corridorVertexDrag = useRef<{ corridorId: string; index: number } | undefined>(undefined);
   const centrelineDrag = useRef<{ x: number; y: number; start: StageCentreline } | undefined>(undefined);
+  const audienceOriginDrag = useRef<{ x: number; y: number; start: AudienceViewpoint } | undefined>(undefined);
+  const audienceTargetDrag = useRef<{ x: number; y: number; start: AudienceViewpoint } | undefined>(undefined);
   const transformStart = useRef<{ draft: VenueDraft; ids: string[] } | undefined>(undefined);
   const gestureSelection = useRef<string[]>([]);
   const objectDrag = useRef<{ ids: string[]; x: number; y: number; start: VenueDraft } | undefined>(undefined);
@@ -593,6 +601,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
       walls, wallTypes, platforms, stairs, placeholders, lighting,
       ...(ceilingHeight === '' ? {} : { ceilingHeight }),
       overheadBoxes, trusses, curtains, keepClearZones: zones, stageCentreline: centreline,
+      audienceViewpoint,
       hangPlan,
       ...(floorFinish ? { floorFinish } : {}),
       reportTemplates,
@@ -653,6 +662,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
   const candidate = venueGeometrySchema.safeParse({ ...venue, lighting, outline: vertices, walls, wallTypes, platforms, stairs, placeholders, overheadBoxes, trusses, curtains,
     hangPlan,
     ceilingHeight: ceilingHeight === '' ? undefined : ceilingHeight, keepClearZones: zones, connectionPoints: pins, cableRoutingCorridors: corridors, stageCentreline: centreline,
+    audienceViewpoint,
     ...(floorFinish ? { floorFinish } : { floorFinish: undefined }),
     reportTemplates,
   });
@@ -674,6 +684,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
       overheadBoxes: start.overheadBoxes, trusses: start.trusses, curtains: start.curtains, hangPlan: start.hangPlan,
       connectionPoints: start.pins,
       cableRoutingCorridors: start.corridors, keepClearZones: start.zones, stageCentreline: start.centreline,
+      audienceViewpoint: start.audienceViewpoint,
       reportTemplates: start.reportTemplates,
     };
   }
@@ -805,6 +816,24 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
       setCentreline({ ...centreDrag.start, x: centreDrag.start.x + (point.x - centreDrag.x), y: centreDrag.start.y + (point.y - centreDrag.y) });
       return;
     }
+    const originDrag = audienceOriginDrag.current;
+    if (originDrag) {
+      setAudienceViewpoint({
+        ...originDrag.start,
+        x: originDrag.start.x + (point.x - originDrag.x),
+        y: originDrag.start.y + (point.y - originDrag.y),
+      });
+      return;
+    }
+    const targetDrag = audienceTargetDrag.current;
+    if (targetDrag) {
+      setAudienceViewpoint({
+        ...targetDrag.start,
+        targetX: targetDrag.start.targetX + (point.x - targetDrag.x),
+        targetY: targetDrag.start.targetY + (point.y - targetDrag.y),
+      });
+      return;
+    }
     if (click === 'draw-truss' && trussDrawStart) setTrussDrawHover(point);
     if (click === 'draw-curtain' && curtainDrawStart) setCurtainDrawHover(point);
     if (click === 'place-hang') {
@@ -907,6 +936,8 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
       return;
     }
     if (centrelineDrag.current) { centrelineDrag.current = undefined; draft.finish(cancel); return; }
+    if (audienceOriginDrag.current) { audienceOriginDrag.current = undefined; draft.finish(cancel); return; }
+    if (audienceTargetDrag.current) { audienceTargetDrag.current = undefined; draft.finish(cancel); return; }
     if (zoneVertexDrag.current) { zoneVertexDrag.current = undefined; draft.finish(cancel); return; }
     if (corridorVertexDrag.current) { corridorVertexDrag.current = undefined; draft.finish(cancel); return; }
     if (vertexDrag.current !== undefined) { vertexDrag.current = undefined; draft.finish(cancel); }
@@ -947,7 +978,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
   }
   function remove() {
     if (busyGesture()) return;
-    const ids = selectedIds.filter(id => id !== CENTRELINE_SELECTION);
+    const ids = selectedIds.filter(id => id !== CENTRELINE_SELECTION && id !== AUDIENCE_VIEWPOINT_SELECTION);
     if (!ids.length) { setSelectedIds([]); return; }
     const result = removeVenueSelection(previewVenue, ids);
     if (result.blocked) { setError('Abhängige Podestbezüge müssen mitgelöscht werden.'); return; }
@@ -962,7 +993,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
       event.preventDefault();
       if (command === 'cancel') {
         if (pastePlacement.current) { cancelPastePlacement(); return; }
-        if (objectDrag.current || objectRotate.current || edgeOffsetDrag.current || openingDraw.current || vertexDrag.current !== undefined || zoneVertexDrag.current || corridorVertexDrag.current || centrelineDrag.current || marqueeDrag.current || panDrag.current) endPlanGesture(true);
+        if (objectDrag.current || objectRotate.current || edgeOffsetDrag.current || openingDraw.current || vertexDrag.current !== undefined || zoneVertexDrag.current || corridorVertexDrag.current || centrelineDrag.current || audienceOriginDrag.current || audienceTargetDrag.current || marqueeDrag.current || panDrag.current) endPlanGesture(true);
         else if (drawingZone.length || trussDrawStart || curtainDrawStart || wallDrawStart) {
           setDrawingZone([]); setTrussDrawStart(undefined); setTrussDrawHover(undefined);
           setCurtainDrawStart(undefined); setCurtainDrawHover(undefined);
@@ -1020,7 +1051,8 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
     if (document.fullscreenElement) void document.exitFullscreen();
     else void panelRoot.current?.closest('.editor')?.requestFullscreen();
   }
-  return <EditorDockContext value={dock}><section ref={panelRoot} className="venue-editor" aria-label="Spielstätte">
+  return <SurfaceRegistryProvider workspaceId={workspaceId}>
+    <EditorDockContext value={dock}><section ref={panelRoot} className="venue-editor" aria-label="Spielstätte">
     <EditorMenuBar>
       <EditorMenu label="Datei">
         {!readOnly && <button type="button" disabled={!draft.dirty || busy} onClick={() => void save()}>Spielstätte speichern</button>}
@@ -1097,7 +1129,8 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
           setSnapStatus(`Scheinwerfer (${builtInFixtureTypes[typeId].label}): Zeiger folgt, rastet an nächster Traverse`);
         }} />
       <button type="button" className="quiet" aria-pressed={click === 'draw-curtain'} disabled={curtains.length >= 250} onClick={() => { setCurtainDrawStart(undefined); setCurtainDrawHover(undefined); setTrussDrawStart(undefined); setClick('draw-curtain'); }} title="Molton zeichnen (Start und Ende)" aria-label="Molton zeichnen"><ToolIcon name="wall" /><span>Molton</span></button>
-      <button type="button" className="quiet" aria-pressed={selectedIds.includes(CENTRELINE_SELECTION)} onClick={() => setSelectedIds([CENTRELINE_SELECTION])} title="Mittellinie wählen" aria-label="Mittellinie wählen"><ToolIcon name="settings" /><span>Mitte</span></button>
+      <button type="button" className="quiet" aria-pressed={selectedIds.includes(CENTRELINE_SELECTION)} onClick={() => { setSelectedIds([CENTRELINE_SELECTION]); dock.setActive('properties'); }} title="Mittellinie wählen" aria-label="Mittellinie wählen"><ToolIcon name="settings" /><span>Mitte</span></button>
+      <button type="button" className="quiet" aria-pressed={selectedIds.includes(AUDIENCE_VIEWPOINT_SELECTION)} onClick={() => { setSelectedIds([AUDIENCE_VIEWPOINT_SELECTION]); dock.setActive('properties'); }} title="Zuschauer-Blickpunkt wählen" aria-label="Zuschauer-Blickpunkt wählen"><ToolIcon name="audience" /><span>Blick</span></button>
     </div>}
     {!sheetEditorOpen && <div className="editor-grid dock-grid" data-dock-open={!!dock.active} data-narrow={narrowEditor}>
       <div className="editor-views venue-editor-views" data-mode={activeView} style={activeView === 'split' ? { gridTemplateColumns: `minmax(0, ${viewShare}fr) minmax(0, ${100 - viewShare}fr)` } : { gridTemplateColumns: 'minmax(0, 1fr)' }}>
@@ -1125,7 +1158,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
             onPointerMove={onPlanMove}
             onPointerUp={() => endPlanGesture()}
             onPointerCancel={() => endPlanGesture(true)}
-            onLostPointerCapture={() => { if (panDrag.current || objectDrag.current || objectRotate.current || edgeOffsetDrag.current || openingDraw.current || vertexDrag.current !== undefined || zoneVertexDrag.current || corridorVertexDrag.current || centrelineDrag.current || marqueeDrag.current) endPlanGesture(true); }}
+            onLostPointerCapture={() => { if (panDrag.current || objectDrag.current || objectRotate.current || edgeOffsetDrag.current || openingDraw.current || vertexDrag.current !== undefined || zoneVertexDrag.current || corridorVertexDrag.current || centrelineDrag.current || audienceOriginDrag.current || audienceTargetDrag.current || marqueeDrag.current) endPlanGesture(true); }}
             onAuxClick={event => event.preventDefault()}>
             <defs>
               <pattern id="venue-half-metre-grid" width="500" height="500" patternUnits="userSpaceOnUse">
@@ -1174,6 +1207,21 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
                 centrelineDrag.current = { x: point.x, y: point.y, start: centreline }; draft.begin();
                 svg.current?.setPointerCapture(event.pointerId);
               }} />
+            <AudienceViewpointMark viewpoint={audienceViewpoint} selected={selectedIds.includes(AUDIENCE_VIEWPOINT_SELECTION)} showLabel={planDisplay.showTexts}
+              onOriginPointerDown={readOnly ? undefined : event => {
+                if (click !== 'select' || busyGesture() || event.button !== 0) return;
+                event.stopPropagation(); gestureSelection.current = selectedIds; setSelectedIds([AUDIENCE_VIEWPOINT_SELECTION]); setClick('select');
+                const point = planPoint(event);
+                audienceOriginDrag.current = { x: point.x, y: point.y, start: audienceViewpoint }; draft.begin();
+                svg.current?.setPointerCapture(event.pointerId);
+              }}
+              onTargetPointerDown={readOnly ? undefined : event => {
+                if (click !== 'select' || busyGesture() || event.button !== 0) return;
+                event.stopPropagation(); gestureSelection.current = selectedIds; setSelectedIds([AUDIENCE_VIEWPOINT_SELECTION]); setClick('select');
+                const point = planPoint(event);
+                audienceTargetDrag.current = { x: point.x, y: point.y, start: audienceViewpoint }; draft.begin();
+                svg.current?.setPointerCapture(event.pointerId);
+              }} />
             {vertices.map((point, index) => <circle key={index} data-testid={`venue-vertex-${index}`} cx={point.x} cy={-point.y} r="65" fill="#b67c35" onPointerDown={event => {
               if (click !== 'select' || readOnly || busyGesture() || event.button !== 0) return;
               gestureSelection.current = selectedIds; event.stopPropagation(); vertexDrag.current = index; draft.begin(); svg.current?.setPointerCapture(event.pointerId);
@@ -1190,7 +1238,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
               const centre = platformCentroid(platform.outline);
               const rotation = outlineRotation(platform.outline);
               const box = orientedPlatformBox(platform.outline);
-              const modules = style === 'stageDeck' ? layoutStageDeckModules(box.width, box.depth) : [];
+              const modules = style === 'stageDeck' ? layoutStageDeckModules(box.width, box.depth, platform.deckGrain) : [];
               return <g key={platform.id} className={overlap ? 'plan-overlap' : undefined}>
                 <path data-testid={`venue-platform-${platform.id}`}
                   d={`${platform.outline.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')} Z`}
@@ -1399,18 +1447,18 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
           onTransform={readOnly ? undefined : transform} onPushPull={readOnly ? undefined : pushPull} snapEnabled={snapEnabled} />}
       </div>
       <EditorDock dock={dock} stageVisible={activeView !== 'plan'} onShowStage={() => setViewMode('stage')}
-        library={<details className="inspector-section" open><summary>Wandtypen / Öffnungen</summary><div className="inspector-section-body">
+        library={<><SurfaceRegistryPanel readOnly={readOnly} /><details className="inspector-section" open><summary>Wandtypen / Öffnungen</summary><div className="inspector-section-body">
           <WallTypePanel types={wallTypes} selectedId={selectedTypeId} readOnly={readOnly}
             onSelect={setSelectedTypeId}
             onCreate={type => { applyWallType(type); }}
             onApply={applyWallType}
             onPlace={type => { dock.closeAfterPlacement(); placeWallType(type); }}
             onRemove={removeWallType} />
-        </div></details>}
+        </div></details></>}
         display={<PlanDisplayToggles value={planDisplay} onChange={setPlanDisplay} includeUnderlay={!!overlay || !!fileId} />}
         properties={<aside className="wall-inspector" inert={busyGesture()}>
         <div className="selection-properties">
-          <h3>{selectedWall ? `Feste Wand ${selectedWallIndex + 1}` : selectedIds.includes(CENTRELINE_SELECTION) ? 'Bühnenmittellinie' : selectedObject?.label ?? 'Keine Auswahl'}</h3>
+          <h3>{selectedWall ? `Feste Wand ${selectedWallIndex + 1}` : selectedIds.includes(CENTRELINE_SELECTION) ? 'Bühnenmittellinie' : selectedIds.includes(AUDIENCE_VIEWPOINT_SELECTION) ? 'Zuschauer-Blickpunkt' : selectedObject?.label ?? 'Keine Auswahl'}</h3>
           <label htmlFor="venue-selection">Spielstättenobjekt auswählen</label>
           <select id="venue-selection" value={selected ?? ''} onChange={event => setSelectedIds(event.target.value ? [event.target.value] : [])}>
             <option value="">Objekt auswählen</option>
@@ -1490,7 +1538,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
               const rotation = box.rotation;
               function updatePlatform(patch: {
                 label?: string; elevation?: number; width?: number; depth?: number; x?: number; y?: number; rotation?: number;
-                finish?: string | null; style?: PlatformStyle;
+                style?: PlatformStyle; deckGrain?: PlatformDeckGrain;
               }) {
                 setPlatforms(items => items.map(item => {
                   if (item.id !== platform.id) return item;
@@ -1512,15 +1560,34 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
                     y: patch.y ?? centre.y,
                     rotation: patch.rotation ?? rotation,
                   };
-                  const finish = patch.finish === null ? undefined : patch.finish === undefined ? item.finish : patch.finish || undefined;
+                  const deckGrain = style === 'stageDeck'
+                    ? (patch.deckGrain ?? item.deckGrain ?? 0)
+                    : undefined;
                   let base: Platform = {
                     ...item, label: next.label, elevation: next.elevation, style,
                     outline: axisAlignedPlatformOutline(next.x, next.y, next.width, next.depth, next.rotation),
                   };
+                  if (deckGrain !== undefined) base = { ...base, deckGrain };
+                  else {
+                    const { deckGrain: _grain, ...withoutGrain } = base;
+                    base = withoutGrain;
+                  }
                   if (style === 'stageDeck') base = clipPlatformToStageDeck(base);
-                  if (finish) return { ...base, finish };
-                  const { finish: _removed, ...rest } = base;
-                  return rest;
+                  return base;
+                }));
+              }
+              function updatePlatformSurface(face: keyof PlatformSurfaces, finish: PlatformSurfaces[typeof face]) {
+                const ids = selectedIds.filter(id => platforms.some(item => item.id === id));
+                const targets = new Set(ids.length > 1 ? ids : [platform.id]);
+                setPlatforms(items => items.map(item => {
+                  if (!targets.has(item.id)) return item;
+                  const current = {
+                    top: platformSurfaceFinish(item, 'top'),
+                    sides: platformSurfaceFinish(item, 'sides'),
+                  };
+                  const surfaces = { ...current, [face]: finish };
+                  const { finish: _legacy, surfaces: _old, ...rest } = item;
+                  return { ...rest, surfaces };
                 }));
               }
               return <>
@@ -1529,7 +1596,13 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
                   {(Object.keys(PLATFORM_STYLE_LABELS) as PlatformStyle[]).map(key =>
                     <option key={key} value={key}>{PLATFORM_STYLE_LABELS[key]}</option>)}
                 </select></label>
-                <p className="muted">Bühnenelement: 2×1 / 2×0,5 / 1×1 / 1×0,5&nbsp;m mit Beinen. Massiv bis Boden. Schwebend wie bisher.</p>
+                {(platform.style ?? 'floating') === 'stageDeck' && <label>Verlegerichtung<select
+                  aria-label={`${platform.label} Verlegerichtung`} value={platform.deckGrain ?? 0}
+                  onChange={event => updatePlatform({ deckGrain: Number(event.target.value) as PlatformDeckGrain })}>
+                  {([0, 90] as const).map(key =>
+                    <option key={key} value={key}>{PLATFORM_DECK_GRAIN_LABELS[key]}</option>)}
+                </select></label>}
+                <p className="muted">Bühnenelement: 2×1 / 2×0,5 / 1×1 / 1×0,5&nbsp;m mit Beinen. Größe ziehen rastet auf nächstes 0,5&nbsp;m. Massiv bis Boden. Schwebend wie bisher.</p>
                 <div className="numeric-fields" key={`${platform.id}-${numberFormKey}`}>
                   <label>Bezeichnung<input value={platform.label} onChange={event => updatePlatform({ label: event.target.value })} /></label>
                   {([
@@ -1540,14 +1613,17 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
                     <label key={key}>{label}<BufferedNumberInput label={`${platform.label} ${label}`} value={value}
                       onPendingChange={reportNumberPending} onCommit={next => updatePlatform({ [key]: next })} /></label>)}
                 </div>
-                <Suspense fallback={<p>Materialbibliothek wird geladen …</p>}>
-                  <MaterialPicker id="venue-platform-finish" value={platform.finish} onChange={value => {
-                    const finish = value || undefined;
-                    const ids = selectedIds.filter(id => platforms.some(item => item.id === id));
-                    const targets = ids.length > 1 ? ids : [platform.id];
-                    setPlatforms(items => applyVenuePlatformFinish(items, targets, finish));
-                  }} />
-                </Suspense>
+                <fieldset className="platform-surface-editor">
+                  <legend>Oberflächen</legend>
+                  <details open><summary>Oberseite</summary>
+                    <FinishEditor id="surface-podium-top" finish={platformSurfaceFinish(platform, 'top')}
+                      faceHeightMm={depth} onChange={finish => updatePlatformSurface('top', finish)} />
+                  </details>
+                  {(platform.style ?? 'floating') !== 'stageDeck' && <details open><summary>Seiten und Unterseite</summary>
+                    <FinishEditor id="surface-podium-sides" finish={platformSurfaceFinish(platform, 'sides')}
+                      faceHeightMm={platform.elevation} onChange={finish => updatePlatformSurface('sides', finish)} />
+                  </details>}
+                </fieldset>
                 {selectedIds.filter(id => platforms.some(item => item.id === id)).length > 1
                   && <p className="muted">Oberfläche gilt für alle ausgewählten Podeste.</p>}
               </>;
@@ -1757,6 +1833,9 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
               </div>;
             })()}
             {selectedIds.includes(CENTRELINE_SELECTION) && <CentrelineFields centreline={centreline} onChange={setCentreline} />}
+            {selectedIds.includes(AUDIENCE_VIEWPOINT_SELECTION) && <AudienceViewpointFields
+              viewpoint={audienceViewpoint} placeholders={placeholders} venue={previewVenue}
+              onChange={setAudienceViewpoint} />}
             <div className="form-actions"><button type="button" className="quiet" onClick={() => remove()}>Auswahl löschen</button></div>
           </fieldset> : <p className="muted">Objekt im Grundriss wählen oder links Wand, Podest, Stuhl, Strom, Notausgang oder Lüftung hinzufügen.</p>}
         </div>
@@ -1849,6 +1928,12 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
         <details className="inspector-section"><summary>Bühnenmittellinie</summary><div className="inspector-section-body">
           <fieldset disabled={readOnly || busy || busyGesture()}><CentrelineFields centreline={centreline} onChange={setCentreline} /></fieldset>
         </div></details>
+        {!selectedIds.includes(AUDIENCE_VIEWPOINT_SELECTION) && <details className="inspector-section"><summary>Zuschauer-Blickpunkt</summary><div className="inspector-section-body">
+          <fieldset disabled={readOnly || busy || busyGesture()}>
+            <AudienceViewpointFields viewpoint={audienceViewpoint} placeholders={placeholders} venue={previewVenue}
+              onChange={setAudienceViewpoint} />
+          </fieldset>
+        </div></details>}
       </aside>} />
     </div>}
     {sheetEditorOpen && <ReportSheetEditor
@@ -1878,7 +1963,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
       <p>Entf entfernt die Auswahl. Traversen tragen den Hängeplan der Spielstätte; Lichtlooks (Intensität, Farbe) gehören zum Bühnenbild. Speichern schreibt eine neue Spielstättenfassung.</p>
       <p><a href="#/hilfe">Zur vollständigen Hilfe</a> — Werkzeuge, Tastatur und Wandoberflächen.</p>
     </div>}
-  </section></EditorDockContext>;
+  </section></EditorDockContext></SurfaceRegistryProvider>;
 }
 
 function CentrelineFields({ centreline, onChange }: {
@@ -1897,6 +1982,46 @@ function CentrelineFields({ centreline, onChange }: {
       <div><label htmlFor="centreline-rotation">Mittellinie Drehung (°)</label>
         <input id="centreline-rotation" type="number" step="any" min={-360} max={360} value={centreline.rotation}
           onChange={event => onChange({ ...centreline, rotation: Number(event.target.value) })} /></div>
+    </div>
+  </div>;
+}
+
+function AudienceViewpointFields({ viewpoint, placeholders, venue, onChange }: {
+  viewpoint: AudienceViewpoint;
+  placeholders: Placeholder[];
+  venue: Pick<VenueGeometry, 'width' | 'depth'>;
+  onChange: (value: AudienceViewpoint) => void;
+}) {
+  return <div className="venue-audience-viewpoint" data-testid="audience-viewpoint-fields">
+    <h4>Zuschauer-Blickpunkt (Publikumssicht)</h4>
+    <p className="muted">Kamera und Zielpunkt für die Raumsicht „Publikumssicht“. Im Grundriss Kamerasymbol und Ziel ziehen.</p>
+    <div className="numeric-fields">
+      <div><label htmlFor="audience-x">Blickpunkt X (mm)</label>
+        <input id="audience-x" type="number" step="any" value={viewpoint.x}
+          onChange={event => onChange({ ...viewpoint, x: Number(event.target.value) })} /></div>
+      <div><label htmlFor="audience-y">Blickpunkt Y (mm)</label>
+        <input id="audience-y" type="number" step="any" value={viewpoint.y}
+          onChange={event => onChange({ ...viewpoint, y: Number(event.target.value) })} /></div>
+      <div><label htmlFor="audience-height">Augenhöhe (mm)</label>
+        <input id="audience-height" type="number" step="any" min={300} max={10000} value={viewpoint.heightMm}
+          onChange={event => onChange({ ...viewpoint, heightMm: Number(event.target.value) })} /></div>
+      <div><label htmlFor="audience-target-x">Ziel X (mm)</label>
+        <input id="audience-target-x" type="number" step="any" value={viewpoint.targetX}
+          onChange={event => onChange({ ...viewpoint, targetX: Number(event.target.value) })} /></div>
+      <div><label htmlFor="audience-target-y">Ziel Y (mm)</label>
+        <input id="audience-target-y" type="number" step="any" value={viewpoint.targetY}
+          onChange={event => onChange({ ...viewpoint, targetY: Number(event.target.value) })} /></div>
+      <div><label htmlFor="audience-target-height">Zielhöhe (mm)</label>
+        <input id="audience-target-height" type="number" step="any" min={0} max={10000} value={viewpoint.targetHeightMm}
+          onChange={event => onChange({ ...viewpoint, targetHeightMm: Number(event.target.value) })} /></div>
+      <div><label htmlFor="audience-label">Bezeichnung</label>
+        <input id="audience-label" maxLength={80} value={viewpoint.label ?? ''}
+          onChange={event => onChange({ ...viewpoint, label: event.target.value || undefined })} /></div>
+    </div>
+    <div className="form-actions">
+      <button type="button" className="quiet" onClick={() => onChange(defaultAudienceViewpoint({
+        width: venue.width, depth: venue.depth, placeholders,
+      }))}>Vor Stühlen platzieren</button>
     </div>
   </div>;
 }

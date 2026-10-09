@@ -1,4 +1,4 @@
-import { getMaterialPresetByRef, type MaterialPresetPayload } from '@pascal-app/core';
+import { getMaterialPresetByRef, MaterialPresetPayloadSchema, type MaterialPresetPayload } from '@pascal-app/core';
 import {
   applyMaterialPresetToMaterials,
   createDefaultMaterial,
@@ -9,6 +9,8 @@ import type { Material } from 'three';
 import { DoubleSide } from 'three';
 import { ralHex, WALL_PAINT_METALNESS, WALL_PAINT_ROUGHNESS } from '../../shared/ral.js';
 import { type SurfaceFinish } from '../../shared/surfaces.js';
+import type { SurfaceRecord } from '../../shared/surfaceRegistry.js';
+import { surfaceTextureUrl } from './SurfaceRegistryContext.js';
 
 export type SurfaceMaterialOptions = {
   /** Face width in millimetres (for library scale → texture repeat). */
@@ -16,6 +18,7 @@ export type SurfaceMaterialOptions = {
   /** Face height in millimetres. */
   faceHeightMm: number;
   shading?: 'rendered' | 'solid';
+  registry?: { workspaceId: string; surface?: SurfaceRecord };
 };
 
 /** Clone a Pascal preset and apply grain rotation + optional physical scale (mm per tile). */
@@ -27,8 +30,13 @@ export function libraryPresetWithSurface(
   if (!base) return null;
   const mapProperties = { ...base.mapProperties };
   if (finish.scaleMm != null) {
-    mapProperties.repeatX = Math.max(0.05, options.faceWidthMm / finish.scaleMm);
-    mapProperties.repeatY = Math.max(0.05, options.faceHeightMm / finish.scaleMm);
+    // A quarter turn swaps the texture axes. Swap the physical face dimensions
+    // as well so one texture tile remains the same size instead of stretching.
+    const quarterTurn = finish.rotationDeg === 90 || finish.rotationDeg === 270;
+    const textureWidthMm = quarterTurn ? options.faceHeightMm : options.faceWidthMm;
+    const textureHeightMm = quarterTurn ? options.faceWidthMm : options.faceHeightMm;
+    mapProperties.repeatX = Math.max(0.05, textureWidthMm / finish.scaleMm);
+    mapProperties.repeatY = Math.max(0.05, textureHeightMm / finish.scaleMm);
   }
   if (finish.rotationDeg != null) {
     mapProperties.rotation = (finish.rotationDeg * Math.PI) / 180;
@@ -50,6 +58,49 @@ export function createSurfaceMaterial(
     if (!hex) return null;
     const material = createDefaultMaterial(hex, WALL_PAINT_ROUGHNESS, options.shading ?? 'rendered', DoubleSide);
     if ('metalness' in material) (material as Material & { metalness: number }).metalness = WALL_PAINT_METALNESS;
+    return material;
+  }
+  if (finish.kind === 'registry') {
+    const surface = options.registry?.surface;
+    if (!surface || surface.id !== finish.surfaceId) return null;
+    const definition = surface.definition;
+    const tileWidthMm = finish.scaleMm ?? definition.tileWidthMm;
+    const tileHeightMm = definition.tileHeightMm * (tileWidthMm / definition.tileWidthMm);
+    const quarterTurn = finish.rotationDeg === 90 || finish.rotationDeg === 270;
+    const maps = definition.maps;
+    const url = (fileId: string | undefined) => fileId && surfaceTextureUrl(options.registry!.workspaceId, fileId);
+    const orm = url(maps.orm);
+    const preset = MaterialPresetPayloadSchema.parse({
+      maps: {
+        albedoMap: url(maps.baseColor),
+        normalMap: url(maps.normal),
+        roughnessMap: orm ?? url(maps.roughness),
+        metalnessMap: orm ?? url(maps.metalness),
+        aoMap: orm ?? url(maps.occlusion),
+        displacementMap: url(maps.displacement),
+        alphaMap: url(maps.alpha),
+        emissiveMap: url(maps.emissive),
+      },
+      mapProperties: {
+        color: definition.baseColorFactor,
+        roughness: definition.roughnessFactor,
+        metalness: definition.metallicFactor,
+        repeatX: Math.max(0.05, (quarterTurn ? options.faceHeightMm : options.faceWidthMm) / tileWidthMm),
+        repeatY: Math.max(0.05, (quarterTurn ? options.faceWidthMm : options.faceHeightMm) / tileHeightMm),
+        rotation: ((finish.rotationDeg ?? 0) * Math.PI) / 180,
+        normalScaleX: definition.normalScale,
+        normalScaleY: definition.normalScale,
+        displacementScale: definition.displacementScaleMm,
+        transparent: !!maps.alpha,
+        side: DoubleSide,
+      },
+    });
+    const material = createDefaultMaterial(
+      definition.baseColorFactor, definition.roughnessFactor, options.shading ?? 'rendered', DoubleSide,
+    );
+    if ('metalness' in material) (material as Material & { metalness: number }).metalness = definition.metallicFactor;
+    applyMaterialPresetToMaterials(material, preset);
+    material.side = DoubleSide;
     return material;
   }
   const preset = libraryPresetWithSurface(finish, options);

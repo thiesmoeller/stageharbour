@@ -4,7 +4,7 @@ import { EditorMenu } from './EditorMenu.js';
 import { openPlanPrint } from './printPlan.js';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type PointerEvent } from 'react';
 import { z } from 'zod';
-import { applyPlatformFinish, applyWallSurfaces, memberIdsByKind, mixedPropertyValue, MIXED_PROPERTY, selectionPivot } from '../../shared/editing.js';
+import { applyPlatformSurfaces, applyWallSurfaces, memberIdsByKind, mixedPropertyValue, MIXED_PROPERTY, selectionPivot } from '../../shared/editing.js';
 import { navigatePlan } from './planNavigation.js';
 import { sceneResizeDocument, resizedScene } from '../../shared/sceneResize.js';
 import { editorCommand } from './interactionKeys.js';
@@ -48,6 +48,8 @@ import { BraceInspector } from './BraceInspector.js';
 import { BraceLayer } from './BraceLayer.js';
 import { PlatformInspector, StairInspector } from './PlatformInspector.js';
 import { WallSurfaceEditor } from './WallSurfaceEditor.js';
+import { SurfaceRegistryProvider } from './SurfaceRegistryContext.js';
+import { SurfaceRegistryPanel } from './SurfaceRegistryPanel.js';
 import { liftReportTemplatesToVenue, stripLayoutReportTemplates } from '../../shared/reportTemplate.js';
 import { MeasureLayer } from './MeasureLayer.js';
 import { PlatformLayer, SurfaceField } from './PlatformLayer.js';
@@ -345,7 +347,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
     const withPrimary = { ...present, platforms: (present.platforms ?? []).map(item => item.id === platform.id ? platform : item) };
     const platformIds = memberIdsByKind(selection(), 'platform');
     const targets = platformIds.includes(platform.id) ? platformIds : [platform.id];
-    commit(applyPlatformFinish(withPrimary, targets, platform.finish));
+    commit(applyPlatformSurfaces(withPrimary, targets, platform.surfaces));
   }
   function applyType(type: WallElementType) {
     const present = current.current.present;
@@ -898,7 +900,8 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
     </EditorMenu>}
     <EditorMenu label="Hilfe"><button className="quiet" onClick={() => setHelpOpen(open => !open)}>Bedienung anzeigen</button><a href="#/hilfe">Zur vollständigen Hilfe</a></EditorMenu>
   </EditorMenuBar>;
-  return <EditorDockContext value={dock}><section ref={root} className="editor scene-editor" aria-label="Bühnenbild bearbeiten">
+  return <SurfaceRegistryProvider workspaceId={workspaceId} productionId={initial.productionId}>
+    <EditorDockContext value={dock}><section ref={root} className="editor scene-editor" aria-label="Bühnenbild bearbeiten">
     {!venueOpen && menus}
     <div className="editor-heading compact-editor-heading" hidden={venueOpen}>
       <button className="quiet back-button" disabled={dirty} onClick={onClose} title="Zur Übersicht" aria-label="Zur Übersicht"><ToolIcon name="back" /></button>
@@ -1258,7 +1261,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
       onTransform={readOnly ? undefined : stageTransform} onPushPull={readOnly ? undefined : stageResize}
       resizeScope="scene" resizeDocument={sceneResizeDocument(shown, venue)} />}
     </div><EditorDock dock={dock} stageVisible={activeView !== 'plan' && !exportsOpen} onShowStage={() => setViewMode('stage')}
-      library={<AssetLibrary key={inspectorEpoch} workspaceId={workspaceId} assets={assets} layout={state.present}
+      library={<><SurfaceRegistryPanel readOnly={readOnly} /><AssetLibrary key={inspectorEpoch} workspaceId={workspaceId} assets={assets} layout={state.present}
       readOnly={readOnly || busyGesture()} selected={selectedWall ?? selectedBraceItem}
       wallTypes={wallTypes} selectedTypeId={selectedType}
       onCreated={asset => setAssets(items => [...items, asset])}
@@ -1272,7 +1275,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
         placeType(type);
       }}
       onWallTypeRemove={removeType} onPendingChange={reportInspectorPending}
-      onPanels={adoptPanels} />}
+      onPanels={adoptPanels} /></>}
       display={<PlanDisplayToggles value={planDisplay} onChange={setPlanDisplay} />}
       properties={<aside key={inspectorEpoch} className="wall-inspector" inert={busyGesture()}>
       <div className="selection-properties">
@@ -1318,7 +1321,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
             }} />
           : selectedPlatformItem ? <PlatformInspector key={JSON.stringify(selectedPlatformItem)} platform={selectedPlatformItem}
               readOnly={readOnly} bulkCount={pickedPlatforms.length}
-              finishMixed={mixedPropertyValue(pickedPlatforms.map(id => state.present.platforms?.find(item => item.id === id)?.finish)) === MIXED_PROPERTY}
+              finishMixed={mixedPropertyValue(pickedPlatforms.map(id => JSON.stringify(state.present.platforms?.find(item => item.id === id)?.surfaces ?? null))) === MIXED_PROPERTY}
               onPendingChange={reportInspectorPending} onApply={replacePlatform} onRemove={remove} />
             : selectedStairItem ? <StairInspector key={JSON.stringify(selectedStairItem)} stair={selectedStairItem} surfaces={surfaces} readOnly={readOnly}
                 onPendingChange={reportInspectorPending} onApply={replaceStair} onRemove={remove} />
@@ -1344,7 +1347,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
       <p>Strg/Cmd+C kopiert die Auswahl, Strg/Cmd+V hängt die Kopie an den Zeiger — Klick setzt, Escape bricht ab. Entf löscht ausgewählte Objekte. Escape bricht Platzieren und Bewegungen ab oder hebt die Auswahl auf (auch in der Raumsicht · Klick in freien Raum). Überschneidungen erscheinen rot auf dem Grundriss.</p>
       <p><a href="#/hilfe">Zur vollständigen Hilfe</a> — Werkzeuge, Tastatur und Wandoberflächen.</p>
     </div>}
-  </section></EditorDockContext>;
+  </section></EditorDockContext></SurfaceRegistryProvider>;
 }
 
 function WallForm({ wall, openings, typed, surfaces, readOnly, bulkWallCount = 1, onPendingChange, onApply, onRemove }: {

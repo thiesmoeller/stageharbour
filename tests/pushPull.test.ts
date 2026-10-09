@@ -2,8 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import {
-  applyPushPull, classifyLocalFace, growCentered, inferenceDeltaMm, localNormalFromWorld, resolveDragDeltaMm,
-  resolvePushPullFace,
+  applyPushPull, classifyLocalFace, growCentered, inferenceDeltaMm, inferenceFaceAligned, localNormalFromWorld,
+  resolveDragDeltaMm, resolvePushPullFace,
 } from '../src/shared/pushPull.js';
 import { newWall } from '../src/shared/layout.js';
 import { AUDIENCE_FLOOR_ID, newPlatform, newStair, stairSteps, supportingSurfaces } from '../src/shared/levels.js';
@@ -97,6 +97,14 @@ test('push-pull inference snaps the dragged face flush to a pointed hit along th
   assert.deepEqual(resolveDragDeltaMm(free, 1500, { snapEnabled: false, bypass: false }), { deltaMm: free, inferred: false });
 });
 
+test('push-pull inference ignores faces that are not parallel to the drag axis', () => {
+  // Side-face drag (+X): another vertical face locks; a podium top must not.
+  assert.equal(inferenceFaceAligned({ x: 1, y: 0, z: 0 }, { x: 1, y: 0, z: 0 }), true);
+  assert.equal(inferenceFaceAligned({ x: 1, y: 0, z: 0 }, { x: -1, y: 0, z: 0 }), true);
+  assert.equal(inferenceFaceAligned({ x: 1, y: 0, z: 0 }, { x: 0, y: 1, z: 0 }), false);
+  assert.equal(inferenceFaceAligned({ x: 1, y: 0, z: 0 }, { x: 0.5, y: 0.866, z: 0 }), false);
+});
+
 test('push-pull can open an Ausschnitt flush to the left or right panel end', () => {
   const openingId = randomUUID();
   const wall = {
@@ -182,7 +190,7 @@ test('pulling a stair up raises its upper podium and adds DIN ~16 cm steps', () 
   assert.equal(after.length, 3);
 });
 
-test('Bühnenelement push-pull snaps plan size to 0.5 m module grid', () => {
+test('Bühnenelement push-pull cover-snaps to the next 0.5 m module step', () => {
   const platform = {
     ...newPlatform(randomUUID(), 3000, 2000),
     style: 'stageDeck' as const,
@@ -192,14 +200,31 @@ test('Bühnenelement push-pull snaps plan size to 0.5 m module grid', () => {
     ],
   };
   const venue = { schemaVersion: 1 as const, width: 10000, depth: 8000, platforms: [platform] };
-  // 2×1 m deck; small pull should not move off the grid until past the midpoint.
+  // Any outward pull past the current face covers the next 0,5 m step (not nearest-round).
   const tiny = applyPushPull(venue, { kind: 'platform', id: platform.id, face: 'px' }, 100);
   const tinyXs = tiny.platforms![0]!.outline.map(point => point.x);
-  assert.equal(Math.max(...tinyXs) - Math.min(...tinyXs), 2000);
+  assert.equal(Math.max(...tinyXs) - Math.min(...tinyXs), 2500);
+  assert.equal(Math.min(...tinyXs), 2000);
   const wider = applyPushPull(venue, { kind: 'platform', id: platform.id, face: 'px' }, 300);
   const widerXs = wider.platforms![0]!.outline.map(point => point.x);
   const widerYs = wider.platforms![0]!.outline.map(point => point.y);
   assert.equal(Math.max(...widerXs) - Math.min(...widerXs), 2500);
   assert.equal(Math.min(...widerXs), 2000);
   assert.equal(Math.max(...widerYs) - Math.min(...widerYs), 1000);
+});
+
+test('Bühnenelement face inference cover-snaps so highlight and outline agree', () => {
+  // Pointing 210 mm past a 2 m deck must grow to 2,5 m, not stay put or overshoot randomly.
+  assert.deepEqual(
+    resolveDragDeltaMm(210, 210, { snapEnabled: true, bypass: false, stageDeckCurrentMm: 2000 }),
+    { deltaMm: 500, inferred: true },
+  );
+  assert.deepEqual(
+    resolveDragDeltaMm(500, 500, { snapEnabled: true, bypass: false, stageDeckCurrentMm: 2000 }),
+    { deltaMm: 500, inferred: true },
+  );
+  assert.deepEqual(
+    resolveDragDeltaMm(-100, -100, { snapEnabled: true, bypass: false, stageDeckCurrentMm: 2000 }),
+    { deltaMm: -500, inferred: true },
+  );
 });
