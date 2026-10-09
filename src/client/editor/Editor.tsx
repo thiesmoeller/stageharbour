@@ -370,6 +370,8 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
   function beginPlacingWall(type?: WallElementType) {
     const present = current.current.present;
     if (readOnly || busyGesture() || present.walls.length >= 250) return;
+    setDimensioning(null);
+    setSelectedDimension(undefined);
     const types = typesOf(present);
     let pendingType: WallElementType | undefined;
     let wall: Wall;
@@ -450,23 +452,35 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
   }
   function clearSelection(force = false) {
     if (force || pendingCount.current === 0) {
-      pickedRef.current = []; setPicked([]); setFixtureSelection(undefined);
+      pickedRef.current = []; setPicked([]); setFixtureSelection(undefined); setSelectedDimension(undefined);
       return;
     }
     void confirmDiscardPending(true).then(ok => {
       if (!ok) return;
-      pickedRef.current = []; setPicked([]); setFixtureSelection(undefined);
+      pickedRef.current = []; setPicked([]); setFixtureSelection(undefined); setSelectedDimension(undefined);
     });
   }
   function setSelection(members: ClipboardMember[], force = false) {
     if (force || pendingCount.current === 0) {
-      pickedRef.current = members; setPicked(members); setFixtureSelection(undefined);
+      pickedRef.current = members; setPicked(members); setFixtureSelection(undefined); setSelectedDimension(undefined);
       return;
     }
     void confirmDiscardPending(true).then(ok => {
       if (!ok) return;
-      pickedRef.current = members; setPicked(members); setFixtureSelection(undefined);
+      pickedRef.current = members; setPicked(members); setFixtureSelection(undefined); setSelectedDimension(undefined);
     });
+  }
+  function selectDimension(id: string) {
+    setDimensioning(null);
+    setSnapStatus(undefined);
+    const select = () => {
+      pickedRef.current = [];
+      setPicked([]);
+      setFixtureSelection(undefined);
+      setSelectedDimension(id);
+    };
+    if (pendingCount.current === 0) select();
+    else void confirmDiscardPending(true).then(ok => { if (ok) select(); });
   }
   function selection(): ClipboardMember[] {
     const present = current.current.present;
@@ -491,6 +505,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
       pickedRef.current = [];
       setPicked([]);
       setFixtureSelection(fixture);
+      setSelectedDimension(undefined);
       return;
     }
     void confirmDiscardPending(true).then(ok => {
@@ -498,6 +513,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
       pickedRef.current = [];
       setPicked([]);
       setFixtureSelection(fixture);
+      setSelectedDimension(undefined);
     });
   }
   function remove() {
@@ -534,6 +550,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
   }
   useEffect(() => {
     const shortcut = (event: KeyboardEvent) => {
+      if ((event as KeyboardEvent & { stageToolExitHandled?: boolean }).stageToolExitHandled) return;
       if (venueOpen) return;
       const command = editorCommand(event);
       if (!command) return;
@@ -782,12 +799,16 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
     consumed = false,
   ) {
     if (readOnly || busyGesture()) return;
+    setDimensioning(null);
+    setSelectedDimension(undefined);
     const list = Array.isArray(members) ? members : [members];
     objectPlacement.current = { start: layout, latest: layout, members: list, origin, consumed };
     setGroupPreview(layout); setGuides([]); setSnapStatus('Klicken zum Platzieren · Escape abbricht');
   }
   function placeAsset(asset: Asset) {
     if (readOnly || busyGesture()) return;
+    setDimensioning(null);
+    setSelectedDimension(undefined);
     dock.closeAfterPlacement();
     if (viewMode === 'stage') setViewMode('plan');
     const definition = asset.definition, id = crypto.randomUUID(), x = venue.width / 2, y = venue.depth / 2;
@@ -963,7 +984,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
         {renameError && <p className="error" role="alert">{renameError}</p>}
       </form></div>}
     <div className="tool-rail" hidden={venueOpen} role="toolbar" aria-label="Objekte hinzufügen">
-      <button className="quiet" title="Auswählen · Platzieren abbrechen" aria-pressed={!placing && !groupPreview && !dimensioning} onClick={() => { cancelPlacing(); setDimensioning(null); setSnapStatus(undefined); }}><ToolIcon name="select" /><span>Auswahl</span></button>
+      <button className="quiet" title="Auswählen · Platzieren abbrechen" aria-pressed={!placing && !groupPreview && !dimensioning} onClick={() => { cancelPlacing(); setDimensioning(null); setSelectedDimension(undefined); setSnapStatus(undefined); }}><ToolIcon name="select" /><span>Auswahl</span></button>
 
       {!readOnly && <><WallToolButton
         disabled={!!groupPreview || state.present.walls.length >= 250}
@@ -984,7 +1005,9 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
         beginObjectPlacement({ ...current.current.present, stairs: [...current.current.present.stairs ?? [], stair] }, { kind: 'stair', id });
       }} title="Treppe hinzufügen" aria-label="Treppe hinzufügen"><ToolIcon name="stairs" /><span>Treppe</span></button>
       <button type="button" aria-pressed={dimensioning !== null} disabled={!!groupPreview || !!placing || (state.present.dimensions ?? []).length >= 200} onClick={() => {
-        setDimensioning(current => current ? null : {});
+        cancelPlacing();
+        setSelectedDimension(undefined);
+        setDimensioning(dimensioning ? null : {});
         setSnapStatus(dimensioning ? undefined : 'Ersten Punkt wählen. Der rote Punkt zeigt Ecke oder Kantenmitte. Escape bricht ab.');
       }} title="Maß zwischen zwei Punkten, dann die Maßlinie zur Seite ziehen" aria-label="Maß hinzufügen"><ToolIcon name="expand" /><span>Maß</span></button>
       </>}
@@ -1244,7 +1267,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
         <DimensionLayer dimensions={resolvedDimensions} preview={dimensionPreview} selectedId={selectedDimension}
           passPointer={dimensioning !== null} snapRadius={dimensionReach(16)}
           snaps={dimensioning ? [dimensioning.a?.point, dimensioning.b?.point, dimensioning.hover?.point].flatMap(item => item ? [item] : []) : []}
-          onSelect={id => { setSelectedDimension(id); setDimensioning(null); }} />
+          onSelect={selectDimension} />
         {selectedPlaceholderItem && !readOnly && !selectionBundle && (() => {
           const item = (shown.placeholders ?? []).find(entry => entry.id === selectedPlaceholderItem.id) ?? selectedPlaceholderItem;
           return <RotationHandle centre={item} rotation={item.rotation} width={item.width}

@@ -198,7 +198,7 @@ export default function PascalStageCanvas({ model, layout, venue, audience, view
   const [focusSelection, setFocusSelection] = useState(false);
   const [frameRevision, setFrameRevision] = useState(0);
   function frame(selection: boolean) { setFocusSelection(selection); setFrameRevision(value => value + 1); }
-  const [mode, setMode] = useState<'translate' | 'rotate' | 'pushPull'>('translate');
+  const [mode, setMode] = useState<'select' | 'translate' | 'rotate' | 'pushPull'>('select');
   const [detailed, setDetailed] = useState(false);
   const theme = useViewer(state => state.sceneTheme);
   const setTheme = useViewer(state => state.setSceneTheme);
@@ -222,11 +222,22 @@ export default function PascalStageCanvas({ model, layout, venue, audience, view
   }, [hangLit]);
   const canvas = useRef<HTMLDivElement>(null);
   useBlockBrowserZoom(canvas);
+  useEffect(() => {
+    if (aimOnly) return;
+    const exitTool = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || mode === 'select') return;
+      (event as KeyboardEvent & { stageToolExitHandled?: boolean }).stageToolExitHandled = true;
+      setMode('select');
+    };
+    window.addEventListener('keydown', exitTool, true);
+    return () => window.removeEventListener('keydown', exitTool, true);
+  }, [aimOnly, mode]);
   const mirrorWidth = model.floor.width;
   const mirroredCameraX = mirrorWidth - camera.x;
   const mirroredTargetX = mirrorWidth - target.x;
   const hangPlan = venue.hangPlan;
   const tools = !aimOnly ? <>
+    <button type="button" className="quiet" aria-pressed={mode === 'select'} onClick={() => setMode('select')} title="3D auswählen" aria-label="3D auswählen"><ToolIcon name="select" /></button>
     <button type="button" className="quiet" disabled={!editing.pivot} onClick={() => frame(true)} title="Auswahl einpassen" aria-label="Auswahl einpassen"><ToolIcon name="expand" /></button>
     <button type="button" className="quiet" onClick={() => frame(false)} title="Bühne einpassen" aria-label="Bühne einpassen"><ToolIcon name="expand" /></button>
     {editing.onTransform && <>
@@ -268,7 +279,7 @@ export default function PascalStageCanvas({ model, layout, venue, audience, view
           <VenueFloor venue={venue} lit />
           </group>
         </group>
-        {!aimOnly && mode !== 'pushPull' && <StageTransformControls {...editing} width={mirrorWidth} mode={mode === 'rotate' ? 'rotate' : 'translate'} />}
+        {!aimOnly && (mode === 'translate' || mode === 'rotate') && <StageTransformControls {...editing} width={mirrorWidth} mode={mode} />}
         {!aimOnly && <PushPullControls venue={editing.resizeDocument ?? venue} scope={editing.resizeScope ?? 'venue'} enabled={mode === 'pushPull'} snapEnabled={editing.snapEnabled} onPushPull={editing.onPushPull} />}
         <OrbitControls makeDefault
           target={[mirroredTargetX / 1000, target.y / 1000, target.z / 1000]} maxPolarAngle={Math.PI / 2 - 0.01} minDistance={0.1} maxDistance={500} />

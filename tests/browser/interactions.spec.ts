@@ -73,6 +73,39 @@ test('scene 2D marquee can start outside the venue outline', async ({ page }) =>
   await expect(page.getByTestId('selection-count')).toContainText('2 ausgewählt');
 });
 
+test('scene tools are exclusive and Escape returns measurement and placement to Select', async ({ page }) => {
+  await create(page);
+  const select = page.getByRole('button', { name: 'Auswahl', exact: true });
+  const measure = page.getByRole('button', { name: 'Maß hinzufügen', exact: true });
+  await measure.click();
+  await expect(measure).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('Escape');
+  await expect(measure).toHaveAttribute('aria-pressed', 'false');
+  await expect(select).toHaveAttribute('aria-pressed', 'true');
+  await measure.click();
+  await page.getByRole('button', { name: 'Wand hinzufügen', exact: true }).click();
+  await expect(measure).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByTestId('dimension-target')).toHaveCount(0);
+  await expect(page.getByTestId('placing-wall')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('placing-wall')).toHaveCount(0);
+  await expect(select).toHaveAttribute('aria-pressed', 'true');
+
+  await measure.click();
+  const a = await point(page, 0, 0), b = await point(page, 8000, 0), offset = await point(page, 4000, 1000);
+  for (const at of [a, b, offset]) await page.mouse.click(at.x, at.y);
+  const dimension = page.locator('g[data-testid^="dimension-"]:not([data-testid="dimension-snap"])').first();
+  await expect(dimension).toBeVisible();
+  await page.mouse.click(offset.x, offset.y);
+  await expect(dimension).toHaveClass(/dimension-selected/);
+  await page.keyboard.press('Escape');
+  await expect(dimension).not.toHaveClass(/dimension-selected/);
+  await page.mouse.click(offset.x, offset.y);
+  await expect(dimension).toHaveClass(/dimension-selected/);
+  await select.click();
+  await expect(dimension).not.toHaveClass(/dimension-selected/);
+});
+
 test('venue vertex gestures have preview, cancel, one undo and publish semantics', async ({ page }) => {
   await create(page);
   await revealEditorCommand(page, 'Spielstätte');
@@ -281,6 +314,7 @@ test('rendered Pascal translation handle moves the shared plan and undoes once',
   await placeWallAt(page);
   await page.getByRole('button', { name: '2D + 3D', exact: true }).click();
   await page.getByRole('button', { name: 'Von oben', exact: true }).click();
+  await page.getByRole('button', { name: '3D verschieben', exact: true }).click();
   const canvas = page.locator('[data-renderer="pascal"] canvas');
   await canvas.scrollIntoViewIfNeeded();
   let handle: { x: number; y: number } | undefined;
@@ -315,6 +349,20 @@ test('rendered Pascal translation handle moves the shared plan and undoes once',
   await page.getByRole('button', { name: 'Wiederholen', exact: true }).click();
   await expect(page.locator('#wall-x')).toHaveValue(moved);
   expect(errors).toEqual([]);
+});
+
+test('3D has an explicit Select tool and Escape exits every edit tool', async ({ page }) => {
+  await create(page);
+  await page.getByRole('button', { name: 'Raumansicht', exact: true }).click();
+  const select = page.getByRole('button', { name: '3D auswählen', exact: true });
+  await expect(select).toHaveAttribute('aria-pressed', 'true');
+  for (const name of ['3D verschieben', '3D drehen', 'Größe ziehen']) {
+    const tool = page.getByRole('button', { name, exact: true });
+    await tool.click();
+    await expect(tool).toHaveAttribute('aria-pressed', 'true');
+    await page.keyboard.press('Escape');
+    await expect(select).toHaveAttribute('aria-pressed', 'true');
+  }
 });
 
 test('Shift-deselect removes the object from every command target', async ({ page }) => {
@@ -411,6 +459,8 @@ test('scene face resizing previews, cancels, commits and undoes once', async ({ 
   await page.keyboard.press('Escape'); await page.mouse.up();
   await expect.poll(dimensions).toBe(initial);
   await expect(page.getByTestId('selection-count')).toContainText('1 ausgewählt');
+  await expect(page.getByRole('button', { name: '3D auswählen', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Größe ziehen', exact: true }).click();
   await drag(page, centre, { x: centre.x, y: centre.y - 55 });
   await expect.poll(dimensions).not.toBe(initial);
   await page.keyboard.press('Control+z');
