@@ -3,13 +3,15 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { venueGeometrySchema, newWall } from '../src/shared/layout.js';
 import {
-  calibrationSchema, insertOutlineVertex, measuredOutline, millimetresPerUnit, nearestOutlineEdge,
+  audienceViewpointSchema, calibrationSchema, defaultAudienceViewpoint, insertOutlineVertex, measuredOutline, millimetresPerUnit, nearestOutlineEdge,
   offsetOutlineEdge, OUTLINE_EDGE_HIT_MM, OUTLINE_VERTEX_INSERT_MM, outlineEdgeOutwardNormal,
   planToUnderlaySource, underlaySourceToPlan, venueOutlineSchema,
 } from '../src/shared/venue.js';
 import { defaultPlanDisplay } from '../src/shared/planDisplay.js';
 import { newPlatform } from '../src/shared/levels.js';
 import { venuePlanPreview } from '../src/shared/venueLibrary.js';
+import { stageModel } from '../src/shared/transforms.js';
+import { newPlaceholder } from '../src/shared/placeholders.js';
 
 test('two-point calibration with a known distance yields a reproducible millimetre scale', () => {
   const calibration = calibrationSchema.parse({
@@ -115,6 +117,55 @@ test('plan display defaults show underlay, names, dimensions and texts', () => {
     showUnderlay: true, showObjectNames: true, showDimensions: true, showTexts: true,
     showTrusses: true, showLightingFixtures: true,
   });
+});
+
+test('audienceViewpoint serializes on venue geometry and defaults in front of chairs', () => {
+  const chair = { ...newPlaceholder('chair', randomUUID(), 4000, 800), depth: 450 };
+  const venue = venueGeometrySchema.parse({
+    schemaVersion: 1, width: 8000, depth: 6000,
+    placeholders: [chair],
+    audienceViewpoint: {
+      x: 4100, y: -400, heightMm: 1200, targetX: 4000, targetY: 3000, targetHeightMm: 1200, label: 'Parkett',
+    },
+  });
+  assert.equal(venue.audienceViewpoint?.label, 'Parkett');
+  assert.equal(audienceViewpointSchema.parse(venue.audienceViewpoint).x, 4100);
+  const auto = defaultAudienceViewpoint(venue);
+  assert.ok(auto.y < chair.y - 200, 'viewpoint sits downstage of the front chair row');
+  assert.ok(Math.abs(auto.x - chair.x) < 1);
+  const model = stageModel({ schemaVersion: 1, walls: [], braces: [] }, venue);
+  assert.equal(model.audience.position.z, venue.audienceViewpoint!.y);
+  assert.equal(model.audience.position.y, venue.audienceViewpoint!.heightMm);
+  const behind = stageModel({ schemaVersion: 1, walls: [], braces: [] }, {
+    width: 8000, depth: 6000, placeholders: [chair],
+  });
+  assert.ok(behind.audience.position.z < chair.y - (chair.depth ?? 450) / 2);
+});
+
+test('audienceViewpoint rejects impossible eye heights and falls back without chairs', () => {
+  assert.equal(audienceViewpointSchema.safeParse({
+    x: 0, y: 0, heightMm: 100, targetX: 0, targetY: 1000, targetHeightMm: 1200,
+  }).success, false);
+  assert.equal(audienceViewpointSchema.safeParse({
+    x: 0, y: 0, heightMm: 1200, targetX: 0, targetY: 1000, targetHeightMm: -1,
+  }).success, false);
+  const empty = defaultAudienceViewpoint({ width: 10000, depth: 7000, placeholders: [] });
+  assert.equal(empty.x, 5000);
+  assert.equal(empty.y, -2000);
+  assert.equal(empty.heightMm, 1600);
+  assert.equal(empty.label, 'Publikumssicht');
+  const tablesOnly = defaultAudienceViewpoint({
+    width: 8000, depth: 6000,
+    placeholders: [{ kind: 'table', x: 2000, y: 2000, width: 1200, depth: 800 }],
+  });
+  assert.equal(tablesOnly.y, -2000, 'non-chair placeholders do not pull the viewpoint');
+  const row = [
+    { ...newPlaceholder('chair', randomUUID(), 2000, 900), depth: 450 },
+    { ...newPlaceholder('chair', randomUUID(), 6000, 1100), depth: 450 },
+  ];
+  const across = defaultAudienceViewpoint({ width: 8000, depth: 6000, placeholders: row });
+  assert.equal(across.x, 4000);
+  assert.ok(across.y < Math.min(...row.map(c => c.y - c.depth / 2)));
 });
 
 test('venue plan preview draws the measured outline with permanent walls and platforms', () => {

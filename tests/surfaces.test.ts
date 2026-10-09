@@ -107,8 +107,8 @@ test('libraryPresetWithSurface applies rotation and scale to mapProperties', () 
   );
   assert.ok(preset);
   assert.equal(preset!.mapProperties.rotation, Math.PI / 2);
-  assert.equal(preset!.mapProperties.repeatX, 4);
-  assert.equal(preset!.mapProperties.repeatY, 2.4);
+  assert.equal(preset!.mapProperties.repeatX, 2.4);
+  assert.equal(preset!.mapProperties.repeatY, 4);
 });
 
 test('applyWallPanelUVs map face corners to 0–1 in panel millimetres', () => {

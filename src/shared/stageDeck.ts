@@ -34,6 +34,26 @@ export function snapStageDeckSize(width: number, depth: number) {
   return { width: snapAxis(width), depth: snapAxis(depth) };
 }
 
+/**
+ * Cover/fit a dragged axis onto the 0,5 m module grid with the opposite face fixed.
+ * Growing takes the smallest step that reaches or passes the target; shrinking floors.
+ */
+export function snapStageDeckResizeDelta(currentMm: number, deltaMm: number) {
+  const step = STAGE_DECK_STEP_MM;
+  const raw = currentMm + deltaMm;
+  const snapped = deltaMm >= 0
+    ? Math.max(step, Math.ceil((raw - 1e-6) / step) * step)
+    : Math.max(step, Math.floor((raw + 1e-6) / step) * step);
+  return snapped - currentMm;
+}
+
+/** Module grain relative to the podium outline: 0 = long 2 m edge along width, 90 = along depth. */
+export type StageDeckGrain = 0 | 90;
+
+export function normalizeStageDeckGrain(value: number | undefined): StageDeckGrain {
+  return value === 90 ? 90 : 0;
+}
+
 /** Nearest common leg height for a Bühnenelement podium. */
 export function snapStageDeckElevation(elevation: number) {
   let best: number = STAGE_DECK_LEG_HEIGHTS_MM[0]!;
@@ -57,8 +77,21 @@ function partitionAxis(length: number): number[] {
 /**
  * Tile a snapped WxD rectangle with catalog modules (local coords, origin at podium centre).
  * Prefers larger modules along each axis; 2×2 m cells become two 2×1 m modules.
+ * `grain` 90° swaps the preferred long-edge direction (2 m along depth instead of width).
  */
-export function layoutStageDeckModules(width: number, depth: number): StageDeckModule[] {
+export function layoutStageDeckModules(
+  width: number,
+  depth: number,
+  grain: StageDeckGrain | number | undefined = 0,
+): StageDeckModule[] {
+  if (normalizeStageDeckGrain(grain) === 90) {
+    return layoutStageDeckModules(depth, width, 0).map(module => ({
+      x: module.y,
+      y: module.x,
+      width: module.depth,
+      depth: module.width,
+    }));
+  }
   const size = snapStageDeckSize(width, depth);
   const cols = partitionAxis(size.width);
   const rows = partitionAxis(size.depth);
@@ -95,10 +128,14 @@ export function layoutStageDeckModules(width: number, depth: number): StageDeckM
  * Four feet per catalog module, inset under the panel (outer face 8 mm inside the edge).
  * Neighbouring modules keep their own feet — abutting decks show eight legs, not six.
  */
-export function stageDeckLegPositions(width: number, depth: number) {
+export function stageDeckLegPositions(
+  width: number,
+  depth: number,
+  grain: StageDeckGrain | number | undefined = 0,
+) {
   const inset = STAGE_DECK_LEG_EDGE_INSET_MM + STAGE_DECK_LEG_SECTION_MM / 2;
   const legs: { x: number; y: number }[] = [];
-  for (const module of layoutStageDeckModules(width, depth)) {
+  for (const module of layoutStageDeckModules(width, depth, grain)) {
     const hx = Math.max(0, module.width / 2 - inset);
     const hy = Math.max(0, module.depth / 2 - inset);
     for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]] as const) {
@@ -113,9 +150,11 @@ export function clipPlatformToStageDeck(platform: Platform): Platform {
   const box = orientedPlatformBox(platform.outline);
   const size = snapStageDeckSize(box.width, box.depth);
   const elevation = snapStageDeckElevation(platform.elevation);
+  const deckGrain = normalizeStageDeckGrain(platform.deckGrain);
   return {
     ...platform,
     style: 'stageDeck',
+    deckGrain,
     elevation,
     outline: axisAlignedPlatformOutline(box.x, box.y, size.width, size.depth, box.rotation),
   };

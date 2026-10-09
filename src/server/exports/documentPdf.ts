@@ -40,6 +40,33 @@ function draw(doc: PDFKit.PDFDocument, item: Paint, images: ReadonlyMap<string, 
     doc.undash();
     return;
   }
+  if (item.op === 'circle') {
+    doc.lineWidth(item.line ?? 0.6);
+    if (item.dash) doc.dash(item.dash[0], { space: item.dash[1] });
+    doc.circle(mm(item.cx), mm(item.cy), mm(item.r));
+    if (item.fill && item.stroke) doc.fillAndStroke(item.fill, item.stroke);
+    else if (item.fill) doc.fill(item.fill);
+    else if (item.stroke) doc.stroke(item.stroke);
+    doc.undash();
+    return;
+  }
+  if (item.op === 'arc') {
+    doc.lineWidth(item.line ?? 0.6);
+    if (item.dash) doc.dash(item.dash[0], { space: item.dash[1] });
+    const rad = Math.PI / 180;
+    const steps = 16;
+    const start = item.startAngleDeg * rad;
+    const end = item.endAngleDeg * rad;
+    const delta = (end - start) / steps;
+    doc.moveTo(mm(item.cx + item.r * Math.cos(start)), mm(item.cy + item.r * Math.sin(start)));
+    for (let i = 1; i <= steps; i++) {
+      const angle = start + delta * i;
+      doc.lineTo(mm(item.cx + item.r * Math.cos(angle)), mm(item.cy + item.r * Math.sin(angle)));
+    }
+    doc.stroke(item.stroke);
+    doc.undash();
+    return;
+  }
   if (item.op === 'text') {
     doc.font(item.bold ? 'SourceSans-Bold' : 'SourceSans').fontSize(item.size).fillColor(item.color)
       .text(item.text, mm(item.x), mm(item.y), { width: item.width ? mm(item.width) : undefined, lineBreak: false });

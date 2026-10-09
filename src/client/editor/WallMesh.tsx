@@ -14,6 +14,7 @@ import {
   faceSplitMm, resolveFaceBand, type SurfaceFinish, type WallSurfaces,
 } from '../../shared/surfaces.js';
 import { createSurfaceMaterial, disposeSurfaceMaterial } from './surfaceMaterials.js';
+import { useSurfaceRegistry } from './SurfaceRegistryContext.js';
 
 const plywood = '#315d49', timber = '#d9c6a1', edgeDefault = '#5a6e52';
 
@@ -126,11 +127,18 @@ function useBandMaterial(
   lit: boolean,
   fallback: string,
 ) {
+  const registry = useSurfaceRegistry();
   const key = JSON.stringify(finish ?? null);
   const material = useMemo(() => {
     if (!lit) return null;
-    return createSurfaceMaterial(finish, { faceWidthMm, faceHeightMm, shading: 'rendered' });
-  }, [key, faceWidthMm, faceHeightMm, lit]);
+    return createSurfaceMaterial(finish, {
+      faceWidthMm, faceHeightMm, shading: 'rendered',
+      registry: {
+        workspaceId: registry.workspaceId,
+        surface: finish?.kind === 'registry' ? registry.surfaces.find(item => item.id === finish.surfaceId) : undefined,
+      },
+    });
+  }, [key, faceWidthMm, faceHeightMm, lit, registry.workspaceId, registry.surfaces]);
   useLayoutEffect(() => () => { disposeSurfaceMaterial(material); }, [material]);
   return { material, fallback };
 }

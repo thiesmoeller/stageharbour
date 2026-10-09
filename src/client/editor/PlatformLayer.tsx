@@ -18,7 +18,7 @@ function platformCaption(platform: Platform, display: PlanDisplayOptions) {
 function StageDeckSeams({ platform }: { platform: Platform }) {
   if ((platform.style ?? 'floating') !== 'stageDeck') return null;
   const box = orientedPlatformBox(platform.outline);
-  const modules = layoutStageDeckModules(box.width, box.depth);
+  const modules = layoutStageDeckModules(box.width, box.depth, platform.deckGrain);
   return <g transform={`translate(${box.x} ${-box.y}) rotate(${-box.rotation})`} pointerEvents="none">
     {modules.map((module, index) => <rect key={index}
       x={module.x - module.width / 2} y={-(module.y + module.depth / 2)}

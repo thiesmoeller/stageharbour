@@ -14,8 +14,13 @@ type PackageStock = ConstructionPackage['stock'];
 import {
   PAGE_OVERLAP_MM, PAPER_SIZE_MM, type DrawingScale, type PaperSize,
 } from './tiling.js';
-import { measuredOutline } from './venue.js';
+import { measuredOutline, type AudienceViewpoint } from './venue.js';
 import { planFeatures } from './planFeatures.js';
+import { layoutStageDeckModules, stageDeckLegPositions } from './stageDeck.js';
+import { orientedPlatformBox, stairSteps } from './levels.js';
+import { trussHangWorld } from './truss.js';
+import { centrelineSpan } from './snapping.js';
+import { doorOpenAngleDegrees } from './wall-types.js';
 
 const name = z.string().trim().min(1).max(120);
 const point = z.strictObject({ x: z.number().finite(), y: z.number().finite() });
@@ -144,6 +149,8 @@ export type Rect = { x: number; y: number; width: number; height: number };
 export type Paint =
   | { op: 'poly'; points: { x: number; y: number }[]; fill?: string; stroke?: string; line?: number; dash?: [number, number] }
   | { op: 'line'; x1: number; y1: number; x2: number; y2: number; stroke: string; line?: number; dash?: [number, number] }
+  | { op: 'circle'; cx: number; cy: number; r: number; fill?: string; stroke?: string; line?: number; dash?: [number, number] }
+  | { op: 'arc'; cx: number; cy: number; r: number; startAngleDeg: number; endAngleDeg: number; stroke: string; line?: number; dash?: [number, number] }
   | { op: 'text'; x: number; y: number; text: string; size: number; color: string; bold?: boolean; width?: number; height: number }
   | { op: 'link'; x: number; y: number; width: number; height: number; sheet: number }
   | { op: 'image'; frameId: string; x: number; y: number; width: number; height: number };
@@ -381,10 +388,37 @@ function planPaint(
 ): { paint: Paint[]; overflow: string[] } {
   const paint: Paint[] = [];
   const overflow: string[] = [];
+
+  // 1. Metric Floor Grid (500 mm minor, 1000 mm major)
+  if (layers.venueContext) {
+    const subStep = 500;
+    const startX = Math.floor(view.minX / subStep) * subStep;
+    const endX = Math.ceil(view.maxX / subStep) * subStep;
+    const startY = Math.floor(view.minY / subStep) * subStep;
+    const endY = Math.ceil(view.maxY / subStep) * subStep;
+    for (let x = startX; x <= endX; x += subStep) {
+      if (x < 0 || x > snapshot.venue.width) continue;
+      const major = x % 1000 === 0;
+      const p1 = toPage(x, Math.max(0, view.minY), frame, view);
+      const p2 = toPage(x, Math.min(snapshot.venue.depth, view.maxY), frame, view);
+      paint.push({ op: 'line', x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, stroke: major ? '#d0d8cb' : '#e8ede3', line: major ? 0.25 : 0.15 });
+    }
+    for (let y = startY; y <= endY; y += subStep) {
+      if (y < 0 || y > snapshot.venue.depth) continue;
+      const major = y % 1000 === 0;
+      const p1 = toPage(Math.max(0, view.minX), y, frame, view);
+      const p2 = toPage(Math.min(snapshot.venue.width, view.maxX), y, frame, view);
+      paint.push({ op: 'line', x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, stroke: major ? '#d0d8cb' : '#e8ede3', line: major ? 0.25 : 0.15 });
+    }
+  }
+
+  // 2. Measured Venue Outline
   if (layers.venueContext) {
     const outline = measuredOutline(snapshot.venue);
-    paint.push(poly(outline, frame, view, undefined, '#718469', 0.7));
+    paint.push(poly(outline, frame, view, undefined, '#718469', 0.8));
   }
+
+  // 3. Plan Features: Platforms, Stairs, Curtains, Trusses, Keep Clear, Corridors, Pins
   for (const feature of planFeatures(snapshot, layers)) {
     if (feature.closed) paint.push(poly(feature.points, frame, view, feature.fill, feature.stroke, 0.5));
     else for (let i = 1; i < feature.points.length; i++) {
@@ -399,28 +433,164 @@ function planPaint(
       paint.push({ op: 'text', x: at.x - width / 2, y: at.y - 2, text: feature.label, size: 7, color: feature.stroke, height: 4, width });
     }
   }
+
+  // 4. Bühnenelemente & Platform Deck Modules + Steckfüße
+  for (const source of [layers.venueContext ? snapshot.venue : undefined, layers.scenery ? snapshot.layout : undefined]) {
+    if (!source) continue;
+    for (const platform of source.platforms ?? []) {
+      const box = orientedPlatformBox(platform.outline);
+      if (box.width >= 500 && box.depth >= 500 && Math.abs(box.rotation % 90) < 0.1) {
+        const modules = layoutStageDeckModules(box.width, box.depth, platform.deckGrain);
+        const angleRad = box.rotation * Math.PI / 180;
+        const cosA = Math.cos(angleRad), sinA = Math.sin(angleRad);
+        for (const mod of modules) {
+          const halfW = mod.width / 2, halfD = mod.depth / 2;
+          const localCorners = [
+            { x: mod.x - halfW, y: mod.y - halfD },
+            { x: mod.x + halfW, y: mod.y - halfD },
+            { x: mod.x + halfW, y: mod.y + halfD },
+            { x: mod.x - halfW, y: mod.y + halfD },
+          ];
+          const worldCorners = localCorners.map(lc => ({
+            x: box.x + lc.x * cosA - lc.y * sinA,
+            y: box.y + lc.x * sinA + lc.y * cosA,
+          }));
+          paint.push(poly(worldCorners, frame, view, undefined, '#485c42', 0.25));
+        }
+        const legs = stageDeckLegPositions(box.width, box.depth, platform.deckGrain);
+        for (const leg of legs) {
+          const wx = box.x + leg.x * cosA - leg.y * sinA;
+          const wy = box.y + leg.x * sinA + leg.y * cosA;
+          const lp = toPage(wx, wy, frame, view);
+          paint.push({ op: 'circle', cx: lp.x, cy: lp.y, r: 0.6, fill: '#334430' });
+        }
+        if (layers.labels && platform.elevation > 0) {
+          const elev = `+${Math.round(platform.elevation)} mm`;
+          const at = toPage(box.x, box.y, frame, view);
+          const lw = measure(elev, 6, true);
+          paint.push({ op: 'text', x: at.x - lw / 2, y: at.y + 2, text: elev, size: 6, color: '#334430', bold: true, height: 3, width: lw });
+        }
+      }
+    }
+    for (const stair of source.stairs ?? []) {
+      const steps = stairSteps(stair, []);
+      const angleRad = (stair.rotation ?? 0) * Math.PI / 180;
+      const cosA = Math.cos(angleRad), sinA = Math.sin(angleRad);
+      for (let i = 1; i < steps.length; i++) {
+        const stepY = -stair.run / 2 + i * (stair.run / steps.length);
+        const wL = { x: stair.x + (-stair.width / 2) * cosA - stepY * sinA, y: stair.y + (-stair.width / 2) * sinA + stepY * cosA };
+        const wR = { x: stair.x + (stair.width / 2) * cosA - stepY * sinA, y: stair.y + (stair.width / 2) * sinA + stepY * cosA };
+        const pL = toPage(wL.x, wL.y, frame, view);
+        const pR = toPage(wR.x, wR.y, frame, view);
+        paint.push({ op: 'line', x1: pL.x, y1: pL.y, x2: pR.x, y2: pR.y, stroke: '#5a6e52', line: 0.3 });
+      }
+    }
+  }
+
+  // 5. Scenery Walls with Doors, Swings & Assembly Badges
   if (layers.scenery) {
     for (const wall of snapshot.resolvedWalls) {
       paint.push(poly([...wall.corners], frame, view, '#315d49', '#243f34', 0.5));
-      for (const opening of wall.openings ?? []) paint.push(poly([...opening.corners], frame, view, '#ffffff', '#315d49', 0.4));
+      for (const opening of wall.openings ?? []) {
+        paint.push(poly([...opening.corners], frame, view, '#ffffff', '#315d49', 0.4));
+        const [oa, ob] = opening.corners;
+        if (!oa || !ob) continue;
+        const openingWidth = Math.hypot(ob.x - oa.x, ob.y - oa.y);
+        if (openingWidth < 1) continue;
+        if (opening.height > 1800 || openingWidth >= 600) {
+          const ux = (ob.x - oa.x) / openingWidth;
+          const uy = (ob.y - oa.y) / openingWidth;
+          const nx = uy, ny = -ux;
+          const norm = ny < 0 ? { x: nx, y: ny } : { x: -nx, y: -ny };
+          const hinge = oa;
+          const openRad = doorOpenAngleDegrees(100) * Math.PI / 180;
+          if (openRad > 0.01) {
+            const leafEnd = {
+              x: hinge.x + openingWidth * (Math.cos(openRad) * ux + Math.sin(openRad) * norm.x),
+              y: hinge.y + openingWidth * (Math.cos(openRad) * uy + Math.sin(openRad) * norm.y),
+            };
+            const hP = toPage(hinge.x, hinge.y, frame, view);
+            const lP = toPage(leafEnd.x, leafEnd.y, frame, view);
+            paint.push({ op: 'line', x1: hP.x, y1: hP.y, x2: lP.x, y2: lP.y, stroke: '#243f34', line: 0.6 });
+            paint.push({ op: 'circle', cx: hP.x, cy: hP.y, r: 0.7, fill: '#986122' });
+            const arcPts: { x: number; y: number }[] = [];
+            for (let step = 0; step <= 8; step++) {
+              const t = (step / 8) * openRad;
+              arcPts.push({
+                x: hinge.x + openingWidth * (Math.cos(t) * ux + Math.sin(t) * norm.x),
+                y: hinge.y + openingWidth * (Math.cos(t) * uy + Math.sin(t) * norm.y),
+              });
+            }
+            paint.push({ op: 'poly', points: arcPts.map(p => toPage(p.x, p.y, frame, view)), stroke: '#718469', line: 0.25, dash: [1, 1] });
+          }
+        }
+      }
       const box = boxOf(wall.corners);
       if (box && layers.labels) identityMarks(wallIdentityLines(wall.assemblyNumber, wall.panelLabel), (box.minX + box.maxX) / 2, (box.minY + box.maxY) / 2, frame, view, measure, paint);
     }
     for (const brace of snapshot.resolvedBraces ?? []) {
       for (const slab of brace.slabs ?? []) paint.push(poly([...slab], frame, view, '#999b96', '#666666', 0.4));
       paint.push(poly([...(brace.timberCorners ?? brace.corners)], frame, view, undefined, '#5c6b52', 0.5));
+      if (brace.slabs?.length && layers.labels) {
+        const slabCount = brace.slabs.length;
+        const label = `${slabCount}× Platte (${slabCount * 25} kg)`;
+        const cx = (brace.corners[0]!.x + brace.corners[2]!.x) / 2;
+        const cy = (brace.corners[0]!.y + brace.corners[2]!.y) / 2;
+        const at = toPage(cx, cy, frame, view);
+        const lw = measure(label, 6);
+        paint.push({ op: 'text', x: at.x - lw / 2, y: at.y - 1.5, text: label, size: 6, color: '#444444', bold: true, height: 3, width: lw });
+      }
     }
     for (const item of snapshot.resolvedPlaceholders ?? []) {
       if (item.kind === 'chair') continue;
       paint.push(poly([...item.corners], frame, view, undefined, '#8b8478', 0.4));
     }
   }
+
+  // 6. Lighting Fixtures on Hang Points (Hängeplan)
+  if (layers.softGoods && snapshot.venue.hangPlan?.fixtures?.length) {
+    for (const fixture of snapshot.venue.hangPlan.fixtures) {
+      const truss = (snapshot.venue.trusses ?? []).find(t => t.id === fixture.trussId);
+      const hang = truss?.hangPoints.find(p => p.id === fixture.hangPointId);
+      if (!truss || !hang) continue;
+      const pos = trussHangWorld(truss, hang);
+      const at = toPage(pos.x, pos.y, frame, view);
+      paint.push({ op: 'circle', cx: at.x, cy: at.y, r: 1.8, fill: '#f0f5fa', stroke: '#1e3a5f', line: 0.4 });
+      const labelChar = fixture.typeId === 'fresnel' ? 'F' : fixture.typeId === 'flood' ? 'FL' : 'W';
+      paint.push({ op: 'text', x: at.x - 1.2, y: at.y - 1.2, text: labelChar, size: 5, color: '#1e3a5f', bold: true, height: 2.5, width: 3 });
+      if (fixture.label) {
+        const flw = measure(fixture.label, 6);
+        paint.push({ op: 'text', x: at.x - flw / 2, y: at.y + 2.2, text: fixture.label, size: 6, color: '#1e3a5f', height: 3, width: flw });
+      }
+      const panDeg = fixture.focus?.pan ?? 0;
+      const angleRad = ((truss.rotation ?? 0) + 90 - panDeg) * Math.PI / 180;
+      const arrowLen = 300;
+      const arrowEnd = toPage(pos.x + arrowLen * Math.cos(angleRad), pos.y + arrowLen * Math.sin(angleRad), frame, view);
+      paint.push({ op: 'line', x1: at.x, y1: at.y, x2: arrowEnd.x, y2: arrowEnd.y, stroke: '#d97706', line: 0.35 });
+    }
+  }
+
+  // 7. Audience Chairs
   if (layers.audience) {
     for (const item of snapshot.resolvedPlaceholders ?? []) {
       if (item.kind !== 'chair') continue;
       paint.push(poly([...item.corners], frame, view, undefined, '#8b8478', 0.4));
     }
   }
+
+  // 8. Stage Centreline & Orientation Indicator
+  if (layers.orientation) {
+    if (snapshot.venue.stageCentreline) {
+      const span = centrelineSpan(snapshot.venue.stageCentreline, Math.hypot(snapshot.venue.width, snapshot.venue.depth));
+      const p1 = toPage(span.a.x, span.a.y, frame, view);
+      const p2 = toPage(span.b.x, span.b.y, frame, view);
+      paint.push({ op: 'line', x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, stroke: '#986122', line: 0.35, dash: [3, 2] });
+    }
+    const audienceCenter = toPage(snapshot.venue.width / 2, 200, frame, view);
+    paint.push({ op: 'text', x: audienceCenter.x - 35, y: audienceCenter.y + 4, text: '↑ Blick zur Bühne (Zuschauerraum)', size: 7, color: '#536950', bold: true, height: 3, width: 70 });
+  }
+
+  // 9. Dimensions
   if (layers.dimensions) for (const item of snapshot.layout.dimensions ?? []) {
     const dimension = resolveDimension(item, snapshot.venue, snapshot.layout);
     if (!dimension) continue;
@@ -442,12 +612,20 @@ function identityMarks(lines: string[], modelX: number, modelY: number, frame: R
   if (!lines.length) return;
   const centre = toPage(modelX, modelY, frame, view);
   lines.forEach((text, index) => {
-    const size = index === 0 ? 18 : 13;
+    const size = index === 0 ? 14 : 9;
     const width = Math.max(8, measure(text, size, true));
-    paint.push({
-      op: 'text', x: centre.x - width / 2, y: centre.y - 3 + index * 6.2,
-      text, size, color: index === 0 ? '#173c36' : '#6a4e16', bold: true, height: 6, width,
-    });
+    if (index === 0) {
+      paint.push({ op: 'circle', cx: centre.x, cy: centre.y - 1, r: Math.max(3.5, width / 2 + 1), fill: '#ffffff', stroke: '#173c36', line: 0.5 });
+      paint.push({
+        op: 'text', x: centre.x - width / 2, y: centre.y - 3,
+        text, size, color: '#173c36', bold: true, height: 5, width,
+      });
+    } else {
+      paint.push({
+        op: 'text', x: centre.x - width / 2, y: centre.y + 4 + (index - 1) * 4.5,
+        text, size, color: '#6a4e16', bold: true, height: 4, width,
+      });
+    }
   });
 }
 
@@ -1116,7 +1294,15 @@ export function pageEdgeMm(modelMm: number, scale: DrawingScale) {
   return modelMm / scale;
 }
 
-export function defaultCamera(bounds: Box, preset: CameraPreset = 'orbit'): SavedCamera {
+export function defaultCamera(bounds: Box, preset: CameraPreset = 'orbit', audienceViewpoint?: AudienceViewpoint): SavedCamera {
+  if (preset === 'audience' && audienceViewpoint) {
+    return {
+      projection: 'perspective',
+      position: { x: audienceViewpoint.x, y: audienceViewpoint.heightMm, z: audienceViewpoint.y },
+      target: { x: audienceViewpoint.targetX, y: audienceViewpoint.targetHeightMm, z: audienceViewpoint.targetY },
+      preset,
+    };
+  }
   const cx = (bounds.minX + bounds.maxX) / 2;
   const cy = (bounds.minY + bounds.maxY) / 2;
   const span = Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY, 1000);

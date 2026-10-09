@@ -1,13 +1,14 @@
 import { useLayoutEffect, useMemo } from 'react';
-import { ExtrudeGeometry, Shape } from 'three';
-import { createMaterialFromPresetRef } from '@pascal-app/viewer';
+import { BoxGeometry, ExtrudeGeometry, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, Shape, type Material } from 'three';
 import type { StageModel } from '../../shared/transforms.js';
-import { platformCentroid, surfaceElevationUnderPoint, orientedPlatformBox, type Platform } from '../../shared/levels.js';
+import { platformCentroid, platformSurfaceFinish, surfaceElevationUnderPoint, orientedPlatformBox, type Platform } from '../../shared/levels.js';
 import {
   STAGE_DECK_FRAME_PROFILE_MM, STAGE_DECK_LEG_SECTION_MM, STAGE_DECK_RUBBER_HEIGHT_MM,
   STAGE_DECK_RUBBER_SECTION_MM, STAGE_DECK_TOP_THICKNESS_MM, layoutStageDeckModules, stageDeckLegPositions,
   type StageDeckModule,
 } from '../../shared/stageDeck.js';
+import { createSurfaceMaterial, disposeSurfaceMaterial } from './surfaceMaterials.js';
+import { useSurfaceRegistry } from './SurfaceRegistryContext.js';
 
 /** GUIL-style TM-440 / PTA-440: phenolic infield, aluminum frame + Steckfüße, rubber caps. */
 const DECK_TOP = '#4a3426';
@@ -15,6 +16,17 @@ const ALUMINUM = '#c4c8cd';
 const RUBBER = '#1a1a1a';
 /** Keep phenolic and frame from sharing a face (avoids Z-fighting). */
 const FIT_GAP_MM = 1;
+/** One immutable buffer shared by every deck frame/infield; Pascal's WebGL backend
+ * becomes unstable when a large deck allocates dozens of equivalent box buffers. */
+const UNIT_BOX_GEOMETRY = new BoxGeometry(1, 1, 1);
+const UNIT_PLANE_GEOMETRY = new PlaneGeometry(1, 1);
+const ALUMINUM_LIT = new MeshStandardMaterial({ color: ALUMINUM, metalness: 0.65, roughness: 0.35 });
+const ALUMINUM_FLAT = new MeshBasicMaterial({ color: ALUMINUM });
+const DECK_LIT = new MeshStandardMaterial({ color: DECK_TOP, roughness: 0.9, metalness: 0 });
+const DECK_FLAT = new MeshBasicMaterial({ color: DECK_TOP });
+const RUBBER_LIT = new MeshStandardMaterial({ color: RUBBER });
+const RUBBER_FLAT = new MeshBasicMaterial({ color: RUBBER });
+const SEAM_MATERIAL = new MeshBasicMaterial({ color: '#9aa890', transparent: true, opacity: 0.35 });
 
 function outlinePlanRotation(outline: Platform['outline']) {
   const a = outline[0], b = outline[1];
@@ -22,10 +34,31 @@ function outlinePlanRotation(outline: Platform['outline']) {
   return Math.atan2(b.y - a.y, b.x - a.x);
 }
 
+function isRectangularOutline(outline: Platform['outline']) {
+  if (outline.length !== 4) return false;
+  return outline.every((point, index) => {
+    const previous = outline[(index + 3) % 4]!;
+    const next = outline[(index + 1) % 4]!;
+    const ax = previous.x - point.x, ay = previous.y - point.y;
+    const bx = next.x - point.x, by = next.y - point.y;
+    const scale = Math.hypot(ax, ay) * Math.hypot(bx, by);
+    return scale > 0 && Math.abs(ax * bx + ay * by) <= scale * 1e-6;
+  });
+}
+
 function AluminumMaterial({ lit }: { lit: boolean }) {
-  return lit
-    ? <meshStandardMaterial color={ALUMINUM} metalness={0.65} roughness={0.35} />
-    : <meshBasicMaterial color={ALUMINUM} />;
+  return <primitive object={lit ? ALUMINUM_LIT : ALUMINUM_FLAT} attach="material" dispose={null} />;
+}
+
+function PlatformMaterials({ top, sides, lit, polygon = false }: {
+  top: Material | null; sides: Material | null; lit: boolean; polygon?: boolean;
+}) {
+  const Surface = lit ? 'meshStandardMaterial' : 'meshBasicMaterial';
+  const slot = (index: number, material: Material | null) => material
+    ? <primitive key={index} object={material} attach={`material-${index}`} dispose={null} />
+    : <Surface key={index} attach={`material-${index}`} color="#c5d0b8" />;
+  if (polygon) return <>{slot(0, sides)}{slot(1, top)}</>;
+  return <>{[0, 1, 3, 4, 5].map(index => slot(index, sides))}{slot(2, top)}</>;
 }
 
 /** One catalog module: aluminum rim + inset phenolic — volumes do not overlap. */
@@ -46,20 +79,19 @@ function StageDeckModuleMesh({ module, elevation, lit }: {
   ];
   return <group>
     {edges.map((edge, index) =>
-      <mesh key={index} castShadow={lit} receiveShadow={lit} position={[...edge.pos]}>
-        <boxGeometry args={[...edge.size]} />
+      <mesh key={index} castShadow={lit} receiveShadow={lit} position={[...edge.pos]}
+        scale={[...edge.size]} geometry={UNIT_BOX_GEOMETRY} dispose={null}>
         <AluminumMaterial lit={lit} />
       </mesh>)}
-    <mesh castShadow={lit} receiveShadow={lit} position={[x, y, z]}>
-      <boxGeometry args={[innerW, t, innerD]} />
-      {lit ? <meshStandardMaterial color={DECK_TOP} roughness={0.9} metalness={0} />
-        : <meshBasicMaterial color={DECK_TOP} />}
+    <mesh castShadow={lit} receiveShadow={lit} position={[x, y, z]}
+      scale={[innerW, t, innerD]} geometry={UNIT_BOX_GEOMETRY} dispose={null}>
+      <primitive object={lit ? DECK_LIT : DECK_FLAT} attach="material" dispose={null} />
     </mesh>
   </group>;
 }
 
 function PlatformMesh({ platform, peers, lit }: { platform: Platform; peers: readonly Platform[]; lit: boolean }) {
-  const Surface = lit ? 'meshStandardMaterial' : 'meshBasicMaterial';
+  const registry = useSurfaceRegistry();
   const centre = platformCentroid(platform.outline);
   const rotation = outlinePlanRotation(platform.outline);
   const style = platform.style ?? 'floating';
@@ -70,15 +102,37 @@ function PlatformMesh({ platform, peers, lit }: { platform: Platform; peers: rea
     y: centre.y + localX * sin + localY * cos,
   });
   /** Höhe über Fußboden stays absolute; each foot lands on the surface directly under it. */
-  const finishMaterial = useMemo(() => createMaterialFromPresetRef(platform.finish), [platform.finish]);
-  useLayoutEffect(() => () => { finishMaterial?.dispose(); }, [finishMaterial]);
   const solidBase = style === 'solid'
     ? surfaceElevationUnderPoint(centre, peers, platform.elevation, platform.id)
     : 0;
   const rise = Math.max(1, platform.elevation - solidBase);
   const deckThickness = style === 'solid' ? rise : style === 'stageDeck' ? STAGE_DECK_TOP_THICKNESS_MM : 40;
+  const deckY = platform.elevation;
+  const topFinish = platformSurfaceFinish(platform, 'top');
+  const sideFinish = platformSurfaceFinish(platform, 'sides');
+  const topFinishKey = JSON.stringify(topFinish ?? null);
+  const sideFinishKey = JSON.stringify(sideFinish ?? null);
+  const topMaterial = useMemo(() => lit
+    ? createSurfaceMaterial(topFinish, {
+      faceWidthMm: box.width, faceHeightMm: box.depth, shading: 'rendered',
+      registry: { workspaceId: registry.workspaceId, surface: topFinish?.kind === 'registry' ? registry.surfaces.find(item => item.id === topFinish.surfaceId) : undefined },
+    })
+    : null, [topFinishKey, box.width, box.depth, lit, registry.workspaceId, registry.surfaces]);
+  const sideMaterial = useMemo(() => lit
+    ? createSurfaceMaterial(sideFinish, {
+      faceWidthMm: Math.max(box.width, box.depth), faceHeightMm: deckThickness, shading: 'rendered',
+      registry: { workspaceId: registry.workspaceId, surface: sideFinish?.kind === 'registry' ? registry.surfaces.find(item => item.id === sideFinish.surfaceId) : undefined },
+    })
+    : null, [sideFinishKey, box.width, box.depth, deckThickness, lit, registry.workspaceId, registry.surfaces]);
+  useLayoutEffect(() => () => {
+    disposeSurfaceMaterial(topMaterial);
+    disposeSurfaceMaterial(sideMaterial);
+  }, [topMaterial, sideMaterial]);
+  const rectangular = isRectangularOutline(platform.outline);
+  const renderDeckSurface = style !== 'stageDeck' || !!topMaterial;
+  const outlineKey = platform.outline.map(point => `${point.x},${point.y}`).join(';');
   const geometry = useMemo(() => {
-    if (style === 'stageDeck' && !finishMaterial) return undefined;
+    if (rectangular || !renderDeckSurface) return undefined;
     const shape = new Shape();
     platform.outline.forEach((point, index) => {
       const dx = point.x - centre.x, dy = point.y - centre.y;
@@ -91,33 +145,38 @@ function PlatformMesh({ platform, peers, lit }: { platform: Platform; peers: rea
     const extruded = new ExtrudeGeometry(shape, { depth: deckThickness, bevelEnabled: false, steps: 1 });
     extruded.rotateX(Math.PI / 2);
     return extruded;
-  }, [platform, centre.x, centre.y, cos, sin, deckThickness, style, finishMaterial]);
-  useLayoutEffect(() => () => { geometry?.dispose(); }, [geometry]);
-  const deckY = platform.elevation;
-  const legs = style === 'stageDeck' ? stageDeckLegPositions(box.width, box.depth) : [];
-  const modules = style === 'stageDeck' ? layoutStageDeckModules(box.width, box.depth) : [];
+  }, [outlineKey, centre.x, centre.y, cos, sin, deckThickness, rectangular, renderDeckSurface]);
+  const legs = style === 'stageDeck' ? stageDeckLegPositions(box.width, box.depth, platform.deckGrain) : [];
+  const modules = style === 'stageDeck' ? layoutStageDeckModules(box.width, box.depth, platform.deckGrain) : [];
   return <group position={[centre.x, 0, centre.y]} rotation={[0, -rotation, 0]}>
-    {geometry && <mesh castShadow={lit} receiveShadow={lit} position={[0, deckY, 0]} geometry={geometry}>
-      {finishMaterial ? <primitive object={finishMaterial} attach="material" dispose={null} /> : <Surface color="#c5d0b8" />}
+    {renderDeckSurface && rectangular && <mesh castShadow={lit} receiveShadow={lit}
+      position={[0, deckY - deckThickness / 2, 0]} scale={[box.width, deckThickness, box.depth]}
+      geometry={UNIT_BOX_GEOMETRY} dispose={null}>
+      <PlatformMaterials top={topMaterial} sides={sideMaterial} lit={lit} />
     </mesh>}
-    {style === 'stageDeck' && !finishMaterial && modules.map((module, index) =>
+    {renderDeckSurface && geometry && <mesh castShadow={lit} receiveShadow={lit} position={[0, deckY, 0]} geometry={geometry}>
+      <PlatformMaterials top={topMaterial} sides={sideMaterial} lit={lit} polygon />
+    </mesh>}
+    {style === 'stageDeck' && !topMaterial && modules.map((module, index) =>
       <StageDeckModuleMesh key={`module-${index}`} module={module} elevation={platform.elevation} lit={lit} />)}
-    {style === 'stageDeck' && finishMaterial && modules.map((module, index) =>
-      <mesh key={`seam-${index}`} position={[module.x, platform.elevation + 1, module.y]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[module.width - 20, module.depth - 20]} />
-        <meshBasicMaterial color="#9aa890" transparent opacity={0.35} />
+    {style === 'stageDeck' && topMaterial && modules.map((module, index) =>
+      <mesh key={`seam-${index}`} position={[module.x, platform.elevation + 1, module.y]}
+        rotation={[-Math.PI / 2, 0, 0]} scale={[module.width - 20, module.depth - 20, 1]}
+        geometry={UNIT_PLANE_GEOMETRY} material={SEAM_MATERIAL} dispose={null}>
       </mesh>)}
     {style === 'stageDeck' && legs.map((leg, index) => {
       const baseElevation = surfaceElevationUnderPoint(worldPoint(leg.x, leg.y), peers, platform.elevation, platform.id);
       const postTop = Math.max(baseElevation + STAGE_DECK_RUBBER_HEIGHT_MM + 1, platform.elevation - STAGE_DECK_TOP_THICKNESS_MM);
       const postHeight = Math.max(1, postTop - baseElevation - STAGE_DECK_RUBBER_HEIGHT_MM);
       return <group key={`leg-${index}`} position={[leg.x, baseElevation, leg.y]}>
-        <mesh castShadow={lit} position={[0, STAGE_DECK_RUBBER_HEIGHT_MM / 2, 0]}>
-          <boxGeometry args={[STAGE_DECK_RUBBER_SECTION_MM, STAGE_DECK_RUBBER_HEIGHT_MM, STAGE_DECK_RUBBER_SECTION_MM]} />
-          <Surface color={RUBBER} />
+        <mesh castShadow={lit} position={[0, STAGE_DECK_RUBBER_HEIGHT_MM / 2, 0]}
+          scale={[STAGE_DECK_RUBBER_SECTION_MM, STAGE_DECK_RUBBER_HEIGHT_MM, STAGE_DECK_RUBBER_SECTION_MM]}
+          geometry={UNIT_BOX_GEOMETRY} dispose={null}>
+          <primitive object={lit ? RUBBER_LIT : RUBBER_FLAT} attach="material" dispose={null} />
         </mesh>
-        <mesh castShadow={lit} position={[0, STAGE_DECK_RUBBER_HEIGHT_MM + postHeight / 2, 0]}>
-          <boxGeometry args={[STAGE_DECK_LEG_SECTION_MM, postHeight, STAGE_DECK_LEG_SECTION_MM]} />
+        <mesh castShadow={lit} position={[0, STAGE_DECK_RUBBER_HEIGHT_MM + postHeight / 2, 0]}
+          scale={[STAGE_DECK_LEG_SECTION_MM, postHeight, STAGE_DECK_LEG_SECTION_MM]}
+          geometry={UNIT_BOX_GEOMETRY} dispose={null}>
           <AluminumMaterial lit={lit} />
         </mesh>
       </group>;

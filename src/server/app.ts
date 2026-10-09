@@ -29,11 +29,14 @@ import { localFilesystem, type FileStorage } from './exports/storage.js';
 import type { ConstructionSnapshot } from '../shared/export.js';
 import { registerAssetRoutes } from './assets/routes.js';
 import { registerBrandingRoutes } from './branding/routes.js';
+import { registerSurfaceRoutes } from './surfaces/routes.js';
+import type { SurfaceCatalogClient } from './surfaces/polyHaven.js';
 
 export async function createApp(db: Database, config: Config, options: {
   auth?: ReturnType<typeof createAuth>;
   staticRoot?: string; logger?: boolean; clock?: () => Date; mail?: MailTransport;
   storage?: FileStorage; renderPdf?: (snapshot: ConstructionSnapshot) => Promise<Buffer>;
+  surfaceCatalog?: SurfaceCatalogClient;
 } = {}) {
   const app = Fastify({ logger: options.logger ?? false, bodyLimit: 16 * 1024 });
   app.setValidatorCompiler(validatorCompiler);
@@ -58,6 +61,7 @@ export async function createApp(db: Database, config: Config, options: {
   // Packages render in-process: the worker path was marking revisions failed without a useful client error.
   registerPackageRoutes(app, db, access, config.APP_ORIGIN, storage, snapshot => renderPackage(snapshot));
   registerAssetRoutes(app, db, access, config.APP_ORIGIN, storage, leases);
+  registerSurfaceRoutes(app, db, access, config.APP_ORIGIN, storage, options.surfaceCatalog);
   registerBrandingRoutes(app, db, access, config.APP_ORIGIN, config.WORKSPACE_ID, storage);
   app.addHook('onResponse', async (request, reply) => {
     if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method) || reply.statusCode >= 400) return;

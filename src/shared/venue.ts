@@ -31,6 +31,50 @@ export const venueOutlineSchema = z.array(planPointSchema).min(3).max(500).super
 });
 export type VenueOutline = z.infer<typeof venueOutlineSchema>;
 
+export const audienceViewpointSchema = z.strictObject({
+  x: coordinate,
+  y: coordinate,
+  /** Eye height in mm above audience floor (default 1200 mm seated, 1600 mm standing). */
+  heightMm: z.number().finite().min(300).max(10000).default(1200),
+  targetX: coordinate,
+  targetY: coordinate,
+  targetHeightMm: z.number().finite().min(0).max(10000).default(1200),
+  label: z.string().trim().max(80).optional(),
+});
+export type AudienceViewpoint = z.infer<typeof audienceViewpointSchema>;
+
+/** Intelligent audience viewpoint: in front of audience chairs or default venue perspective. */
+export function defaultAudienceViewpoint(venue: {
+  width: number;
+  depth: number;
+  placeholders?: readonly { kind?: string; x: number; y: number; width?: number; depth?: number }[];
+}): AudienceViewpoint {
+  const chairs = (venue.placeholders ?? []).filter(p => p.kind === 'chair');
+  if (chairs.length > 0) {
+    const chairFrontY = Math.min(...chairs.map(c => c.y - (c.depth ?? 450) / 2));
+    const chairXs = chairs.map(c => c.x);
+    const avgX = (Math.min(...chairXs) + Math.max(...chairXs)) / 2;
+    return {
+      x: Math.round(avgX),
+      y: Math.round(chairFrontY - 1200),
+      heightMm: 1200,
+      targetX: Math.round(avgX),
+      targetY: Math.round(venue.depth / 2),
+      targetHeightMm: 1200,
+      label: 'Parkett vorn',
+    };
+  }
+  return {
+    x: Math.round(venue.width / 2),
+    y: -2000,
+    heightMm: 1600,
+    targetX: Math.round(venue.width / 2),
+    targetY: Math.round(venue.depth / 2),
+    targetHeightMm: 1200,
+    label: 'Publikumssicht',
+  };
+}
+
 export const venueTraceSchema = z.strictObject({
   fileId: z.uuid(),
   page: z.number().int().min(1).max(9999).optional(),

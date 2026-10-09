@@ -1,11 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { newPlatform, orientedPlatformBox } from '../src/shared/levels.js';
+import { newPlatform, orientedPlatformBox, platformSchema, platformSurfaceFinish } from '../src/shared/levels.js';
 import {
   STAGE_DECK_LEG_EDGE_INSET_MM, STAGE_DECK_LEG_SECTION_MM, STAGE_DECK_MODULES_MM,
   clipPlatformToStageDeck, layoutStageDeckModules,
-  snapStageDeckElevation, snapStageDeckSize, stageDeckLegPositions,
+  snapStageDeckElevation, snapStageDeckResizeDelta, snapStageDeckSize, stageDeckLegPositions,
 } from '../src/shared/stageDeck.js';
 
 test('Bühnenelement catalog includes the common BE-1 plan sizes', () => {
@@ -34,6 +34,21 @@ test('layoutStageDeckModules tiles a 4×2 m podium with 2×1 m decks', () => {
     STAGE_DECK_MODULES_MM.some(catalog =>
       (catalog.width === module.width && catalog.depth === module.depth)
       || (catalog.width === module.depth && catalog.depth === module.width))));
+  assert.ok(modules.every(module => module.width === 2000 && module.depth === 1000));
+});
+
+test('layoutStageDeckModules grain 90° lays 2 m modules along depth', () => {
+  const modules = layoutStageDeckModules(4000, 2000, 90);
+  assert.equal(modules.length, 4);
+  assert.equal(modules.reduce((area, module) => area + module.width * module.depth, 0), 4000 * 2000);
+  assert.ok(modules.every(module => module.width === 1000 && module.depth === 2000));
+});
+
+test('snapStageDeckResizeDelta covers the pointed size on the 0,5 m grid', () => {
+  assert.equal(snapStageDeckResizeDelta(2000, 100), 500);
+  assert.equal(snapStageDeckResizeDelta(2000, 500), 500);
+  assert.equal(snapStageDeckResizeDelta(2000, 0), 0);
+  assert.equal(snapStageDeckResizeDelta(2000, -100), -500);
 });
 
 test('clipPlatformToStageDeck snaps size and elevation and sets stageDeck style', () => {
@@ -91,4 +106,25 @@ test('each module keeps four feet inset under the panel', () => {
   const ys = legs.map(leg => Math.abs(leg.y));
   assert.ok(xs.every(x => x === 1000 - inset));
   assert.ok(ys.every(y => y === 500 - inset));
+});
+
+test('podium top and side finishes persist scale and grain independently', () => {
+  const parsed = platformSchema.parse({
+    ...newPlatform(randomUUID(), 4000, 3000),
+    style: 'solid',
+    surfaces: {
+      top: { kind: 'library', ref: 'library:wood-finewood27', scaleMm: 800, rotationDeg: 90 },
+      sides: { kind: 'paint', ral: '9010' },
+    },
+  });
+  assert.deepEqual(platformSurfaceFinish(parsed, 'top'), {
+    kind: 'library', ref: 'library:wood-finewood27', scaleMm: 800, rotationDeg: 90,
+  });
+  assert.deepEqual(platformSurfaceFinish(parsed, 'sides'), { kind: 'paint', ral: '9010' });
+});
+
+test('legacy podium finish remains effective on top and sides', () => {
+  const platform = { ...newPlatform(randomUUID(), 0, 0), finish: 'library:wood-finewood27' };
+  assert.deepEqual(platformSurfaceFinish(platform, 'top'), { kind: 'library', ref: platform.finish });
+  assert.deepEqual(platformSurfaceFinish(platform, 'sides'), { kind: 'library', ref: platform.finish });
 });

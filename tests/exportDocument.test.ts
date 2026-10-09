@@ -3,10 +3,13 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { freezeSnapshot, type ConstructionSnapshot } from '../src/shared/export.js';
 import {
-  bodyRect, composeDocument, contentBounds, coversPoint, documentPagesFromTemplate, editablePagesFromSettings, pageEdgeMm, textBoxes,
+  bodyRect, composeDocument, contentBounds, coversPoint, defaultCamera, documentPagesFromTemplate, editablePagesFromSettings, pageEdgeMm, textBoxes,
   type ExportDocumentSpec, type FrozenScene,
 } from '../src/shared/exportDocument.js';
 import { newBrace, newWall, type Scene } from '../src/shared/layout.js';
+import { newPlatform } from '../src/shared/levels.js';
+import { newLightingFixture } from '../src/shared/hangPlan.js';
+import { PAPER_SIZE_MM } from '../src/shared/tiling.js';
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { createFontMeasure, renderDocument } from '../src/server/exports/documentPdf.js';
 
@@ -313,6 +316,110 @@ test('multiline parts-list rows paginate without clipping, losing rows or overfl
     }
   }
   assert.deepEqual(numbers, Array.from({ length: 70 }, (_, index) => String(index + 1)));
+});
+
+test('planPaint emits door swings, deck module legs and large paper sizes', async () => {
+  const platform = { ...newPlatform(randomUUID(), 3000, 2500), elevation: 400 };
+  const frozen = sceneWith([{ ...newWall(randomUUID(), 2000, 3000), width: 2000 }], {
+    schemaVersion: 1, width: 8000, depth: 6000, platforms: [platform],
+  });
+  const wall = frozen.snapshot.resolvedWalls[0]!;
+  const [a, b] = wall.corners;
+  const openingWidth = 900;
+  const ux = (b!.x - a!.x) / Math.hypot(b!.x - a!.x, b!.y - a!.y);
+  const uy = (b!.y - a!.y) / Math.hypot(b!.x - a!.x, b!.y - a!.y);
+  const nx = uy, ny = -ux;
+  const oa = { x: a!.x + ux * 200, y: a!.y + uy * 200 };
+  const ob = { x: oa.x + ux * openingWidth, y: oa.y + uy * openingWidth };
+  const oc = { x: ob.x + nx * wall.corners[0]!.x * 0 + nx * 28, y: ob.y + ny * 28 };
+  const od = { x: oa.x + nx * 28, y: oa.y + ny * 28 };
+  frozen.snapshot.resolvedWalls[0] = {
+    ...wall,
+    openings: [{
+      id: randomUUID(), left: 200, sill: 0, width: openingWidth, height: 2000,
+      corners: [oa, ob, oc, od],
+    }],
+  };
+  frozen.snapshot.venue.platforms = [platform];
+  const measure = createFontMeasure();
+  for (const paper of ['A4', 'A3', 'A2', 'A1'] as const) {
+    const layout = composeDocument({
+      spec: spec(frozen.sceneId, { paper, scale: 50 }),
+      scenes: [frozen], productionName: 'Beispielproduktion', issuedAtLabel: '09.10.2026', measure,
+    });
+    assert.equal(layout.sheets[0]?.paper, paper);
+    assert.ok(layout.sheets[0]?.widthMm === PAPER_SIZE_MM[paper].width
+      || layout.sheets[0]?.widthMm === PAPER_SIZE_MM[paper].height);
+    const plan = layout.sheets.find(sheet => sheet.title === 'Grundriss');
+    const paint = plan?.frames.flatMap(frame => frame.paint) ?? [];
+    assert.ok(paint.some(item => item.op === 'circle'), `${paper} has deck/assembly circles`);
+    assert.ok(paint.some(item => item.op === 'poly' && item.dash), `${paper} has door swing arc`);
+    assert.ok(paint.some(item => item.op === 'text' && item.text.includes('+400')), `${paper} elevation stamp`);
+  }
+  const a2 = await renderDocument(composeDocument({
+    spec: spec(frozen.sceneId, { paper: 'A2', orientation: 'landscape' }),
+    scenes: [frozen], productionName: 'Beispielproduktion', issuedAtLabel: '09.10.2026', measure,
+  }));
+  assert.match(await pdfText(a2), /\+400/);
+  assert.match(a2.toString('latin1'), /\/MediaBox \[0 0 1683\.779528 1190\.551181\]/);
+});
+
+test('audience camera preset uses the venue viewpoint', () => {
+  const camera = defaultCamera({ minX: 0, minY: 0, maxX: 8000, maxY: 6000 }, 'audience', {
+    x: 3500, y: -900, heightMm: 1250, targetX: 4000, targetY: 3000, targetHeightMm: 1100,
+  });
+  assert.equal(camera.preset, 'audience');
+  assert.equal(camera.position.x, 3500);
+  assert.equal(camera.position.y, 1250);
+  assert.equal(camera.position.z, -900);
+  assert.equal(camera.target.z, 3000);
+});
+
+test('hang fixtures and ballast slabs appear as labelled plan symbols', async () => {
+  const trussId = randomUUID();
+  const hangId = randomUUID();
+  const sceneId = randomUUID();
+  const scene: Scene = {
+    id: sceneId, name: 'Hängeplan', productionName: 'Beispielproduktion', venueName: 'Beispielsaal',
+    revision: 1, productionId: randomUUID(), venueId: randomUUID(), venueVersionId: randomUUID(),
+    lease: null,
+    venue: {
+      schemaVersion: 1, width: 8000, depth: 6000,
+      trusses: [{
+        id: trussId, label: 'LX1', x: 4000, y: 3500, rotation: 0,
+        length: 6000, sectionWidth: 400, bottomHeight: 3500, thickness: 300,
+        hangPoints: [{ id: hangId, offsetMm: 0 }],
+      }],
+      hangPlan: {
+        fixtures: [newLightingFixture(randomUUID(), trussId, hangId, 'fresnel', {
+          label: 'F1', barnDoorsAttached: true, focus: { pan: 15 },
+        })],
+      },
+    },
+    layout: {
+      schemaVersion: 1,
+      walls: [newWall(randomUUID(), 1500, 2000)],
+      braces: [{ ...newBrace(randomUUID(), 2500, 2500), ballast: { mode: 'heavy' } }],
+    },
+  };
+  const frozen: FrozenScene = {
+    sceneId, sceneName: scene.name, venueName: scene.venueName,
+    snapshot: freezeSnapshot(scene, { id: randomUUID(), name: 'Hängeplan', issuedAt: new Date('2026-10-09T12:00:00.000Z') }),
+  };
+  assert.ok((frozen.snapshot.resolvedBraces[0]?.slabs?.length ?? 0) > 0);
+  const measure = createFontMeasure();
+  const layout = composeDocument({
+    spec: spec(sceneId), scenes: [frozen], productionName: 'Beispielproduktion', issuedAtLabel: '09.10.2026', measure,
+  });
+  const plan = layout.sheets.find(sheet => sheet.title === 'Grundriss');
+  const paint = plan?.frames.flatMap(frame => frame.paint) ?? [];
+  assert.ok(paint.some(item => item.op === 'text' && item.text === 'F'), 'Fresnel symbol letter');
+  assert.ok(paint.some(item => item.op === 'text' && item.text === 'F1'), 'fixture label');
+  assert.ok(paint.some(item => item.op === 'line' && item.stroke === '#d97706'), 'focus arrow');
+  assert.ok(paint.some(item => item.op === 'text' && /Platte/.test(item.text)), 'ballast slab count on plan');
+  const text = await pdfText(await renderDocument(layout));
+  assert.match(text, /F1/);
+  assert.match(text, /Platte/);
 });
 
 test('narrow custom schedule frames wrap rows and report insufficient space', () => {

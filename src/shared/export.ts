@@ -18,7 +18,7 @@ const name = z.string().trim().min(1).max(120);
 const point = z.strictObject({ x: z.number().finite(), y: z.number().finite() });
 /** Default 1:50 construction scale: 1 mm on the page equals 50 mm on the model. Also 1:25 and 1:100. */
 export const DRAWING_SCALE = 50;
-export const paperSizeSchema = z.enum(['A4', 'A3']);
+export const paperSizeSchema = z.enum(['A4', 'A3', 'A2', 'A1']);
 export const drawingScaleSchema = z.union([z.literal(25), z.literal(50), z.literal(100)]);
 export const exportStatusSchema = z.enum(['pending', 'ready', 'failed']);
 export const freezeExportSchema = z.strictObject({
