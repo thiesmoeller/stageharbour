@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { createApp } from '../../src/server/app.js';
 import { bootstrapAdministrator } from '../../src/server/identity/bootstrap.js';
 import { newWall, type Scene } from '../../src/shared/layout.js';
+import { newPlaceholder } from '../../src/shared/placeholders.js';
 import { testAdministrator, testDatabase } from '../helpers/database.js';
 
 let fixture: Awaited<ReturnType<typeof testDatabase>>;
@@ -111,4 +112,56 @@ test('client-captured Raumsicht images appear in the prepared PDF', async () => 
   const text = pdf.toString('latin1');
   assert.equal(text.includes('3D-Ansicht konnte nicht gerendert werden.'), false);
   assert.ok(/\/Subtype\s*\/Image|XObject/.test(text), 'PDF contains an embedded image object');
+});
+
+test('A2 paper and audience-viewpoint Raumsicht prepare a valid multi-sheet PDF', async () => {
+  const viewId = randomUUID();
+  const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  const venuePut = await app.inject({
+    method: 'PUT', url: `/api/workspaces/${fixture.config.WORKSPACE_ID}/scenes/${scene.id}/venue`, headers,
+    payload: {
+      venue: {
+        ...scene.venue,
+        audienceViewpoint: {
+          x: 3600, y: -800, heightMm: 1200, targetX: 4000, targetY: 3000, targetHeightMm: 1200,
+          label: 'Parkett vorn',
+        },
+        placeholders: [newPlaceholder('chair', randomUUID(), 4000, 900)],
+      },
+    },
+  });
+  assert.equal(venuePut.statusCode, 200, venuePut.body);
+  const created = await app.inject({
+    method: 'POST', url: `/api/workspaces/${fixture.config.WORKSPACE_ID}/documents`, headers,
+    payload: {
+      schemaVersion: 1, preset: 'presentation', kind: 'scene', revisionName: 'A2-Publikum',
+      paper: 'A2', orientation: 'landscape', scale: 50,
+      scenes: [{ sceneId: scene.id, elevationGroupIds: [] }],
+      viewCameras: [{
+        id: viewId, label: 'Publikumssicht',
+        camera: {
+          projection: 'perspective',
+          position: { x: 3600, y: 1200, z: -800 },
+          target: { x: 4000, y: 1200, z: 3000 },
+          preset: 'audience',
+        },
+      }],
+      viewImages: { [`view-${scene.id}-${viewId}`]: png },
+    },
+  });
+  assert.equal(created.statusCode, 201, created.body);
+  let job = created.json();
+  for (let attempt = 0; attempt < 40 && (job.status === 'queued' || job.status === 'rendering'); attempt++) {
+    await new Promise(resolve => setTimeout(resolve, 50));
+    job = (await app.inject({ url: `/api/workspaces/${fixture.config.WORKSPACE_ID}/documents/${job.id}`, headers })).json();
+  }
+  assert.equal(job.status, 'ready', JSON.stringify(job));
+  assert.ok((job.manifest?.pageCount ?? 0) >= 1);
+  const pdf = Buffer.from((await app.inject({
+    url: `/api/workspaces/${fixture.config.WORKSPACE_ID}/documents/${job.id}/file`, headers,
+  })).rawPayload);
+  assert.equal(pdf.subarray(0, 5).toString(), '%PDF-');
+  // A2 landscape MediaBox in PDF points (594×420 mm → 1683.779528 × 1190.551181).
+  assert.match(pdf.toString('latin1'), /\/MediaBox \[0 0 1683\.779528 1190\.551181\]/);
+  assert.equal(pdf.toString('latin1').includes('3D-Ansicht konnte nicht gerendert werden.'), false);
 });

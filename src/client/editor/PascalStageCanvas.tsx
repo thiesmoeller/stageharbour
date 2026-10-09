@@ -180,11 +180,12 @@ function PascalCaptureBridge({ onCaptureReady }: { onCaptureReady?: (handle: Sta
   return null;
 }
 
-export default function PascalStageCanvas({ model, layout, venue, audience, view = audience ? 'audience' : 'orbit', assets, workspaceId, lighting = defaultLighting, planDisplay = defaultPlanDisplay, onCaptureReady, aimOnly = false, selectedFixtureId, onFixtureSelect, focusAimMode, onHangPlanChange, lightBoardLive, showFixturePools = false, toolbarHost = null, ...editing }: {
+export default function PascalStageCanvas({ model, layout, venue, audience, view = audience ? 'audience' : 'orbit', assets, workspaceId, lighting = defaultLighting, planDisplay = defaultPlanDisplay, onCaptureReady, aimOnly = false, enhanced = true, selectedFixtureId, onFixtureSelect, focusAimMode, onHangPlanChange, lightBoardLive, showFixturePools = false, toolbarHost = null, ...editing }: {
   model: StageModel; layout: Layout; venue: VenueGeometry; audience: boolean; view?: StageCameraView; assets: Asset[]; workspaceId: string; lighting?: StageLightingSettings;
   planDisplay?: PlanDisplayOptions;
   onCaptureReady?: (handle: StageCaptureHandle | null) => void;
   aimOnly?: boolean;
+  enhanced?: boolean;
   selectedFixtureId?: string | null;
   onFixtureSelect?: (id: string | null) => void;
   focusAimMode?: boolean;
@@ -210,6 +211,10 @@ export default function PascalStageCanvas({ model, layout, venue, audience, view
     useViewer.getState().setCameraMode('perspective');
     useViewer.getState().setRenderPaused(false);
   }, []);
+  useLayoutEffect(() => {
+    useViewer.getState().setShading(enhanced ? 'rendered' : 'solid');
+    useViewer.getState().setTextures(enhanced);
+  }, [enhanced]);
   /** Bühnenlicht + Lichtpult open → Scheinwerfer preview. */
   const hangLit = !!showFixturePools && lighting.enabled;
   useLayoutEffect(() => {
@@ -267,7 +272,7 @@ export default function PascalStageCanvas({ model, layout, venue, audience, view
         {!aimOnly && <PushPullControls venue={editing.resizeDocument ?? venue} scope={editing.resizeScope ?? 'venue'} enabled={mode === 'pushPull'} snapEnabled={editing.snapEnabled} onPushPull={editing.onPushPull} />}
         <OrbitControls makeDefault
           target={[mirroredTargetX / 1000, target.y / 1000, target.z / 1000]} maxPolarAngle={Math.PI / 2 - 0.01} minDistance={0.1} maxDistance={500} />
-        <EditOrbitBinding allowOrbit={view === 'orbit' || aimOnly} />
+        <EditOrbitBinding allowOrbit={view === 'orbit' || view === 'audience' || aimOnly} />
       </Viewer>
     </div>
   </StageInteraction.Provider>;

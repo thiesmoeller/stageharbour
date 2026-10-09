@@ -132,6 +132,54 @@ test('export a named frozen construction plan and download it from history', asy
   await expect(planExport.getByRole('listitem').filter({ hasText: 'Probeexport' })).toContainText('1:50');
 });
 
+test('export A2 Aufbau sheet and presentation audience capture', async ({ page }) => {
+  test.setTimeout(120_000);
+  await signInToPlans(page);
+  await createProduction(page, {
+    productionName: 'A2Dokumentation',
+    venueName: 'Plottersaal',
+    sceneName: 'TechnikSzene',
+  });
+  await waitUntilSaved(page);
+  await placeWallAt(page);
+  await waitUntilSaved(page);
+  await revealEditorCommand(page, 'Konstruktionsplan');
+  await page.getByRole('button', { name: 'Konstruktionsplan' }).click();
+  const workspace = page.getByRole('region', { name: 'Export' });
+  await expect(workspace.getByLabel('Ansichten')).toContainText('Aufbau');
+  await workspace.getByLabel('Papierformat', { exact: true }).selectOption('A2');
+  await workspace.getByLabel('Bezeichnung der Fassung').fill('A2-Aufbau');
+  await expect(workspace.getByRole('status').first()).toContainText('Vorschau bereit', { timeout: 20_000 });
+  await workspace.getByRole('button', { name: 'PDF erstellen' }).click();
+  await workspace.getByText('Frühere Fassungen').click();
+  await expect(workspace.getByRole('listitem').filter({ hasText: 'A2-Aufbau' })).toContainText('Fertig');
+  await expect(workspace.getByRole('listitem').filter({ hasText: 'A2-Aufbau' })).toContainText('A2');
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    workspace.getByRole('listitem').filter({ hasText: 'A2-Aufbau' }).getByRole('button', { name: 'Herunterladen' }).click(),
+  ]);
+  const bytes = readFileSync(await download.path() as string);
+  expect(bytes.subarray(0, 5).toString()).toBe('%PDF-');
+  expect(bytes.toString('latin1')).toMatch(/\/MediaBox \[0 0 (?:1190\.551181 1683\.779528|1683\.779528 1190\.551181)\]/);
+
+  await workspace.getByLabel('Ansichten').selectOption('presentation');
+  await expect(workspace.getByLabel('Ansichten')).toContainText('Präsentation');
+  await workspace.getByRole('button', { name: 'Raumsicht hinzufügen' }).click();
+  const aim = workspace.getByTestId('export-stage-aim');
+  await expect(aim.locator('[data-renderer="pascal"] canvas')).toBeVisible({ timeout: 30_000 });
+  await aim.getByRole('button', { name: 'Publikumssicht' }).click();
+  await expect(aim.getByTestId('stage-view')).toHaveAttribute('data-view', 'audience');
+  const capture = aim.getByTestId('export-capture-view');
+  await capture.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(500);
+  await capture.click();
+  await expect(workspace.getByText('Für PDF übernommen')).toBeVisible({ timeout: 15_000 });
+  await workspace.getByLabel('Bezeichnung der Fassung').fill('A2-Publikum');
+  await expect(workspace.getByRole('status').first()).toContainText('Vorschau bereit', { timeout: 45_000 });
+  await workspace.getByRole('button', { name: 'PDF erstellen' }).click();
+  await expect(workspace.getByRole('listitem').filter({ hasText: 'A2-Publikum' })).toContainText('Fertig');
+});
+
 test('export Raumsicht capture embeds a client PNG into the PDF', async ({ page }) => {
   test.setTimeout(120_000);
   const errors: string[] = [];
@@ -235,6 +283,12 @@ test('direct 2D print keeps the actual SVG symbols and text as vectors', async (
   for (const label of text.filter(label => label && label !== '↻')) expect(await popup.locator('main svg').textContent()).toContain(label);
   await expect(popup.locator('.rotation-handle')).toHaveCount(0);
   await popup.getByLabel('Papierformat').selectOption('A3');
+  await expect(popup.getByLabel('Plankopf')).toBeVisible();
+  await expect(popup.locator('.print-title-block')).toHaveAttribute('data-on', 'true');
+  await expect(popup.locator('.print-title-block')).toContainText('Maßstab');
+  await popup.getByLabel('Plankopf').selectOption('off');
+  await expect(popup.locator('.print-title-block')).toHaveAttribute('data-on', 'false');
+  await popup.getByLabel('Plankopf').selectOption('on');
   await popup.getByRole('checkbox', { name: 'Raster', exact: true }).uncheck();
   await expect(popup.locator('[data-print-layer="grid"]')).toBeHidden();
   await popup.getByRole('checkbox', { name: 'Bühnenwände', exact: true }).uncheck();

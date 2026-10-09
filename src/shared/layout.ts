@@ -9,7 +9,7 @@ import { ceilingHeightSchema, overheadBoxesSchema, overheadWarningSchema } from 
 import { keepClearWarningSchema, keepClearZonesSchema } from './keepClear.js';
 import { snapDrawSegment } from './snapping.js';
 import { stageCentrelineSchema } from './centreline.js';
-import { venueOutlineSchema, venueTraceSchema } from './venue.js';
+import { audienceViewpointSchema, venueOutlineSchema, venueTraceSchema } from './venue.js';
 import { placeholdersSchema } from './placeholders.js';
 import { panelConnectionSchema } from './assembly.js';
 import { groupSchema, groupsReferenceLayout } from './groups.js';
@@ -182,6 +182,7 @@ const venueGeometryObject = z.strictObject({
   curtains: curtainsSchema.optional(),
   keepClearZones: keepClearZonesSchema.optional(),
   stageCentreline: stageCentrelineSchema.optional(),
+  audienceViewpoint: audienceViewpointSchema.optional(),
   /** Pascal library material for the audience floor / venue footprint. */
   floorFinish: z.string().regex(/^library:[a-zA-Z0-9_-]+$/).max(180).optional(),
   /**

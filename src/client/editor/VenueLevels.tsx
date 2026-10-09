@@ -1,5 +1,6 @@
 import {
-  AUDIENCE_FLOOR_ID, PLATFORM_STYLE_LABELS, newPlatform, newStair, type Platform, type PlatformStyle, type StairUnit,
+  AUDIENCE_FLOOR_ID, PLATFORM_DECK_GRAIN_LABELS, PLATFORM_STYLE_LABELS, newPlatform, newStair,
+  type Platform, type PlatformDeckGrain, type PlatformStyle, type StairUnit,
 } from '../../shared/levels.js';
 import { clipPlatformToStageDeck } from '../../shared/stageDeck.js';
 import type { VenueGeometry } from '../../shared/layout.js';
@@ -29,6 +30,17 @@ export function VenueLevels({ venue, platforms, stairs, readOnly, onPlatforms, o
           {(Object.keys(PLATFORM_STYLE_LABELS) as PlatformStyle[]).map(key =>
             <option key={key} value={key}>{PLATFORM_STYLE_LABELS[key]}</option>)}
         </select></div>
+      {(platform.style ?? 'floating') === 'stageDeck' && <div>
+        <label htmlFor={`perm-platform-grain-${index}`}>Verlegerichtung</label>
+        <select id={`perm-platform-grain-${index}`} value={platform.deckGrain ?? 0} disabled={readOnly}
+          onChange={event => {
+            const deckGrain = Number(event.target.value) as PlatformDeckGrain;
+            onPlatforms(platforms.map(item => item.id === platform.id ? { ...item, deckGrain } : item));
+          }}>
+          {([0, 90] as const).map(key =>
+            <option key={key} value={key}>{PLATFORM_DECK_GRAIN_LABELS[key]}</option>)}
+        </select>
+      </div>}
       <div><label htmlFor={`perm-platform-elev-${index}`}>Höhe über Fußboden (mm)</label>
         <input id={`perm-platform-elev-${index}`} type="number" min={1} step="any" value={platform.elevation} disabled={readOnly}
           onChange={event => onPlatforms(platforms.map(item => item.id === platform.id ? { ...item, elevation: Number(event.target.value) } : item))} /></div>

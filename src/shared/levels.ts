@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { measuredOutline, venueOutlineSchema, type PlanPoint } from './venue.js';
+import { surfaceFinishSchema, type SurfaceFinish } from './surfaces.js';
 
 const name = z.string().trim().min(1).max(120);
 const dimension = z.number().finite().min(1).max(100000);
@@ -17,6 +18,12 @@ export const DIN_STAIR_RISER_MM = 160;
 export const EXAMPLE_STAIR_RISER = DIN_STAIR_RISER_MM;
 export const EDGE_TOLERANCE_MM = 1;
 
+export const platformSurfacesSchema = z.strictObject({
+  top: surfaceFinishSchema.optional(),
+  sides: surfaceFinishSchema.optional(),
+});
+export type PlatformSurfaces = z.infer<typeof platformSurfacesSchema>;
+
 export const platformSchema = z.strictObject({
   id: z.uuid(), label: name,
   /** Absolute walking-surface height above the audience floor (mm). */
@@ -24,17 +31,34 @@ export const platformSchema = z.strictObject({
   outline: venueOutlineSchema,
   /** Visual build: floating slab (default), solid block to floor, or Bühnenelement deck with legs. */
   style: z.enum(['floating', 'solid', 'stageDeck']).optional(),
+  /**
+   * Bühnenelement module grain relative to the podium outline.
+   * 0 = long 2 m edge along local width; 90 = long edge along local depth.
+   */
+  deckGrain: z.union([z.literal(0), z.literal(90)]).optional(),
+  /** @deprecated Legacy uniform Pascal material; read as both top and sides. */
   finish: z.string().regex(/^library:[a-zA-Z0-9_-]+$/).max(180).optional(),
+  /** Walking surface and vertical/bottom faces can be surfaced independently. */
+  surfaces: platformSurfacesSchema.optional(),
   /** Another podium this one rests on; omitted or audience floor means the venue floor. */
   supportingSurfaceId: z.uuid().optional(),
 });
 export type Platform = z.infer<typeof platformSchema>;
 export type PlatformStyle = NonNullable<Platform['style']>;
+export type PlatformDeckGrain = NonNullable<Platform['deckGrain']>;
+
+export function platformSurfaceFinish(platform: Platform, face: keyof PlatformSurfaces): SurfaceFinish | undefined {
+  return platform.surfaces?.[face] ?? (platform.finish ? { kind: 'library', ref: platform.finish } : undefined);
+}
 
 export const PLATFORM_STYLE_LABELS: Record<PlatformStyle, string> = {
   floating: 'Schwebend',
   solid: 'Massiv',
   stageDeck: 'Bühnenelement',
+};
+export const PLATFORM_DECK_GRAIN_LABELS: Record<PlatformDeckGrain, string> = {
+  0: '2 m entlang Breite',
+  90: '2 m entlang Tiefe',
 };
 export const stairSchema = z.strictObject({
   id: z.uuid(), label: name,

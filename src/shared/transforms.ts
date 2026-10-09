@@ -4,6 +4,7 @@ import { AUDIENCE_FLOOR_ID, stairRise, stairSteps, supportingSurfaces, surfaceEl
 import { placeholderSolid, type PlaceholderSolid } from './placeholders.js';
 import { resolveWall, type Opening } from './wall-types.js';
 import { effectiveVenueDoorOpen } from './venueFixtures.js';
+import { defaultAudienceViewpoint, type AudienceViewpoint } from './venue.js';
 
 export type Vec3 = { x: number; y: number; z: number };
 export type WallSolid = {
@@ -44,10 +45,11 @@ export function wallSolid(wall: Wall & { openings?: Opening[]; doorOpenPercent?:
   };
 }
 
-export function stageModel(layout: Layout, venue: Pick<VenueGeometry, 'width' | 'depth' | 'outline' | 'platforms' | 'stairs' | 'walls' | 'wallTypes' | 'placeholders'>): StageModel {
+export function stageModel(layout: Layout, venue: Pick<VenueGeometry, 'width' | 'depth' | 'outline' | 'platforms' | 'stairs' | 'walls' | 'wallTypes' | 'placeholders'> & { audienceViewpoint?: AudienceViewpoint }): StageModel {
   const types = layout.wallTypes ?? [];
   const surfaces = supportingSurfaces(venue, layout);
   const stairs: StairUnit[] = [...venue.stairs ?? [], ...layout.stairs ?? []];
+  const viewpoint = venue.audienceViewpoint ?? defaultAudienceViewpoint(venue);
   return {
     floor: { width: venue.width, depth: venue.depth },
     walls: [...(venue.walls ?? []).map(wall => {
@@ -64,7 +66,10 @@ export function stageModel(layout: Layout, venue: Pick<VenueGeometry, 'width' | 
     ],
     platforms: surfaces.filter(surface => surface.id !== AUDIENCE_FLOOR_ID),
     stairs: stairs.map(stair => ({ id: stair.id, label: stair.label, rise: stairRise(stair, surfaces), steps: stairSteps(stair, surfaces) })),
-    audience: { position: { x: venue.width / 2, y: 1600, z: -2000 }, target: { x: venue.width / 2, y: 1200, z: venue.depth / 2 } },
+    audience: {
+      position: { x: viewpoint.x, y: viewpoint.heightMm, z: viewpoint.y },
+      target: { x: viewpoint.targetX, y: viewpoint.targetHeightMm, z: viewpoint.targetY },
+    },
     orbitTarget: { x: venue.width / 2, y: 0, z: venue.depth / 2 },
   };
 }

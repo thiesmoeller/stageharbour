@@ -5,7 +5,7 @@ import {
 import type { OverheadBox } from './overhead.js';
 import type { Placeholder } from './placeholders.js';
 import type { PlanPoint } from './venue.js';
-import { snapStageDeckElevation, snapStageDeckSize, STAGE_DECK_STEP_MM } from './stageDeck.js';
+import { snapStageDeckElevation, snapStageDeckResizeDelta, snapStageDeckSize } from './stageDeck.js';
 
 export type Vec3 = { x: number; y: number; z: number };
 export type LocalFace = 'px' | 'nx' | 'py' | 'ny' | 'pz' | 'nz';
@@ -228,10 +228,10 @@ function resizePlatform(platform: Platform, face: LocalFace, delta: number, supp
   const stageDeck = platform.style === 'stageDeck';
   if (face === 'px' || face === 'nx') {
     const sign: 1 | -1 = face === 'px' ? 1 : -1;
-    const raw = box.width + delta;
+    // Cover the pointed/target size: grow to the next 0,5 m step, shrink to the previous.
     const width = stageDeck
-      ? Math.max(STAGE_DECK_STEP_MM, Math.round(raw / STAGE_DECK_STEP_MM) * STAGE_DECK_STEP_MM)
-      : clampDim(raw);
+      ? box.width + snapStageDeckResizeDelta(box.width, delta)
+      : clampDim(box.width + delta);
     if (width === box.width) return platform;
     const centre = shiftPlan({ x: box.x, y: box.y }, axes.width, sign * (width - box.width) / 2);
     return {
@@ -240,10 +240,9 @@ function resizePlatform(platform: Platform, face: LocalFace, delta: number, supp
     };
   }
   const sign: 1 | -1 = face === 'pz' ? 1 : -1;
-  const raw = box.depth + delta;
   const depth = stageDeck
-    ? Math.max(STAGE_DECK_STEP_MM, Math.round(raw / STAGE_DECK_STEP_MM) * STAGE_DECK_STEP_MM)
-    : clampDim(raw);
+    ? box.depth + snapStageDeckResizeDelta(box.depth, delta)
+    : clampDim(box.depth + delta);
   if (depth === box.depth) return platform;
   const centre = shiftPlan({ x: box.x, y: box.y }, axes.depth, sign * (depth - box.depth) / 2);
   return {
@@ -329,18 +328,41 @@ export function inferenceDeltaMm(origin: Vec3, axisNormal: Vec3, hitPoint: Vec3)
 }
 
 /**
+ * SketchUp-style inference only locks to faces roughly parallel to the dragged face.
+ * Horizontal tops / angled hits under the cursor must not project onto a side-face drag
+ * (that collapses Bühnenelemente into thin strips).
+ */
+export function inferenceFaceAligned(axisNormal: Vec3, faceNormal: Vec3, minAbsDot = 0.85): boolean {
+  const dot = axisNormal.x * faceNormal.x + axisNormal.y * faceNormal.y + axisNormal.z * faceNormal.z;
+  return Math.abs(dot) >= minAbsDot;
+}
+
+/** Current plan size along the dragged stage-deck face, or undefined when cover-snap does not apply. */
+export function stageDeckDragAxisMm(venue: VenueGeometry, handle: PushPullHandle): number | undefined {
+  if (handle.kind !== 'platform' || handle.face === 'py' || handle.face === 'ny') return undefined;
+  const platform = venue.platforms?.find(item => item.id === handle.id);
+  if (!platform || platform.style !== 'stageDeck') return undefined;
+  const box = orientedBox(platform);
+  return handle.face === 'px' || handle.face === 'nx' ? box.width : box.depth;
+}
+
+/**
  * Prefer SketchUp-style inference (flush to pointed geometry) over the grid when available.
- * Alt / snap-off keeps the free pointer delta.
+ * Bühnenelement cover-snaps the target onto the 0,5 m module grid so the highlight matches
+ * the committed outline. Alt / snap-off keeps the free pointer delta.
  */
 export function resolveDragDeltaMm(
   freeDeltaMm: number,
   inferenceMm: number | undefined,
-  opts: { snapEnabled: boolean; bypass: boolean; gridMm?: number },
+  opts: { snapEnabled: boolean; bypass: boolean; gridMm?: number; stageDeckCurrentMm?: number },
 ): { deltaMm: number; inferred: boolean } {
   if (opts.bypass || !opts.snapEnabled) return { deltaMm: freeDeltaMm, inferred: false };
-  if (inferenceMm !== undefined && Number.isFinite(inferenceMm)) {
-    return { deltaMm: inferenceMm, inferred: true };
+  const inferred = inferenceMm !== undefined && Number.isFinite(inferenceMm);
+  const target = inferred ? inferenceMm! : freeDeltaMm;
+  if (opts.stageDeckCurrentMm !== undefined) {
+    return { deltaMm: snapStageDeckResizeDelta(opts.stageDeckCurrentMm, target), inferred };
   }
+  if (inferred) return { deltaMm: inferenceMm!, inferred: true };
   const grid = opts.gridMm ?? 5;
   return { deltaMm: Math.round(freeDeltaMm / grid) * grid, inferred: false };
 }
