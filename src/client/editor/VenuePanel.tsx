@@ -1259,7 +1259,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
               return <g key={platform.id} className={overlap ? 'plan-overlap' : undefined}>
                 <path data-testid={`venue-platform-${platform.id}`}
                   d={`${platform.outline.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')} Z`}
-                  fill={fill} stroke="#718469" strokeWidth="2" vectorEffect="non-scaling-stroke"
+                  fill={fill} stroke={chosen ? '#b67c35' : '#718469'} strokeWidth="2" vectorEffect="non-scaling-stroke"
                   onPointerDown={event => beginObjectDrag(event, platform.id)} />
                 {modules.map((module, index) => <rect key={index} pointerEvents="none"
                   transform={`translate(${centre.x} ${-centre.y}) rotate(${-rotation})`}
@@ -1274,7 +1274,8 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
               return <g key={stair.id} className={overlap ? 'plan-overlap' : undefined}>
                 <path data-testid={`venue-stair-${stair.id}`}
                   d={`${corners.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')} Z`}
-                  fill={selectedIds.includes(stair.id) ? 'rgba(182,124,53,0.35)' : 'rgba(90,110,138,0.3)'} stroke="#5a6e8a" strokeWidth="2" vectorEffect="non-scaling-stroke"
+                  fill={selectedIds.includes(stair.id) ? 'rgba(182,124,53,0.35)' : 'rgba(90,110,138,0.3)'}
+                  stroke={selectedIds.includes(stair.id) ? '#b67c35' : '#5a6e8a'} strokeWidth="2" vectorEffect="non-scaling-stroke"
                   onPointerDown={event => beginObjectDrag(event, stair.id)} />
               </g>;
             })}

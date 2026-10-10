@@ -191,7 +191,9 @@ select { font: inherit; width: 100%; padding: 8px; border: 1px solid #cbd3c8; bo
 .measure-line { stroke: #986122; stroke-width: 3; vector-effect: non-scaling-stroke; }
 .dimension-extension, .dimension-line, .dimension-tick { stroke: #173c36; stroke-width: 1.6; vector-effect: non-scaling-stroke; fill: none; }
 .dimension-text { fill: #173c36; paint-order: stroke; stroke: #f7f9f5; stroke-width: 90; }
-.dimension-selected .dimension-line, .dimension-selected .dimension-extension, .dimension-selected .dimension-tick { stroke: #173c36; }
+/* Same amber accent as walls/platforms — unselected used to reuse #173c36 so selection was invisible. */
+.dimension-selected .dimension-line, .dimension-selected .dimension-extension, .dimension-selected .dimension-tick { stroke: #b67c35; stroke-width: 2.8; }
+.dimension-selected .dimension-text { fill: #986122; }
 .dimension-snap { fill: none; stroke: #fff; stroke-width: 7; vector-effect: non-scaling-stroke; }
 .dimension-snap circle:first-child { stroke: #c62828; stroke-width: 3.5; }
 .dimension-snap circle:last-child { fill: #c62828; stroke: #fff; stroke-width: 2.5; }

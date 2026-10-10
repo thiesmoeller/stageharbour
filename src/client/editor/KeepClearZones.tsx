@@ -21,7 +21,8 @@ export function KeepClearMarks({ zones, selectedIds = [], drawing, display = def
       return <g key={zone.id} data-print-layer="constraints" data-print-name={zone.label} data-testid={`keep-clear-zone-${zone.id}`} className={onPointerDown ? 'draggable-wall' : undefined}
         onPointerDown={onPointerDown ? event => onPointerDown(event, zone.id) : undefined}>
         <path d={`${zone.polygon.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')} Z`}
-          fill={chosen ? '#b67c3555' : '#b67c3522'} stroke="#b67c35" strokeWidth="2" strokeDasharray="80 50" vectorEffect="non-scaling-stroke" />
+          fill={chosen ? '#b67c3555' : '#b67c3522'} stroke="#b67c35" strokeWidth={chosen ? 3.5 : 2}
+          strokeDasharray="80 50" vectorEffect="non-scaling-stroke" />
         {zone.polygon.map((point, index) => <circle key={index} data-testid={`keep-clear-vertex-${zone.id}-${index}`}
           cx={point.x} cy={-point.y} r="65" fill="#b67c35"
           pointerEvents={onVertexPointerDown ? undefined : 'none'}

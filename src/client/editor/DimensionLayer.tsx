@@ -25,12 +25,19 @@ export function DimensionLayer({ dimensions, preview, selectedId, snaps, snapRad
       const selected = dimension.id === selectedId || dimension.id === 'preview';
       const text = `${Math.round(figure.valueMm)} mm`;
       const angle = readableAngle(figure.line.y1, figure.line.y2, figure.line.x1, figure.line.x2);
+      // Inline style beats the base `.dimension-line` CSS; attributes alone would lose.
+      const selectedStroke = selected ? { stroke: '#b67c35', strokeWidth: 2.8 } : undefined;
       return <g key={dimension.id} data-testid={`dimension-${dimension.id}`} className={selected ? 'dimension-selected' : undefined}
+        aria-selected={selected || undefined}
         onPointerDown={event => { if (!onSelect || dimension.id === 'preview') return; event.stopPropagation(); onSelect(dimension.id); }}>
-        {figure.extensions.map((segment, index) => <line key={index} x1={segment.x1} y1={-segment.y1} x2={segment.x2} y2={-segment.y2} className="dimension-extension" />)}
-        <line x1={figure.line.x1} y1={-figure.line.y1} x2={figure.line.x2} y2={-figure.line.y2} className="dimension-line" />
-        {figure.ticks.map((segment, index) => <line key={index} x1={segment.x1} y1={-segment.y1} x2={segment.x2} y2={-segment.y2} className="dimension-tick" />)}
+        {figure.extensions.map((segment, index) => <line key={index} x1={segment.x1} y1={-segment.y1} x2={segment.x2} y2={-segment.y2}
+          className="dimension-extension" style={selectedStroke} />)}
+        <line x1={figure.line.x1} y1={-figure.line.y1} x2={figure.line.x2} y2={-figure.line.y2}
+          className="dimension-line" style={selectedStroke} />
+        {figure.ticks.map((segment, index) => <line key={index} x1={segment.x1} y1={-segment.y1} x2={segment.x2} y2={-segment.y2}
+          className="dimension-tick" style={selectedStroke} />)}
         <text x={figure.label.x} y={-figure.label.y} textAnchor="middle" fontSize="220" fontWeight={700} className="dimension-text"
+          style={selected ? { fill: '#986122' } : undefined}
           transform={`rotate(${angle} ${figure.label.x} ${-figure.label.y})`} dy={-160}>{text}</text>
       </g>;
     })}
