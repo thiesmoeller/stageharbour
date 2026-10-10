@@ -95,11 +95,17 @@ test('scene tools are exclusive and Escape returns measurement and placement to 
   const a = await point(page, 0, 0), b = await point(page, 8000, 0), offset = await point(page, 4000, 1000);
   for (const at of [a, b, offset]) await page.mouse.click(at.x, at.y);
   const dimension = page.locator('g[data-testid^="dimension-"]:not([data-testid="dimension-snap"])').first();
+  const dimensionLine = dimension.locator('.dimension-line');
   await expect(dimension).toBeVisible();
   await page.mouse.click(offset.x, offset.y);
   await expect(dimension).toHaveClass(/dimension-selected/);
+  await expect(dimensionLine).toHaveCSS('stroke', 'rgb(182, 124, 53)');
+  await expect(page.getByTestId('selection-count')).toHaveText('1 Maß ausgewählt');
+  await showProperties(page);
+  await expect(page.getByRole('heading', { name: 'Maß', exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(dimension).not.toHaveClass(/dimension-selected/);
+  await expect(dimensionLine).toHaveCSS('stroke', 'rgb(23, 60, 54)');
   await page.mouse.click(offset.x, offset.y);
   await expect(dimension).toHaveClass(/dimension-selected/);
   await select.click();

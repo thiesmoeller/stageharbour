@@ -22,10 +22,10 @@ export function BraceLayer({ braces, selectedId, groupedIds, preview, readOnly, 
       {braceBallast(brace).filter(part => part.kind === 'slab').map((part, index) => {
         const b = ballastBoxBounds(part);
         return <rect key={index} x={b.minX} y={-b.maxZ} width={b.maxX - b.minX} height={b.maxZ - b.minZ}
-          fill="#999b96" stroke={chosen ? '#8a6a3a' : '#666'} strokeWidth="2" vectorEffect="non-scaling-stroke" />;
+          fill="#999b96" stroke={chosen ? '#b67c35' : '#666'} strokeWidth="2" vectorEffect="non-scaling-stroke" />;
       })}
       <rect x={-halfW} y={-halfD} width={brace.footprintWidth} height={brace.footprintDepth}
-        fill={chosen ? '#e4d3b0' : '#eddcc0'} stroke={chosen ? '#8a6a3a' : '#a48454'}
+        fill={chosen ? '#e4d3b0' : '#eddcc0'} stroke={chosen ? '#b67c35' : '#a48454'}
         strokeWidth="2" vectorEffect="non-scaling-stroke" />
       {/* Wall face at local −Y; floor tip at +Y. */}
       <line x1={-halfW} y1={-halfD} x2={halfW} y2={-halfD} stroke="#8a6a3a" strokeWidth="4" vectorEffect="non-scaling-stroke" />

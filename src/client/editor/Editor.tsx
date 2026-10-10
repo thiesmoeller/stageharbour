@@ -1322,7 +1322,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
       display={<PlanDisplayToggles value={planDisplay} onChange={setPlanDisplay} />}
       properties={<aside key={inspectorEpoch} className="wall-inspector" inert={busyGesture()}>
       <div className="selection-properties">
-      <h3>{selectedCurtain ? 'Molton-Vorhang' : selectedVenueDoor ? 'Spielstättentür' : selectedPlaceholderItem ? 'Platzhalter' : selectedPlatformItem ? 'Podest' : selectedStairItem ? 'Treppe' : selectedBraceItem ? 'Gewichtete Stütze' : selectedWall ? (selectedWallCount > 1 ? `${selectedWallCount} Wandelemente` : 'Wandelement') : 'Keine Auswahl'}</h3>
+      <h3>{selectedDimension ? 'Maß' : selectedCurtain ? 'Molton-Vorhang' : selectedVenueDoor ? 'Spielstättentür' : selectedPlaceholderItem ? 'Platzhalter' : selectedPlatformItem ? 'Podest' : selectedStairItem ? 'Treppe' : selectedBraceItem ? 'Gewichtete Stütze' : selectedWall ? (selectedWallCount > 1 ? `${selectedWallCount} Wandelemente` : 'Wandelement') : 'Keine Auswahl'}</h3>
       <label htmlFor="wall-selection">Auswahl</label>
       <select id="wall-selection" value={selectedCurtain ? `curtain:${selectedCurtain.id}` : selectedVenueDoor ? `door:${selectedVenueDoor.id}` : selectedWall ? `wall:${selectedWall.id}` : selectedBraceItem ? `brace:${selectedBraceItem.id}` : selectedPlatformItem ? `platform:${selectedPlatformItem.id}` : selectedStairItem ? `stair:${selectedStairItem.id}` : selectedPlaceholderItem ? `placeholder:${selectedPlaceholderItem.id}` : ''} onChange={event => {
         const value = event.target.value;
@@ -1370,7 +1370,8 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
                 onPendingChange={reportInspectorPending} onApply={replaceStair} onRemove={remove} />
               : selectedPlaceholderItem ? <PlaceholderInspector key={JSON.stringify(selectedPlaceholderItem)} item={selectedPlaceholderItem} surfaces={surfaces} readOnly={readOnly}
                   onPendingChange={reportInspectorPending} onApply={replacePlaceholder} onRemove={remove} />
-                : <p className="muted">Objekt im Grundriss wählen oder links über die Werkzeugleiste und die Bibliothek hinzufügen.</p>}
+                : selectedDimension ? <p className="muted">Ausgewähltes Maß ist orange hervorgehoben. Entf löscht es · Escape hebt die Auswahl auf.</p>
+                  : <p className="muted">Objekt im Grundriss wählen oder links über die Werkzeugleiste und die Bibliothek hinzufügen.</p>}
       {selectedWall && <InventoryAssignment layout={state.present} selectedWall={selectedWall}
         panels={inventoryPanels} readOnly={readOnly}
         onAssign={panelId => replace({ ...selectedWall, panelId, finishAssignment: { id: crypto.randomUUID(), surfaces: structuredClone(selectedWall.surfaces ?? {}) } })}
@@ -1384,7 +1385,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
         onPendingChange={reportInspectorPending} onChange={commit} />
       </div></details>}
     </aside>} /></div>}
-    <div className="workspace-statusbar"><span><span className="status-dot" />{venueOpen ? 'Spielstättenentwurf' : 'Bühnenbild'} · {state.present.walls.length} Wände</span><span className="selection-count" hidden={venueOpen || selection().length === 0} data-testid="selection-count">{selection().length} ausgewählt</span><span className="status-hint" role="status" title={snapStatus}>{snapStatus ?? 'Klicken zum Auswählen · Ziehen zum Verschieben · Strg+Z rückgängig'}</span><button className="quiet" aria-expanded={helpOpen} onClick={() => setHelpOpen(open => !open)}><ToolIcon name="help" /> Bedienung</button><span>Maße in mm</span></div>
+    <div className="workspace-statusbar"><span><span className="status-dot" />{venueOpen ? 'Spielstättenentwurf' : 'Bühnenbild'} · {state.present.walls.length} Wände</span><span className="selection-count" hidden={venueOpen || (selection().length === 0 && !selectedDimension)} data-testid="selection-count">{selectedDimension ? '1 Maß ausgewählt' : `${selection().length} ausgewählt`}</span><span className="status-hint" role="status" title={snapStatus}>{snapStatus ?? 'Klicken zum Auswählen · Ziehen zum Verschieben · Strg+Z rückgängig'}</span><button className="quiet" aria-expanded={helpOpen} onClick={() => setHelpOpen(open => !open)}><ToolIcon name="help" /> Bedienung</button><span>Maße in mm</span></div>
     {helpOpen && <div className="workspace-help"><h3>Arbeiten im Grundriss</h3>
       <p className="muted viewport-hint">Raster: 1 m / 50 cm · Zwei-Finger-Scroll oder Mittelklick verschieben · Pinch / Strg+Scroll zoomen · Auf dem Boden ziehen: Mehrfachauswahl (nur vollständig umschlossene Objekte) · Orange ↻ dreht · Stützen an Wänden · {SNAP_NOTICE}</p>
       <p>Strg/Cmd+C kopiert die Auswahl, Strg/Cmd+V hängt die Kopie an den Zeiger — Klick setzt, Escape bricht ab. Entf löscht ausgewählte Objekte. Escape bricht Platzieren und Bewegungen ab oder hebt die Auswahl auf (auch in der Raumsicht · Klick in freien Raum). Überschneidungen erscheinen rot auf dem Grundriss.</p>

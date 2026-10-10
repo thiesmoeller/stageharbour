@@ -23,7 +23,8 @@ export function OverheadMarks({ boxes, selectedIds = [], display = defaultPlanDi
       return <g key={box.id} data-print-layer="overhead" data-print-name={box.label} data-testid={`overhead-box-${box.id}`} className={onPointerDown ? 'draggable-wall' : undefined}
         onPointerDown={onPointerDown ? event => onPointerDown(event, box.id) : undefined}>
         <path d={`${corners.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')} Z`}
-          fill={chosen ? '#d9c6a166' : '#d9c6a133'} stroke="#8a6a3a" strokeWidth="2" strokeDasharray="80 50" vectorEffect="non-scaling-stroke" />
+          fill={chosen ? '#d9c6a166' : '#d9c6a133'} stroke={chosen ? '#b67c35' : '#8a6a3a'} strokeWidth={chosen ? 3 : 2}
+          strokeDasharray="80 50" vectorEffect="non-scaling-stroke" />
         {caption && <text x={box.x} y={-box.y} textAnchor="middle" fontSize="140" pointerEvents="none">{caption}</text>}
       </g>;
     })}
@@ -60,10 +61,11 @@ export function TrussMarks({ trusses, selectedIds = [], drawing, display = defau
         onPointerDown={onPointerDown ? event => onPointerDown(event, truss.id) : undefined}>
         <path d={`${corners.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')} Z`}
           fill={highlighted ? '#c9a22744' : chosen ? '#4f86ba55' : '#4f86ba22'}
-          stroke={highlighted ? '#c9a227' : '#4f86ba'} strokeWidth={highlighted ? 4 : 2}
+          stroke={highlighted ? '#c9a227' : chosen ? '#b67c35' : '#4f86ba'} strokeWidth={highlighted ? 4 : chosen ? 3 : 2}
           strokeDasharray={highlighted ? undefined : '40 30'} vectorEffect="non-scaling-stroke" />
         <line x1={truss.x - hx} y1={-(truss.y - hy)} x2={truss.x + hx} y2={-(truss.y + hy)}
-          stroke={highlighted ? '#c9a227' : '#4f86ba'} strokeWidth={highlighted ? 5 : 3} vectorEffect="non-scaling-stroke" />
+          stroke={highlighted ? '#c9a227' : chosen ? '#b67c35' : '#4f86ba'} strokeWidth={highlighted ? 5 : chosen ? 4 : 3}
+          vectorEffect="non-scaling-stroke" />
         {truss.hangPoints.map(hang => {
           const point = trussHangWorld(truss, hang);
           return <circle key={hang.id} cx={point.x} cy={-point.y} r="40" fill="#2f5f8a" pointerEvents="none" />;
@@ -119,12 +121,13 @@ export function CurtainMarks({ curtains, selectedIds = [], drawing, display = de
         onPointerDown={onPointerDown ? event => onPointerDown(event, curtain.id) : undefined}>
         {waves.map((points, index) =>
           <path key={index} d={points.map((point, i) => `${i ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')}
-            fill="none" stroke={chosen ? '#1a1a1a' : '#2a2a2a'} strokeWidth={chosen ? 3.5 : 2.5}
+            fill="none" stroke={chosen ? '#b67c35' : '#2a2a2a'} strokeWidth={chosen ? 3.5 : 2.5}
             strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />)}
         {ticks.map((tick, index) =>
           <line key={index} x1={tick.a.x} y1={-tick.a.y} x2={tick.b.x} y2={-tick.b.y}
-            stroke="#1a1a1a" strokeWidth="2" vectorEffect="non-scaling-stroke" />)}
-        {caption && <text x={curtain.x} y={-curtain.y - 160} textAnchor="middle" fontSize="140" fill="#1a1a1a" pointerEvents="none">{caption}</text>}
+            stroke={chosen ? '#b67c35' : '#1a1a1a'} strokeWidth="2" vectorEffect="non-scaling-stroke" />)}
+        {caption && <text x={curtain.x} y={-curtain.y - 160} textAnchor="middle" fontSize="140"
+          fill={chosen ? '#986122' : '#1a1a1a'} pointerEvents="none">{caption}</text>}
       </g>;
     })}
     {drawing && <g data-testid="curtain-drawing" pointerEvents="none">
