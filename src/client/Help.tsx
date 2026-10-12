@@ -41,7 +41,7 @@ export function Help({ topic }: { topic?: string }) {
         <li><strong>Spielstätte</strong> anlegen oder wählen: Umriss, feste Wände, Podeste, Überbauung.</li>
         <li><strong>Produktion / Bühnenbild</strong> öffnen: bewegliche Wände und Requisiten auf dem Grundriss platzieren.</li>
         <li>In den <strong>Eigenschaften</strong> Maße übernehmen (Übernehmen), in der <strong>Raumsicht</strong> prüfen.</li>
-        <li>Bei Bedarf <strong>Export</strong> (Bauzeichnung / PDF) oder Bauplan-Revision einfrieren.</li>
+        <li>Unter <strong>Datei → PDF gestalten</strong> zuerst Empfänger und Zweck wählen, Inhalte prüfen, die echte PDF-Vorschau ansehen und den Entwurf speichern.</li>
       </ol>
       <p className="muted">Der Status neben dem Bühnenbildnamen zeigt „Gespeichert“ oder Konflikte. Entwürfe mit offenen Änderungen blockieren das Verlassen des Bühnenbilds.</p>
     </section>
@@ -60,8 +60,9 @@ export function Help({ topic }: { topic?: string }) {
         <li><strong>Shift+Klick</strong> — zur Mehrfachauswahl hinzufügen oder entfernen.</li>
         <li><strong>Gruppieren</strong> — ausgewählte Teile drehen und verschieben um einen gemeinsamen Drehpunkt.</li>
         <li><strong>Ausschnitte</strong> — an Wänden ohne Wandtyp zeichnen oder in den Eigenschaften bearbeiten.</li>
+        <li><strong>Kabel</strong> — tatsächlichen Weg für dieses Bühnenbild mit zwei Klicks zeichnen; Typ, Anzahl, Endpunkte und Zugabe anschließend bearbeiten.</li>
       </ul>
-      <p>Im Bühnenbildeditor finden Sie Drucken und Konstruktionspläne unter <strong>Datei</strong>,
+      <p>Im Bühnenbildeditor finden Sie Dokumente für Regie/Probe, Darstellende und Aufbau/Technik unter <strong>Datei</strong>,
         Kopieren und Gruppieren unter <strong>Bearbeiten</strong> und weitere Objekte unter <strong>Einfügen</strong>.
         Der Bühnenbildname öffnet das Menü zum Umbenennen und Bearbeiten der Spielstätte.
         <strong> Auswahl</strong> links beendet das Platzieren; die Werkzeughinweise stehen unten.</p>

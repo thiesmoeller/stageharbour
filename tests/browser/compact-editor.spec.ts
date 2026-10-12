@@ -20,15 +20,15 @@ test('notebook editor keeps commands discoverable and gives the canvas the viewp
   await page.getByRole('button', { name: 'Vollbild', exact: true }).click();
   await expect(page.locator('.editor-local-menubar')).toBeVisible();
   await menu('Datei').click();
-  await expect(page.getByRole('button', { name: 'Konstruktionsplan', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'PDF gestalten', exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Vollbild', exact: true }).click();
   await expect(page.locator('#editor-menu-slot nav')).toBeVisible();
   await menu('Datei').click();
-  await expect(page.getByRole('button', { name: '2D-Ansicht drucken / PDF' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'PDF gestalten', exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(menu('Datei')).toBeFocused();
-  await expect(page.getByRole('button', { name: '2D-Ansicht drucken / PDF' })).toBeHidden();
+  await expect(page.getByRole('button', { name: 'PDF gestalten', exact: true })).toBeHidden();
   await page.getByRole('button', { name: 'Wand hinzufügen', exact: true }).click();
   await expect(page.getByTestId('placing-wall')).toBeVisible();
   await page.getByRole('button', { name: 'Auswahl', exact: true }).click();

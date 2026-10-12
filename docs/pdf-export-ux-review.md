@@ -1,5 +1,7 @@
 # PDF export: workflow and visual quality review
 
+> Historical review. The recipient-first document workspace and deterministic preview/issue renderer now replace the `ExportPanel`/browser-print flows referenced below.
+
 Reviewed 2026-09-16 against `da71107`. Extends [the planner controls review](planner-controls-review.md). The user specifically identified unpolished graphical output, so this review includes actual rasterized PDFs, not only renderer source. No PDF renderer or export UI changes are included yet.
 
 ## Verdict

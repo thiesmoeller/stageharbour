@@ -283,6 +283,33 @@ select { font: inherit; width: 100%; padding: 8px; border: 1px solid #cbd3c8; bo
 .help-keys th, .help-keys td { text-align: left; padding: 10px 8px; border-bottom: 1px solid #e7eadd; vertical-align: top; }
 .help-keys th { font-size: .72rem; color: #70806a; }
 .help-page kbd { display: inline-block; padding: 1px 6px; border: 1px solid #c5cec4; border-radius: 4px; background: #f5f7f1; font-size: .78em; font-family: ui-monospace, monospace; }
+.cable-runs-panel { position: absolute; z-index: 20; top: 112px; right: 16px; width: min(360px, calc(100vw - 32px)); max-height: calc(100vh - 140px); overflow: auto; padding: 16px; background: #f8faf5; border: 1px solid #c5cec4; border-radius: 10px; box-shadow: 0 8px 30px #0002; }
+.cable-runs-panel fieldset { margin: 12px 0; border: 1px solid #c5cec4; border-radius: 8px; }
+.cable-runs-panel label { display: grid; gap: 4px; margin: 8px 0; }
+.recipient-document-workspace { padding: 24px; background: #f8fafb; color: #203c36; }
+.recipient-document-workspace > .section-heading { gap: 12px; }
+.recipient-document-workspace h2 { color: #203c36; }
+.document-purpose-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin: 24px 0; }
+.document-purpose-card {
+  min-height: 140px; padding: 20px; display: grid; align-content: center; gap: 10px;
+  text-align: left; border: 1px solid #c5cec4; background: #fff; color: #203c36;
+}
+.document-purpose-card:hover { background: #f3f6f1; }
+.document-purpose-card[aria-pressed=true] {
+  border-color: #1f645a; background: #e5f0ed; color: #14352f; box-shadow: inset 0 0 0 1px #1f645a;
+}
+.document-purpose-card strong { font-size: 1.15rem; color: inherit; }
+.document-purpose-card span { font-weight: 400; color: #3d524c; }
+.document-steps { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0; padding-bottom: 12px; border-bottom: 1px solid #c5cec4; }
+.document-step-panel { max-width: 860px; }
+.document-step-panel > label, .document-step-panel fieldset label, .document-step-panel details label { display: grid; gap: 4px; margin: 10px 0; }
+.document-step-panel textarea { width: 100%; box-sizing: border-box; }
+.document-readiness-warning { margin: 12px 0; padding: 14px; border-left: 4px solid #b67c35; background: #fff8e8; }
+.document-preview-step { display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); gap: 20px; min-height: 720px; }
+.document-preview-summary { display: flex; flex-direction: column; align-items: stretch; gap: 12px; }
+.document-pdf-preview { width: 100%; min-height: 720px; border: 1px solid #c5cec4; background: white; }
+.document-preview-empty { display: grid; place-items: center; border: 1px dashed #9daa98; color: #70806a; }
+@media (max-width: 800px) { .document-preview-step { grid-template-columns: 1fr; } }
 .help-footer { margin-top: 28px; padding-top: 16px; border-top: 1px solid #e7eadd; }
 .workspace-help a { color: #244d42; font-weight: 600; }
 @media (max-width: 760px) {

@@ -50,9 +50,9 @@ Users draw labelled polygons for areas that must remain clear, recording a reaso
 
 ## Power, audio, and cable routing
 
-Venue information includes known power and audio connection points and places where the group can route long cables. These represent available infrastructure and routing possibilities; detailed cable runs have not been agreed as part of version one.
+Venue information includes known power and audio connection points and places where the group can route long cables. These are reusable infrastructure and routing possibilities.
 
-Version one represents connection points as labelled power/audio pins and cable-routing possibilities as drawable corridors. Both support optional notes; the workflow stays simple.
+An actual cable run belongs to one Bühnenbild. It records a manually drawn path, labelled endpoints, purpose, cable type, quantity, and handling slack. The planner computes path and required lengths and includes them in technical documents, but does not perform automatic routing, electrical load calculation, or safety validation. Venue corridors remain guidance and never imply that a cable has been planned.
 
 ## Editing views
 

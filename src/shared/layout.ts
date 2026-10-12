@@ -4,7 +4,7 @@ import { stageLightingSchema } from './lighting.js';
 import { leaseHolderSchema } from './leases.js';
 import { AUDIENCE_FLOOR_ID, placementDiagnosticSchema, platformSchema, stairSchema, uniqueLevelIds } from './levels.js';
 import { openingSchema, wallTypeSchema } from './wall-types.js';
-import { cableRoutingCorridorsSchema, connectionPointsSchema } from './infrastructure.js';
+import { cableRoutingCorridorsSchema, cableRunsSchema, connectionPointsSchema } from './infrastructure.js';
 import { ceilingHeightSchema, overheadBoxesSchema, overheadWarningSchema } from './overhead.js';
 import { keepClearWarningSchema, keepClearZonesSchema } from './keepClear.js';
 import { snapDrawSegment } from './snapping.js';
@@ -127,6 +127,8 @@ export const layoutSchema = z.strictObject({
   connections: z.array(panelConnectionSchema).max(250).optional(),
   groups: z.array(groupSchema).max(250).optional(),
   placeholders: placeholdersSchema.optional(),
+  /** Actual cables for this Bühnenbild. Venue corridors only guide their paths. */
+  cableRuns: cableRunsSchema.optional(),
   measureLines: measureLinesSchema.optional(),
   /** Associative horizontal or vertical distances on this play. */
   dimensions: playDimensionsSchema.optional(),

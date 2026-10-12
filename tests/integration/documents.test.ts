@@ -114,6 +114,31 @@ test('client-captured Raumsicht images appear in the prepared PDF', async () => 
   assert.ok(/\/Subtype\s*\/Image|XObject/.test(text), 'PDF contains an embedded image object');
 });
 
+test('recipient document drafts persist per production and can be replaced', async () => {
+  const url = `/api/workspaces/${fixture.config.WORKSPACE_ID}/productions/${scene.productionId}/document-draft`;
+  assert.equal((await app.inject({ url, headers })).json(), null);
+  const draft = {
+    spec: {
+      ...spec('Regiefassung'),
+      purpose: 'rehearsal',
+      sections: ['cover', 'overviewPlan', 'roomViews'],
+      introduction: 'Für die Probe.',
+    },
+  };
+  const saved = await app.inject({ method: 'PUT', url, headers, payload: draft });
+  assert.equal(saved.statusCode, 200, saved.body);
+  assert.equal(saved.json().spec.purpose, 'rehearsal');
+  const loaded = await app.inject({ url, headers });
+  assert.equal(loaded.statusCode, 200);
+  assert.equal(loaded.json().spec.introduction, 'Für die Probe.');
+  const replaced = await app.inject({
+    method: 'PUT', url, headers,
+    payload: { spec: { ...draft.spec, revisionName: 'Neue Fassung' } },
+  });
+  assert.equal(replaced.statusCode, 200, replaced.body);
+  assert.equal((await app.inject({ url, headers })).json().spec.revisionName, 'Neue Fassung');
+});
+
 test('A2 paper and audience-viewpoint Raumsicht prepare a valid multi-sheet PDF', async () => {
   const viewId = randomUUID();
   const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';

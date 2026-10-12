@@ -24,6 +24,21 @@ async function pdfText(pdf: Buffer) {
   return pages.join('\n');
 }
 
+test('clipped drawing labels never create extra pages or leak into following sheets', async () => {
+  const frozen = sceneWith([newWall(randomUUID(), 2000, 3000)]);
+  const layout = composeDocument({ spec: spec(frozen.sceneId), scenes: [frozen], productionName: 'Pagination', issuedAtLabel: '10.10.2026' });
+  const first = layout.sheets[0]!;
+  first.frames[0]!.paint.push({ op: 'text', x: 40, y: first.heightMm + 30, text: 'OFF_PAGE_PODEST', size: 7, color: '#203c36', width: 30, height: 4 });
+  const pdf = await renderDocument(layout);
+  const document = await getDocument({ data: new Uint8Array(pdf) }).promise;
+  assert.equal(document.numPages, layout.sheets.length);
+  for (let index = 1; index <= document.numPages; index++) {
+    const page = await document.getPage(index);
+    const content = await page.getTextContent();
+    assert.ok(!content.items.some(item => 'str' in item && item.str.includes('OFF_PAGE_PODEST')));
+  }
+});
+
 function sceneWith(walls: ReturnType<typeof newWall>[], venue: Scene['venue'] = { schemaVersion: 1, width: 8000, depth: 6000 }): FrozenScene {
   const scene: Scene = {
     id: randomUUID(), name: 'Erste Szene', productionName: 'Beispielproduktion', venueName: 'Beispielsaal',

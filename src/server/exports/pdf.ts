@@ -116,7 +116,7 @@ function strokePlan(
     }
     doc.closePath().lineWidth(0.8).stroke('#718469');
   }
-  if (layers.constraints) {
+  if (layers.infrastructure) {
     for (const corridor of snapshot.venue.cableRoutingCorridors ?? []) {
       const corridorStart = toPage(corridor.path[0]!.x, corridor.path[0]!.y);
       doc.moveTo(corridorStart.x, corridorStart.y);
@@ -137,6 +137,22 @@ function strokePlan(
       doc.circle(at.x, at.y, mm(1.5)).lineWidth(0.6).fillAndStroke('#d9c6a1', '#986122');
       if (layers.labels) {
         doc.fontSize(7).fillColor('#395640').text(pin.label, at.x + mm(2), at.y - mm(2), { lineBreak: false });
+      }
+    }
+  }
+  if (layers.cables) {
+    for (const run of snapshot.layout.cableRuns ?? []) {
+      const start = toPage(run.path[0]!.x, run.path[0]!.y);
+      doc.moveTo(start.x, start.y);
+      for (const point of run.path.slice(1)) {
+        const mapped = toPage(point.x, point.y);
+        doc.lineTo(mapped.x, mapped.y);
+      }
+      doc.lineWidth(1).undash().stroke('#9b3f64');
+      if (layers.labels) {
+        const mid = run.path[Math.floor(run.path.length / 2)] ?? run.path[0]!;
+        const label = toPage(mid.x, mid.y);
+        doc.fontSize(7).fillColor('#9b3f64').text(`${run.label} · ${run.quantity}x ${run.cableType}`, label.x + mm(2), label.y - mm(2), { lineBreak: false });
       }
     }
   }
