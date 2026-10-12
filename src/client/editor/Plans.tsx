@@ -10,7 +10,7 @@ import { can } from '../../shared/permissions.js';
 import { ApiError, request } from '../api.js';
 import { askConfirm } from '../ConfirmDialog.js';
 import { Editor } from './Editor.js';
-import { ExportWorkspace } from './ExportWorkspace.js';
+import { RecipientDocumentWorkspace } from './RecipientDocumentWorkspace.js';
 import { PlanPreview } from './PlanPreview.js';
 import { writeWorkspaceLocation } from '../workspaceRoutes.js';
 
@@ -36,7 +36,7 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
-  const [packageExport, setPackageExport] = useState<{ productionId: string; scenes: { id: string; name: string }[] }>();
+  const [packageExport, setPackageExport] = useState<{ productionId: string; seedSceneId: string; seedVenueId: string }>();
   const [renaming, setRenaming] = useState<{ kind: 'scene' | 'production' | 'template'; id: string }>();
   const openedIdRef = useRef<string | undefined>(undefined);
   const openingRef = useRef<string | undefined>(undefined);
@@ -487,16 +487,17 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
             </div>)}</div>
           </div>;
         })}
-        {!readOnly && <button type="button" className="quiet" onClick={() => setPackageExport({
+        {!readOnly && productionScenes[0] && <button type="button" className="quiet" onClick={() => setPackageExport({
           productionId: item.productionId,
-          scenes: productionScenes.map(scene => ({ id: scene.id, name: `${scene.name} · ${scene.venueName}` })),
-        })}>Konstruktionspaket exportieren</button>}
+          seedSceneId: productionScenes[0]!.id,
+          seedVenueId: productionScenes[0]!.venueId,
+        })}>PDF gestalten</button>}
       </section>;
     })}
     </div>
-    {packageExport && <ExportWorkspace workspaceId={me.workspace.id} productionId={packageExport.productionId}
-      scenes={packageExport.scenes} groups={[]} walls={[]} templates={[]} readOnly={readOnly} freezeDisabled={busy}
-      onClose={() => setPackageExport(undefined)} />}
+    {packageExport && <RecipientDocumentWorkspace workspaceId={me.workspace.id} productionId={packageExport.productionId}
+      seedSceneId={packageExport.seedSceneId} seedVenueId={packageExport.seedVenueId} defaultScope="production"
+      freezeDisabled={busy} onClose={() => setPackageExport(undefined)} />}
     <div className="section-heading"><h2>Bühnenbildvorlagen</h2></div>
     {!busy && !templates.length && !capturing && !instantiating && !error && <p className="muted">Noch keine Bühnenbildvorlagen vorhanden.{!readOnly && ' Speichern Sie ein Bühnenbild als schreibgeschützte Bühnenbildvorlage.'}</p>}
     <div className="scene-list">{templates.map(template => <div className="scene-card" key={template.id}>

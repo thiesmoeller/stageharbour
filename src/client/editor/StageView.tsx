@@ -7,6 +7,7 @@ import { LightLooksPanel, type LightLooksPatch } from './LightLooksPanel.js';
 import { FixtureControlOverlay } from './FixtureControlOverlay.js';
 import { LightBoardHost } from './LightBoardPanel.js';
 import { createLightBoardLive } from './lightBoardLive.js';
+import { defaultLightBoardState } from '../../shared/lightBoard.js';
 import { lazy, Suspense, useContext, useEffect, useMemo, useState } from 'react';
 import type { Layout, VenueGeometry } from '../../shared/layout.js';
 import { stageModel } from '../../shared/transforms.js';
@@ -33,7 +34,7 @@ function facing(normal: { x: number; z: number }) {
   return normal.z <= 0 ? 'zeigt zum Publikum' : 'zeigt von Publikum weg';
 }
 
-export function StageView({ layout, venue, assets = [], workspaceId = '', onLightingChange, onLightLooksChange, onHangPlanChange, planDisplay = defaultPlanDisplay, onCaptureReady, onFeedbackCaptureReady, initialView, onViewChange, title = 'Raumsicht', ...editing }: {
+export function StageView({ layout, venue, assets = [], workspaceId = '', onLightingChange, onLightLooksChange, onHangPlanChange, planDisplay = defaultPlanDisplay, onCaptureReady, onFeedbackCaptureReady, initialView, onViewChange, title = 'Raumsicht', captureLightLook = false, captureHouseMaster = 1, ...editing }: {
   layout: Layout; venue: VenueGeometry; assets?: Asset[]; workspaceId?: string;
   onLightingChange?: (value: StageLightingSettings) => void;
   onLightLooksChange?: (patch: LightLooksPatch) => void;
@@ -44,11 +45,15 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
   initialView?: StageCameraView;
   onViewChange?: (view: StageCameraView) => void;
   title?: string;
+  /** Preview a saved look for a document without opening or changing the session board. */
+  captureLightLook?: boolean;
+  captureHouseMaster?: number;
 } & StageEditing) {
   const dock = useContext(EditorDockContext);
   const model = stageModel(layout, venue);
   const curtains = effectiveCurtains(venue, layout);
-  const lighting = layout.lighting ?? venue.lighting ?? defaultLighting;
+  const savedLighting = layout.lighting ?? venue.lighting ?? defaultLighting;
+  const lighting = useMemo(() => captureLightLook ? { ...savedLighting, enabled: true } : savedLighting, [captureLightLook, savedLighting]);
   const hangPlan = venue.hangPlan;
   const lightLooks = layout.lightLooks ?? [];
   const activeLook = lightLooks.find(look => look.id === layout.activeLightLookId) ?? lightLooks[0];
@@ -60,6 +65,9 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
   useEffect(() => { if (dock && dock.active !== 'lighting') setFocusAimMode(false); }, [dock?.active]);
   /** Stable live store: fader UI writes here; SpotLights read in useFrame (no Pascal remount). */
   const lightBoardLive = useMemo(() => createLightBoardLive(), []);
+  useEffect(() => {
+    if (captureLightLook) lightBoardLive.set({ ...defaultLightBoardState(hangPlan?.fixtures.map(item => item.id) ?? [], activeLook), houseMaster: captureHouseMaster });
+  }, [captureLightLook, captureHouseMaster, hangPlan, activeLook, lightBoardLive]);
   const hasHangFixtures = !!hangPlan?.fixtures.length;
   const hangLit = boardOpen && hasHangFixtures && lighting.enabled;
   useEffect(() => { if (initialView) setView(initialView); }, [initialView]);
@@ -168,7 +176,7 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
       focusAimMode={boardOpen && focusAimMode}
       onHangPlanChange={onHangPlanChange}
       lightBoardLive={lightBoardLive}
-      showFixturePools={boardOpen}
+      showFixturePools={boardOpen || captureLightLook}
       toolbarHost={toolbarHost}
       {...editing} /></Suspense>
     {!exportAim && boardOpen && hasHangFixtures && hangPlan && <LightBoardHost

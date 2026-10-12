@@ -7,7 +7,7 @@ for (const kind of ['stage', 'venue'] as const) {
     const file = editorMenu(page, 'Datei');
     const edit = editorMenu(page, 'Bearbeiten');
     const view = editorMenu(page, 'Ansicht');
-    const fileCommand = page.getByRole('button', { name: kind === 'stage' ? 'Konstruktionsplan' : 'Entwurf herunterladen', exact: true });
+    const fileCommand = page.getByRole('button', { name: kind === 'stage' ? 'PDF gestalten' : 'Entwurf herunterladen', exact: true });
     const backCommand = page.getByRole('navigation', { name: 'Editor-Menüs' }).getByRole('button', {
       name: kind === 'stage' ? 'Zur Übersicht' : 'Spielstätte schließen', exact: true,
     });

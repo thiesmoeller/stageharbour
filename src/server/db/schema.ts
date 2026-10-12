@@ -8,6 +8,7 @@ import type { Opening } from '../../shared/wall-types.js';
 import type { WallElementType } from '../../shared/wall-types.js';
 import type { AssetDefinition } from '../../shared/assets.js';
 import type { SurfaceDefinition } from '../../shared/surfaceRegistry.js';
+import type { DocumentDraft } from '../../shared/exportDocument.js';
 
 const dates = () => ({
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -216,6 +217,17 @@ export const exportPreparation = pgTable('export_preparation', {
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   issuedRevisionId: uuid('issued_revision_id'),
 }, t => [index('export_preparation_workspace_idx').on(t.workspaceId, t.expiresAt)]);
+export const documentDraft = pgTable('document_draft', {
+  id: uuid('id').primaryKey(),
+  workspaceId: uuid('workspace_id').notNull(),
+  productionId: uuid('production_id').notNull(),
+  draft: jsonb('draft').notNull().$type<DocumentDraft>(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => [
+  uniqueIndex('document_draft_workspace_production').on(t.workspaceId, t.productionId),
+  foreignKey({ columns: [t.workspaceId, t.productionId], foreignColumns: [production.workspaceId, production.id], name: 'document_draft_production_fk' }).onDelete('cascade'),
+]);
 export const venueReference = pgTable('venue_reference', {
   id: uuid('id').primaryKey(),
   workspaceId: uuid('workspace_id').notNull().references(() => workspace.id),

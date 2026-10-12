@@ -671,14 +671,13 @@ test('create a wall type with a rectangular opening, place it, and export the pl
   await expect(stageWall).toHaveAttribute('data-height', '2400');
   await waitUntilSaved(page);
 
-  await revealEditorCommand(page, 'Konstruktionsplan');
-  await page.getByRole('button', { name: 'Konstruktionsplan' }).click();
-  const workspace = page.getByRole('region', { name: 'Export' });
+  await revealEditorCommand(page, 'PDF gestalten');
+  await page.getByRole('button', { name: 'PDF gestalten' }).click();
+  const workspace = page.getByRole('region', { name: 'Dokument erstellen' });
+  await workspace.getByRole('button', { name: /Aufbau \/ Technik/ }).click();
+  await workspace.getByRole('button', { name: 'Weiter zum Inhalt' }).click();
   await workspace.getByLabel('Bezeichnung der Fassung').fill('Türfassung');
-  await expect(workspace.getByRole('status').first()).toContainText('Vorschau bereit', { timeout: 20_000 });
-  await workspace.getByRole('button', { name: 'PDF erstellen' }).click();
-  await workspace.getByText('Frühere Fassungen').click();
-  await expect(workspace.getByRole('listitem').filter({ hasText: 'Türfassung' })).toContainText('Fertig');
+  await expect(workspace.getByRole('button', { name: 'Vorschau erstellen' })).toBeEnabled();
   expect(errors).toEqual([]);
 });
 

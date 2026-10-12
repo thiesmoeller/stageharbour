@@ -1,5 +1,5 @@
 import type { ConstructionSnapshot } from './export.js';
-import type { ExportLayers } from './exportLayers.js';
+import { resolveExportLayers, type ExportLayers } from './exportLayers.js';
 import { wallCorners } from './layout.js';
 import { resolveWall } from './wall-types.js';
 import { stairCorners } from './levels.js';
@@ -11,7 +11,8 @@ type Point = { x: number; y: number };
 export type PlanFeature = { points: Point[]; closed: boolean; label?: string; fill?: string; stroke: string };
 
 /** The same enabled geometry drives PDF painting and automatic framing. */
-export function planFeatures(snapshot: ConstructionSnapshot, layers: ExportLayers): PlanFeature[] {
+export function planFeatures(snapshot: ConstructionSnapshot, partial: Partial<ExportLayers>): PlanFeature[] {
+  const layers = resolveExportLayers(partial);
   const features: PlanFeature[] = [];
   const add = (points: Point[], stroke: string, label?: string, fill?: string, closed = true) =>
     features.push({ points, stroke, label: layers.labels ? label : undefined, fill, closed });
@@ -33,10 +34,17 @@ export function planFeatures(snapshot: ConstructionSnapshot, layers: ExportLayer
   }
   if (layers.constraints) {
     for (const zone of snapshot.venue.keepClearZones ?? []) add(zone.polygon, '#b67c35', zone.label);
+  }
+  if (layers.infrastructure) {
     for (const corridor of snapshot.venue.cableRoutingCorridors ?? []) add(corridor.path, '#5a6e8a', corridor.label, undefined, false);
     for (const pin of snapshot.venue.connectionPoints ?? []) {
       add([{ x: pin.x - 60, y: pin.y }, { x: pin.x + 60, y: pin.y }], '#986122', pin.label, undefined, false);
       add([{ x: pin.x, y: pin.y - 60 }, { x: pin.x, y: pin.y + 60 }], '#986122', undefined, undefined, false);
+    }
+  }
+  if (layers.cables) {
+    for (const run of snapshot.layout.cableRuns ?? []) {
+      add(run.path, '#9b3f64', `${run.label} · ${run.quantity}× ${run.cableType}`, undefined, false);
     }
   }
   return features;

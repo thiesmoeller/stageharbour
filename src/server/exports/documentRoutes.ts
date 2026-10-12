@@ -6,12 +6,12 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { errorSchema, workspaceParamsSchema } from '../../shared/contracts.js';
 import { exportRevisionSchema, freezeSnapshot } from '../../shared/export.js';
-import { exportDocumentSpecSchema, prepareDocumentBodySchema, decodeViewImages, type ExportDocumentSpec, type FrozenScene } from '../../shared/exportDocument.js';
+import { documentDraftSchema, exportDocumentSpecSchema, prepareDocumentBodySchema, decodeViewImages, type ExportDocumentSpec, type FrozenScene } from '../../shared/exportDocument.js';
 import { sceneSchema, type Scene } from '../../shared/layout.js';
 import { freezePackage } from '../../shared/package.js';
 import type { Database } from '../db/connection.js';
 import {
-  inventoryBallast, adaptation, constructionPackage, constructionPlanRevision, exportPreparation, inventoryPanel, inventoryWallType,
+  inventoryBallast, adaptation, constructionPackage, constructionPlanRevision, documentDraft, exportPreparation, inventoryPanel, inventoryWallType,
   production, scene, venue, venueVersion,
 } from '../db/schema.js';
 import { AccessError, type createAccess } from '../identity/access.js';
@@ -38,6 +38,7 @@ export function registerDocumentRoutes(
   const api = app.withTypeProvider<ZodTypeProvider>();
   const params = workspaceParamsSchema;
   const item = params.extend({ documentId: z.uuid() });
+  const draftParams = params.extend({ productionId: z.uuid() });
   const errors = { 400: errorSchema, 401: errorSchema, 403: errorSchema, 404: errorSchema, 409: errorSchema };
 
   async function loadScenes(workspaceId: string, sceneIds: string[]) {
@@ -103,6 +104,35 @@ export function registerDocumentRoutes(
     }
     return row;
   }
+
+  api.get('/api/workspaces/:workspaceId/productions/:productionId/document-draft', {
+    schema: { params: draftParams, response: { 200: documentDraftSchema.nullable(), ...errors } },
+  }, async request => {
+    await access(request, request.params.workspaceId);
+    const [row] = await db.select({ draft: documentDraft.draft }).from(documentDraft).where(and(
+      eq(documentDraft.workspaceId, request.params.workspaceId),
+      eq(documentDraft.productionId, request.params.productionId),
+    ));
+    return row ? documentDraftSchema.parse(row.draft) : null;
+  });
+
+  api.put('/api/workspaces/:workspaceId/productions/:productionId/document-draft', {
+    bodyLimit: 24 * 1024 * 1024,
+    schema: { params: draftParams, body: documentDraftSchema, response: { 200: documentDraftSchema, ...errors } },
+  }, async request => {
+    if (request.headers.origin !== origin) throw new AccessError(403, 'Ungültiger Ursprung.');
+    await access(request, request.params.workspaceId, 'exports');
+    const draft = documentDraftSchema.parse(request.body);
+    const now = new Date();
+    await db.insert(documentDraft).values({
+      id: randomUUID(), workspaceId: request.params.workspaceId, productionId: request.params.productionId,
+      draft, createdAt: now, updatedAt: now,
+    }).onConflictDoUpdate({
+      target: [documentDraft.workspaceId, documentDraft.productionId],
+      set: { draft, updatedAt: now },
+    });
+    return draft;
+  });
 
   api.post('/api/workspaces/:workspaceId/documents', {
     bodyLimit: 24 * 1024 * 1024,

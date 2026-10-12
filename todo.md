@@ -4,7 +4,9 @@
 
 **Shipped:** Dedicated **Blatt-Layout** page (TechDraw-style) opened from Spielstätte → Blatt-Layout. Live readonly Grundriss + Raumsicht sources; insert frames onto A4; templates saved with the venue. Not embedded under the venue canvas.
 
-**Still open:** drive PDF freeze from the sheet layout; rasterise real 3D frames into the pack.
+**Shipped:** One recipient-first **PDF gestalten** flow (Regie/Probe, Darstellende, Aufbau/Technik) with readiness checks, named sections, real server PDF preview, saved production drafts, and immutable issued revisions. Actual scene cable runs feed a technical cable plan and list.
+
+**Still open:** richer artistic annotations such as entrances, blocking, and cues; automatic cable routing and electrical validation remain deliberately out of scope.
 
 ## Montagenummern GUI
 

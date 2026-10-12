@@ -51,8 +51,7 @@ test('app-styled confirm replaces every former window.confirm and window.prompt 
     'editor/Editor.tsx',
     'editor/Plans.tsx',
     'editor/Venues.tsx',
-    'editor/ExportPanel.tsx',
-    'editor/ExportWorkspace.tsx',
+    'editor/RecipientDocumentWorkspace.tsx',
     'editor/usePendingApplyForm.ts',
   ];
   for (const file of files) {

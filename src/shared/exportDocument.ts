@@ -21,6 +21,7 @@ import { orientedPlatformBox, stairSteps } from './levels.js';
 import { trussHangWorld } from './truss.js';
 import { centrelineSpan } from './snapping.js';
 import { doorOpenAngleDegrees } from './wall-types.js';
+import { CABLE_PURPOSE_LABELS, requiredCableLengthMm, type CableRun } from './infrastructure.js';
 
 const name = z.string().trim().min(1).max(120);
 const point = z.strictObject({ x: z.number().finite(), y: z.number().finite() });
@@ -32,6 +33,64 @@ export const frameKindSchema = z.enum(['plan', 'elevation', 'view3d', 'notes', '
 export type FrameKind = z.infer<typeof frameKindSchema>;
 export const cameraPresetSchema = z.enum(['orbit', 'audience', 'top', 'front', 'side']);
 export type CameraPreset = z.infer<typeof cameraPresetSchema>;
+export const documentPurposeSchema = z.enum(['rehearsal', 'performers', 'technical']);
+export type DocumentPurpose = z.infer<typeof documentPurposeSchema>;
+export const documentSectionSchema = z.enum([
+  'cover', 'overviewPlan', 'roomViews', 'notes',
+  'dimensionedPlan', 'elevations', 'wallSchedule', 'materialSchedule', 'warnings',
+  'cablePlan', 'cableSchedule',
+]);
+export type DocumentSection = z.infer<typeof documentSectionSchema>;
+
+export const DOCUMENT_PURPOSES: Record<DocumentPurpose, {
+  label: string; description: string; sections: DocumentSection[];
+}> = {
+  rehearsal: {
+    label: 'Regie / Probe',
+    description: 'Übersichtliche Pläne und Raumsichten für Absprachen und Proben.',
+    sections: ['cover', 'overviewPlan', 'roomViews', 'notes'],
+  },
+  performers: {
+    label: 'Darstellende',
+    description: 'Ein reduziertes Orientierungsblatt ohne technische Aufbauinformationen.',
+    sections: ['cover', 'overviewPlan', 'roomViews'],
+  },
+  technical: {
+    label: 'Aufbau / Technik',
+    description: 'Bemaßte Aufbaupläne, Listen, Warnungen und Kabelplanung.',
+    sections: ['cover', 'dimensionedPlan', 'elevations', 'wallSchedule', 'materialSchedule', 'warnings', 'cablePlan', 'cableSchedule'],
+  },
+};
+
+export const DOCUMENT_SECTION_LABELS: Record<DocumentSection, string> = {
+  cover: 'Deckblatt',
+  overviewPlan: 'Orientierungsplan',
+  roomViews: 'Raumsichten',
+  notes: 'Kurze Hinweise',
+  dimensionedPlan: 'Bemaßter Grundriss',
+  elevations: 'Frontansichten',
+  wallSchedule: 'Wand- und Plattenliste',
+  materialSchedule: 'Materialliste',
+  warnings: 'Aufbauhinweise und offene Punkte',
+  cablePlan: 'Kabelplan',
+  cableSchedule: 'Kabelliste',
+};
+
+export function sectionsForPurpose(purpose: DocumentPurpose): DocumentSection[] {
+  return [...DOCUMENT_PURPOSES[purpose].sections];
+}
+
+export function layersForPurpose(purpose: DocumentPurpose): ExportLayers {
+  if (purpose === 'technical') return resolveExportLayers();
+  if (purpose === 'performers') return resolveExportLayers({
+    audience: true, softGoods: true, constraints: false, infrastructure: false, cables: false,
+    dimensions: false, warnings: false,
+  });
+  return resolveExportLayers({
+    audience: true, constraints: false, infrastructure: false, cables: false,
+    dimensions: false, warnings: false,
+  });
+}
 
 export const savedCameraSchema = z.strictObject({
   projection: z.enum(['perspective', 'orthographic']),
@@ -84,6 +143,10 @@ export type DocumentPage = z.infer<typeof documentPageSchema>;
 export const exportDocumentSpecSchema = z.strictObject({
   schemaVersion: z.literal(1),
   preset: z.enum(['construction', 'presentation']).default('construction'),
+  purpose: documentPurposeSchema.optional(),
+  sections: z.array(documentSectionSchema).max(20).optional(),
+  introduction: z.string().trim().max(2000).optional(),
+  contact: z.string().trim().max(500).optional(),
   revisionName: name,
   paper: paperSizeSchema.default('A4'),
   orientation: z.enum(['portrait', 'landscape', 'auto']).default('auto'),
@@ -108,6 +171,44 @@ export const exportDocumentSpecSchema = z.strictObject({
   customPages: z.array(documentPageSchema).max(80).optional(),
 });
 export type ExportDocumentSpec = z.infer<typeof exportDocumentSpecSchema>;
+
+export const documentDraftSchema = z.strictObject({
+  spec: exportDocumentSpecSchema,
+  viewImages: z.record(z.string().min(1).max(160), z.string().min(8).max(12_000_000)).optional(),
+});
+export type DocumentDraft = z.infer<typeof documentDraftSchema>;
+
+export function documentReadiness(spec: Pick<ExportDocumentSpec, 'purpose' | 'sections'>, scenes: readonly {
+  layout: { cableRuns?: readonly unknown[] };
+}[]): { code: string; message: string; action?: 'cables' | 'views' }[] {
+  const sections = new Set(spec.sections ?? (spec.purpose ? sectionsForPurpose(spec.purpose) : []));
+  const issues: { code: string; message: string; action?: 'cables' | 'views' }[] = [];
+  if ((sections.has('cablePlan') || sections.has('cableSchedule')) && !scenes.some(scene => scene.layout.cableRuns?.length)) {
+    issues.push({ code: 'no-cable-runs', message: 'Noch keine tatsächlichen Kabelwege geplant.', action: 'cables' });
+  }
+  return issues;
+}
+
+export function cableScheduleRows(runs: readonly CableRun[]): string[][] {
+  const groups = new Map<string, { purpose: CableRun['purpose']; cableType: string; length: number; quantity: number; endpoints: Set<string>; slack: number }>();
+  for (const run of runs) {
+    const length = requiredCableLengthMm(run);
+    const key = `${run.purpose}\u0000${run.cableType}\u0000${length}`;
+    const group = groups.get(key) ?? {
+      purpose: run.purpose, cableType: run.cableType, length, quantity: 0, endpoints: new Set<string>(), slack: run.slackMm,
+    };
+    group.quantity += run.quantity;
+    group.slack = Math.max(group.slack, run.slackMm);
+    group.endpoints.add(`${run.start.label} → ${run.end.label}`);
+    groups.set(key, group);
+  }
+  return [...groups.values()].map(group => [
+    `${CABLE_PURPOSE_LABELS[group.purpose]} · ${group.cableType}`,
+    [...group.endpoints].join(', '),
+    String(group.quantity),
+    `${(group.length / 1000).toFixed(1)} m (${(group.slack / 1000).toFixed(1)} m Zugabe)`,
+  ]);
+}
 
 /** Base64 PNG (optionally data-URL) keyed by compose frame id (`view-${sceneId}-${viewId}`). */
 export const viewImagesSchema = z.record(
@@ -217,7 +318,8 @@ function expand(box: Box, pad: number): Box {
   return { minX: box.minX - pad, minY: box.minY - pad, maxX: box.maxX + pad, maxY: box.maxY + pad };
 }
 
-export function contentBounds(snapshot: ConstructionSnapshot, layers: ExportLayers, scope: 'scenery' | 'venue' = 'scenery'): Box {
+export function contentBounds(snapshot: ConstructionSnapshot, partial: Partial<ExportLayers>, scope: 'scenery' | 'venue' = 'scenery'): Box {
+  const layers = resolveExportLayers(partial);
   const points: { x: number; y: number }[] = [];
   if (scope === 'venue') points.push(...measuredOutline(snapshot.venue));
   if (layers.scenery) {
@@ -891,6 +993,7 @@ export function composeDocument(input: {
   const sheets: DrawnSheet[] = [];
   const diagnostics: string[] = [];
   const layers = resolveExportLayers(spec.layers as Partial<ExportLayers> | undefined);
+  const sections = spec.sections ? new Set(spec.sections) : undefined;
   const ordered = spec.scenes.map(entry => {
     const scene = input.scenes.find(item => item.sceneId === entry.sceneId);
     if (!scene) throw new Error('Bühnenbild für den Export fehlt.');
@@ -900,17 +1003,19 @@ export function composeDocument(input: {
   if (spec.customPages?.length) {
     composeCustom(spec, ordered, input, layers, measure, sheets, diagnostics);
   } else {
-    if (spec.kind === 'package' || ordered.length > 1 || input.stock) composeIndex(spec, ordered, input, measure, sheets);
+    if (sections?.has('cover') || (!sections && (spec.kind === 'package' || ordered.length > 1 || input.stock))) {
+      composeIndex(spec, ordered, input, measure, sheets);
+    }
     for (const { entry, scene } of ordered) {
       composeScene(spec, entry.elevationGroupIds, scene, input, layers, measure, sheets, diagnostics);
     }
-    if (spec.kind === 'package' && input.stock) composeStock(input.stock, spec, input, measure, sheets);
+    if (spec.kind === 'package' && input.stock && (!sections || sections.has('materialSchedule'))) composeStock(input.stock, spec, input, measure, sheets);
     const cameras = spec.viewCameras ?? [];
-    if (cameras.length) {
+    if ((!sections || sections.has('roomViews')) && cameras.length) {
       for (const { scene } of ordered) {
         for (const view of cameras) composeView(scene, spec, input, measure, sheets, view);
       }
-    } else if (spec.preset === 'presentation') {
+    } else if ((!sections || sections.has('roomViews')) && spec.preset === 'presentation') {
       for (const { scene } of ordered) composeView(scene, spec, input, measure, sheets);
     }
   }
@@ -950,9 +1055,13 @@ function composeScene(
   const bounds = planCrop ?? fullBounds;
   const cropped = Boolean(planCrop);
   const { map, rows } = keysFor(snapshot);
+  const sections = spec.sections ? new Set(spec.sections) : undefined;
+  const includeDimensionedPlan = !sections || sections.has('dimensionedPlan');
+  const includeOverview = !!sections?.has('overviewPlan');
+  const includeCablePlan = !!sections?.has('cablePlan');
   const planTiles = tilesFor(bounds, body, scale);
   const planIds: number[] = [];
-  for (const tile of planTiles) {
+  for (const tile of includeDimensionedPlan ? planTiles : []) {
     const drawn = planPaint(snapshot, layers, body, tile.window, measure, map);
     if (drawn.overflow.length) diagnostics.push(`Beschriftung auf Folgeblatt: ${drawn.overflow.join(', ')}`);
     const sheet = pushSheet(sheets, {
@@ -976,7 +1085,7 @@ function composeScene(
       below: tile.row < tile.rows - 1 ? sheet.index + tile.columns : undefined,
     };
   }
-  if (planCrop) {
+  if (planCrop || includeOverview) {
     const overview = fittedWindow(fullBounds, body, scale);
     pushSheet(sheets, {
       title: 'Übersicht', sceneName: scene.sceneName, paper, orientation,
@@ -987,16 +1096,34 @@ function composeScene(
         sourceLabel: 'Übersicht', window: overview.window, detail: false,
         paint: [
           ...planPaint(snapshot, layers, body, overview.window, measure, map).paint,
-          poly([
+          ...(planCrop ? [poly([
             { x: planCrop.minX, y: planCrop.minY }, { x: planCrop.maxX, y: planCrop.minY },
             { x: planCrop.maxX, y: planCrop.maxY }, { x: planCrop.minX, y: planCrop.maxY },
-          ], body, overview.window, undefined, '#986122', 0.7),
+          ], body, overview.window, undefined, '#986122', 0.7)] : []),
         ],
       }],
       diagnostics: [], neighbors: {}, bookmarkTitle: `Übersicht ${scene.sceneName}`,
     });
   }
-  for (const face of faces) {
+  if (includeCablePlan) {
+    const cableBounds = contentBounds(snapshot, { ...layers, dimensions: false, cables: true }, 'venue');
+    const overview = fittedWindow(cableBounds, body, scale);
+    const cableLayers = {
+      ...layers, dimensions: false, warnings: false, cables: true, infrastructure: true,
+    };
+    pushSheet(sheets, {
+      title: 'Kabelplan', sceneName: scene.sceneName, paper, orientation,
+      widthMm: size.width, heightMm: size.height, scale: overview.scale, scaleLabel: scaleLabel(overview.scale),
+      paint: chrome(metaFor(input, scene, 'Kabelplan', scaleLabel(overview.scale)), size, measure),
+      frames: [{
+        id: `cables-${scene.sceneId}`, kind: 'plan', clip: body, scale: overview.scale,
+        scaleLabel: scaleLabel(overview.scale), sourceLabel: 'Kabelplan', window: overview.window, detail: false,
+        paint: planPaint(snapshot, cableLayers, body, overview.window, measure, map).paint,
+      }],
+      diagnostics: [], neighbors: {}, bookmarkTitle: `Kabelplan ${scene.sceneName}`,
+    });
+  }
+  for (const face of !sections || sections.has('elevations') ? faces : []) {
     const faceTiles = tilesFor({ minX: 0, minY: 0, maxX: Math.max(face.width, 1), maxY: Math.max(face.height, 1) }, body, scale);
     for (const tile of faceTiles) {
       const drawn = elevationPaint(face, body, tile.window, measure);
@@ -1016,10 +1143,14 @@ function composeScene(
       });
     }
   }
-  if (rows.length) {
+  if (rows.length && (!sections || sections.has('wallSchedule'))) {
     tableSheets('Stückliste', ['Nr.', 'Bezeichnung', 'Maß'], rows.map(row => [row.key, row.label, row.detail]), body, paper, orientation, measure, scene.sceneName, metaFor(input, scene, 'Stückliste', '—'), sheets);
   }
-  const notes = collectNotes(snapshot, layers);
+  if (sections?.has('cableSchedule') && (snapshot.layout.cableRuns?.length ?? 0) > 0) {
+    tableSheets('Kabelliste', ['Zweck / Typ', 'Von → Nach', 'Anzahl', 'Länge je Kabel'], cableScheduleRows(snapshot.layout.cableRuns ?? []),
+      body, paper, orientation, measure, scene.sceneName, metaFor(input, scene, 'Kabelliste', '—'), sheets);
+  }
+  const notes = (!sections || sections.has('warnings') || sections.has('notes')) ? collectNotes(snapshot, layers) : [];
   if (notes.length) notesSheets(notes, body, paper, orientation, measure, metaFor(input, scene, 'Hinweise', '—'), sheets);
   if (planIds.length > 1) diagnostics.push(`Grundriss auf ${planIds.length} Blätter aufgeteilt.`);
 }
@@ -1033,16 +1164,25 @@ function composeIndex(
   const orientation: SheetOrientation = spec.orientation === 'landscape' ? 'landscape' : 'portrait';
   const body = bodyRect(spec.paper, orientation);
   const size = sheetSizeMm(spec.paper, orientation);
-  const paint: Paint[] = [{ op: 'text', x: body.x, y: body.y, text: spec.kind === 'package' ? 'Konstruktionspaket' : 'Inhalt', size: 11, color: '#203c36', bold: true, height: 5, width: body.width }];
+  const purpose = spec.purpose ? DOCUMENT_PURPOSES[spec.purpose].label : spec.kind === 'package' ? 'Konstruktionspaket' : 'Inhalt';
+  const paint: Paint[] = [{ op: 'text', x: body.x, y: body.y, text: purpose, size: 18, color: '#203c36', bold: true, height: 8, width: body.width }];
+  let y = body.y + 12;
+  for (const paragraph of [spec.introduction, spec.contact].filter((value): value is string => !!value)) {
+    for (const line of wrapLines(paragraph, body.width, 9, measure)) {
+      paint.push({ op: 'text', x: body.x, y, text: line, size: 9, color: '#395640', height: 4.5, width: body.width });
+      y += 4.5;
+    }
+    y += 3;
+  }
   ordered.forEach((item, index) => {
-    paint.push({ op: 'text', x: body.x, y: body.y + 10 + index * 6, text: item.scene.sceneName, size: 9, color: '#203c36', height: 4, width: body.width });
+    paint.push({ op: 'text', x: body.x, y: y + index * 6, text: item.scene.sceneName, size: 9, color: '#203c36', height: 4, width: body.width });
   });
   pushSheet(sheets, {
-    title: 'Inhalt', paper: spec.paper, orientation, widthMm: size.width, heightMm: size.height,
+    title: purpose, paper: spec.paper, orientation, widthMm: size.width, heightMm: size.height,
     scale: null, scaleLabel: '—',
-    paint: chrome(metaFor(input, ordered[0]?.scene, 'Inhalt', '—'), size, measure),
-    frames: [{ id: 'index', kind: 'notes', clip: body, scale: null, scaleLabel: '—', sourceLabel: 'Inhalt', paint, detail: false }],
-    diagnostics: [], neighbors: {}, bookmarkTitle: 'Inhalt',
+    paint: chrome(metaFor(input, ordered[0]?.scene, purpose, '—'), size, measure),
+    frames: [{ id: 'index', kind: 'notes', clip: body, scale: null, scaleLabel: '—', sourceLabel: purpose, paint, detail: false }],
+    diagnostics: [], neighbors: {}, bookmarkTitle: purpose,
   });
 }
 

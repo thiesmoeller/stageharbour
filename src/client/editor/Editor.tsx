@@ -1,3 +1,5 @@
+import { PlanVenue, PlanWalls } from './PlanDrawingLayers.js';
+import { RecipientDocumentWorkspace } from './RecipientDocumentWorkspace.js';
 import { FeedbackButton, useFeedbackAdapter } from '../feedback/Feedback.js';
 import { captureWorkView } from '../feedback/capture.js';
 import { recordFeedbackActivity } from '../feedback/activity.js';
@@ -5,7 +7,6 @@ import type { StageCaptureHandle } from './StageCapture.js';
 import { EditorDock, EditorDockContext, useEditorDock } from './EditorDock.js';
 import { EditorMenuBar } from './EditorMenuBar.js';
 import { EditorMenu } from './EditorMenu.js';
-import { openPlanPrint } from './printPlan.js';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type PointerEvent } from 'react';
 import { z } from 'zod';
 import { applyPlatformSurfaces, applyWallSurfaces, memberIdsByKind, mixedPropertyValue, MIXED_PROPERTY, selectionPivot } from '../../shared/editing.js';
@@ -33,14 +34,12 @@ import {
 import { PLACEHOLDER_KIND_LABELS, PLACEHOLDER_KINDS, newPlaceholder, placeholderCorners, type Placeholder } from '../../shared/placeholders.js';
 import { overheadBoxCorners, overheadClearance } from '../../shared/overhead.js';
 import { braceCorners } from '../../shared/braceTransforms.js';
-import { WallIdentity } from './ConstructionMarks.js';
 import { DimensionLayer } from './DimensionLayer.js';
 import { dimensionFromPlacement, dimensionSnapPoints, dimensionValue, nearestSnap, resolveDimension, type SnapAnchor } from '../../shared/dimensions.js';
-import { doorOpenAngleDegrees, isDoorOpening, resolveWall, typesOf, type Opening, type WallElementType } from '../../shared/wall-types.js';
+import { isDoorOpening, resolveWall, typesOf, type Opening, type WallElementType } from '../../shared/wall-types.js';
 import { sameGeometry } from '../../shared/inventory.js';
 import { measuredOutline } from '../../shared/venue.js';
 import { defaultPlanDisplay, type PlanDisplayOptions } from '../../shared/planDisplay.js';
-import { fullPlanPreview } from './PlanPreview.js';
 import { PlanDisplayToggles } from './PlanDisplayToggles.js';
 import { planningWalls } from '../../shared/planningGeometry.js';
 import { useViewportWheel } from './viewportWheel.js';
@@ -61,7 +60,6 @@ import { RotationHandle } from './RotationHandle.js';
 import { AssetLibrary } from './AssetLibrary.js';
 import { assetListSchema, type Asset } from '../../shared/assets.js';
 import { StageView } from './StageView.js';
-import { ExportWorkspace } from './ExportWorkspace.js';
 import { VenuePanel, InfrastructureMarks } from './VenuePanel.js';
 import { useEditingLease } from './useEditingLease.js';
 import { OverheadMarks, TrussMarks, CurtainMarks } from './VenueOverhead.js';
@@ -84,6 +82,8 @@ import { canvasModeForWidth, useNarrowEditor } from './useNarrowEditor.js';
 import {
   effectiveCurtains, effectiveVenueDoorOpen, setCurtainOpenPercent, setVenueDoorOpenPercent, venueDooredWalls,
 } from '../../shared/venueFixtures.js';
+import { newCableRun } from '../../shared/infrastructure.js';
+import { CableRunMarks, CableRunsPanel } from './CableRuns.js';
 
 const MaterialPicker = lazy(() => import('./MaterialPicker.js'));
 type VenueFixtureSelection = { kind: 'curtain' | 'door'; id: string };
@@ -97,6 +97,8 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
     groups: initial.layout.groups ?? [], placeholders: initial.layout.placeholders ?? [],
   }, initial.venue);
   const [state, setState] = useState<History>(() => history<Layout>(boot.layout));
+  const [cablesOpen, setCablesOpen] = useState(false);
+  const [cableDrawing, setCableDrawing] = useState<{ start?: { x: number; y: number } } | null>(null);
   const root = useRef<HTMLElement>(null);
   const feedbackCapture = useRef<StageCaptureHandle | null>(null);
   const setFeedbackCapture = useCallback((handle: StageCaptureHandle | null) => { feedbackCapture.current = handle; }, []);
@@ -888,10 +890,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
       <button className="quiet" aria-expanded={exportsOpen} onClick={() => {
         setExportsOpen(open => !open);
         setLibraryOpen(false);
-      }}>{exportsOpen ? 'Export schließen' : 'Konstruktionsplan'}</button>
-      {!venueOpen && activeView !== 'stage' && <button type="button" className="quiet" disabled={busyGesture()} onClick={() => {
-        if (svg.current && !openPlanPrint(svg.current, `${initial.productionName} · ${initial.name} · ${venueName}`)) setAssetError('Bitte Pop-ups für die 2D-Druckansicht erlauben.');
-      }}>2D-Ansicht drucken / PDF</button>}
+      }}>{exportsOpen ? 'PDF schließen' : 'PDF gestalten'}</button>
       <button className="quiet" aria-expanded={venueOpen} disabled={venueOpen ? venueDirty : dirty} onClick={() => {
         setVenueOpen(open => {
           const next = !open;
@@ -983,8 +982,8 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
         </div>
         {renameError && <p className="error" role="alert">{renameError}</p>}
       </form></div>}
-    <div className="tool-rail" hidden={venueOpen} role="toolbar" aria-label="Objekte hinzufügen">
-      <button className="quiet" title="Auswählen · Platzieren abbrechen" aria-pressed={!placing && !groupPreview && !dimensioning} onClick={() => { cancelPlacing(); setDimensioning(null); setSelectedDimension(undefined); setSnapStatus(undefined); }}><ToolIcon name="select" /><span>Auswahl</span></button>
+    <div className="tool-rail" hidden={venueOpen || exportsOpen} role="toolbar" aria-label="Objekte hinzufügen">
+      <button className="quiet" title="Auswählen · Platzieren abbrechen" aria-pressed={!placing && !groupPreview && !dimensioning && !cableDrawing} onClick={() => { cancelPlacing(); setDimensioning(null); setCableDrawing(null); setSelectedDimension(undefined); setSnapStatus(undefined); }}><ToolIcon name="select" /><span>Auswahl</span></button>
 
       {!readOnly && <><WallToolButton
         disabled={!!groupPreview || state.present.walls.length >= 250}
@@ -1010,28 +1009,27 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
         setDimensioning(dimensioning ? null : {});
         setSnapStatus(dimensioning ? undefined : 'Ersten Punkt wählen. Der rote Punkt zeigt Ecke oder Kantenmitte. Escape bricht ab.');
       }} title="Maß zwischen zwei Punkten, dann die Maßlinie zur Seite ziehen" aria-label="Maß hinzufügen"><ToolIcon name="expand" /><span>Maß</span></button>
+      <button type="button" aria-pressed={cableDrawing !== null} disabled={!!groupPreview || !!placing || (state.present.cableRuns ?? []).length >= 250} onClick={() => {
+        cancelPlacing();
+        setDimensioning(null);
+        setCablesOpen(true);
+        setCableDrawing(current => current ? null : {});
+        setSnapStatus(cableDrawing ? undefined : 'Start und Ziel des tatsächlichen Kabelwegs im Grundriss anklicken.');
+      }} title="Tatsächlichen Kabelweg zeichnen" aria-label="Kabel zeichnen"><ToolIcon name="expand" /><span>Kabel</span></button>
       </>}
     </div>
+    {cablesOpen && !venueOpen && <CableRunsPanel runs={state.present.cableRuns ?? []} onClose={() => setCablesOpen(false)}
+      onChange={cableRuns => commit({ ...current.current.present, cableRuns })} />}
     {assetError && <p className="error" role="alert">{assetError}</p>}
     <span className="sr-only" data-testid="inventory-panel-count">{inventoryPanels.length}</span>
     {venueOpen && !readOnly && !venueLease.holding && <p className="lease-banner" role="status">{venueLease.message || 'Bearbeitung wird angefordert …'} <button type="button" className="quiet" onClick={() => void venueLease.acquire()}>Bearbeitung erneut anfordern</button></p>}
     {venueOpen && <VenuePanel onClose={() => { setVenueOpen(false); setOpenVenueSheet(false); }} closeDisabled={venueDirty} closeLabel="Spielstätte schließen" workspaceId={workspaceId} sceneId={initial.id} venue={venue} venueId={initial.venueId} venueName={venueName}
       venueUpdateAvailable={updateAvailable} readOnly={readOnly || !venueLease.holding} onDirty={setVenueDirty} onSaved={adoptVenue}
       onVenueRenamed={({ name }) => setVenueName(name)} sceneLayout={state.present} openSheetEditor={openVenueSheet} />}
-    {exportsOpen && <ExportWorkspace workspaceId={workspaceId} sceneId={initial.id} productionId={initial.productionId}
-      scenes={[{ id: initial.id, name: initial.name }]} groups={state.present.groups ?? []} walls={state.present.walls}
-      planPreview={fullPlanPreview(venue, state.present)}
-      venueSize={{ width: venue.width, depth: venue.depth }}
-      layout={state.present} venue={venue} assets={assets}
-      templates={venue.reportTemplates ?? []} readOnly={readOnly} freezeDisabled={dirty || saveState.status !== 'saved'}
-      onClose={() => setExportsOpen(false)}
-      onSaveTemplate={async templates => {
-        const data = await request(`/api/workspaces/${workspaceId}/scenes/${initial.id}/venue/report-templates`, { reportTemplates: templates, venueVersionId }, 'PATCH');
-        const result = saveVenueResultSchema.parse(data);
-        saver.acknowledgeRevision(result.revision);
-        setVenue(result.venue);
-    if (result.venueVersionId) setVenueVersionId(result.venueVersionId);
-      }} />}
+    {exportsOpen && <RecipientDocumentWorkspace workspaceId={workspaceId} productionId={initial.productionId}
+      seedSceneId={initial.id} seedVenueId={initial.venueId} defaultScope="scene"
+      liveScene={{ ...initial, name: sceneName, venueName, venue, layout: state.present }}
+      freezeDisabled={dirty || saveState.status !== 'saved'} onClose={() => setExportsOpen(false)} />}
     {['failed', 'conflict'].includes(saveState.status) && <div className="error" role="alert">
       <p>{saveState.status === 'conflict'
         ? (saveState.conflictKind === 'lease'
@@ -1056,7 +1054,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
       }}>Gespeicherte Fassung laden</button>
     </div>}
     {permissionReadOnly && onRequestEditing && <p role="status">Eine Bearbeitung ist möglich, sobald die bisherige Freigabe endet (spätestens 45 Sekunden nach dem letzten Lebenszeichen). <button onClick={onRequestEditing}>Bearbeitung erneut anfordern</button></p>}
-    {!venueOpen && <div className="editor-grid dock-grid" data-dock-open={!!dock.active} data-narrow={narrowEditor}><div className="editor-views" data-mode={activeView} style={activeView === 'split' ? { gridTemplateColumns: `minmax(0, ${viewShare}fr) minmax(0, ${100 - viewShare}fr)` } : { gridTemplateColumns: 'minmax(0, 1fr)' }}><div className="plan-canvas" hidden={activeView === 'stage'}>
+    {!venueOpen && !exportsOpen && <div className="editor-grid dock-grid" data-dock-open={!!dock.active} data-narrow={narrowEditor}><div className="editor-views" data-mode={activeView} style={activeView === 'split' ? { gridTemplateColumns: `minmax(0, ${viewShare}fr) minmax(0, ${100 - viewShare}fr)` } : { gridTemplateColumns: 'minmax(0, 1fr)' }}><div className="plan-canvas" hidden={activeView === 'stage'}>
       <div className="plan-viewbar"><h3>Grundriss <span>2D</span></h3>
       <div className="plan-zoom">
       <button type="button" className="quiet" onClick={() => setViewZoom(z => Math.min(8, z * 1.25))} title="Grundriss vergrößern" aria-label="Vergrößern"><ToolIcon name="plus" /></button>
@@ -1066,6 +1064,26 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
       <svg ref={svg} role="img" aria-label="Grundriss der Spielstätte" viewBox={viewBox}
         className={placing || objectPlacement.current ? 'placing-cursor' : undefined}
         onPointerDownCapture={event => {
+          if (cableDrawing !== null && event.button === 0 && !readOnly) {
+            const at = point(event);
+            if (!cableDrawing.start) {
+              setCableDrawing({ start: at });
+              setSnapStatus('Jetzt das Ziel des Kabelwegs anklicken.');
+            } else {
+              const run = newCableRun(crypto.randomUUID(), cableDrawing.start, at);
+              const pin = (venue.connectionPoints ?? []).find(item => Math.hypot(item.x - at.x, item.y - at.y) <= 250);
+              if (pin) {
+                run.end = { label: pin.label, x: pin.x, y: pin.y, connectionPointId: pin.id };
+                run.path[run.path.length - 1] = { x: pin.x, y: pin.y };
+              }
+              commit({ ...current.current.present, cableRuns: [...current.current.present.cableRuns ?? [], run] });
+              setCableDrawing(null);
+              setSnapStatus(undefined);
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+          }
           if ((!placingRef.current && !objectPlacement.current) || event.button !== 0 || readOnly) return;
           updatePlacingAt(point(event), event.altKey || !snapEnabled);
           commitPlacing();
@@ -1087,61 +1105,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
         <rect data-testid="marquee-target"
           x={viewCx - viewW / 2} y={-(viewCy + viewH / 2)} width={viewW} height={viewH}
           fill="white" fillOpacity={0} pointerEvents="all" onPointerDown={startMarquee} />
-        <path data-print-layer="venue" data-testid="venue-floor" d={`${floor.map((point, index) => `${index ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')} Z`}
-          fill="url(#metre-grid)" stroke="#718469" strokeWidth="2" vectorEffect="non-scaling-stroke" onPointerDown={startMarquee} />
-        {(venue.walls ?? []).map(wall => {
-          const resolved = resolveWall(wall, venue.wallTypes ?? []);
-          const hasDoor = resolved.openings.some(isDoorOpening);
-          const chosen = fixtureSelection?.kind === 'door' && fixtureSelection.id === wall.id;
-          const doorOpen = effectiveVenueDoorOpen(wall, shown);
-          return <g key={wall.id} data-print-layer="venue" data-print-name={wall.label} data-testid={`venue-wall-${wall.id}`}
-            className={hasDoor && !readOnly ? 'draggable-wall' : undefined}
-            transform={`translate(${wall.x} ${-wall.y}) rotate(${-wall.rotation})`}
-            pointerEvents={hasDoor ? 'all' : 'none'}
-            onPointerDown={hasDoor ? event => {
-              if (event.button !== 0) return;
-              event.stopPropagation();
-              pickVenueFixture({ kind: 'door', id: wall.id });
-            } : undefined}>
-            <rect x={-resolved.width / 2} y={-resolved.thickness / 2} width={resolved.width} height={resolved.thickness}
-              fill={chosen ? '#a89880' : '#8b8478'} stroke={chosen ? '#b67c35' : '#625b50'} strokeWidth={chosen ? 2 : 1}
-              vectorEffect="non-scaling-stroke" />
-            {resolved.openings.map(opening => {
-              const x0 = -resolved.width / 2 + opening.left;
-              const open = isDoorOpening(opening) ? doorOpenAngleDegrees(doorOpen) * Math.PI / 180 : 0;
-              const hingeX = isDoorOpening(opening)
-                ? (opening.hinge === 'left' ? x0 : x0 + opening.width)
-                : x0;
-              const dir = isDoorOpening(opening) && opening.hinge === 'right' ? -1 : 1;
-              const leafEndX = hingeX + dir * opening.width * Math.cos(open);
-              const leafEndY = opening.width * Math.sin(open);
-              return <g key={opening.id}>
-                <rect x={x0} y={-resolved.thickness / 2} width={opening.width} height={resolved.thickness}
-                  fill="#f8faf5" stroke={chosen ? '#b67c35' : '#625b50'} strokeWidth="1" vectorEffect="non-scaling-stroke" />
-                {isDoorOpening(opening) && <>
-                  <line data-testid={`venue-door-leaf-${opening.id}`} x1={hingeX} y1={0} x2={leafEndX} y2={leafEndY}
-                    stroke="#c8c4b8" strokeWidth="28" strokeLinecap="square" vectorEffect="non-scaling-stroke" />
-                  <circle cx={hingeX} cy={0} r={18} fill="#986122" />
-                </>}
-              </g>;
-            })}
-            <title>{wall.label} · feste Spielstättenwand{hasDoor ? ' · Öffnung pro Bühnenbild' : ''}</title>
-          </g>;
-        })}
-        {(venue.placeholders ?? []).map(item => <g key={item.id} data-print-layer="audience" data-print-name={item.label} data-testid={`venue-placeholder-${item.id}`}
-          transform={`translate(${item.x} ${-item.y}) rotate(${-item.rotation})`} pointerEvents="none">
-          <rect x={-item.width / 2} y={-item.depth / 2} width={item.width} height={item.depth}
-            fill="#8fa07a99" stroke="#625b50" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-          <title>{item.label} · fester Publikumsstuhl</title>
-        </g>)}
-        {planDisplay.showDimensions && <>
-          <text data-print-layer="dimensions" x={venue.width / 2} y={-venue.depth - 200} textAnchor="middle" fontSize="180">{venue.width} mm</text>
-          <text data-print-layer="dimensions" x="-170" y={-venue.depth / 2} textAnchor="middle" fontSize="180" transform={`rotate(-90 -170 ${-venue.depth / 2})`}>{venue.depth} mm</text>
-        </>}
-        {planDisplay.showTexts && <>
-          <text data-print-layer="orientation" x={venue.width / 2} y="420" textAnchor="middle" fontSize="190">↑ Publikum · Blick zur Bühne</text>
-          <text data-print-layer="orientation" x={venue.width / 2} y="620" textAnchor="middle" fontSize="140">V Vorderseite · R Rückseite</text>
-        </>}
+        <PlanVenue venue={venue} shown={shown} readOnly={readOnly} planDisplay={planDisplay} fixtureSelection={fixtureSelection} pickVenueFixture={pickVenueFixture} startMarquee={startMarquee} />
         <PlatformLayer venuePlatforms={venue.platforms ?? []} layoutPlatforms={shown.platforms ?? []}
           venueStairs={venue.stairs ?? []} layoutStairs={shown.stairs ?? []}
           selectedId={selectedPlatform ?? selectedStair}
@@ -1152,42 +1116,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
           onPlatformPointerDown={startPlatform}
           onStairPointerDown={startStair}
           onSelect={(kind, id, additive) => pick({ kind, id }, !!additive)} />
-        {shown.walls.map(wall => {
-          const resolved = resolveWall(wall, wallTypes);
-          const chosen = selected === wall.id || groupedIds.has(`wall:${wall.id}`);
-          const overlap = overlapIds.has(wall.id);
-          return <g key={wall.id} data-print-layer="walls" data-print-name={wall.label} data-testid={`wall-${wall.id}`} aria-label={wall.label}
-            className={[readOnly ? '' : 'draggable-wall', overlap ? 'plan-overlap' : ''].filter(Boolean).join(' ') || undefined}
-            transform={`translate(${wall.x} ${-wall.y}) rotate(${-wall.rotation})`} onPointerDown={event => start(event, wall)}>
-            <line x1={-resolved.width / 2} x2={resolved.width / 2} stroke="transparent" strokeWidth="18" vectorEffect="non-scaling-stroke" />
-            <rect x={-resolved.width / 2} y={-resolved.thickness / 2} width={resolved.width} height={resolved.thickness} fill={selected === wall.id ? '#b67c35' : chosen ? '#8a6a3a' : '#315d49'} stroke={chosen ? '#986122' : '#315d49'} strokeWidth="2" vectorEffect="non-scaling-stroke" />
-            {resolved.openings.map(opening => {
-              const x0 = -resolved.width / 2 + opening.left;
-              const open = isDoorOpening(opening) ? doorOpenAngleDegrees(wall.doorOpenPercent ?? 0) * Math.PI / 180 : 0;
-              const hingeX = isDoorOpening(opening)
-                ? (opening.hinge === 'left' ? x0 : x0 + opening.width)
-                : x0;
-              const dir = isDoorOpening(opening) && opening.hinge === 'right' ? -1 : 1;
-              const leafEndX = hingeX + dir * opening.width * Math.cos(open);
-              const leafEndY = opening.width * Math.sin(open);
-              return <g key={opening.id}>
-                <rect data-testid={`plan-opening-${opening.id}`} data-width={opening.width} data-height={opening.height} data-left={opening.left} data-sill={opening.sill}
-                  data-hinge={opening.hinge ?? ''}
-                  x={x0} y={-resolved.thickness / 2} width={opening.width} height={resolved.thickness} fill="#f8faf5" stroke={chosen ? '#986122' : '#315d49'} strokeWidth="1" vectorEffect="non-scaling-stroke" />
-                {isDoorOpening(opening) && <>
-                  <line data-testid={`plan-door-leaf-${opening.id}`} x1={hingeX} y1={0} x2={leafEndX} y2={leafEndY}
-                    stroke="#c8c4b8" strokeWidth="28" strokeLinecap="square" vectorEffect="non-scaling-stroke" />
-                  <circle cx={hingeX} cy={0} r={18} fill="#986122" />
-                </>}
-              </g>;
-            })}
-            {planDisplay.showObjectNames && <WallIdentity rotation={wall.rotation} assemblyNumber={wall.assemblyNumber} plate={wall.panelId ? panelLabels[wall.panelId] : undefined} testId={`assembly-label-${wall.id}`} />}
-            {planDisplay.showTexts && <>
-              <text y={resolved.thickness / 2 + 90} textAnchor="middle" fontSize="110" pointerEvents="none">V</text>
-              <text y={-resolved.thickness / 2 - 40} textAnchor="middle" fontSize="110" pointerEvents="none">R</text>
-            </>}
-          </g>;
-        })}
+        <PlanWalls shown={shown} wallTypes={wallTypes} selected={selected} groupedIds={groupedIds} overlapIds={overlapIds} readOnly={readOnly} planDisplay={planDisplay} panelLabels={panelLabels} start={start} />
         {objectPlacement.current && <g data-testid="placing-object" pointerEvents="none" />}
         {placing && (() => {
           const types = placing.pendingType ? [...wallTypes, placing.pendingType] : wallTypes;
@@ -1209,6 +1138,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
           overlappingIds={overlapIds}
           readOnly={readOnly} groupedIds={groupedIds} display={planDisplay} onPointerDown={startPlaceholder} />
         <InfrastructureMarks pins={venue.connectionPoints ?? []} corridors={venue.cableRoutingCorridors ?? []} display={planDisplay} />
+        <CableRunMarks runs={shown.cableRuns ?? []} />
         <OverheadMarks boxes={venue.overheadBoxes ?? []} display={planDisplay} />
         <TrussMarks trusses={venue.trusses ?? []} display={planDisplay} hangPlan={venue.hangPlan} />
         <CurtainMarks curtains={sceneCurtains}

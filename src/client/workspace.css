@@ -188,6 +188,11 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
 .workspace-help h3 { margin: 0; font-size: 14px; }
 .workspace-help p:last-child { margin-bottom: 0; }
 .editor > .asset-library, .editor > .export-drawer { position: absolute; z-index: 10; top: 114px; left: 76px; right: 12px; bottom: 36px; margin: 0; padding: 24px; overflow-y: auto; background: white; border-color: var(--ui-line); box-shadow: 0 8px 30px #2030401a; }
+.editor > .recipient-document-workspace {
+  position: absolute; z-index: 30; top: 114px; left: 0; right: 0; bottom: 36px;
+  margin: 0; padding: 24px 28px;
+  overflow-x: hidden; overflow-y: auto; background: #f8fafb; border: 0; border-radius: 0; box-shadow: none;
+}
 .editor > .export-panel[aria-label="Spielstätte"] { flex: 1; min-height: 0; overflow-y: auto; margin: 0 0 0 -76px; padding: 20px; border: 0; border-radius: 0; background: #f8fafb; }
 .venue-editor {
   position: relative;
@@ -286,6 +291,7 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
   .workspace-statusbar { flex-wrap: wrap; gap: 8px; padding: 5px 8px; }
   .workspace-statusbar button { margin-left: auto; }
   .editor > .asset-library, .editor > .export-drawer { position: static; margin: 8px; max-height: 70vh; padding: 16px; }
+  .editor > .recipient-document-workspace { position: static; inset: auto; margin: 0; max-height: none; padding: 16px; }
   .editor > .export-panel[aria-label="Spielstätte"] { margin: 0; padding: 12px; }
   .venue-editor { margin-left: 0; width: 100%; padding-left: 0; }
   .venue-editor .workspace-commandbar, .venue-editor .workspace-feedback, .venue-editor .workspace-statusbar { margin-left: 0; padding-left: 8px; }
@@ -629,6 +635,7 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
 .scene-editor > .tool-rail { top: 48px; bottom: 34px; max-height: calc(100% - 82px); }
 .scene-editor > .editor-grid > .editor-views { padding: 4px 4px 4px 0; }
 .scene-editor > .asset-library, .scene-editor > .export-drawer { top: 46px; }
+.scene-editor > .recipient-document-workspace { top: 46px; }
 .scene-editor > .workspace-statusbar { margin-left: -76px; }
 .scene-editor > .workspace-statusbar .status-hint { display: block; visibility: visible; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .scene-rename-panel { position: absolute; top: 44px; left: 80px; z-index: 45; width: min(360px, calc(100% - 90px)); padding: 12px; background: #fff; border: 1px solid var(--ui-line); border-radius: 6px; box-shadow: 0 8px 24px #20304026; }

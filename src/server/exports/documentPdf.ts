@@ -69,7 +69,12 @@ function draw(doc: PDFKit.PDFDocument, item: Paint, images: ReadonlyMap<string, 
   }
   if (item.op === 'text') {
     doc.font(item.bold ? 'SourceSans-Bold' : 'SourceSans').fontSize(item.size).fillColor(item.color)
-      .text(item.text, mm(item.x), mm(item.y), { width: item.width ? mm(item.width) : undefined, lineBreak: false });
+      .text(item.text, mm(item.x), mm(item.y), {
+        width: item.width ? mm(item.width) : undefined,
+        // Geometry text is already laid out. A finite height prevents PDFKit from
+        // creating pages for labels outside a clipped drawing frame.
+        height: mm(item.height), lineBreak: false,
+      });
     return;
   }
   if (item.op === 'link') {
