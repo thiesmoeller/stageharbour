@@ -97,10 +97,21 @@ export function FeedbackProvider({ me, children }: { me?: Me; children: ReactNod
       setCapturing(true);
       let timeout: ReturnType<typeof setTimeout>;
       const deadline = new Promise<never>((_, reject) => { timeout = setTimeout(() => reject(new Error('Aufnahme-Timeout')), 20_000); });
-      void Promise.race([adapter.capture(), deadline]).then(image => {
+      const captureOnce = () => adapter.capture!();
+      const captureWithRetry = async () => {
+        try { return await captureOnce(); }
+        catch (first) {
+          await new Promise<void>(resolve => setTimeout(resolve, 400));
+          if (generation.current !== token) throw first;
+          return await captureOnce();
+        }
+      };
+      void Promise.race([captureWithRetry(), deadline]).then(image => {
         if (generation.current === token) setDraft(value => value ? { ...value, report: { ...value.report, images: [...value.report.images, image].slice(0, 2) } } : value);
-      }).catch(() => {
-        if (generation.current === token) setNotice('Automatische Bildaufnahme fehlgeschlagen. Sie können ein Bild einfügen oder ohne Bild senden.');
+      }).catch(error => {
+        if (generation.current !== token) return;
+        const detail = error instanceof Error && error.message ? ` ${error.message}` : '';
+        setNotice(`Automatische Bildaufnahme fehlgeschlagen.${detail} Sie können ein Bild einfügen oder ohne Bild senden.`);
       }).finally(() => { clearTimeout(timeout); if (generation.current === token) setCapturing(false); });
     }
   }

@@ -1,5 +1,15 @@
-import type { StageCaptureHandle } from '../editor/StageCapture.js';
+import { FEEDBACK_CAPTURE_MAX_EDGE, type StageCaptureHandle } from '../editor/StageCapture.js';
 import { FEEDBACK_ATTACHMENT_BYTES, type FeedbackImage } from '../../shared/feedback.js';
+
+/** Do not let a stuck software-WebGL read burn the whole feedback capture budget. */
+const FEEDBACK_STAGE_BUDGET_MS = 6_000;
+
+function withBudget<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(label)), ms);
+    promise.then(value => { clearTimeout(timer); resolve(value); }, error => { clearTimeout(timer); reject(error); });
+  });
+}
 
 function loadImage(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -62,8 +72,15 @@ export async function captureWorkView(view: 'plan' | 'stage' | 'split', svg: SVG
     captures.push(captureSvg(svg));
   }
   if (view !== 'plan') {
-    if (!stage) throw new Error('Raumsicht ist noch nicht bereit.');
-    captures.push(stage.capturePng());
+    if (!stage) {
+      // Split can still ship the Grundriss when 3D is not ready yet.
+      if (view === 'stage') throw new Error('Raumsicht ist noch nicht bereit.');
+    } else {
+      const stageCapture = stage.capturePng({ maxEdge: FEEDBACK_CAPTURE_MAX_EDGE, preferCanvas: true });
+      captures.push(view === 'split'
+        ? withBudget(stageCapture, FEEDBACK_STAGE_BUDGET_MS, 'Raumsicht-Aufnahme dauerte zu lange.')
+        : stageCapture);
+    }
   }
   const settled = await Promise.allSettled(captures);
   const available = settled.flatMap(result => result.status === 'fulfilled' ? [result.value] : []);
