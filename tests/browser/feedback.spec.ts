@@ -84,8 +84,12 @@ test('feedback works in fullscreen with 3D capture and on mobile with keyboard d
   await signInToPlans(page);
   await createProduction(page, { productionName: 'Feedback Vollbild', venueName: 'Vollbild Bühne' });
   await page.getByRole('button', { name: 'Raumansicht', exact: true }).click();
-  await expect(page.locator('[data-renderer="pascal"] canvas')).toBeVisible({ timeout: 30_000 });
+  const canvas = page.locator('[data-renderer="pascal"] canvas');
+  await expect(canvas).toBeVisible({ timeout: 30_000 });
   await page.locator('.editor').evaluate(element => element.requestFullscreen());
+  await page.waitForFunction(() => !!document.fullscreenElement);
+  // Fullscreen resizes the WebGL backing store; wait until the canvas has pixels again.
+  await expect.poll(async () => canvas.evaluate(node => (node as HTMLCanvasElement).width * (node as HTMLCanvasElement).height), { timeout: 10_000 }).toBeGreaterThan(0);
   await page.locator('.editor-menubar summary').filter({ hasText: /^Hilfe$/ }).click();
   await page.locator('.editor-menubar').getByRole('button', { name: 'Feedback', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Feedback', exact: true });

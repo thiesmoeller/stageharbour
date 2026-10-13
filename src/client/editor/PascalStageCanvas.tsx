@@ -169,9 +169,9 @@ function PascalCaptureBridge({ onCaptureReady }: { onCaptureReady?: (handle: Sta
   useEffect(() => {
     if (!onCaptureReady) return;
     const handle: StageCaptureHandle = {
-      async capturePng() {
+      async capturePng(options) {
         await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
-        return captureViewportPng(gl as never, scene, camera);
+        return captureViewportPng(gl as never, scene, camera, options);
       },
     };
     onCaptureReady(handle);

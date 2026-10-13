@@ -1,10 +1,23 @@
 import { UnsignedByteType, type Camera, type PerspectiveCamera, type Scene } from 'three';
 import { RenderTarget } from 'three/webgpu';
 
-export type StageCaptureHandle = { capturePng: () => Promise<string> };
+export type StageCaptureOptions = {
+  /** Long edge in pixels. Defaults to print-friendly {@link CAPTURE_MAX_EDGE}. */
+  maxEdge?: number;
+  /**
+   * Skip the offscreen render-target read and copy the live canvas after a
+   * same-tick present. Faster and more reliable on software WebGL (CI), enough
+   * for feedback screenshots; PDF export keeps the default sharp path.
+   */
+  preferCanvas?: boolean;
+};
+
+export type StageCaptureHandle = { capturePng: (options?: StageCaptureOptions) => Promise<string> };
 
 /** Long edge in pixels — enough for ~200 dpi on an A4 body. */
 export const CAPTURE_MAX_EDGE = 2400;
+/** Long edge for in-app feedback screenshots (email attachments, not print). */
+export const FEEDBACK_CAPTURE_MAX_EDGE = 1200;
 
 type GpuRenderer = {
   domElement: HTMLCanvasElement;
@@ -125,13 +138,15 @@ function withCameraAspect(camera: Camera, aspect: number, render: () => void) {
   }
 }
 
-function captureFromCanvas(gl: GpuRenderer, scene: Scene, camera: Camera, width: number, height: number) {
-  // Same-tick read after an explicit present — required when the drawing buffer
-  // is not preserved across frames (Pascal / three default). Low-res fallback only.
+async function captureFromCanvas(gl: GpuRenderer, scene: Scene, camera: Camera, width: number, height: number) {
+  // Explicit present, then flush — WebGPURenderer(forceWebGL) can still queue the
+  // draw; reading immediately yields an empty PNG on some CI / fullscreen paths.
   withCameraAspect(camera, width / height, () => {
     gl.setRenderTarget(null);
     gl.render(scene, camera);
   });
+  await gl.backend?.device?.queue?.onSubmittedWorkDone?.();
+  await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
   const url = canvasElementToDataUrl(gl.domElement, width, height);
   assertUsefulPng(url);
   return url;
@@ -175,8 +190,14 @@ async function captureFromRenderTarget(
  * sidebar backing store), so PDF pages stay sharp and undistorted.
  */
 export async function captureViewportPng(
-  gl: GpuRenderer, scene: Scene, camera: Camera, maxEdge = CAPTURE_MAX_EDGE,
+  gl: GpuRenderer, scene: Scene, camera: Camera,
+  maxEdgeOrOptions: number | StageCaptureOptions = CAPTURE_MAX_EDGE,
 ): Promise<string> {
+  const options = typeof maxEdgeOrOptions === 'number'
+    ? { maxEdge: maxEdgeOrOptions }
+    : maxEdgeOrOptions;
+  const maxEdge = options.maxEdge ?? CAPTURE_MAX_EDGE;
+
   if (typeof gl.init === 'function') {
     await withTimeout(Promise.resolve(gl.init()), 8_000, 'Renderer-Initialisierung hängt');
   }
@@ -185,8 +206,9 @@ export async function captureViewportPng(
   const cssH = Math.max(1, gl.domElement.clientHeight || gl.domElement.height || 1);
   const { width, height } = captureSize(cssW / cssH, maxEdge);
 
-  // Prefer render-target so we can upscale past the on-screen canvas.
-  if (typeof gl.readRenderTargetPixelsAsync === 'function') {
+  // Prefer render-target so we can upscale past the on-screen canvas — unless the
+  // caller asked for the live viewport (feedback), where GPU reads hang on CI.
+  if (!options.preferCanvas && typeof gl.readRenderTargetPixelsAsync === 'function') {
     try {
       return await captureFromRenderTarget(gl, scene, camera, width, height);
     } catch {
@@ -194,5 +216,14 @@ export async function captureViewportPng(
     }
   }
 
-  return captureFromCanvas(gl, scene, camera, width, height);
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      return await captureFromCanvas(gl, scene, camera, width, height);
+    } catch (error) {
+      lastError = error;
+      await new Promise<void>(resolve => setTimeout(resolve, 50 * (attempt + 1)));
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error('Die Aufnahme ist leer.');
 }
