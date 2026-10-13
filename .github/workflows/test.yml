@@ -4,14 +4,52 @@ permissions:
   contents: read
   packages: write
 jobs:
+  # Service containers pull before any job step, so actions/cache cannot warm them.
+  # Keep a multi-arch Postgres copy on GHCR; authenticated pulls avoid Hub/ECR anonymous quotas.
+  ensure-ci-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      image: ${{ steps.mirror.outputs.image }}
+    steps:
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: mirror
+        run: |
+          set -euo pipefail
+          image="ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')/ci-postgres:17.6-alpine"
+          echo "image=${image}" >> "$GITHUB_OUTPUT"
+          if docker buildx imagetools inspect "${image}" >/dev/null 2>&1; then
+            echo "GHCR mirror present: ${image}"
+            exit 0
+          fi
+          for source in \
+            mirror.gcr.io/library/postgres:17.6-alpine \
+            public.ecr.aws/docker/library/postgres:17.6-alpine
+          do
+            echo "Mirroring ${source} -> ${image}"
+            if docker buildx imagetools create -t "${image}" "${source}"; then
+              exit 0
+            fi
+          done
+          echo "Could not seed GHCR Postgres mirror from any source" >&2
+          exit 1
+
   # Full suite on x86 — this is the real confidence gate (incl. all Playwright e2e).
   test:
+    needs: ensure-ci-postgres
     runs-on: ubuntu-latest
     timeout-minutes: 35
     services:
       postgres:
-        # Docker Hub rate-limits anonymous pulls on shared GitHub runners; ECR mirrors official library images.
-        image: public.ecr.aws/docker/library/postgres:17.6-alpine
+        image: ${{ needs.ensure-ci-postgres.outputs.image }}
+        credentials:
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
         env:
           POSTGRES_USER: stage_planner
           POSTGRES_PASSWORD: local-development-only
@@ -40,12 +78,15 @@ jobs:
   # Native arm64 smoke only — unit + integration + a short login/workspace e2e.
   # CapRover often runs on ARM; we do not re-run the full 3D/layout browser suite here.
   arm64-smoke:
+    needs: ensure-ci-postgres
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 20
     services:
       postgres:
-        # Docker Hub rate-limits anonymous pulls on shared GitHub runners; ECR mirrors official library images.
-        image: public.ecr.aws/docker/library/postgres:17.6-alpine
+        image: ${{ needs.ensure-ci-postgres.outputs.image }}
+        credentials:
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
         env:
           POSTGRES_USER: stage_planner
           POSTGRES_PASSWORD: local-development-only
