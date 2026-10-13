@@ -123,7 +123,7 @@ function StageNodeRenderer({ node }: { node: StageNode }) {
     }
     if (element.kind === 'brace') return <group scale={0.001}><StageBraces braces={model.braces.filter(item => item.id === element.value.id)} lit /></group>;
     if (element.kind === 'platform' || element.kind === 'stair') return <group scale={0.001}><StageLevels lit model={{ ...model, platforms: model.platforms.filter(item => item.id === element.value.id), stairs: model.stairs.filter(item => item.id === element.value.id) }} peerPlatforms={model.platforms} /></group>;
-    if (element.kind === 'overhead' || element.kind === 'truss' || element.kind === 'curtain' || element.kind === 'zone' || element.kind === 'pin' || element.kind === 'corridor') {
+    if (element.kind === 'overhead' || element.kind === 'truss' || element.kind === 'curtain' || element.kind === 'zone' || element.kind === 'pin' || element.kind === 'corridor' || element.kind === 'cableRun') {
       return <group scale={0.001}><StageConstraint element={element}
         elevation={element.kind === 'zone' ? model.platforms.find(p => p.id === element.value.supportingSurfaceId)?.elevation : 0}
         hangPlan={hangPlan} fixtureLevel={fixtureLevel}

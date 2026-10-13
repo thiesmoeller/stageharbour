@@ -60,7 +60,7 @@ export function Help({ topic }: { topic?: string }) {
         <li><strong>Shift+Klick</strong> — zur Mehrfachauswahl hinzufügen oder entfernen.</li>
         <li><strong>Gruppieren</strong> — ausgewählte Teile drehen und verschieben um einen gemeinsamen Drehpunkt.</li>
         <li><strong>Ausschnitte</strong> — an Wänden ohne Wandtyp zeichnen oder in den Eigenschaften bearbeiten.</li>
-        <li><strong>Kabel</strong> — tatsächlichen Weg für dieses Bühnenbild mit zwei Klicks zeichnen; Typ, Anzahl, Endpunkte und Zugabe anschließend bearbeiten.</li>
+        <li><strong>Kabel</strong> — Polylinie zeichnen (Enter/Doppelklick beendet); Anklicken wählt; nochmal auf die Linie klicken fügt einen Zwischenpunkt ein; Zwischenpunkt + Entf entfernt ihn; Entf ohne Punktwahl löscht den Weg.</li>
       </ul>
       <p>Im Bühnenbildeditor finden Sie Dokumente für Regie/Probe, Darstellende und Aufbau/Technik unter <strong>Datei</strong>,
         Kopieren und Gruppieren unter <strong>Bearbeiten</strong> und weitere Objekte unter <strong>Einfügen</strong>.

@@ -260,7 +260,7 @@ export function RecipientDocumentWorkspace({ workspaceId, productionId, seedScen
       {!readiness.length && <p role="status">Die nötigen Grundlagen sind vorhanden.</p>}
       {readiness.map(issue => <div key={issue.code} className="document-readiness-warning">
         <strong>{issue.message}</strong>
-        {issue.action === 'cables' && <p>Im Editor „Kabel“ wählen und Start sowie Ziel anklicken. Die Vorschau kann auch ohne Kabelwege erstellt werden.</p>}
+        {issue.action === 'cables' && <p>Im Editor „Kabel“ wählen und die Polylinie im Grundriss setzen. Die Vorschau kann auch ohne Kabelwege erstellt werden.</p>}
       </div>)}
       <button type="button" onClick={() => setStep('contents')}>Weiter zum Inhalt</button>
     </div>}

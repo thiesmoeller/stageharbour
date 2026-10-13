@@ -52,3 +52,25 @@ test('Pascal projection includes permanent venue chairs once, separate from scen
   assert.equal(venueNode?.scope, 'venue');
   assert.equal(sceneNode?.scope, 'scene');
 });
+
+test('Pascal projection shows scene cable runs in Raumsicht beside venue corridors', () => {
+  const run = {
+    id: randomUUID(), label: 'FOH', purpose: 'power' as const, cableType: 'Schuko', quantity: 1, slackMm: 0,
+    start: { label: 'A', x: 0, y: 0 }, end: { label: 'B', x: 4000, y: 0 },
+    path: [{ x: 0, y: 0 }, { x: 2000, y: 500 }, { x: 4000, y: 0 }],
+  };
+  const corridor = {
+    id: randomUUID(), label: 'Korridor',
+    path: [{ x: 100, y: 100 }, { x: 3000, y: 100 }],
+  };
+  const projected = pascalScene(
+    { schemaVersion: 1 as const, walls: [], braces: [], cableRuns: [run] },
+    { schemaVersion: 1 as const, width: 8000, depth: 6000, cableRoutingCorridors: [corridor] },
+  );
+  const cable = Object.values(projected.nodes).find(item => item.element.kind === 'cableRun');
+  const venueCorridor = Object.values(projected.nodes).find(item => item.element.kind === 'corridor');
+  assert.equal(cable?.scope, 'scene');
+  assert.deepEqual(cable?.element, { kind: 'cableRun', value: run });
+  assert.equal(venueCorridor?.scope, 'venue');
+  assert.equal(venueCorridor?.element.kind, 'corridor');
+});
