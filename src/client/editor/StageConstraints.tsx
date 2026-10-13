@@ -1,11 +1,23 @@
 import { useEffect, useMemo } from 'react';
-import { Line } from '@react-three/drei';
-import { Shape, ShapeGeometry, DoubleSide } from 'three';
+import { BufferGeometry, DoubleSide, Line, LineBasicMaterial, Shape, ShapeGeometry, Vector3 } from 'three';
 import type { StageNode } from './pascalScene.js';
 import { StageCurtains } from './StageCurtains.js';
 import { LightingFixtureMesh, fixtureHangPose } from './StageOverhead.js';
 import type { HangPlan } from '../../shared/hangPlan.js';
 import type { FixtureBoardOutput } from '../../shared/lightBoard.js';
+
+/** Native line — drei Line2/LineMaterial breaks Pascal’s WebGPU→WebGL fallback. */
+function FloorPolyline({ path, y, color }: { path: readonly { x: number; y: number }[]; y: number; color: string }) {
+  const object = useMemo(() => {
+    const geometry = new BufferGeometry().setFromPoints(path.map(point => new Vector3(point.x, y, point.y)));
+    return new Line(geometry, new LineBasicMaterial({ color }));
+  }, [path, y, color]);
+  useEffect(() => () => {
+    object.geometry.dispose();
+    (object.material as LineBasicMaterial).dispose();
+  }, [object]);
+  return <primitive object={object} />;
+}
 
 export function StageConstraint({ element, elevation = 0, hangPlan, fixtureLevel, showTrusses = true, showLightingFixtures = true, stageWidth = 0, stageDepth = 0, selectedFixtureId, onFixtureSelect }: {
   element: StageNode['element'];
@@ -69,6 +81,7 @@ export function StageConstraint({ element, elevation = 0, hangPlan, fixtureLevel
   }
   if (element.kind === 'curtain') return <StageCurtains curtains={[element.value]} />;
   if (element.kind === 'pin') return <mesh position={[element.value.x, 100, element.value.y]}><sphereGeometry args={[80, 12, 8]} /><meshStandardMaterial color={element.value.kind === 'power' ? '#d69d34' : '#4f86ba'} /></mesh>;
-  if (element.kind === 'corridor') return <Line points={element.value.path.map(p => [p.x, 15, p.y])} color="#5a6e8a" lineWidth={3} />;
+  if (element.kind === 'corridor') return <FloorPolyline path={element.value.path} y={15} color="#5a6e8a" />;
+  if (element.kind === 'cableRun') return <FloorPolyline path={element.value.path} y={40} color="#9b3f64" />;
   return null;
 }

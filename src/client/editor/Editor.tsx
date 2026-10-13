@@ -12,7 +12,7 @@ import { z } from 'zod';
 import { applyPlatformSurfaces, applyWallSurfaces, memberIdsByKind, mixedPropertyValue, MIXED_PROPERTY, selectionPivot } from '../../shared/editing.js';
 import { navigatePlan } from './planNavigation.js';
 import { sceneResizeDocument, resizedScene } from '../../shared/sceneResize.js';
-import { editorCommand } from './interactionKeys.js';
+import { editingText, editorCommand } from './interactionKeys.js';
 import { layoutSelectionRotation, transformLayoutGesture, type TransformOperation } from '../../shared/plannerTransforms.js';
 import type { StageEditing } from './StageEditing.js';
 import {
@@ -82,7 +82,7 @@ import { canvasModeForWidth, useNarrowEditor } from './useNarrowEditor.js';
 import {
   effectiveCurtains, effectiveVenueDoorOpen, setCurtainOpenPercent, setVenueDoorOpenPercent, venueDooredWalls,
 } from '../../shared/venueFixtures.js';
-import { newCableRun } from '../../shared/infrastructure.js';
+import { insertCableRunVertex, nearestCableRunInsert, newCableRun, removeCableRunVertex, setCableRunVertex } from '../../shared/infrastructure.js';
 import { CableRunMarks, CableRunsPanel } from './CableRuns.js';
 
 const MaterialPicker = lazy(() => import('./MaterialPicker.js'));
@@ -98,7 +98,10 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
   }, initial.venue);
   const [state, setState] = useState<History>(() => history<Layout>(boot.layout));
   const [cablesOpen, setCablesOpen] = useState(false);
-  const [cableDrawing, setCableDrawing] = useState<{ start?: { x: number; y: number } } | null>(null);
+  const [cableDrawing, setCableDrawing] = useState<{ points: { x: number; y: number }[]; cursor?: { x: number; y: number } } | null>(null);
+  const [selectedCableRunId, setSelectedCableRunId] = useState<string>();
+  const [selectedCableVertex, setSelectedCableVertex] = useState<number>();
+  const cableVertexDrag = useRef<{ runId: string; index: number; start: Layout } | undefined>(undefined);
   const root = useRef<HTMLElement>(null);
   const feedbackCapture = useRef<StageCaptureHandle | null>(null);
   const setFeedbackCapture = useCallback((handle: StageCaptureHandle | null) => { feedbackCapture.current = handle; }, []);
@@ -454,12 +457,12 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
   }
   function clearSelection(force = false) {
     if (force || pendingCount.current === 0) {
-      pickedRef.current = []; setPicked([]); setFixtureSelection(undefined); setSelectedDimension(undefined);
+      pickedRef.current = []; setPicked([]); setFixtureSelection(undefined); setSelectedDimension(undefined); setSelectedCableRunId(undefined); setSelectedCableVertex(undefined);
       return;
     }
     void confirmDiscardPending(true).then(ok => {
       if (!ok) return;
-      pickedRef.current = []; setPicked([]); setFixtureSelection(undefined); setSelectedDimension(undefined);
+      pickedRef.current = []; setPicked([]); setFixtureSelection(undefined); setSelectedDimension(undefined); setSelectedCableRunId(undefined); setSelectedCableVertex(undefined);
     });
   }
   function setSelection(members: ClipboardMember[], force = false) {
@@ -550,17 +553,50 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
     setSelection(result.pasted, true);
     if (result.consumed) setClipboard(undefined);
   }
+  function finishCableDrawing(path: { x: number; y: number }[]) {
+    if (path.length < 2 || (current.current.present.cableRuns ?? []).length >= 250) {
+      setCableDrawing(null);
+      setSnapStatus(path.length < 2 ? 'Kabelweg braucht mindestens zwei Punkte.' : undefined);
+      return;
+    }
+    const run = newCableRun(crypto.randomUUID(), path);
+    const end = path.at(-1)!;
+    const pin = (venue.connectionPoints ?? []).find(item => Math.hypot(item.x - end.x, item.y - end.y) <= 250);
+    const finished = pin
+      ? setCableRunVertex({ ...run, end: { ...run.end, label: pin.label, connectionPointId: pin.id } }, run.path.length - 1, { x: pin.x, y: pin.y })
+      : run;
+    commit({ ...current.current.present, cableRuns: [...current.current.present.cableRuns ?? [], finished] });
+    setSelectedCableRunId(finished.id);
+    setCablesOpen(true);
+    setCableDrawing(null);
+    setSnapStatus(undefined);
+  }
+  const cableDraftPath = cableDrawing ? (() => {
+    const { points, cursor } = cableDrawing;
+    if (!cursor) return points;
+    const last = points.at(-1);
+    if (last && last.x === cursor.x && last.y === cursor.y) return points;
+    return [...points, cursor];
+  })() : undefined;
   useEffect(() => {
     const shortcut = (event: KeyboardEvent) => {
       if ((event as KeyboardEvent & { stageToolExitHandled?: boolean }).stageToolExitHandled) return;
       if (venueOpen) return;
+      if (cableDrawing && (event.key === 'Enter' || event.key === 'NumpadEnter') && !editingText(event.target)) {
+        event.preventDefault();
+        finishCableDrawing(cableDrawing.points);
+        return;
+      }
       const command = editorCommand(event);
       if (!command) return;
       event.preventDefault();
       if (command === 'cancel') {
+        if (cableDrawing) { setCableDrawing(null); setSnapStatus(undefined); return; }
         if (dimensioning) { setDimensioning(null); setSnapStatus(undefined); return; }
         if (placingRef.current || objectPlacement.current) cancelPlacing();
-        else if (planGesture.current || marqueeDrag.current || panDrag.current) finish(true);
+        else if (cableVertexDrag.current || planGesture.current || marqueeDrag.current || panDrag.current) finish(true);
+        else if (selectedCableVertex !== undefined) { setSelectedCableVertex(undefined); return; }
+        else if (selectedCableRunId) { setSelectedCableRunId(undefined); setSelectedCableVertex(undefined); return; }
         else if (!stageGesture.current) clearSelection();
         return;
       }
@@ -572,7 +608,21 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
       else if (command === 'paste') paste();
       else if (command === 'save') saver.saveNow();
       else if (command === 'delete') {
-        if (selectedDimension) {
+        if (selectedCableRunId) {
+          const run = current.current.present.cableRuns?.find(item => item.id === selectedCableRunId);
+          if (run && selectedCableVertex !== undefined && selectedCableVertex > 0 && selectedCableVertex < run.path.length - 1 && run.path.length > 2) {
+            commit({
+              ...current.current.present,
+              cableRuns: (current.current.present.cableRuns ?? []).map(item => item.id === selectedCableRunId
+                ? removeCableRunVertex(item, selectedCableVertex) : item),
+            });
+            setSelectedCableVertex(undefined);
+          } else {
+            commit({ ...current.current.present, cableRuns: (current.current.present.cableRuns ?? []).filter(item => item.id !== selectedCableRunId) });
+            setSelectedCableRunId(undefined);
+            setSelectedCableVertex(undefined);
+          }
+        } else if (selectedDimension) {
           commit({ ...current.current.present, dimensions: (current.current.present.dimensions ?? []).filter(item => item.id !== selectedDimension) });
           setSelectedDimension(undefined);
         } else remove();
@@ -607,7 +657,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
     return { x: Math.round(value.x), y: Math.round(-value.y) };
   }
   function busyGesture() {
-    return !!(placingRef.current || objectPlacement.current || planGesture.current || stageGesture.current || marqueeDrag.current || panDrag.current);
+    return !!(placingRef.current || objectPlacement.current || planGesture.current || stageGesture.current || marqueeDrag.current || panDrag.current || cableVertexDrag.current);
   }
   function startPan(event: PointerEvent<SVGSVGElement>) {
     if (event.button === 1) {
@@ -701,6 +751,20 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
     }
     const position = point(event);
     lastPlanPoint.current = position;
+    if (cableDrawing) {
+      setCableDrawing(current => current ? { ...current, cursor: position } : current);
+      return;
+    }
+    const cableVertex = cableVertexDrag.current;
+    if (cableVertex) {
+      const layout = {
+        ...cableVertex.start,
+        cableRuns: (cableVertex.start.cableRuns ?? []).map(run => run.id === cableVertex.runId
+          ? setCableRunVertex(run, cableVertex.index, position) : run),
+      };
+      setGroupPreview(layout);
+      return;
+    }
     const bypass = event.altKey || !snapEnabled;
     if (placingRef.current || objectPlacement.current) { updatePlacingAt(position, bypass); return; }
     const marquee = marqueeDrag.current;
@@ -717,6 +781,13 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
   }
   function finish(cancelled = false) {
     if (panDrag.current) { panDrag.current = undefined; if (svg.current) svg.current.style.cursor = ''; return; }
+    if (cableVertexDrag.current) {
+      const preview = groupPreview;
+      cableVertexDrag.current = undefined;
+      setGroupPreview(undefined); setGuides([]); setSnapStatus(undefined);
+      if (!cancelled && preview) commit(preview);
+      return;
+    }
     const marquee = marqueeDrag.current;
     marqueeDrag.current = undefined; setMarqueeBox(undefined);
     if (marquee) {
@@ -983,7 +1054,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
         {renameError && <p className="error" role="alert">{renameError}</p>}
       </form></div>}
     <div className="tool-rail" hidden={venueOpen || exportsOpen} role="toolbar" aria-label="Objekte hinzufügen">
-      <button className="quiet" title="Auswählen · Platzieren abbrechen" aria-pressed={!placing && !groupPreview && !dimensioning && !cableDrawing} onClick={() => { cancelPlacing(); setDimensioning(null); setCableDrawing(null); setSelectedDimension(undefined); setSnapStatus(undefined); }}><ToolIcon name="select" /><span>Auswahl</span></button>
+      <button className="quiet" title="Auswählen · Platzieren abbrechen" aria-pressed={!placing && !groupPreview && !dimensioning && !cableDrawing} onClick={() => { cancelPlacing(); setDimensioning(null); setCableDrawing(null); setSelectedDimension(undefined); setSelectedCableRunId(undefined); setSnapStatus(undefined); }}><ToolIcon name="select" /><span>Auswahl</span></button>
 
       {!readOnly && <><WallToolButton
         disabled={!!groupPreview || state.present.walls.length >= 250}
@@ -1012,13 +1083,15 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
       <button type="button" aria-pressed={cableDrawing !== null} disabled={!!groupPreview || !!placing || (state.present.cableRuns ?? []).length >= 250} onClick={() => {
         cancelPlacing();
         setDimensioning(null);
+        setSelectedCableRunId(undefined);
         setCablesOpen(true);
-        setCableDrawing(current => current ? null : {});
-        setSnapStatus(cableDrawing ? undefined : 'Start und Ziel des tatsächlichen Kabelwegs im Grundriss anklicken.');
-      }} title="Tatsächlichen Kabelweg zeichnen" aria-label="Kabel zeichnen"><ToolIcon name="expand" /><span>Kabel</span></button>
+        setCableDrawing(current => current ? null : { points: [] });
+        setSnapStatus(cableDrawing ? undefined : 'Kabel-Polylinie: Punkte im Grundriss setzen · Enter oder Doppelklick beendet · Escape bricht ab.');
+      }} title="Tatsächlichen Kabelweg als Polylinie zeichnen" aria-label="Kabel zeichnen"><ToolIcon name="expand" /><span>Kabel</span></button>
       </>}
     </div>
-    {cablesOpen && !venueOpen && <CableRunsPanel runs={state.present.cableRuns ?? []} onClose={() => setCablesOpen(false)}
+    {cablesOpen && !venueOpen && <CableRunsPanel runs={state.present.cableRuns ?? []} selectedId={selectedCableRunId}
+      onSelect={setSelectedCableRunId} onClose={() => setCablesOpen(false)}
       onChange={cableRuns => commit({ ...current.current.present, cableRuns })} />}
     {assetError && <p className="error" role="alert">{assetError}</p>}
     <span className="sr-only" data-testid="inventory-panel-count">{inventoryPanels.length}</span>
@@ -1061,25 +1134,22 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
       <button type="button" className="quiet" onClick={() => setViewZoom(z => Math.max(0.4, z / 1.25))} title="Grundriss verkleinern" aria-label="Verkleinern"><ToolIcon name="minus" /></button>
       <button type="button" className="quiet" onClick={() => { setViewZoom(1); setViewPan({ x: 0, y: 0 }); }}>Passend</button>
       <span className="muted">{Math.round(viewZoom * 100)} %</span></div></div>
-      <svg ref={svg} role="img" aria-label="Grundriss der Spielstätte" viewBox={viewBox}
+      <svg ref={svg} role="img" aria-label="Grundriss der Spielstätte" viewBox={viewBox} tabIndex={-1}
         className={placing || objectPlacement.current ? 'placing-cursor' : undefined}
         onPointerDownCapture={event => {
           if (cableDrawing !== null && event.button === 0 && !readOnly) {
             const at = point(event);
-            if (!cableDrawing.start) {
-              setCableDrawing({ start: at });
-              setSnapStatus('Jetzt das Ziel des Kabelwegs anklicken.');
-            } else {
-              const run = newCableRun(crypto.randomUUID(), cableDrawing.start, at);
-              const pin = (venue.connectionPoints ?? []).find(item => Math.hypot(item.x - at.x, item.y - at.y) <= 250);
-              if (pin) {
-                run.end = { label: pin.label, x: pin.x, y: pin.y, connectionPointId: pin.id };
-                run.path[run.path.length - 1] = { x: pin.x, y: pin.y };
-              }
-              commit({ ...current.current.present, cableRuns: [...current.current.present.cableRuns ?? [], run] });
-              setCableDrawing(null);
-              setSnapStatus(undefined);
+            const last = cableDrawing.points.at(-1);
+            if (last && last.x === at.x && last.y === at.y) {
+              event.preventDefault();
+              event.stopPropagation();
+              return;
             }
+            const points = [...cableDrawing.points, at];
+            setCableDrawing({ points, cursor: at });
+            setSnapStatus(points.length < 2
+              ? 'Nächsten Punkt setzen · Escape bricht ab.'
+              : `${points.length} Punkte · Enter oder Doppelklick beendet · Escape bricht ab.`);
             event.preventDefault();
             event.stopPropagation();
             return;
@@ -1089,6 +1159,16 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
           commitPlacing();
           event.preventDefault();
           event.stopPropagation();
+        }}
+        onDoubleClick={event => {
+          if (cableDrawing === null || readOnly) return;
+          event.preventDefault();
+          const at = point(event);
+          const last = cableDrawing.points.at(-1);
+          const path = last && last.x === at.x && last.y === at.y
+            ? cableDrawing.points
+            : [...cableDrawing.points, at];
+          finishCableDrawing(path);
         }}
         onPointerDown={startPan}
         onPointerMove={move} onPointerUp={() => finish()} onPointerCancel={() => finish(true)} onLostPointerCapture={() => finish(true)}
@@ -1138,7 +1218,52 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
           overlappingIds={overlapIds}
           readOnly={readOnly} groupedIds={groupedIds} display={planDisplay} onPointerDown={startPlaceholder} />
         <InfrastructureMarks pins={venue.connectionPoints ?? []} corridors={venue.cableRoutingCorridors ?? []} display={planDisplay} />
-        <CableRunMarks runs={shown.cableRuns ?? []} />
+        <CableRunMarks runs={shown.cableRuns ?? []} selectedId={selectedCableRunId}
+          selectedVertexIndex={selectedCableVertex} readOnly={readOnly}
+          draftPath={cableDraftPath}
+          onPathPointerDown={(event, runId) => {
+            if (readOnly || busyGesture()) return;
+            const at = point(event);
+            if (selectedCableRunId === runId) {
+              const run = current.current.present.cableRuns?.find(item => item.id === runId);
+              const insert = run && run.path.length < 500 ? nearestCableRunInsert(run, at, Number.POSITIVE_INFINITY) : undefined;
+              if (run && insert) {
+                commit({
+                  ...current.current.present,
+                  cableRuns: (current.current.present.cableRuns ?? []).map(item => item.id === runId
+                    ? insertCableRunVertex(item, insert.afterIndex, insert.point) : item),
+                });
+                setSelectedCableVertex(insert.afterIndex + 1);
+                setCablesOpen(true);
+                if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+                svg.current?.focus({ preventScroll: true });
+                return;
+              }
+            }
+            clearSelection(true);
+            setSelectedDimension(undefined);
+            setSelectedCableRunId(runId);
+            setSelectedCableVertex(undefined);
+            setCablesOpen(true);
+            // Keep keyboard shortcuts (Entf) on the plan, not on panel inputs.
+            if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+            svg.current?.focus({ preventScroll: true });
+          }}
+          onVertexPointerDown={(event, runId, index) => {
+            if (event.button !== 0 || readOnly || busyGesture()) return;
+            event.stopPropagation();
+            event.preventDefault();
+            clearSelection(true);
+            setSelectedDimension(undefined);
+            setSelectedCableRunId(runId);
+            setSelectedCableVertex(index);
+            setCablesOpen(true);
+            if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+            svg.current?.focus({ preventScroll: true });
+            cableVertexDrag.current = { runId, index, start: current.current.present };
+            setGroupPreview(current.current.present);
+            svg.current?.setPointerCapture(event.pointerId);
+          }} />
         <OverheadMarks boxes={venue.overheadBoxes ?? []} display={planDisplay} />
         <TrussMarks trusses={venue.trusses ?? []} display={planDisplay} hangPlan={venue.hangPlan} />
         <CurtainMarks curtains={sceneCurtains}
@@ -1252,7 +1377,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
       display={<PlanDisplayToggles value={planDisplay} onChange={setPlanDisplay} />}
       properties={<aside key={inspectorEpoch} className="wall-inspector" inert={busyGesture()}>
       <div className="selection-properties">
-      <h3>{selectedDimension ? 'Maß' : selectedCurtain ? 'Molton-Vorhang' : selectedVenueDoor ? 'Spielstättentür' : selectedPlaceholderItem ? 'Platzhalter' : selectedPlatformItem ? 'Podest' : selectedStairItem ? 'Treppe' : selectedBraceItem ? 'Gewichtete Stütze' : selectedWall ? (selectedWallCount > 1 ? `${selectedWallCount} Wandelemente` : 'Wandelement') : 'Keine Auswahl'}</h3>
+      <h3>{selectedCableRunId ? 'Kabelweg' : selectedDimension ? 'Maß' : selectedCurtain ? 'Molton-Vorhang' : selectedVenueDoor ? 'Spielstättentür' : selectedPlaceholderItem ? 'Platzhalter' : selectedPlatformItem ? 'Podest' : selectedStairItem ? 'Treppe' : selectedBraceItem ? 'Gewichtete Stütze' : selectedWall ? (selectedWallCount > 1 ? `${selectedWallCount} Wandelemente` : 'Wandelement') : 'Keine Auswahl'}</h3>
       <label htmlFor="wall-selection">Auswahl</label>
       <select id="wall-selection" value={selectedCurtain ? `curtain:${selectedCurtain.id}` : selectedVenueDoor ? `door:${selectedVenueDoor.id}` : selectedWall ? `wall:${selectedWall.id}` : selectedBraceItem ? `brace:${selectedBraceItem.id}` : selectedPlatformItem ? `platform:${selectedPlatformItem.id}` : selectedStairItem ? `stair:${selectedStairItem.id}` : selectedPlaceholderItem ? `placeholder:${selectedPlaceholderItem.id}` : ''} onChange={event => {
         const value = event.target.value;
@@ -1300,6 +1425,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
                 onPendingChange={reportInspectorPending} onApply={replaceStair} onRemove={remove} />
               : selectedPlaceholderItem ? <PlaceholderInspector key={JSON.stringify(selectedPlaceholderItem)} item={selectedPlaceholderItem} surfaces={surfaces} readOnly={readOnly}
                   onPendingChange={reportInspectorPending} onApply={replacePlaceholder} onRemove={remove} />
+                : selectedCableRunId ? <p className="muted">Kabelweg orange. Nochmal auf die Linie klicken fügt einen Zwischenpunkt ein · Zwischenpunkt + Entf entfernt ihn · Entf ohne Punktwahl löscht den Weg · Endpunkte nur verschieben.</p>
                 : selectedDimension ? <p className="muted">Ausgewähltes Maß ist orange hervorgehoben. Entf löscht es · Escape hebt die Auswahl auf.</p>
                   : <p className="muted">Objekt im Grundriss wählen oder links über die Werkzeugleiste und die Bibliothek hinzufügen.</p>}
       {selectedWall && <InventoryAssignment layout={state.present} selectedWall={selectedWall}
@@ -1315,7 +1441,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
         onPendingChange={reportInspectorPending} onChange={commit} />
       </div></details>}
     </aside>} /></div>}
-    <div className="workspace-statusbar"><span><span className="status-dot" />{venueOpen ? 'Spielstättenentwurf' : 'Bühnenbild'} · {state.present.walls.length} Wände</span><span className="selection-count" hidden={venueOpen || (selection().length === 0 && !selectedDimension)} data-testid="selection-count">{selectedDimension ? '1 Maß ausgewählt' : `${selection().length} ausgewählt`}</span><span className="status-hint" role="status" title={snapStatus}>{snapStatus ?? 'Klicken zum Auswählen · Ziehen zum Verschieben · Strg+Z rückgängig'}</span><button className="quiet" aria-expanded={helpOpen} onClick={() => setHelpOpen(open => !open)}><ToolIcon name="help" /> Bedienung</button><span>Maße in mm</span></div>
+    <div className="workspace-statusbar"><span><span className="status-dot" />{venueOpen ? 'Spielstättenentwurf' : 'Bühnenbild'} · {state.present.walls.length} Wände</span><span className="selection-count" hidden={venueOpen || (selection().length === 0 && !selectedDimension && !selectedCableRunId)} data-testid="selection-count">{selectedCableRunId && selectedCableVertex !== undefined && selectedCableVertex > 0 ? '1 Zwischenpunkt ausgewählt' : selectedCableRunId ? '1 Kabelweg ausgewählt' : selectedDimension ? '1 Maß ausgewählt' : `${selection().length} ausgewählt`}</span><span className="status-hint" role="status" title={snapStatus}>{snapStatus ?? 'Klicken zum Auswählen · Ziehen zum Verschieben · Strg+Z rückgängig'}</span><button className="quiet" aria-expanded={helpOpen} onClick={() => setHelpOpen(open => !open)}><ToolIcon name="help" /> Bedienung</button><span>Maße in mm</span></div>
     {helpOpen && <div className="workspace-help"><h3>Arbeiten im Grundriss</h3>
       <p className="muted viewport-hint">Raster: 1 m / 50 cm · Zwei-Finger-Scroll oder Mittelklick verschieben · Pinch / Strg+Scroll zoomen · Auf dem Boden ziehen: Mehrfachauswahl (nur vollständig umschlossene Objekte) · Orange ↻ dreht · Stützen an Wänden · {SNAP_NOTICE}</p>
       <p>Strg/Cmd+C kopiert die Auswahl, Strg/Cmd+V hängt die Kopie an den Zeiger — Klick setzt, Escape bricht ab. Entf löscht ausgewählte Objekte. Escape bricht Platzieren und Bewegungen ab oder hebt die Auswahl auf (auch in der Raumsicht · Klick in freien Raum). Überschneidungen erscheinen rot auf dem Grundriss.</p>

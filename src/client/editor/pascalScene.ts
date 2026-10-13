@@ -1,6 +1,6 @@
 import { overheadBoxSchema } from '../../shared/overhead.js';
 import { keepClearZoneSchema } from '../../shared/keepClear.js';
-import { connectionPointSchema, cableRoutingCorridorSchema } from '../../shared/infrastructure.js';
+import { connectionPointSchema, cableRoutingCorridorSchema, cableRunFieldsSchema } from '../../shared/infrastructure.js';
 import { trussSchema } from '../../shared/truss.js';
 import { curtainSchema } from '../../shared/curtains.js';
 import { z } from 'zod';
@@ -25,6 +25,7 @@ export const stageNodeSchema = z.object({
     z.object({ kind: z.literal('zone'), value: keepClearZoneSchema }),
     z.object({ kind: z.literal('pin'), value: connectionPointSchema }),
     z.object({ kind: z.literal('corridor'), value: cableRoutingCorridorSchema }),
+    z.object({ kind: z.literal('cableRun'), value: cableRunFieldsSchema }),
   ]),
 });
 export type StageNode = z.infer<typeof stageNodeSchema>;
@@ -39,6 +40,7 @@ export function pascalScene(layout: Layout, venue?: VenueGeometry) {
     ...(layout.placeholders ?? []).map(value => ({ kind: 'placeholder' as const, value })),
     ...(layout.platforms ?? []).map(value => ({ kind: 'platform' as const, value })),
     ...(layout.stairs ?? []).map(value => ({ kind: 'stair' as const, value })),
+    ...(layout.cableRuns ?? []).map(value => ({ kind: 'cableRun' as const, value })),
   ];
   const permanent: StageNode['element'][] = venue ? [
     ...(venue.walls ?? []).map(value => ({
