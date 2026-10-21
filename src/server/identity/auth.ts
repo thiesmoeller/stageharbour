@@ -9,7 +9,7 @@ export const pocketIdProvider = 'pocket-id';
 
 export function createAuth(db: Database, config: Config, options: { rateLimit?: boolean } = {}) {
   return betterAuth({
-    appName: 'Bühnenplaner',
+    appName: 'StageHarbour',
     database: drizzleAdapter(db, { provider: 'pg', schema }),
     baseURL: config.APP_ORIGIN,
     secret: config.BETTER_AUTH_SECRET,

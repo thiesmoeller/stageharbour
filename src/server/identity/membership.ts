@@ -152,8 +152,8 @@ export function createMembership(db: Database, mail: MailTransport, origin: stri
       try {
         await mail.send({
           to: normalized,
-          subject: 'Passwort für den Bühnenplaner zurücksetzen',
-          text: `Sie können ein neues Passwort für den Bühnenplaner festlegen.\n\nÖffnen Sie diesen Link:\n${origin}/#/passwort/${token}\n\nDer Link ist eine Stunde gültig und kann nur einmal verwendet werden. Wenn Sie diese E-Mail nicht angefordert haben, ignorieren Sie sie.`,
+          subject: 'Passwort für StageHarbour zurücksetzen',
+          text: `Sie können ein neues Passwort für StageHarbour festlegen.\n\nÖffnen Sie diesen Link:\n${origin}/#/passwort/${token}\n\nDer Link ist eine Stunde gültig und kann nur einmal verwendet werden. Wenn Sie diese E-Mail nicht angefordert haben, ignorieren Sie sie.`,
         });
       } catch {
         throw new AccessError(503, 'Die E-Mail konnte nicht gesendet werden. Bitte versuchen Sie es erneut.');

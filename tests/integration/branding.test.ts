@@ -31,7 +31,7 @@ test('public branding defaults and administrators can set site branding with a l
   const defaults = await app.inject({ url: '/api/branding' });
   assert.equal(defaults.statusCode, 200);
   assert.deepEqual(defaults.json(), {
-    productName: 'Bühnenplaner',
+    productName: 'StageHarbour',
     tagline: 'GEMEINSAM THEATER MACHEN',
     footerText: 'Für die Bühne. Für die Menschen dahinter.',
     hasLogo: false,

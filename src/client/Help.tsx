@@ -25,7 +25,7 @@ export function Help({ topic }: { topic?: string }) {
   return <article className="help-page" aria-labelledby="help-title">
     <header className="help-hero">
       <p className="eyebrow">ONLINE-HILFE</p>
-      <h1 id="help-title">Bedienung des Bühnenplaners</h1>
+      <h1 id="help-title">Bedienung von StageHarbour</h1>
       <p className="lead">Kurzüberblick zu Werkzeugen, Mausgesten, Tastaturkürzeln und Wandoberflächen.
         Maße sind immer Millimeter.</p>
     </header>

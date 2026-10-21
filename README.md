@@ -1,6 +1,6 @@
-# Bühnenplaner
+# StageHarbour
 
-German-language stage planner for a single theatre group's private workspace.
+Scenery planning for touring theatre — German-language stage planner for a single theatre group's private workspace. Formerly referred to as Bühnenplaner / stageplanner in ops hosts.
 
 ## Pascal editor integration
 

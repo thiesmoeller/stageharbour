@@ -58,7 +58,7 @@ export const verification = pgTable('auth_verification', {
 export const workspace = pgTable('workspace', {
   id: uuid('id').primaryKey(),
   name: text('name').notNull(),
-  productName: text('product_name').notNull().default('Bühnenplaner'),
+  productName: text('product_name').notNull().default('StageHarbour'),
   tagline: text('tagline').notNull().default('GEMEINSAM THEATER MACHEN'),
   footerText: text('footer_text').notNull().default('Für die Bühne. Für die Menschen dahinter.'),
   logoStorageKey: text('logo_storage_key'),

@@ -7,7 +7,7 @@ The implementation follows these first-party patterns, checked 2026-10-09:
 - **Sentry** offers screenshots and cropping within user feedback. [Screenshot release notes](https://sentry.io/changelog/user-feedback-widget-screenshots/)
 - **Linear** connects customer feedback to engineering issues and preserves source context. This would be a downstream workflow if email later becomes insufficient. [Customer requests](https://linear.app/docs/customer-requests)
 
-For Bühnenplaner, the chosen approach is a built-in dialog using the existing mail transport: one required message, inferred page/editor context, screenshot preview/removal, and an explicit opt-in design snapshot. No separate feedback service, AI interpretation, replay, or image editor is required. The user still supplies intent; current state cannot reliably determine what they expected.
+For StageHarbour, the chosen approach is a built-in dialog using the existing mail transport: one required message, inferred page/editor context, screenshot preview/removal, and an explicit opt-in design snapshot. No separate feedback service, AI interpretation, replay, or image editor is required. The user still supplies intent; current state cannot reliably determine what they expected.
 
 Automatic screenshots cover visible 2D/3D work panes rather than the entire application. Other pages accept pasted/uploaded images. Captures can be skipped; screenshot failure does not prevent a report. Current design snapshots contain model data and references, not model/underlay binaries or a restorable project archive. Work context and recent activity can be excluded independently.
 
