@@ -51,7 +51,7 @@ export const updateBrandingSchema = z.object({
   footerText: z.string().trim().max(200),
 });
 export const DEFAULT_BRANDING = {
-  productName: 'Bühnenplaner',
+  productName: 'StageHarbour',
   tagline: 'GEMEINSAM THEATER MACHEN',
   footerText: 'Für die Bühne. Für die Menschen dahinter.',
   hasLogo: false,

@@ -72,7 +72,7 @@ test('SMTP transport sends via injected sender and maps failures', async () => {
   );
   await mail.send(message);
   assert.equal(sent.length, 1);
-  assert.equal(sent[0]?.from, 'Bühnenplaner <planer@example.test>');
+  assert.equal(sent[0]?.from, 'StageHarbour <planer@example.test>');
   assert.equal(sent[0]?.to, message.to);
   assert.equal(sent[0]?.subject, message.subject);
   assert.equal(sent[0]?.text, message.text);

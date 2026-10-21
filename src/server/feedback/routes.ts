@@ -57,7 +57,7 @@ export function registerFeedbackRoutes(app: FastifyInstance, access: ReturnType<
     try {
       await mail.send({
         to: config.FEEDBACK_TO_EMAIL!, replyTo: me.user.email,
-        subject: `[Bühnenplaner] ${category} · ${feedbackPageLabel(report.page)}`,
+        subject: `[StageHarbour] ${category} · ${feedbackPageLabel(report.page)}`,
         text: `${category}\n\n${report.message}\n\nVon: ${me.user.name} <${me.user.email}>\nArbeitsbereich: ${me.workspace.name}\nSeite: ${url}\nVersion: ${config.APP_VERSION}\nErfasst: ${report.capturedAt}\n\nArbeitskontext:\n${JSON.stringify(report.work ?? {}, null, 2)}\n\nBrowser: ${report.browser}\nAnsicht: ${report.viewport.width} × ${report.viewport.height}\n\nLetzte Aktivitäten:\n${JSON.stringify(report.activity ?? [], null, 2)}\n\n${snapshot ? 'Diagnoseentwurf angehängt; kann ungespeicherte Modelländerungen enthalten. Nicht übernommene Eingaben und Binärdateien sind nicht enthalten.' : 'Kein Entwurf angehängt.'}`,
         attachments,
       });

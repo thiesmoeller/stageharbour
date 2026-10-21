@@ -43,7 +43,7 @@ export async function createApp(db: Database, config: Config, options: {
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
   await app.register(swagger, {
-    openapi: { info: { title: 'Bühnenplaner API', version: '0.1.0' } },
+    openapi: { info: { title: 'StageHarbour API', version: '0.1.0' } },
     transform: jsonSchemaTransform,
   });
   const api = app.withTypeProvider<ZodTypeProvider>();

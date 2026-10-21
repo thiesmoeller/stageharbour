@@ -1,8 +1,10 @@
 # CapRover deployment
 
-Deploy Bühnenplaner to CapRover from the private GitHub repository. GitHub Actions builds the Docker image on every push to `main` and tells CapRover to run that image. CapRover never needs GitHub repository access.
+Deploy **StageHarbour** to CapRover from the private GitHub repository. GitHub Actions builds the Docker image on every push to `main` and tells CapRover to run that image. CapRover never needs GitHub repository access.
 
-Default names below use `stageplanner` (app) and `stageplanner-db` (Postgres). Change them if you prefer other CapRover app names; keep the GitHub `CAPROVER_APP` secret in sync.
+**Ops names (keep):** CapRover app `stageplanner`, Postgres app `stageplanner-db`, and historically `stageplanner.project-park.de`. These are technical fallbacks, not the public product name. Change CapRover app names only if you prefer other ids; keep the GitHub `CAPROVER_APP` secret in sync.
+
+**Public hostname (target):** `https://stageharbour.project-park.de`. Until you complete [Hostname cutover to StageHarbour](#hostname-cutover-to-stageharbour), the live origin may still be `https://stageplanner.project-park.de`.
 
 ## What you will create
 
@@ -96,7 +98,7 @@ Save and restart is fine; the first real container image arrives from GitHub Act
 
 ## 4. Allow CapRover to pull private GHCR images
 
-The deploy workflow builds `linux/amd64` and `linux/arm64` on native runners (no QEMU), then publishes a multi-arch manifest to `ghcr.io/thiesmoeller/stage_planner`. Private repos create private packages by default. CapRover hosts that are ARM (for example many Hetzner CAX VMs) pull the `linux/arm64` slice of that manifest.
+The deploy workflow builds `linux/amd64` and `linux/arm64` on native runners (no QEMU), then publishes a multi-arch manifest to `ghcr.io/<owner>/<repo>` (after the GitHub rename: `ghcr.io/thiesmoeller/stageharbour`). Private repos create private packages by default. CapRover hosts that are ARM (for example many Hetzner CAX VMs) pull the `linux/arm64` slice of that manifest.
 
 GitHub Packages / GHCR only accepts a **classic** PAT for registry login. A fine-grained token scoped to the repo will **not** show `read:packages` — that scope is not a repository permission, and fine-grained PATs are not supported for GHCR pulls.
 
@@ -114,7 +116,7 @@ Alternative if you prefer not to use a classic PAT: make the GHCR package **publ
 
 ## 5. GitHub Actions secrets
 
-In <https://github.com/thiesmoeller/stage_planner> → **Settings** → **Secrets and variables** → **Actions**, add:
+In the GitHub repo (after rename: <https://github.com/thiesmoeller/stageharbour>) → **Settings** → **Secrets and variables** → **Actions**, add:
 
 | Name | Value |
 | --- | --- |
@@ -136,7 +138,7 @@ After push to `main`:
 
 1. GitHub → **Actions** → **Planner checks** must go green (tests, then deploy).
 2. CapRover → `stageplanner` → **Deployment** should show a new version from the image tag.
-3. Confirm <https://stageplanner.project-park.de/api/health> returns `{"status":"ok"}`.
+3. Confirm health on the current `APP_ORIGIN` (for example <https://stageplanner.project-park.de/api/health> or <https://stageharbour.project-park.de/api/health>) returns `{"status":"ok"}`.
 
 Migrations run automatically on container start (`Dockerfile` CMD).
 
@@ -177,8 +179,34 @@ Rollback: CapRover **Deployment** → revert to a previous image version. Env an
 
 ## Optional later
 
-- Custom domain: add it under HTTP Settings, set `APP_ORIGIN` to that HTTPS origin, enable HTTPS, redeploy/restart.
 - Pocket ID: set the optional OIDC variables from `.env.example` after the base install works.
+
+## Hostname cutover to StageHarbour
+
+Do this **yourself** in CapRover and DNS when ready. The app must use a single `APP_ORIGIN` (Better Auth cookies and CSRF). Do not leave both hosts serving the app after the switch.
+
+**Target:** `APP_ORIGIN=https://stageharbour.project-park.de`  
+**Fallback:** `https://stageplanner.project-park.de` → permanent redirect to the new origin (bookmarks and old mails keep working).
+
+### Checklist
+
+1. **DNS** — Add `stageharbour` for `project-park.de` the same way `stageplanner` points at CapRover (CNAME/A as you already use).
+2. **Attach new host** — CapRover → app `stageplanner` → **HTTP Settings** → connect `stageharbour.project-park.de` → enable HTTPS (and optionally force HTTPS).
+3. **Switch origin** — **App Configs** → set `APP_ORIGIN=https://stageharbour.project-park.de` (HTTPS, no path, no trailing slash) → save and restart/redeploy.
+4. **OIDC (only if Pocket ID is configured)** — Update the provider redirect URI to `${APP_ORIGIN}/api/auth/callback/...`. If you override with `OIDC_REDIRECT_URI`, update that CapRover env too.
+5. **Redirect the old host** — CapRover → **One-Click Apps** → **Nginx Redirect** → redirect URL `https://stageharbour.project-park.de`. Connect `stageplanner.project-park.de` to that redirect app (remove it from the main app if still attached), enable HTTPS on the old host. Paths are preserved (`$request_uri`).
+6. **Smoke**
+   - `https://stageharbour.project-park.de/api/health` → `{"status":"ok"}`
+   - Open an old bookmark on `stageplanner.project-park.de` → expect redirect to the new host
+   - Sign in once on the new host (session cookies are host-scoped; users may need one re-login)
+7. **Product name** — After deploy, migration `0018` renames workspace `product_name` from `Bühnenplaner` to `StageHarbour` when it was still the old default. Confirm under admin **Darstellung**, or set it there if the install had a custom name you want to keep branded as StageHarbour.
+
+### GitHub repo rename (separate, also manual)
+
+1. GitHub → repo **Settings** → **General** → rename to `stageharbour`.
+2. Locally: `git remote set-url origin https://github.com/thiesmoeller/stageharbour.git`
+3. Next green `main` push publishes `ghcr.io/thiesmoeller/stageharbour`. Confirm CapRover still pulls (existing GHCR registry login with classic PAT `read:packages` should remain valid).
+4. Leave CapRover app name `stageplanner` and secret `CAPROVER_APP=stageplanner` unchanged.
 
 ## Optional: Brevo mail (invites and password reset)
 

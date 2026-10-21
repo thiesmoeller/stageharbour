@@ -58,7 +58,7 @@ export function createBrevoTransport(options: { apiKey: string; from: string; fe
         method: 'POST',
         headers: { 'api-key': options.apiKey, accept: 'application/json', 'content-type': 'application/json' },
         body: JSON.stringify({
-          sender: { name: 'Bühnenplaner', email: options.from },
+          sender: { name: 'StageHarbour', email: options.from },
           to: [{ email: message.to }],
           subject: message.subject,
           textContent: message.text,
@@ -92,7 +92,7 @@ export function createSmtpTransport(
     async send(message) {
       try {
         await sender.sendMail({
-          from: `Bühnenplaner <${config.from}>`,
+          from: `StageHarbour <${config.from}>`,
           to: message.to,
           subject: message.subject,
           text: message.text,

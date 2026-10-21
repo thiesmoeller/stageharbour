@@ -102,7 +102,7 @@ export function renderDocument(layout: DocumentLayout, images: ReadonlyMap<strin
     const doc = new PDFDocument({
       size: first ? [mm(first.widthMm), mm(first.heightMm)] : 'A4',
       compress: false, margin: 0, autoFirstPage: false,
-      info: { Title: layout.revisionName, Author: 'Bühnenplaner' },
+      info: { Title: layout.revisionName, Author: 'StageHarbour' },
     });
     doc.registerFont('SourceSans', regularFont);
     doc.registerFont('SourceSans-Bold', boldFont);
