@@ -105,7 +105,7 @@ export function AssetLibrary({ workspaceId, assets, layout, readOnly, selected, 
         ['panels', 'Plattenbestand'],
         ['wallTypes', 'Wandtypen'],
         ...(localCapabilities.uploads ? [['import', 'GLB importieren'] as const] : []),
-        ['catalog', 'Pascal-Katalog'],
+        ...(!localCapabilities.local ? [['catalog', 'Pascal-Katalog'] as const] : []),
       ] as const satisfies ReadonlyArray<readonly [LibraryTab, string]>)
         .map(([id, title]) => <button key={id} type="button" className="quiet" aria-pressed={tab === id} onClick={() => { setTab(id); setError(''); }}>{title}</button>)}
     </div>
@@ -136,8 +136,8 @@ export function AssetLibrary({ workspaceId, assets, layout, readOnly, selected, 
           </div>
         </form>}
         <button type="button" disabled={readOnly || busy} onClick={() => onPlace(asset)}>Platzieren</button>
-        {!readOnly && renamingId !== asset.id && <button className="quiet" type="button" disabled={busy} onClick={() => setRenamingId(asset.id)}>Umbenennen</button>}
-        {!readOnly && <button className="quiet" type="button" disabled={busy} onClick={async () => {
+        {!readOnly && !localCapabilities.local && renamingId !== asset.id && <button className="quiet" type="button" disabled={busy} onClick={() => setRenamingId(asset.id)}>Umbenennen</button>}
+        {!readOnly && !localCapabilities.local && <button className="quiet" type="button" disabled={busy} onClick={async () => {
           setBusy(true); setError('');
           try { await requireLease(); await request(`${base}/${asset.id}`, undefined, 'DELETE'); onArchive(asset.id); }
           catch { setError('Das Objekt konnte nicht archiviert werden.'); }
@@ -145,14 +145,15 @@ export function AssetLibrary({ workspaceId, assets, layout, readOnly, selected, 
         }}>Archivieren</button>}
       </article>)}</div>
       {!assets.some(asset => !asset.archived) && <p className="muted">Speichern Sie Wände und Stützen als wiederverwendbare Vorlagen oder importieren Sie Modelle.</p>}
-      {!readOnly && <form onSubmit={event => void template(event)}><fieldset disabled={busy}>
+      {!readOnly && !localCapabilities.local && <form onSubmit={event => void template(event)}><fieldset disabled={busy}>
         <label htmlFor="template-name">Name der Objektvorlage</label><input id="template-name" name="name" required maxLength={120} />
         <label htmlFor="template-kind">Vorlage aus</label><select id="template-kind" name="kind">
           {selected && <option value="selection">Ausgewähltes Objekt ({selected.label})</option>}
           <option value="wall">Standardwand · 1200 × 2400 × 28 mm</option><option value="brace">Beispielstütze · Maße vor Einsatz prüfen</option>
         </select><button type="submit">Objektvorlage speichern</button>
       </fieldset></form>}
-      <p className="muted">Vorlagen erzeugen unabhängige Exemplare. Archivieren entfernt nur die Vorlage aus der Auswahl; bestehende Bühnenbilder behalten ihre Objekte.</p>
+      {localCapabilities.local && <p className="muted">Objektvorlagen anlegen und bearbeiten ist im lokalen Demo-Modus nicht verfügbar.</p>}
+      {!localCapabilities.local && <p className="muted">Vorlagen erzeugen unabhängige Exemplare. Archivieren entfernt nur die Vorlage aus der Auswahl; bestehende Bühnenbilder behalten ihre Objekte.</p>}
     </>}
     {tab === 'panels' && <InventoryStock workspaceId={workspaceId} layout={layout} readOnly={readOnly} onPanels={onPanels} />}
     {tab === 'wallTypes' && <WallTypePanel types={wallTypes} selectedId={selectedTypeId} readOnly={readOnly}

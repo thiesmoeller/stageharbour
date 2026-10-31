@@ -4,6 +4,7 @@ import {
   type SurfaceCatalogItem, type SurfaceMapKind,
 } from '../../shared/surfaceRegistry.js';
 import { ApiError, request, upload } from '../api.js';
+import { localCapabilities } from '../local/mode.js';
 import { surfaceTextureUrl, useSurfaceRegistry } from './SurfaceRegistryContext.js';
 
 const IMAGE_ACCEPT = 'image/png,image/jpeg,image/webp';
@@ -137,15 +138,18 @@ export function SurfaceRegistryPanel({ readOnly = false }: { readOnly?: boolean 
         </article>)}
         {!registry.loading && registry.surfaces.every(surface => surface.archived) && <p className="muted">Noch keine eigenen Oberflächen.</p>}
       </div>
-      {!readOnly && !creating && <div className="form-actions">
-        <button type="button" onClick={() => setCreating(true)}>Oberfläche hochladen</button>
-        <button type="button" className="quiet" onClick={() => {
+      {!readOnly && !creating && (localCapabilities.uploads || localCapabilities.polyHaven) && <div className="form-actions">
+        {localCapabilities.uploads && <button type="button" onClick={() => setCreating(true)}>Oberfläche hochladen</button>}
+        {localCapabilities.polyHaven && <button type="button" className="quiet" onClick={() => {
           const open = !catalogOpen;
           setCatalogOpen(open);
           if (open && !catalog.length) void searchCatalog();
-        }}>Poly Haven durchsuchen</button>
+        }}>Poly Haven durchsuchen</button>}
       </div>}
-      {!readOnly && catalogOpen && <section className="surface-catalog">
+      {localCapabilities.local && !localCapabilities.uploads && !localCapabilities.polyHaven && (
+        <p className="muted">Oberflächen-Upload und Poly Haven sind im lokalen Demo-Modus nicht verfügbar.</p>
+      )}
+      {!readOnly && localCapabilities.polyHaven && catalogOpen && <section className="surface-catalog">
         <form onSubmit={event => void searchCatalog(event)} className="surface-catalog-search">
           <label>CC0-Material suchen<input value={catalogQuery}
             onChange={event => setCatalogQuery(event.target.value)} placeholder="Holz, Stoff, Beton …" /></label>
@@ -175,7 +179,7 @@ export function SurfaceRegistryPanel({ readOnly = false }: { readOnly?: boolean 
         <p className="muted">CC0-Materialien · <a href="https://polyhaven.com/textures"
           target="_blank" rel="noreferrer">Powered by Poly Haven</a></p>
       </section>}
-      {creating && <form onSubmit={event => void submit(event)}><fieldset disabled={busy}>
+      {creating && localCapabilities.uploads && <form onSubmit={event => void submit(event)}><fieldset disabled={busy}>
         <label>Name<input name="name" required maxLength={120} /></label>
         <label>Beschreibung<textarea name="description" maxLength={500} /></label>
         <label>Gültigkeit<select name="scope" defaultValue={registry.productionId ? 'production' : 'workspace'}>
