@@ -41,7 +41,7 @@ The Compose file is for local development only. Its database binds to loopback a
 
 Until then: `npm run dev:local` (no Docker/Postgres). `npm run build:local` produces the same static assets for any host. Private CapRover installs use normal `npm run build` without the flag.
 
-GitHub Pages deploy: [`.github/workflows/pages-demo.yml`](.github/workflows/pages-demo.yml) on `main` / `feature/demomode`. This repository is **private**; GitHub Pages on private repos needs [GitHub Pro](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits#limits) (or make a public demo-only repo). After enabling Pages → **Source: GitHub Actions**, the workflow publishes automatically. See [ADR 0008](docs/adr/0008-browser-local-adapter.md).
+GitHub Pages deploy: [`.github/workflows/pages-demo.yml`](.github/workflows/pages-demo.yml) on `main` (deploy is `continue-on-error` until Pages is enabled). This repository is **private**; GitHub Pages on private repos needs [GitHub Pro](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits#limits) (or make a public demo-only repo). After enabling Pages → **Source: GitHub Actions**, the workflow publishes automatically. See [ADR 0008](docs/adr/0008-browser-local-adapter.md).
 
 ## Verification
 
