@@ -36,6 +36,8 @@ export function useModalFocus<T extends HTMLElement = HTMLElement>(open: boolean
     initial.focus();
 
     function onKeyDown(event: KeyboardEvent) {
+      // Only the topmost dialog handles keys when a workspace opens a confirmation.
+      if (root?.getAttribute('aria-modal') === 'true' && [...document.querySelectorAll('[aria-modal="true"]')].at(-1) !== root) return;
       if (event.key === 'Escape') {
         event.preventDefault();
         event.stopPropagation();

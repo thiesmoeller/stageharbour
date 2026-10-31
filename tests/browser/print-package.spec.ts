@@ -5,46 +5,49 @@ import { revealEditorCommand } from '../helpers/editorMenus.js';
 async function openDocuments(page: import('@playwright/test').Page) {
   await revealEditorCommand(page, 'PDF gestalten');
   await page.getByRole('button', { name: 'PDF gestalten' }).click();
-  return page.getByRole('region', { name: 'Dokument erstellen' });
+  return page.getByRole('dialog', { name: 'Dokument erstellen' });
 }
 
-test('new users choose a recipient, review named contents, preview, issue, and restore the saved draft', async ({ page }) => {
+test('the studio opens with pages, saves a draft, proves and downloads the exact reviewed document', async ({ page }) => {
+  test.setTimeout(60_000);
   await signInToPlans(page);
   await createProduction(page, { productionName: 'Dokumentfluss', venueName: 'Probensaal', sceneName: 'Probe' });
   await expect(page.locator('.save-status')).toHaveText('Gespeichert');
   const workspace = await openDocuments(page);
-  await expect(page.getByRole('toolbar', { name: 'Objekte hinzufügen' })).toBeHidden();
-  const bounds = await workspace.boundingBox();
-  expect(bounds?.x ?? -1).toBeGreaterThanOrEqual(0);
-  expect((bounds?.x ?? 0) + (bounds?.width ?? 0)).toBeLessThanOrEqual(page.viewportSize()!.width + 1);
-  await expect(workspace.getByRole('button', { name: /Regie \/ Probe/ })).toBeVisible();
-  await expect(workspace.getByRole('button', { name: /Regie \/ Probe/ })).toHaveCSS('color', 'rgb(32, 60, 54)');
-  await expect(workspace.getByRole('button', { name: /Darstellende/ })).toBeVisible();
-  await workspace.getByRole('button', { name: /Aufbau \/ Technik/ }).click();
-  await expect(workspace.getByRole('heading', { name: 'Aufbau / Technik' })).toBeVisible();
-  await expect(workspace).toContainText('Noch keine tatsächlichen Kabelwege geplant');
-  await workspace.getByRole('button', { name: 'Empfänger ändern' }).click();
-  await expect(workspace.getByRole('heading', { name: 'Für wen ist das Dokument?' })).toBeVisible();
-  await expect(workspace.getByRole('button', { name: /Aufbau \/ Technik/ })).toHaveAttribute('aria-pressed', 'true');
-  await workspace.getByRole('button', { name: /Aufbau \/ Technik/ }).click();
-  await workspace.getByRole('button', { name: 'Weiter zum Inhalt' }).click();
-  await expect(workspace.getByRole('checkbox', { name: 'Kabelliste' })).toBeChecked();
+  await expect(workspace.getByTestId('document-sheet')).toBeVisible();
+  await expect(workspace.getByRole('button', { name: /^Aufbau \/ Technik/ })).toHaveAttribute('aria-pressed', 'true');
+  await workspace.getByRole('button', { name: /Hinweise anzeigen/ }).click();
+  await expect(workspace.getByRole('region', { name: 'Dokumenthinweise' })).toContainText('Noch keine tatsächlichen Kabelwege geplant');
+  await workspace.getByRole('button', { name: 'Hinweise schließen' }).click();
   await workspace.getByLabel('Bezeichnung der Fassung').fill('Aufbaufassung');
-  await workspace.getByLabel('Einleitung').fill('Aufbau am Vortag.');
-  await workspace.getByRole('button', { name: 'Entwurf speichern' }).click();
-  await expect(workspace.getByRole('button', { name: 'Entwurf gespeichert' })).toBeVisible();
-  await workspace.getByRole('button', { name: 'Vorschau erstellen' }).click();
+  await workspace.getByText('Einleitung und Kontakt', { exact: true }).click();
+  await workspace.getByLabel('Einleitung', { exact: true }).fill('Aufbau am Vortag.');
+  await workspace.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
+  await expect(workspace.locator('.studio-save-state')).toHaveText('Gespeichert');
+  await workspace.getByRole('button', { name: 'PDF exportieren', exact: true }).click();
   await expect(workspace.getByTitle('PDF-Vorschau')).toBeVisible({ timeout: 30_000 });
   await expect(workspace).toContainText(/Blatt bereit/);
-  await workspace.getByRole('button', { name: 'PDF erstellen' }).click();
-  await expect(workspace.getByRole('button', { name: 'PDF erstellt' })).toBeVisible();
+  const before = await workspace.getByTitle('PDF-Vorschau').getAttribute('src');
+  await workspace.getByLabel('Bezeichnung der Fassung').fill('Aufbaufassung geprüft');
+  await expect(workspace).toContainText('Diese Vorschau ist veraltet');
+  expect(await workspace.getByTitle('PDF-Vorschau').getAttribute('src')).toBe(before);
+  await workspace.getByRole('button', { name: 'Vorschau aktualisieren', exact: true }).click();
+  await expect(workspace.getByRole('button', { name: 'PDF herunterladen', exact: true })).toBeEnabled({ timeout: 30_000 });
+  await page.route('**/documents/*/issue', route => route.fulfill({ status: 409, json: { message: 'Die Vorschau ist abgelaufen. Bitte erneut vorbereiten.' } }), { times: 1 });
+  await workspace.getByRole('button', { name: 'PDF herunterladen', exact: true }).click();
+  await expect(workspace.getByRole('alert')).toContainText('Die Vorschau ist abgelaufen');
+  await expect(workspace).toContainText('Diese Vorschau ist veraltet');
+  await workspace.getByRole('button', { name: 'Vorschau aktualisieren', exact: true }).click();
+  await expect(workspace.getByRole('button', { name: 'PDF herunterladen', exact: true })).toBeEnabled({ timeout: 30_000 });
+  const file = page.waitForEvent('download');
+  await workspace.getByRole('button', { name: 'PDF herunterladen', exact: true }).click();
+  expect((await file).suggestedFilename()).toContain('Aufbaufassung_geprüft');
+  await expect(workspace).toContainText('Diese Fassung wurde herausgegeben.');
   await workspace.getByRole('button', { name: 'Zurück zum Editor' }).click();
-  await expect(page.getByRole('toolbar', { name: 'Objekte hinzufügen' })).toBeVisible();
   const reopened = await openDocuments(page);
-  await expect(reopened.getByRole('heading', { name: 'Aufbau / Technik' })).toBeVisible();
-  await reopened.getByRole('button', { name: '2. Inhalt', exact: true }).click();
-  await expect(reopened.getByLabel('Bezeichnung der Fassung')).toHaveValue('Aufbaufassung');
-  await expect(reopened.getByLabel('Einleitung')).toHaveValue('Aufbau am Vortag.');
+  await expect(reopened.getByLabel('Bezeichnung der Fassung')).toHaveValue('Aufbaufassung geprüft');
+  await reopened.getByText('Einleitung und Kontakt', { exact: true }).click();
+  await expect(reopened.getByLabel('Einleitung', { exact: true })).toHaveValue('Aufbau am Vortag.');
 });
 
 test('an actual tech-stand cable run is editable and clears the technical readiness warning', async ({ page }) => {
@@ -106,58 +109,49 @@ test('an actual tech-stand cable run is editable and clears the technical readin
   await expect(page.locator('.save-status')).toHaveText('Gespeichert');
   await panel.getByRole('button', { name: 'Schließen' }).click();
   const workspace = await openDocuments(page);
-  await workspace.getByRole('button', { name: /Aufbau \/ Technik/ }).click();
   await expect(workspace).not.toContainText('Noch keine tatsächlichen Kabelwege geplant');
-  await workspace.getByRole('button', { name: 'Weiter zum Inhalt' }).click();
-  await workspace.getByRole('button', { name: 'Vorschau erstellen' }).click();
+  await workspace.getByRole('button', { name: 'Druckvorschau', exact: true }).click();
   await expect(workspace.getByTitle('PDF-Vorschau')).toBeVisible({ timeout: 30_000 });
 });
 
-test('performer preset is explicitly a reduced orientation handout', async ({ page }) => {
+test('performer preset builds a reduced handout in the same workspace', async ({ page }) => {
   await signInToPlans(page);
   await createProduction(page, { productionName: 'Orientierung', venueName: 'Saal', sceneName: 'Szene' });
   await expect(page.locator('.save-status')).toHaveText('Gespeichert');
   const workspace = await openDocuments(page);
   await workspace.getByRole('button', { name: /Darstellende/ }).click();
-  await workspace.getByRole('button', { name: 'Weiter zum Inhalt' }).click();
+  await workspace.getByRole('button', { name: 'Inhalt', exact: true }).click();
   await expect(workspace.getByRole('checkbox', { name: 'Orientierungsplan' })).toBeChecked();
   await expect(workspace.getByRole('checkbox', { name: 'Bemaßter Grundriss' })).not.toBeChecked();
   await expect(workspace.getByRole('checkbox', { name: 'Kabelliste' })).not.toBeChecked();
+  await expect(workspace.getByTestId('document-sheet')).toBeVisible();
 });
 
-test('document contents and preview stay inside the editor viewport and scroll to their end', async ({ page }) => {
+test('panels scroll independently and mobile users can reach the sheet, pages and numeric controls', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   await signInToPlans(page);
-  await createProduction(page, { productionName: 'Scrollprobe', venueName: 'Saal', sceneName: 'Szene' });
+  await createProduction(page, { productionName: 'Studio auf kleinen Bildschirmen', venueName: 'Saal', sceneName: 'Szene' });
   await expect(page.locator('.save-status')).toHaveText('Gespeichert');
   const workspace = await openDocuments(page);
-  await workspace.getByRole('button', { name: /Aufbau \/ Technik/ }).click();
-  await workspace.getByRole('button', { name: 'Weiter zum Inhalt' }).click();
+  await expect(workspace.getByTestId('document-sheet')).toBeVisible();
   const geometry = await workspace.evaluate(element => {
     const rect = element.getBoundingClientRect();
-    const style = getComputedStyle(element);
-    return {
-      top: rect.top, bottom: rect.bottom, viewport: innerHeight,
-      clientHeight: element.clientHeight, scrollHeight: element.scrollHeight, overflowY: style.overflowY,
-    };
+    return { top: rect.top, bottom: rect.bottom, viewport: innerHeight, width: rect.width, viewportWidth: innerWidth };
   });
-  expect(geometry.top).toBeGreaterThanOrEqual(0);
-  expect(geometry.bottom).toBeLessThanOrEqual(geometry.viewport);
-  expect(geometry.scrollHeight).toBeGreaterThan(geometry.clientHeight);
-  expect(['auto', 'scroll']).toContain(geometry.overflowY);
-  await workspace.evaluate(element => element.scrollTo({ top: element.scrollHeight }));
-  expect(await workspace.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
-  await workspace.getByRole('button', { name: 'Vorschau erstellen' }).click();
-  await expect(workspace.getByTitle('PDF-Vorschau')).toBeVisible({ timeout: 30_000 });
-  const previewGeometry = await workspace.evaluate(element => {
-    const rect = element.getBoundingClientRect();
-    return {
-      bottom: rect.bottom, viewport: innerHeight,
-      clientHeight: element.clientHeight, scrollHeight: element.scrollHeight,
-    };
-  });
-  expect(previewGeometry.bottom).toBeLessThanOrEqual(previewGeometry.viewport);
-  expect(previewGeometry.scrollHeight).toBeGreaterThan(previewGeometry.clientHeight);
-  await workspace.evaluate(element => element.scrollTo({ top: element.scrollHeight }));
-  expect(await workspace.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
+  expect(geometry.top).toBe(0); expect(geometry.bottom).toBe(geometry.viewport); expect(geometry.width).toBe(geometry.viewportWidth);
+  const panel = workspace.locator('.studio-inspector .studio-panel-scroll');
+  await expect.poll(() => panel.evaluate(element => element.scrollHeight - element.clientHeight)).toBeGreaterThan(0);
+  await expect(workspace.getByRole('button', { name: 'PDF exportieren', exact: true })).toBeInViewport();
+  await page.screenshot({ path: 'test-results/document-studio-laptop.png' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  const navigation = workspace.getByRole('navigation', { name: 'Studiobereich' });
+  await navigation.getByRole('button', { name: 'Eigenschaften' }).click();
+  await expect(workspace.getByLabel('Bezeichnung der Fassung')).toBeVisible();
+  await navigation.getByRole('button', { name: 'Seiten' }).click();
+  await expect(workspace.getByRole('button', { name: /^Seite 1:/ })).toBeVisible();
+  await navigation.getByRole('button', { name: 'Blatt', exact: true }).click();
+  await expect(workspace.getByTestId('document-sheet')).toBeVisible();
+  await expect(workspace.getByRole('button', { name: 'PDF exportieren', exact: true })).toBeInViewport();
+  expect(await workspace.evaluate(element => element.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: 'test-results/document-studio-mobile.png' });
 });

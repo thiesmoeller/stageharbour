@@ -1,5 +1,6 @@
 import { UnsignedByteType, type Camera, type PerspectiveCamera, type Scene } from 'three';
 import { RenderTarget } from 'three/webgpu';
+import type { SavedCamera } from '../../shared/exportDocument.js';
 
 export type StageCaptureOptions = {
   /** Long edge in pixels. Defaults to print-friendly {@link CAPTURE_MAX_EDGE}. */
@@ -12,7 +13,7 @@ export type StageCaptureOptions = {
   preferCanvas?: boolean;
 };
 
-export type StageCaptureHandle = { capturePng: (options?: StageCaptureOptions) => Promise<string> };
+export type StageCaptureHandle = { capturePng: (options?: StageCaptureOptions) => Promise<string>; getCamera?: () => SavedCamera };
 
 /** Long edge in pixels — enough for ~200 dpi on an A4 body. */
 export const CAPTURE_MAX_EDGE = 2400;

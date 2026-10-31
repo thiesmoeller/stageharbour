@@ -7,7 +7,7 @@ import { openingOutlinePoints } from './wall-types.js';
 import {
   DRAWING_SCALE, drawingScaleSchema, paperSizeSchema, type ConstructionSnapshot,
 } from './export.js';
-import { resolveExportLayers, type ExportLayers } from './exportLayers.js';
+import { exportLayersSchema, resolveExportLayers, type ExportLayers } from './exportLayers.js';
 import type { ConstructionPackage } from './package.js';
 
 type PackageStock = ConstructionPackage['stock'];
@@ -128,6 +128,8 @@ export const documentFrameSchema = z.strictObject({
   source: frameSourceSchema.default({ role: 'primary' }),
   camera: savedCameraSchema.optional(),
   label: z.string().trim().max(80).optional(),
+  text: z.string().max(4000).optional(),
+  layers: exportLayersSchema.partial().optional(),
 });
 export type DocumentFrame = z.infer<typeof documentFrameSchema>;
 
@@ -137,6 +139,8 @@ export const documentPageSchema = z.strictObject({
   paper: paperSizeSchema,
   orientation: sheetOrientationSchema,
   frames: z.array(documentFrameSchema).max(40),
+  /** Keep a generated cover/list/tiled sheet live when arranging an automatic report. */
+  automaticKey: z.string().min(1).max(500).optional(),
 });
 export type DocumentPage = z.infer<typeof documentPageSchema>;
 
@@ -266,6 +270,8 @@ export type DrawnSheet = {
   scale: number | null; scaleLabel: string; destination: string; bookmark: string;
   paint: Paint[]; frames: DrawnFrame[]; diagnostics: string[];
   neighbors: { right?: number; below?: number };
+  sourceKey?: string;
+  pageId?: string;
 };
 export type DocumentLayout = {
   schemaVersion: 1;
@@ -280,6 +286,15 @@ export type FrozenScene = {
   sceneId: string; sceneName: string; venueName: string; snapshot: ConstructionSnapshot;
 };
 export type TextMeasure = (text: string, fontSizePt: number, bold?: boolean) => number;
+
+/** Continuations of one generated drawing/list stay together when source content grows. */
+export function automaticSheetFamily(sheet: DrawnSheet): string {
+  const frame = sheet.frames[0];
+  const key = sheet.sourceKey ?? frame?.id ?? '';
+  if (frame?.id.startsWith('plan-') || frame?.id.startsWith('elev-')) return key.replace(/-\d+-\d+$/, '');
+  if (frame && (frame.kind === 'schedule' || frame.kind === 'notes') && frame.id !== 'index') return key.replace(/-\d+$/, '');
+  return key;
+}
 
 export function sheetSizeMm(paper: PaperSize, orientation: SheetOrientation) {
   const size = PAPER_SIZE_MM[paper];
@@ -831,14 +846,27 @@ function chrome(
 ): Paint[] {
   const paint: Paint[] = [];
   const left = SHEET_MARGIN_MM;
-  paint.push({ op: 'text', x: left, y: 8, text: sheet.title, size: 12, color: '#203c36', bold: true, height: 5, width: measure(sheet.title, 12, true) });
-  const subtitle = [sheet.productionName, sheet.sceneName, sheet.venueName].filter(Boolean).join(' · ');
-  paint.push({ op: 'text', x: left, y: 14, text: subtitle, size: 8, color: '#395640', height: 4, width: size.width - 40 });
-  const meta = `Fassung ${sheet.revisionName} · ${sheet.issuedAt} · ${sheet.paper} · Blatt ${sheet.code}`;
-  paint.push({ op: 'text', x: left, y: 19, text: meta, size: 7, color: '#536950', height: 3.5, width: size.width - 40 });
+  const width = size.width - left * 2;
+  const fitted = (text: string, sizePt: number, max: number, bold = false) => {
+    if (measure(text, sizePt, bold) <= max) return text;
+    let result = text;
+    while (result.length && measure(`${result}…`, sizePt, bold) > max) result = result.slice(0, -1);
+    return `${result}…`;
+  };
+  paint.push({ op: 'text', x: left, y: 7, text: fitted(sheet.productionName.toLocaleUpperCase('de-DE'), 7, width, true), size: 7, color: '#788676', bold: true, height: 3, width });
+  paint.push({ op: 'text', x: left, y: 12, text: fitted(sheet.title, 16, width, true), size: 16, color: '#273d34', bold: true, height: 7, width });
+  const subtitle = [sheet.sceneName, sheet.venueName].filter(Boolean).join(' · ');
+  paint.push({ op: 'text', x: left, y: 20, text: fitted(subtitle, 8, width), size: 8, color: '#687762', height: 4, width });
+  const suffix = ` · ${sheet.issuedAt} · ${sheet.paper}`;
+  const revisionWidth = width - 38 - measure(`Fassung ${suffix}`, 6.5);
+  const meta = `Fassung ${fitted(sheet.revisionName, 6.5, revisionWidth)}${suffix}`;
+  paint.push({ op: 'text', x: left, y: 25, text: meta, size: 6.5, color: '#85907c', height: 3, width: width - 35 });
+  paint.push({ op: 'text', x: size.width - left - 30, y: 25, text: `Blatt ${sheet.code}`, size: 6.5, color: '#617558', height: 3, width: 30 });
+  paint.push({ op: 'line', x1: left, y1: 30, x2: size.width - left, y2: 30, stroke: '#cad3c2', line: 0.25 });
   const bar = 1000 / (sheet.scaleLabel.startsWith('1:') ? Number(sheet.scaleLabel.slice(2)) : 50);
   const showBar = sheet.scaleLabel.startsWith('1:');
   const footY = size.height - FOOTER_BAND_MM + 2;
+  paint.push({ op: 'line', x1: left, y1: footY - 3, x2: size.width - left, y2: footY - 3, stroke: '#cad3c2', line: 0.25 });
   const scaleLine = sheet.scaleLabel.startsWith('1:') ? `Maßstab ${sheet.scaleLabel}` : sheet.scaleLabel;
   paint.push({ op: 'text', x: left, y: footY, text: `${scaleLine} · 100 % drucken, nicht an Seite anpassen`, size: 7, color: '#203c36', height: 3.5, width: 140 });
   if (showBar) {
@@ -891,9 +919,11 @@ function tableSheets(
   const size = sheetSizeMm(paper, orientation);
   const lineH = 4.2;
   const cols = headers.length;
-  const colW = body.width / cols;
-  const wrappedRows = rows.map(row => row.map(cell => wrapLines(cell, colW - 1, 8, measure)));
-  const wrappedHeaders = headers.map(header => wrapLines(header, colW - 1, 8, (text, size) => measure(text, size, true)));
+  const weights = title === 'Stückliste' && cols === 3 ? [0.1, 0.4, 0.5] : Array.from({ length: cols }, () => 1 / cols);
+  const widths = weights.map(weight => body.width * weight);
+  const columnX = (column: number) => body.x + widths.slice(0, column).reduce((sum, width) => sum + width, 0);
+  const wrappedRows = rows.map(row => row.map((cell, column) => wrapLines(cell, widths[column]! - 4, 8, measure)));
+  const wrappedHeaders = headers.map((header, column) => wrapLines(header, widths[column]! - 4, 8, (text, size) => measure(text, size, true)));
   const headerHeight = Math.max(...wrappedHeaders.map(lines => lines.length)) * lineH;
   let rowIndex = 0;
   let lineOffset = 0;
@@ -901,9 +931,10 @@ function tableSheets(
   while (rowIndex < rows.length || part === 1) {
     const paint: Paint[] = [];
     let y = body.y;
+    paint.push({ op: 'poly', points: [{ x: body.x, y: y - 2 }, { x: body.x + body.width, y: y - 2 }, { x: body.x + body.width, y: y + headerHeight + 1 }, { x: body.x, y: y + headerHeight + 1 }], fill: '#edf1e7' });
     wrappedHeaders.forEach((lines, column) => {
-      lines.forEach((text, line) => paint.push({ op: 'text', x: body.x + column * colW, y: y + line * lineH,
-        text, size: 8, color: '#203c36', bold: true, height: lineH, width: colW - 1 }));
+      lines.forEach((text, line) => paint.push({ op: 'text', x: columnX(column), y: y + line * lineH,
+        text, size: 8, color: '#203c36', bold: true, height: lineH, width: widths[column]! - 4 }));
     });
     y += headerHeight + 1;
     paint.push({ op: 'line', x1: body.x, y1: y, x2: body.x + body.width, y2: y, stroke: '#c5cbbd', line: 0.4 });
@@ -919,9 +950,10 @@ function tableSheets(
       const count = Math.min(rowLines - lineOffset, available);
       cells.forEach((lines, column) => {
         lines.slice(lineOffset, lineOffset + count).forEach((text, line) => paint.push({ op: 'text',
-          x: body.x + column * colW, y: y + line * lineH, text, size: 8, color: '#203c36', height: lineH, width: colW - 1 }));
+          x: columnX(column), y: y + line * lineH, text, size: 8, color: '#203c36', height: lineH, width: widths[column]! - 4 }));
       });
       y += count * lineH;
+      paint.push({ op: 'line', x1: body.x, y1: y - 0.3, x2: body.x + body.width, y2: y - 0.3, stroke: '#e2e7dc', line: 0.2 });
       lineOffset += count;
       if (lineOffset === rowLines) { rowIndex += 1; lineOffset = 0; }
     }
@@ -1001,13 +1033,17 @@ export function composeDocument(input: {
   });
 
   if (spec.customPages?.length) {
-    composeCustom(spec, ordered, input, layers, measure, sheets, diagnostics);
+    const automatic = spec.customPages.some(page => page.automaticKey)
+      ? composeDocument({ ...input, spec: { ...spec, customPages: undefined } }) : undefined;
+    composeCustom(spec, ordered, input, layers, measure, sheets, diagnostics, automatic);
   } else {
     if (sections?.has('cover') || (!sections && (spec.kind === 'package' || ordered.length > 1 || input.stock))) {
       composeIndex(spec, ordered, input, measure, sheets);
     }
     for (const { entry, scene } of ordered) {
+      const start = sheets.length;
       composeScene(spec, entry.elevationGroupIds, scene, input, layers, measure, sheets, diagnostics);
+      for (const sheet of sheets.slice(start)) sheet.sourceKey = `${scene.sceneId}:${sheet.frames[0]?.id}`;
     }
     if (spec.kind === 'package' && input.stock && (!sections || sections.has('materialSchedule'))) composeStock(input.stock, spec, input, measure, sheets);
     const cameras = spec.viewCameras ?? [];
@@ -1020,10 +1056,12 @@ export function composeDocument(input: {
     }
   }
 
+  for (const sheet of sheets) sheet.sourceKey ??= `${sheet.sceneName ?? 'document'}:${sheet.frames[0]?.id}`;
   const pageCount = sheets.length;
   for (const sheet of sheets) {
-    const label = sheet.paint.find(item => item.op === 'text' && item.text.startsWith('Fassung '));
-    if (label && label.op === 'text') label.text = label.text.replace(/Blatt .*/, `Blatt ${sheet.code} von ${pageCount}`);
+    for (const item of sheet.paint) {
+      if (item.op === 'text' && item.text.startsWith('Blatt ')) item.text = `Blatt ${sheet.code} von ${pageCount}`;
+    }
   }
   linkNeighbors(sheets, measure);
   return { schemaVersion: 1, pageCount, sheets, diagnostics, issuedAt: input.issuedAtLabel, revisionName: spec.revisionName };
@@ -1165,8 +1203,20 @@ function composeIndex(
   const body = bodyRect(spec.paper, orientation);
   const size = sheetSizeMm(spec.paper, orientation);
   const purpose = spec.purpose ? DOCUMENT_PURPOSES[spec.purpose].label : spec.kind === 'package' ? 'Konstruktionspaket' : 'Inhalt';
-  const paint: Paint[] = [{ op: 'text', x: body.x, y: body.y, text: purpose, size: 18, color: '#203c36', bold: true, height: 8, width: body.width }];
-  let y = body.y + 12;
+  const paint: Paint[] = [];
+  let y = body.y + 14;
+  paint.push({ op: 'text', x: body.x, y, text: purpose.toLocaleUpperCase('de-DE'), size: 8, color: '#718264', bold: true, height: 4, width: body.width });
+  y += 9;
+  for (const line of wrapLines(input.productionName, body.width, 26, (text, size) => measure(text, size, true))) {
+    paint.push({ op: 'text', x: body.x, y, text: line, size: 26, color: '#273d34', bold: true, height: 12, width: body.width });
+    y += 12;
+  }
+  const venueNames = [...new Set(ordered.map(item => item.scene.venueName))].join(' · ');
+  for (const line of wrapLines(venueNames, body.width, 11, measure)) {
+    paint.push({ op: 'text', x: body.x, y, text: line, size: 11, color: '#77876a', height: 5, width: body.width });
+    y += 5;
+  }
+  y += 12;
   for (const paragraph of [spec.introduction, spec.contact].filter((value): value is string => !!value)) {
     for (const line of wrapLines(paragraph, body.width, 9, measure)) {
       paint.push({ op: 'text', x: body.x, y, text: line, size: 9, color: '#395640', height: 4.5, width: body.width });
@@ -1174,9 +1224,24 @@ function composeIndex(
     }
     y += 3;
   }
+  paint.push({ op: 'line', x1: body.x, y1: y, x2: body.x + Math.min(75, body.width), y2: y, stroke: '#cad3c2', line: 0.3 });
+  y += 7;
+  paint.push({ op: 'text', x: body.x, y, text: 'BÜHNENBILDER IN DIESEM DOKUMENT', size: 7, color: '#87927d', bold: true, height: 4, width: body.width });
+  y += 7;
   ordered.forEach((item, index) => {
     paint.push({ op: 'text', x: body.x, y: y + index * 6, text: item.scene.sceneName, size: 9, color: '#203c36', height: 4, width: body.width });
   });
+  const coverScene = ordered[0]?.scene;
+  const artTop = Math.max(y + ordered.length * 6 + 14, body.y + body.height * 0.4);
+  if (coverScene && body.y + body.height - artTop > 35) {
+    const art = { x: body.x, y: artTop, width: body.width, height: body.y + body.height - artTop - 8 };
+    const coverLayers = resolveExportLayers({ ...spec.layers, dimensions: false, labels: false, warnings: false, constraints: false, infrastructure: false, cables: false });
+    const extent = contentBounds(coverScene.snapshot, coverLayers, 'venue');
+    const overview = fittedWindow(extent, art, spec.scale);
+    paint.push({ op: 'text', x: art.x, y: art.y - 6, text: 'BLICK AUF DIE BÜHNE', size: 7, color: '#87927d', bold: true, height: 4, width: art.width });
+    paint.push(...planPaint(coverScene.snapshot, coverLayers, art, overview.window, measure, new Map()).paint);
+    paint.push({ op: 'text', x: art.x, y: art.y + art.height + 3, text: 'Orientierung · ohne Maßstab', size: 7, color: '#87927d', height: 4, width: art.width });
+  }
   pushSheet(sheets, {
     title: purpose, paper: spec.paper, orientation, widthMm: size.width, heightMm: size.height,
     scale: null, scaleLabel: '—',
@@ -1215,7 +1280,7 @@ function composeView(
   const frameId = view ? viewFrameId(scene.sceneId, view.id) : viewFrameId(scene.sceneId);
   const title = view ? `Raumsicht · ${view.label}` : 'Raumsicht';
   pushSheet(sheets, {
-    title, sceneName: scene.sceneName, paper: spec.paper, orientation,
+    title, sceneName: scene.sceneName, paper: spec.paper, orientation, sourceKey: `${scene.sceneId}:${frameId}`,
     widthMm: size.width, heightMm: size.height, scale: null, scaleLabel: 'ohne Maßstab',
     paint: chrome(metaFor(input, scene, title, 'ohne Maßstab'), size, measure),
     frames: [{
@@ -1231,18 +1296,72 @@ function composeCustom(
   spec: ExportDocumentSpec,
   ordered: { entry: ExportDocumentSpec['scenes'][number]; scene: FrozenScene }[],
   input: { productionName: string; issuedAtLabel: string; spec: ExportDocumentSpec },
-  layers: ExportLayers, measure: TextMeasure, sheets: DrawnSheet[], diagnostics: string[],
+  layers: ExportLayers, measure: TextMeasure, sheets: DrawnSheet[], diagnostics: string[], automatic?: DocumentLayout,
 ) {
   const primary = ordered[0]!.scene;
   let overviewNeeded = false;
+  const references = new Set(spec.customPages?.map(page => page.automaticKey));
+  const appended = new Set<string>();
   for (const page of spec.customPages ?? []) {
+    if (page.automaticKey) {
+      const source = automatic?.sheets.find(sheet => sheet.sourceKey === page.automaticKey);
+      if (!source) {
+        throw new Error(`Das automatische Blatt „${page.name}“ ist nicht mehr verfügbar. Bitte den Seitenaufbau aktualisieren.`);
+      }
+      // Generated schedules remain measured and complete. Page ordering never freezes
+      // their paint or substitutes a different scene when the underlying design changes.
+      pushSheet(sheets, {
+        ...source, title: page.name, pageId: page.id, neighbors: {},
+        paint: source.paint.map(item => item.op === 'text' && item.text === source.title ? { ...item, text: page.name } : { ...item }),
+        frames: source.frames.map(frame => ({ ...frame, paint: frame.paint.filter(item => item.op !== 'link') })),
+        bookmarkTitle: page.name,
+      });
+      const family = automaticSheetFamily(source);
+      const laterPages = spec.customPages!.slice(spec.customPages!.indexOf(page) + 1);
+      const laterReference = laterPages.some(later => {
+        const target = automatic?.sheets.find(sheet => sheet.sourceKey === later.automaticKey);
+        return target && automaticSheetFamily(target) === family;
+      });
+      if (!laterReference) for (const extra of automatic?.sheets ?? []) {
+        if (automaticSheetFamily(extra) !== family || references.has(extra.sourceKey) || appended.has(extra.sourceKey!)) continue;
+        appended.add(extra.sourceKey!);
+        pushSheet(sheets, { ...extra, neighbors: {}, frames: extra.frames.map(frame => ({ ...frame, paint: frame.paint.filter(item => item.op !== 'link') })), bookmarkTitle: extra.title });
+      }
+      continue;
+    }
     const size = sheetSizeMm(page.paper, page.orientation);
+    const pageInput = { ...input, spec: { ...input.spec, paper: page.paper } };
     const frames: DrawnFrame[] = [];
     const pageDiagnostics: string[] = [];
     const scales = new Set<number>();
     let perspective = false;
+    const continuations: Parameters<typeof pushSheet>[1][] = [];
+    function appendText(frame: DocumentFrame, lines: string[], lineHeight: number, color: string, scene: FrozenScene) {
+      const clip = { x: frame.x, y: frame.y, width: frame.width, height: frame.height };
+      const capacity = Math.max(1, Math.floor(clip.height / lineHeight));
+      for (let offset = 0; offset < Math.max(1, lines.length); offset += capacity) {
+        const drawn: DrawnFrame = {
+          id: offset ? `${frame.id}-continuation-${offset}` : frame.id,
+          kind: frame.kind, clip, scale: null, scaleLabel: '—', sourceLabel: scene.sceneName, detail: false,
+          paint: lines.slice(offset, offset + capacity).map((text, index) => ({
+            op: 'text', x: clip.x, y: clip.y + index * lineHeight, text, size: 8, color,
+            height: lineHeight, width: clip.width,
+          })),
+        };
+        if (!offset) frames.push(drawn);
+        else continuations.push({
+          title: `${frame.label || page.name} (Fortsetzung)`, sceneName: scene.sceneName,
+          paper: page.paper, orientation: page.orientation, widthMm: size.width, heightMm: size.height,
+          scale: null, scaleLabel: '—',
+          paint: chrome(metaFor(pageInput, scene, `${frame.label || page.name} (Fortsetzung)`, '—'), size, measure),
+          frames: [drawn], diagnostics: [], neighbors: {}, bookmarkTitle: `${page.name} (Fortsetzung)`,
+        });
+      }
+    }
     for (const frame of page.frames) {
-      const scene = ordered.find(item => item.scene.sceneId === (frame.source.sceneId ?? item.entry.sceneId))?.scene ?? primary;
+      const scene = frame.source.sceneId ? ordered.find(item => item.scene.sceneId === frame.source.sceneId)?.scene : primary;
+      if (!scene) throw new Error('Das Bühnenbild eines Rahmens ist nicht mehr im Dokument enthalten.');
+      const frameLayers = resolveExportLayers({ ...layers, ...frame.layers });
       const clip = { x: frame.x, y: frame.y, width: frame.width, height: frame.height };
       if (frame.kind === 'view3d') {
         perspective = true;
@@ -1253,14 +1372,13 @@ function composeCustom(
         continue;
       }
       if (frame.kind === 'notes') {
-        const notes = collectNotes(scene.snapshot, layers);
+        const notes = frame.text != null ? frame.text.split('\n') : collectNotes(scene.snapshot, frameLayers);
         const lines = notes.flatMap(note => wrapLines(note, clip.width, 8, measure));
-        frames.push({
-          id: frame.id, kind: 'notes', clip, scale: null, scaleLabel: '—', sourceLabel: 'Hinweise', detail: false,
-          paint: lines.slice(0, Math.floor(clip.height / 4)).map((line, index) => ({
-            op: 'text' as const, x: clip.x, y: clip.y + index * 4, text: line, size: 8, color: '#6a4e16', height: 4, width: clip.width,
-          })),
-        });
+        if (lines.length > Math.floor(clip.height / 4)) {
+          const message = 'Der Text passt nicht vollständig in den Rahmen. Folgeblätter wurden ergänzt.';
+          pageDiagnostics.push(message); diagnostics.push(message);
+        }
+        appendText(frame, lines, 4, '#52644a', scene);
         continue;
       }
       if (frame.kind === 'schedule') {
@@ -1268,16 +1386,11 @@ function composeCustom(
         const lines = rows.flatMap(row => wrapLines(`${row.key}  ${row.label}  ${row.detail}`, clip.width, 8, measure));
         const capacity = Math.floor(clip.height / 4.2);
         if (lines.length > capacity) {
-          const message = 'Die Stückliste passt nicht vollständig in den Rahmen. Bitte den Rahmen vergrößern.';
+          const message = 'Die Stückliste passt nicht vollständig in den Rahmen. Folgeblätter wurden ergänzt.';
           pageDiagnostics.push(message);
           diagnostics.push(message);
         }
-        frames.push({
-          id: frame.id, kind: 'schedule', clip, scale: null, scaleLabel: '—', sourceLabel: scene.sceneName, detail: false,
-          paint: lines.slice(0, capacity).map((text, index) => ({
-            op: 'text' as const, x: clip.x, y: clip.y + index * 4.2, text, size: 8, color: '#203c36', height: 4.2, width: clip.width,
-          })),
-        });
+        appendText(frame, lines, 4.2, '#203c36', scene);
         continue;
       }
       const scale = frame.scale ?? spec.scale;
@@ -1285,7 +1398,7 @@ function composeCustom(
       const snapshot = scene.snapshot;
       const bounds = frame.kind === 'elevation'
         ? elevationBounds(snapshot, frame)
-        : (frame.crop ?? contentBounds(snapshot, layers));
+        : (frame.crop ? orderedCrop(frame.crop) : contentBounds(snapshot, frameLayers, spec.planScope));
       if (frame.crop) overviewNeeded = true;
       const tiles = tilesFor(bounds, clip, scale);
       const tile = tiles[0]!;
@@ -1296,7 +1409,7 @@ function composeCustom(
       }
       const drawn = frame.kind === 'elevation'
         ? elevationFrame(snapshot, frame, clip, tile.window, measure)
-        : planPaint(snapshot, layers, clip, tile.window, measure, keysFor(snapshot).map);
+        : planPaint(snapshot, frameLayers, clip, tile.window, measure, keysFor(snapshot).map);
       frames.push({
         id: frame.id, kind: frame.kind, clip, scale, scaleLabel: scaleLabel(scale), sourceLabel: frame.label ?? scene.sceneName,
         window: tile.window, detail: Boolean(frame.crop), paint: drawn.paint,
@@ -1304,13 +1417,13 @@ function composeCustom(
       for (const extra of tiles.slice(1)) {
         const extraDrawn = frame.kind === 'elevation'
           ? elevationFrame(snapshot, frame, clip, extra.window, measure)
-          : planPaint(snapshot, layers, bodyRect(page.paper, page.orientation), extra.window, measure, keysFor(snapshot).map);
-        const extraBody = bodyRect(page.paper, page.orientation);
-        pushSheet(sheets, {
+          : planPaint(snapshot, frameLayers, clip, extra.window, measure, keysFor(snapshot).map);
+        const extraBody = clip;
+        continuations.push({
           title: frame.kind === 'elevation' ? 'Frontansicht' : 'Grundriss', sceneName: scene.sceneName,
           paper: page.paper, orientation: page.orientation, widthMm: size.width, heightMm: size.height,
           scale, scaleLabel: scaleLabel(scale),
-          paint: chrome(metaFor(input, scene, 'Folgeblatt', scaleLabel(scale)), size, measure),
+          paint: chrome(metaFor(pageInput, scene, 'Folgeblatt', scaleLabel(scale)), size, measure),
           frames: [{
             id: `${frame.id}-tile-${extra.row}-${extra.column}`, kind: frame.kind, clip: extraBody, scale,
             scaleLabel: scaleLabel(scale), sourceLabel: scene.sceneName, window: extra.window, detail: false, paint: extraDrawn.paint,
@@ -1323,9 +1436,10 @@ function composeCustom(
     pushSheet(sheets, {
       title: page.name, sceneName: primary.sceneName, paper: page.paper, orientation: page.orientation,
       widthMm: size.width, heightMm: size.height, scale: shared, scaleLabel: scaleLabel(shared, perspective && scales.size === 0),
-      paint: chrome(metaFor(input, primary, page.name, scaleLabel(shared, perspective && scales.size === 0)), size, measure),
-      frames, diagnostics: pageDiagnostics, neighbors: {}, bookmarkTitle: page.name,
+      paint: chrome(metaFor(pageInput, primary, page.name, scaleLabel(shared, perspective && scales.size === 0)), size, measure),
+      frames, diagnostics: pageDiagnostics, neighbors: {}, bookmarkTitle: page.name, pageId: page.id,
     });
+    for (const continuation of continuations) pushSheet(sheets, continuation);
   }
   if (overviewNeeded) {
     const scene = primary;
@@ -1355,15 +1469,21 @@ function composeCustom(
   }
 }
 
+function frameElevationFaces(snapshot: ConstructionSnapshot, frame: DocumentFrame) {
+  const index = frame.source.groupIndex ?? 0;
+  const groupId = frame.source.groupId ?? snapshot.elevationGroupIds[index] ?? snapshot.layout.groups?.[index]?.id ?? snapshot.layout.groups?.[0]?.id;
+  return elevationFaces({ ...snapshot, elevationGroupIds: groupId ? [groupId] : [] });
+}
+
 function elevationBounds(snapshot: ConstructionSnapshot, frame: DocumentFrame): Box {
-  const faces = elevationFaces({ ...snapshot, elevationGroupIds: frame.source.groupId ? [frame.source.groupId] : snapshot.elevationGroupIds });
+  const faces = frameElevationFaces(snapshot, frame);
   const face = faces.find(item => frame.source.facingDegrees == null || item.facingDegrees === frame.source.facingDegrees) ?? faces[0];
   if (!face) return { minX: 0, minY: 0, maxX: 1, maxY: 1 };
   return { minX: 0, minY: 0, maxX: Math.max(face.width, 1), maxY: Math.max(face.height, 1) };
 }
 
 function elevationFrame(snapshot: ConstructionSnapshot, frame: DocumentFrame, clip: Rect, view: Box, measure: TextMeasure) {
-  const faces = elevationFaces({ ...snapshot, elevationGroupIds: frame.source.groupId ? [frame.source.groupId] : snapshot.elevationGroupIds });
+  const faces = frameElevationFaces(snapshot, frame);
   const face = faces.find(item => frame.source.facingDegrees == null || item.facingDegrees === frame.source.facingDegrees) ?? faces[0];
   if (!face) return { paint: [] as Paint[], overflow: [] as string[] };
   return elevationPaint(face, clip, view, measure);
@@ -1383,15 +1503,15 @@ function linkNeighbors(sheets: DrawnSheet[], measure: TextMeasure) {
       x += width + 3;
     }
   }
-  const index = sheets.find(sheet => sheet.frames.some(frame => frame.id === 'index'));
-  if (!index) return;
-  const frame = index.frames[0]!;
-  sheets.forEach((sheet, offset) => {
-    if (sheet.index === index.index) return;
-    const y = frame.clip.y + 8 + offset * 5;
-    if (y > frame.clip.y + frame.clip.height) return;
-    frame.paint.push({ op: 'link', x: frame.clip.x, y, width: frame.clip.width, height: 4.5, sheet: sheet.index });
-  });
+  for (const index of sheets.filter(sheet => sheet.frames.some(frame => frame.id === 'index'))) {
+    const frame = index.frames[0]!;
+    frame.paint = frame.paint.filter(item => item.op !== 'link');
+    for (const item of [...frame.paint]) {
+      if (item.op !== 'text') continue;
+      const target = sheets.find(sheet => sheet.index !== index.index && sheet.sceneName === item.text && sheet.frames.some(frame => frame.kind === 'plan'));
+      if (target) frame.paint.push({ op: 'link', x: item.x, y: item.y, width: item.width ?? frame.clip.width, height: item.height, sheet: target.index });
+    }
+  }
 }
 
 export function layoutManifest(layout: DocumentLayout) {
@@ -1405,7 +1525,7 @@ export function layoutManifest(layout: DocumentLayout) {
       index: sheet.index, code: sheet.code, title: sheet.title, sceneName: sheet.sceneName ?? null,
       paper: sheet.paper, orientation: sheet.orientation, widthMm: sheet.widthMm, heightMm: sheet.heightMm,
       scale: sheet.scale, scaleLabel: sheet.scaleLabel, bookmark: sheet.bookmark,
-      diagnostics: sheet.diagnostics,
+      diagnostics: sheet.diagnostics, sourceKey: sheet.sourceKey ?? null, pageId: sheet.pageId ?? null,
       frames: sheet.frames.map(frame => ({
         id: frame.id, kind: frame.kind, x: frame.clip.x, y: frame.clip.y, width: frame.clip.width, height: frame.clip.height,
         scale: frame.scale, scaleLabel: frame.scaleLabel, sourceLabel: frame.sourceLabel, detail: frame.detail,

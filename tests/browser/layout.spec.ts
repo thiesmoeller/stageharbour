@@ -673,11 +673,9 @@ test('create a wall type with a rectangular opening, place it, and export the pl
 
   await revealEditorCommand(page, 'PDF gestalten');
   await page.getByRole('button', { name: 'PDF gestalten' }).click();
-  const workspace = page.getByRole('region', { name: 'Dokument erstellen' });
-  await workspace.getByRole('button', { name: /Aufbau \/ Technik/ }).click();
-  await workspace.getByRole('button', { name: 'Weiter zum Inhalt' }).click();
+  const workspace = page.getByRole('dialog', { name: 'Dokument erstellen' });
   await workspace.getByLabel('Bezeichnung der Fassung').fill('Türfassung');
-  await expect(workspace.getByRole('button', { name: 'Vorschau erstellen' })).toBeEnabled();
+  await expect(workspace.getByRole('button', { name: 'PDF exportieren', exact: true })).toBeEnabled();
   expect(errors).toEqual([]);
 });
 

@@ -8,7 +8,7 @@ import { createPortal } from 'react-dom';
 import { OrbitControls } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
 import { Viewer, useViewer } from '@pascal-app/viewer';
-import { Vector2, MOUSE, type Object3D } from 'three';
+import { Vector2, Vector3, MOUSE, type Object3D } from 'three';
 import type { StageModel } from '../../shared/transforms.js';
 import type { Layout, VenueGeometry } from '../../shared/layout.js';
 import type { Asset } from '../../shared/assets.js';
@@ -162,13 +162,20 @@ function EditOrbitBinding({ allowOrbit }: { allowOrbit: boolean }) {
   return null;
 }
 
-function PascalCaptureBridge({ onCaptureReady }: { onCaptureReady?: (handle: StageCaptureHandle | null) => void }) {
+function PascalCaptureBridge({ onCaptureReady, mirrorWidth }: { onCaptureReady?: (handle: StageCaptureHandle | null) => void; mirrorWidth: number }) {
   const gl = useThree(state => state.gl);
   const scene = useThree(state => state.scene);
   const camera = useThree(state => state.camera);
+  const controls = useThree(state => state.controls);
   useEffect(() => {
     if (!onCaptureReady) return;
     const handle: StageCaptureHandle = {
+      getCamera() {
+        const target = controls && 'target' in controls && controls.target instanceof Vector3
+          ? controls.target : camera.position.clone().add(camera.getWorldDirection(new Vector3()));
+        const toModel = (point: Vector3) => ({ x: mirrorWidth - point.x * 1000, y: point.y * 1000, z: point.z * 1000 });
+        return { projection: camera.type === 'OrthographicCamera' ? 'orthographic' : 'perspective', position: toModel(camera.position), target: toModel(target) };
+      },
       async capturePng(options) {
         await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
         return captureViewportPng(gl as never, scene, camera, options);
@@ -176,7 +183,7 @@ function PascalCaptureBridge({ onCaptureReady }: { onCaptureReady?: (handle: Sta
     };
     onCaptureReady(handle);
     return () => onCaptureReady(null);
-  }, [camera, gl, onCaptureReady, scene]);
+  }, [camera, controls, gl, onCaptureReady, scene, mirrorWidth]);
   return null;
 }
 
@@ -264,7 +271,7 @@ export default function PascalStageCanvas({ model, layout, venue, audience, view
       data-focus-aim={focusAimMode || undefined}>
       <Viewer defaultRender={{ shading: 'rendered' }} selectionManager="custom" useBvh={false} renderContext="viewer"
         disablePostFx={aimOnly || !detailed}>
-        {onCaptureReady && <PascalCaptureBridge onCaptureReady={onCaptureReady} />}
+        {onCaptureReady && <PascalCaptureBridge onCaptureReady={onCaptureReady} mirrorWidth={mirrorWidth} />}
         {!aimOnly && <ClearSelectionOnMiss onClear={editing.onClearSelection} onFixtureClear={() => onFixtureSelect?.(null)} focusAimMode={focusAimMode} />}
         {!aimOnly && <FocusAimOnSurface enabled={!!focusAimMode} mirrorWidth={mirrorWidth} selectedFixtureId={selectedFixtureId}
           hangPlan={hangPlan} trusses={venue.trusses} onHangPlanChange={onHangPlanChange} />}
