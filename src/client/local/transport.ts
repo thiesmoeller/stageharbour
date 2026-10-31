@@ -1,10 +1,15 @@
 import { ApiError, type ApiTransport } from '../api.js';
 import { documentDraftSchema } from '../../shared/exportDocument.js';
 import {
+  captureTemplateSchema,
+  copySceneSchema,
   createSceneSchema,
+  duplicateSceneSchema,
+  instantiateTemplateSchema,
   layoutSchema,
   renameProductionSchema,
   renameSceneSchema,
+  renameSceneTemplateSchema,
   saveLayoutSchema,
   saveVenueSchema,
   venueGeometrySchema,
@@ -12,7 +17,7 @@ import {
   type Layout,
   type Scene,
 } from '../../shared/layout.js';
-import { ballastStockSchema } from '../../shared/ballast.js';
+import { ballastStockSchema, materialRequirements } from '../../shared/ballast.js';
 import {
   createPanelSchema,
   sameGeometry,
@@ -22,11 +27,17 @@ import {
   type InventoryPanel,
 } from '../../shared/inventory.js';
 import { saveReportTemplatesSchema, stripLayoutReportTemplates } from '../../shared/reportTemplate.js';
-import { applyVenueVersion, captureTemplateLayout } from '../../shared/scenes.js';
+import {
+  applyVenueVersion,
+  captureTemplateLayout,
+  copiedSceneName,
+  copyLayoutIntoVenue,
+  duplicateLayout,
+} from '../../shared/scenes.js';
 import { overheadClearance } from '../../shared/overhead.js';
 import { keepClearWarnings } from '../../shared/keepClear.js';
 import { resolveWall, wallTypeSchema, type WallElementType } from '../../shared/wall-types.js';
-import { createVenueSchema, renameVenueSchema, venuePlanPreview } from '../../shared/venueLibrary.js';
+import { createVenueSchema, publishVenueSchema, renameVenueSchema, venuePlanPreview } from '../../shared/venueLibrary.js';
 import { boundsFromOutline } from '../../shared/venue.js';
 import { z } from 'zod';
 import type { LocalScene, LocalSnapshot, LocalVenueVersion } from './snapshot.js';
@@ -300,6 +311,84 @@ export function createLocalTransport(store: LocalStore): ApiTransport {
       });
       return toSceneRecord(store.getSnapshot(), findScene(store.getSnapshot(), params.sceneId!));
     }
+    if (params && method === 'DELETE') {
+      const snapshot = store.getSnapshot();
+      requireWorkspace(snapshot, params.workspaceId!);
+      findScene(snapshot, params.sceneId!);
+      await store.mutate(draft => {
+        draft.scenes = draft.scenes.filter(item => item.id !== params!.sceneId);
+      });
+      return { ok: true as const };
+    }
+
+    params = match(path, '/api/workspaces/:workspaceId/scenes/:sceneId/duplicate');
+    if (params && method === 'POST') {
+      const snapshot = store.getSnapshot();
+      requireWorkspace(snapshot, params.workspaceId!);
+      findScene(snapshot, params.sceneId!);
+      const input = duplicateSceneSchema.parse(body ?? {});
+      const copyId = nextId();
+      await store.mutate(draft => {
+        const source = findScene(draft, params!.sceneId!);
+        draft.scenes.push({
+          id: copyId,
+          name: input.sceneName ?? copiedSceneName(source.name),
+          productionId: source.productionId,
+          venueVersionId: source.venueVersionId,
+          revision: 0,
+          lease: null,
+          layout: duplicateLayout(source.layout, nextId),
+        });
+      });
+      return toSceneRecord(store.getSnapshot(), findScene(store.getSnapshot(), copyId));
+    }
+
+    params = match(path, '/api/workspaces/:workspaceId/scenes/:sceneId/copy');
+    if (params && method === 'POST') {
+      const snapshot = store.getSnapshot();
+      requireWorkspace(snapshot, params.workspaceId!);
+      findScene(snapshot, params.sceneId!);
+      const input = copySceneSchema.parse(body);
+      findProduction(snapshot, input.productionId);
+      const destVersion = findVenueVersion(snapshot, input.venueVersionId);
+      const copyId = nextId();
+      await store.mutate(draft => {
+        const source = findScene(draft, params!.sceneId!);
+        draft.scenes.push({
+          id: copyId,
+          name: input.sceneName ?? copiedSceneName(source.name),
+          productionId: input.productionId,
+          venueVersionId: destVersion.id,
+          revision: 0,
+          lease: null,
+          layout: copyLayoutIntoVenue(
+            source.layout,
+            venueGeometrySchema.parse(destVersion.geometry),
+            input.surfaceMap ?? {},
+            nextId,
+          ).layout,
+        });
+      });
+      return toSceneRecord(store.getSnapshot(), findScene(store.getSnapshot(), copyId));
+    }
+
+    params = match(path, '/api/workspaces/:workspaceId/scenes/:sceneId/templates');
+    if (params && method === 'POST') {
+      const snapshot = store.getSnapshot();
+      requireWorkspace(snapshot, params.workspaceId!);
+      const existing = findScene(snapshot, params.sceneId!);
+      const input = captureTemplateSchema.parse(body);
+      const version = findVenueVersion(snapshot, existing.venueVersionId);
+      const geometry = venueGeometrySchema.parse(version.geometry);
+      const id = nextId();
+      const layout = captureTemplateLayout(existing.layout);
+      const sourceSurfaces = (geometry.platforms ?? []).map(platform => ({ id: platform.id, label: platform.label }));
+      const record = { id, name: input.name, layout, sourceSurfaces };
+      await store.mutate(draft => {
+        draft.sceneTemplates.push(record);
+      });
+      return record;
+    }
 
     params = match(path, '/api/workspaces/:workspaceId/scenes/:sceneId/layout');
     if (params && method === 'PUT') {
@@ -485,6 +574,71 @@ export function createLocalTransport(store: LocalStore): ApiTransport {
       return snapshot.sceneTemplates.map(({ id, name }) => ({ id, name }));
     }
 
+    params = match(path, '/api/workspaces/:workspaceId/scene-templates/:templateId');
+    if (params && method === 'GET') {
+      const snapshot = store.getSnapshot();
+      requireWorkspace(snapshot, params.workspaceId!);
+      const record = snapshot.sceneTemplates.find(item => item.id === params!.templateId);
+      if (!record) fail(404, 'Bühnenbildvorlage nicht verfügbar.');
+      return record;
+    }
+    if (params && method === 'PATCH') {
+      const snapshot = store.getSnapshot();
+      requireWorkspace(snapshot, params.workspaceId!);
+      const { name } = renameSceneTemplateSchema.parse(body);
+      if (!snapshot.sceneTemplates.some(item => item.id === params!.templateId)) {
+        fail(404, 'Bühnenbildvorlage nicht verfügbar.');
+      }
+      await store.mutate(draft => {
+        const row = draft.sceneTemplates.find(item => item.id === params!.templateId);
+        if (!row) fail(404, 'Bühnenbildvorlage nicht verfügbar.');
+        row.name = name;
+      });
+      return { id: params.templateId, name };
+    }
+    if (params && method === 'DELETE') {
+      const snapshot = store.getSnapshot();
+      requireWorkspace(snapshot, params.workspaceId!);
+      if (!snapshot.sceneTemplates.some(item => item.id === params!.templateId)) {
+        fail(404, 'Bühnenbildvorlage nicht verfügbar.');
+      }
+      await store.mutate(draft => {
+        draft.sceneTemplates = draft.sceneTemplates.filter(item => item.id !== params!.templateId);
+      });
+      return { ok: true as const };
+    }
+
+    params = match(path, '/api/workspaces/:workspaceId/scene-templates/:templateId/instantiate');
+    if (params && method === 'POST') {
+      const snapshot = store.getSnapshot();
+      requireWorkspace(snapshot, params.workspaceId!);
+      const template = snapshot.sceneTemplates.find(item => item.id === params!.templateId);
+      if (!template) fail(404, 'Bühnenbildvorlage nicht verfügbar.');
+      const input = instantiateTemplateSchema.parse(body);
+      findProduction(snapshot, input.productionId);
+      const destVersion = findVenueVersion(snapshot, input.venueVersionId);
+      const copyId = nextId();
+      await store.mutate(draft => {
+        const source = draft.sceneTemplates.find(item => item.id === params!.templateId);
+        if (!source) fail(404, 'Bühnenbildvorlage nicht verfügbar.');
+        draft.scenes.push({
+          id: copyId,
+          name: input.sceneName ?? source.name,
+          productionId: input.productionId,
+          venueVersionId: destVersion.id,
+          revision: 0,
+          lease: null,
+          layout: copyLayoutIntoVenue(
+            source.layout,
+            venueGeometrySchema.parse(destVersion.geometry),
+            input.surfaceMap ?? {},
+            nextId,
+          ).layout,
+        });
+      });
+      return toSceneRecord(store.getSnapshot(), findScene(store.getSnapshot(), copyId));
+    }
+
     params = match(path, '/api/workspaces/:workspaceId/venues');
     if (params && method === 'GET') {
       const snapshot = store.getSnapshot();
@@ -536,6 +690,61 @@ export function createLocalTransport(store: LocalStore): ApiTransport {
         findVenue(draft, params!.venueId!).name = name;
       });
       return toVenueRecord(store.getSnapshot(), params.venueId!);
+    }
+    if (params && method === 'PUT') {
+      const snapshot = store.getSnapshot();
+      requireWorkspace(snapshot, params.workspaceId!);
+      findVenue(snapshot, params.venueId!);
+      const input = publishVenueSchema.parse(body);
+      const latest = latestVenueVersion(snapshot, params.venueId!);
+      if (latest.id !== input.venueVersionId) {
+        fail(409, 'Eine neuere Spielstättenfassung ist vorhanden. Bitte sichern Sie Ihren Entwurf und laden Sie die Spielstätte neu.');
+      }
+      const geometry = input.venue.outline
+        ? { ...input.venue, ...boundsFromOutline(input.venue.outline) }
+        : input.venue;
+      await store.mutate(draft => {
+        draft.venueVersions.push({
+          id: nextId(),
+          venueId: params!.venueId!,
+          createdAt: new Date().toISOString(),
+          geometry,
+        });
+      });
+      return toVenueRecord(store.getSnapshot(), params.venueId!);
+    }
+    if (params && method === 'DELETE') {
+      const snapshot = store.getSnapshot();
+      requireWorkspace(snapshot, params.workspaceId!);
+      findVenue(snapshot, params.venueId!);
+      const versionIds = new Set(
+        snapshot.venueVersions.filter(row => row.venueId === params!.venueId).map(row => row.id),
+      );
+      if (snapshot.scenes.some(scene => versionIds.has(scene.venueVersionId))) {
+        fail(409, 'Diese Spielstätte wird noch von Produktionen verwendet. Löschen Sie zuerst die zugehörigen Bühnenbilder.');
+      }
+      await store.mutate(draft => {
+        draft.venueVersions = draft.venueVersions.filter(row => row.venueId !== params!.venueId);
+        draft.venues = draft.venues.filter(row => row.id !== params!.venueId);
+      });
+      return { ok: true as const };
+    }
+
+    params = match(path, '/api/workspaces/:workspaceId/productions/:productionId/venues/:venueId/requirements');
+    if (params && method === 'GET') {
+      const snapshot = store.getSnapshot();
+      requireWorkspace(snapshot, params.workspaceId!);
+      findProduction(snapshot, params.productionId!);
+      findVenue(snapshot, params.venueId!);
+      const layouts = snapshot.scenes
+        .filter(scene => {
+          if (scene.productionId !== params!.productionId) return false;
+          const version = snapshot.venueVersions.find(row => row.id === scene.venueVersionId);
+          return version?.venueId === params!.venueId;
+        })
+        .map(scene => scene.layout);
+      if (!layouts.length) fail(404, 'Produktion an dieser Spielstätte nicht verfügbar.');
+      return materialRequirements(layouts, snapshot.inventory.ballast);
     }
 
     params = match(path, '/api/workspaces/:workspaceId/venues/:venueId/versions/:venueVersionId');
