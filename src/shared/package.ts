@@ -1,6 +1,6 @@
 import { ballastSchema, materialRequirementsSchema, materialRequirements, sceneMaterials, materialCountsSchema, EMPTY_BALLAST_STOCK, type BallastStock } from './ballast.js';
 import { z } from 'zod';
-import { freezeExportSchema, freezeSnapshot, constructionSnapshotSchema, DRAWING_SCALE, type ConstructionSnapshot } from './export.js';
+import { freezeExportSchema, freezeSnapshot, constructionSnapshotSchema, DRAWING_SCALE, paperSizeSchema, type ConstructionSnapshot } from './export.js';
 import type { ExportLayers } from './exportLayers.js';
 import { inventoryPanelSchema, inventoryWarnings, type InventoryPanel } from './inventory.js';
 import { keepClearWarningSchema } from './keepClear.js';
@@ -63,7 +63,7 @@ export const packageStockSchema = z.strictObject({
 export const constructionPackageSchema = z.strictObject({
   kind: z.literal('package'),
   schemaVersion: z.literal(1),
-  paper: z.enum(['A4', 'A3']).default('A4'),
+  paper: paperSizeSchema.default('A4'),
   scale: z.union([z.literal(25), z.literal(50), z.literal(100)]),
   revisionId: z.uuid(), revisionName: name, issuedAt: z.string(),
   productionId: z.uuid(), productionName: name,

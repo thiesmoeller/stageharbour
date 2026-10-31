@@ -1,4 +1,4 @@
-FROM node:24-bookworm-slim AS build
+FROM node:24.22.2-bookworm-slim AS build
 WORKDIR /app
 ARG APP_VERSION=dev
 ENV APP_VERSION=$APP_VERSION
@@ -7,9 +7,10 @@ COPY scripts ./scripts
 RUN npm ci
 COPY tsconfig*.json vite.config.ts index.html ./
 COPY src ./src
+COPY assets ./assets
 RUN npm run build
 
-FROM node:24-bookworm-slim AS runtime
+FROM node:24.22.2-bookworm-slim AS runtime
 WORKDIR /app
 ARG APP_VERSION=dev
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=3000 STORAGE_DIR=/data/storage APP_VERSION=$APP_VERSION
