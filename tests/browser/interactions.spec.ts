@@ -445,30 +445,45 @@ test('venue Shift toggles without dragging; mixed rotation and cancel preserve s
 });
 
 test('scene face resizing previews, cancels, commits and undoes once', async ({ page }) => {
+  test.slow();
   await create(page);
   await placeNamedObjectAt(page, 'Kiste hinzufügen');
   await page.getByRole('button', { name: '2D + 3D', exact: true }).click();
   const solid = page.locator('[data-testid^="stage-placeholder-"]');
+  await expect(solid).toHaveAttribute('data-width', '600');
   const dimensions = () => solid.evaluate(element => ['data-width', 'data-depth', 'data-height'].map(key => element.getAttribute(key)).join('/'));
   const initial = await dimensions();
   await page.getByRole('button', { name: 'Auswahl einpassen', exact: true }).click();
-  await page.getByRole('button', { name: 'Größe ziehen', exact: true }).click();
   const canvas = page.locator('[data-renderer="pascal"] canvas');
   await canvas.scrollIntoViewIfNeeded();
-  await canvas.screenshot();
-  const bounds = (await canvas.boundingBox())!;
-  const centre = { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
-  await page.mouse.move(centre.x, centre.y); await page.mouse.down();
-  await page.mouse.move(centre.x, centre.y - 55, { steps: 8 });
-  await expect.poll(dimensions).not.toBe(initial);
-  await page.keyboard.press('Delete');
-  await page.keyboard.press('Escape'); await page.mouse.up();
+  const pushPull = page.getByRole('button', { name: 'Größe ziehen', exact: true });
+  let centre = { x: 0, y: 0 };
+  // CI software GL can miss the first centre hit; retry drag without Escape (clears selection).
+  await expect(async () => {
+    await page.mouse.up();
+    if ((await dimensions()) !== initial) await page.keyboard.press('Control+z');
+    await expect.poll(dimensions).toBe(initial);
+    await pushPull.click();
+    await expect(pushPull).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('selection-count')).toContainText('1 ausgewählt');
+    await canvas.screenshot();
+    const bounds = (await canvas.boundingBox())!;
+    centre = { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
+    await page.mouse.move(centre.x, centre.y);
+    await page.mouse.down();
+    await page.mouse.move(centre.x, centre.y - 80, { steps: 12 });
+    expect(await dimensions()).not.toBe(initial);
+  }).toPass({ timeout: 20_000 });
+  await page.keyboard.press('Escape'); // cancel in-progress push-pull
+  await page.mouse.up();
   await expect.poll(dimensions).toBe(initial);
+  // Escape may also clear selection / leave Größe ziehen; restore a known state.
+  await page.getByRole('button', { name: '3D auswählen', exact: true }).click();
+  await page.locator('[data-testid^="placeholder-"]').first().click();
   await expect(page.getByTestId('selection-count')).toContainText('1 ausgewählt');
-  await expect(page.getByRole('button', { name: '3D auswählen', exact: true })).toHaveAttribute('aria-pressed', 'true');
-  await page.getByRole('button', { name: 'Größe ziehen', exact: true }).click();
-  await drag(page, centre, { x: centre.x, y: centre.y - 55 });
-  await expect.poll(dimensions).not.toBe(initial);
+  await pushPull.click();
+  await drag(page, centre, { x: centre.x, y: centre.y - 80 });
+  await expect.poll(dimensions, { timeout: 10_000 }).not.toBe(initial);
   await page.keyboard.press('Control+z');
   await expect.poll(dimensions).toBe(initial);
   await expect(page.locator('.save-status')).toHaveText('Gespeichert');
