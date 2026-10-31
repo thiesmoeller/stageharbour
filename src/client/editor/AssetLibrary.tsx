@@ -7,6 +7,7 @@ import {
 import { newBrace, newWall, type Brace, type Layout, type Wall } from '../../shared/layout.js';
 import type { WallElementType } from '../../shared/wall-types.js';
 import { request } from '../api.js';
+import { localCapabilities } from '../local/mode.js';
 import { measureGlbFile } from './measureGlb.js';
 import { useEditingLease } from './useEditingLease.js';
 import { InventoryStock } from './InventoryPanel.js';
@@ -99,7 +100,13 @@ export function AssetLibrary({ workspaceId, assets, layout, readOnly, selected, 
   return <section className="asset-library" aria-label="Objektbibliothek">
     <div className="section-heading"><h3>Objektbibliothek</h3><span>Gemeinsam in der Theatergruppe</span></div>
     <div className="asset-tabs">
-      {([['inventory', 'Objektvorlagen'], ['panels', 'Plattenbestand'], ['wallTypes', 'Wandtypen'], ['import', 'GLB importieren'], ['catalog', 'Pascal-Katalog']] as const)
+      {([
+        ['inventory', 'Objektvorlagen'],
+        ['panels', 'Plattenbestand'],
+        ['wallTypes', 'Wandtypen'],
+        ...(localCapabilities.uploads ? [['import', 'GLB importieren'] as const] : []),
+        ['catalog', 'Pascal-Katalog'],
+      ] as const satisfies ReadonlyArray<readonly [LibraryTab, string]>)
         .map(([id, title]) => <button key={id} type="button" className="quiet" aria-pressed={tab === id} onClick={() => { setTab(id); setError(''); }}>{title}</button>)}
     </div>
     {tab === 'inventory' && <>
@@ -151,7 +158,7 @@ export function AssetLibrary({ workspaceId, assets, layout, readOnly, selected, 
     {tab === 'wallTypes' && <WallTypePanel types={wallTypes} selectedId={selectedTypeId} readOnly={readOnly}
       onSelect={onWallTypeSelect} onCreate={onWallTypeCreate} onApply={onWallTypeApply} onPlace={onWallTypePlace} onRemove={onWallTypeRemove}
       onPendingChange={onPendingChange} />}
-    {tab === 'import' && <form onSubmit={event => void upload(event)}><fieldset disabled={busy || readOnly || measuring}>
+    {tab === 'import' && localCapabilities.uploads && <form onSubmit={event => void upload(event)}><fieldset disabled={busy || readOnly || measuring}>
       <p>GLB mit eingebetteten Texturen, bis {MAX_MODEL_MB} MB. Das Modell wird für alle Mitglieder gespeichert.</p>
       <label htmlFor="model-name">Modellname</label><input id="model-name" name="name" maxLength={120} required />
       <label htmlFor="model-file">GLB-Datei</label>
