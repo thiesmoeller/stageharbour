@@ -143,7 +143,7 @@ function App() {
   const homeLabel = `${branding.productName} Startseite`;
   return <FeedbackProvider me={screen.kind === 'workspace' && route.kind === 'app' ? screen.me : undefined}><div className="app">
     <header className="masthead">
-      <a className="brand" href="/" aria-label={homeLabel}>
+      <a className="brand" href={import.meta.env.BASE_URL} aria-label={homeLabel}>
         {branding.hasLogo
           ? <img className="brand-logo" src={`/api/branding/logo?v=${logoKey}`} alt="" />
           : <span className="brand-icon" aria-hidden="true">▱</span>}
@@ -263,7 +263,7 @@ function AcceptInvite({ token }: { token: string }) {
     } finally { setPending(false); }
   }
   if (!preview && !error) return <main className="loading" role="status">Einladung wird geprüft …</main>;
-  if (!preview) return <TokenCard title="Einladung ungültig"><p role="alert">{error}</p><p className="forgot"><a href="/">Zur Anmeldung</a></p></TokenCard>;
+  if (!preview) return <TokenCard title="Einladung ungültig"><p role="alert">{error}</p><p className="forgot"><a href={import.meta.env.BASE_URL}>Zur Anmeldung</a></p></TokenCard>;
   return <TokenCard title="Konto einrichten">
     <p>{preview.name}, Sie wurden als {roleNames[preview.role]} zum Arbeitsbereich {preview.workspaceName} eingeladen.</p>
     <form onSubmit={event => void submit(event)}>
@@ -323,7 +323,7 @@ function CompleteReset({ token }: { token: string }) {
     finally { setPending(false); }
   }
   if (!preview && !error) return <main className="loading" role="status">Link wird geprüft …</main>;
-  if (!preview) return <TokenCard title="Link ungültig"><p role="alert">{error}</p><p className="forgot"><a href="/">Zur Anmeldung</a></p></TokenCard>;
+  if (!preview) return <TokenCard title="Link ungültig"><p role="alert">{error}</p><p className="forgot"><a href={import.meta.env.BASE_URL}>Zur Anmeldung</a></p></TokenCard>;
   return <TokenCard title="Neues Passwort">
     <p>Legen Sie ein neues Passwort für {preview.email} fest.</p>
     <form onSubmit={event => void submit(event)}>
