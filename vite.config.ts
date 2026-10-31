@@ -4,12 +4,12 @@ import react from '@vitejs/plugin-react';
 
 /**
  * Belt-and-suspenders with scripts/patch-pascal-webgl.mjs: if the viewer
- * constructor is loaded as source, inject forceWebGL so native WebGPU
+ * renderer initialization is loaded as source, inject forceWebGL so native WebGPU
  * createBuffer failures do not spam the console every frame.
  */
 function pascalForceWebGlBackend(): Plugin {
-  const needle = 'new THREE.WebGPURenderer({ ...props, alpha: true })';
-  const replacement = 'new THREE.WebGPURenderer({ ...props, alpha: true, forceWebGL: true })';
+  const needle = 'forceWebGL: immersiveActive,';
+  const replacement = 'forceWebGL: true, // StageHarbour: keep the WebGL backend';
   return {
     name: 'pascal-force-webgl-backend',
     transform(code, id) {

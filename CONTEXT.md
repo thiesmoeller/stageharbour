@@ -1,8 +1,12 @@
 # Community Theatre Stage Planning
 
-The group plans stage arrangements made from reusable wall elements for different venues, each with its own physical constraints.
+The theatre group travels with its set and stock to different venues, each with its own physical constraints.
 
 ## Language
+
+**Theatre group**:
+A company that creates productions and travels with its own set elements and stock to venues. Its workspace owns the reusable catalog and physical inventory.
+_Avoid_: Theatre as a synonym for venue
 
 **Site branding**:
 The product name, tagline, footer text and optional logo shown on the sign-in page and masthead for a self-hosted installation. Administrators set branding for the workspace; it is not per-production.
@@ -35,7 +39,7 @@ A version of a production's set design arranged for a particular venue and its c
 A named, frozen record of a design and its venue information corresponding to an exported construction plan.
 
 **Venue**:
-A location where the group stages a performance, with its own physical layout and constraints.
+A location where the theatre group stages a performance, with its own physical layout and constraints; it does not own the group's set elements or stock.
 _Avoid_: Location
 
 **Report template**:
