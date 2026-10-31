@@ -15,6 +15,22 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
 .branding-preview img { display: block; max-width: 160px; max-height: 64px; object-fit: contain; border: 1px solid var(--ui-line); border-radius: 8px; padding: 8px; background: #fff; }
 .app:has(.workspace) .edition { font-size: 9px; }
 .app:has(.workspace) .masthead button { padding: 5px 12px; font-size: 12px; }
+.local-badge {
+  display: inline-flex; align-items: center; flex-shrink: 0;
+  padding: 3px 9px; border-radius: 999px; border: 1px solid var(--ui-line);
+  background: #eef3f0; color: var(--ui-accent); font-size: 11px; font-weight: 700;
+  letter-spacing: .04em; text-transform: uppercase;
+}
+.app:has(.editor) .local-badge { font-size: 9px; padding: 2px 7px; }
+.local-workspace-bar { margin: 0 0 18px; display: grid; gap: 10px; }
+.local-banner {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  padding: 12px 14px; border: 1px solid var(--ui-line); border-radius: 8px;
+  background: #eef3f0; color: var(--ui-ink); font-size: 13px;
+}
+.local-banner p { margin: 0; max-width: 62ch; color: var(--ui-muted); }
+.local-workspace-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.local-workspace-actions .quiet { padding: 6px 12px; font-size: 12px; }
 .workspace { max-width: 1500px; margin: 30px auto; }
 .workspace button { transition: background-color .12s, border-color .12s; }
 .workspace button:disabled { cursor: not-allowed; opacity: .42; }

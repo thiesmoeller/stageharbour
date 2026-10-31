@@ -1,3 +1,6 @@
+import { awaitLocalMode } from './local/boot.js';
+import { LocalWorkspaceBar } from './local/LocalWorkspaceBar.js';
+import { isLocalMode, localCapabilities } from './local/mode.js';
 import { FeedbackProvider, FeedbackButton } from './feedback/Feedback.js';
 import { StrictMode, useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -97,12 +100,16 @@ function App() {
   }, []);
   useEffect(() => {
     let cancelled = false;
-    request('/api/branding').then(data => {
-      if (cancelled) return;
-      const next = brandingSchema.parse(data);
-      setBranding(next);
-      document.title = next.productName;
-    }).catch(() => {});
+    void (async () => {
+      try {
+        if (isLocalMode()) await awaitLocalMode();
+        const data = await request('/api/branding');
+        if (cancelled) return;
+        const next = brandingSchema.parse(data);
+        setBranding(next);
+        document.title = next.productName;
+      } catch { /* branding is optional on load */ }
+    })();
     return () => { cancelled = true; };
   }, []);
   const applyBranding = useCallback((next: Branding) => {
@@ -113,6 +120,7 @@ function App() {
   const load = useCallback(async () => {
     setScreen({ kind: 'loading' });
     try {
+      if (isLocalMode()) await awaitLocalMode();
       setScreen({ kind: 'workspace', me: meSchema.parse(await request('/api/me')) });
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) setScreen({ kind: 'login' });
@@ -135,16 +143,17 @@ function App() {
   const homeLabel = `${branding.productName} Startseite`;
   return <FeedbackProvider me={screen.kind === 'workspace' && route.kind === 'app' ? screen.me : undefined}><div className="app">
     <header className="masthead">
-      <a className="brand" href="/" aria-label={homeLabel}>
+      <a className="brand" href={import.meta.env.BASE_URL} aria-label={homeLabel}>
         {branding.hasLogo
           ? <img className="brand-logo" src={`/api/branding/logo?v=${logoKey}`} alt="" />
           : <span className="brand-icon" aria-hidden="true">▱</span>}
         {branding.productName}
       </a>
+      {localCapabilities.local && <span className="local-badge">Lokal</span>}
       <div id="editor-menu-slot" />
-      <FeedbackButton />
+      {!localCapabilities.local && <FeedbackButton />}
       {branding.tagline ? <span className="edition">{branding.tagline}</span> : null}
-      {(screen.kind === 'workspace' || (screen.kind === 'error' && screen.denied)) && route.kind === 'app' && <button className="quiet" onClick={() => void signOut()} disabled={signingOut || dirty} title={dirty ? 'Bitte zuerst Änderungen speichern oder sichern.' : undefined}>{signingOut ? 'Abmeldung …' : 'Abmelden'}</button>}
+      {!localCapabilities.local && (screen.kind === 'workspace' || (screen.kind === 'error' && screen.denied)) && route.kind === 'app' && <button className="quiet" onClick={() => void signOut()} disabled={signingOut || dirty} title={dirty ? 'Bitte zuerst Änderungen speichern oder sichern.' : undefined}>{signingOut ? 'Abmeldung …' : 'Abmelden'}</button>}
     </header>
     {signOutError && <p className="error banner" role="alert">{signOutError}</p>}
     {route.kind === 'invite' && <AcceptInvite token={route.token} />}
@@ -167,12 +176,16 @@ function Login({ onSuccess }: { onSuccess: () => Promise<void> }) {
   const [version, setVersion] = useState('');
   useEffect(() => {
     let cancelled = false;
-    request('/api/login-options').then(data => {
-      if (cancelled) return;
-      const options = loginOptionsSchema.parse(data);
-      setOidc(options.oidc);
-      setVersion(options.version);
-    }).catch(() => {});
+    void (async () => {
+      try {
+        if (isLocalMode()) await awaitLocalMode();
+        const data = await request('/api/login-options');
+        if (cancelled) return;
+        const options = loginOptionsSchema.parse(data);
+        setOidc(options.oidc);
+        setVersion(options.version);
+      } catch { /* login options optional */ }
+    })();
     return () => { cancelled = true; };
   }, []);
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -181,6 +194,7 @@ function Login({ onSuccess }: { onSuccess: () => Promise<void> }) {
     setPending(true);
     setError('');
     try {
+      if (isLocalMode()) await awaitLocalMode();
       await request('/api/auth/sign-in/email', { email: data.get('email'), password: data.get('password'), rememberMe: false });
       await onSuccess();
     } catch (error) {
@@ -249,7 +263,7 @@ function AcceptInvite({ token }: { token: string }) {
     } finally { setPending(false); }
   }
   if (!preview && !error) return <main className="loading" role="status">Einladung wird geprüft …</main>;
-  if (!preview) return <TokenCard title="Einladung ungültig"><p role="alert">{error}</p><p className="forgot"><a href="/">Zur Anmeldung</a></p></TokenCard>;
+  if (!preview) return <TokenCard title="Einladung ungültig"><p role="alert">{error}</p><p className="forgot"><a href={import.meta.env.BASE_URL}>Zur Anmeldung</a></p></TokenCard>;
   return <TokenCard title="Konto einrichten">
     <p>{preview.name}, Sie wurden als {roleNames[preview.role]} zum Arbeitsbereich {preview.workspaceName} eingeladen.</p>
     <form onSubmit={event => void submit(event)}>
@@ -309,7 +323,7 @@ function CompleteReset({ token }: { token: string }) {
     finally { setPending(false); }
   }
   if (!preview && !error) return <main className="loading" role="status">Link wird geprüft …</main>;
-  if (!preview) return <TokenCard title="Link ungültig"><p role="alert">{error}</p><p className="forgot"><a href="/">Zur Anmeldung</a></p></TokenCard>;
+  if (!preview) return <TokenCard title="Link ungültig"><p role="alert">{error}</p><p className="forgot"><a href={import.meta.env.BASE_URL}>Zur Anmeldung</a></p></TokenCard>;
   return <TokenCard title="Neues Passwort">
     <p>Legen Sie ein neues Passwort für {preview.email} fest.</p>
     <form onSubmit={event => void submit(event)}>
@@ -327,22 +341,29 @@ function Workspace({ me, branding, onBranding, onDirty, location }: {
   const section = location.section;
   const editing = ('sceneId' in location && !!location.sceneId) || ('venueId' in location && !!location.venueId);
   const isAdmin = can(me.workspace.role, 'members');
+  const showAccount = localCapabilities.identity;
+  const showAdmin = localCapabilities.members && localCapabilities.brandingAdmin && isAdmin;
+  useEffect(() => {
+    if (section === 'account' && !showAccount) writeWorkspaceLocation({ section: 'plans' });
+    else if (section === 'admin' && !showAdmin) writeWorkspaceLocation({ section: 'plans' });
+  }, [section, showAccount, showAdmin]);
   return <main className="workspace">
     <div className="workspace-heading" hidden={editing}><div><p className="eyebrow">EUER ARBEITSBEREICH</p><h1>{me.workspace.name}</h1><p>Angemeldet als {me.user.name}</p></div><span className="role-badge">{roleNames[me.workspace.role]}</span></div>
+    {!editing && <LocalWorkspaceBar />}
     <nav className="workspace-navigation" aria-label="Arbeitsbereiche" hidden={editing}>
       <button className="quiet" aria-current={section === 'plans' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'plans' })}>Produktionen & Bühnenbilder<span>Bühnenbilder entwerfen und planen</span></button>
       <button className="quiet" aria-current={section === 'venues' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'venues' })}>Spielstätten & Bühnen<span>Räume, Grundrisse und feste Einrichtungen</span></button>
       <button className="quiet" aria-current={section === 'bestand' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'bestand' })}>Bestand<span>Platten und Wandtypen</span></button>
       <button className="quiet" aria-current={section === 'help' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'help' })}>Hilfe<span>Werkzeuge, Kürzel und Oberflächen</span></button>
-      <button className="quiet" aria-current={section === 'account' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'account' })}>Mein Konto<span>Anmeldung und Konto</span></button>
-      {isAdmin && <button className="quiet" aria-current={section === 'admin' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'admin' })}>Verwaltung<span>Mitglieder, Darstellung und Aktivität</span></button>}
+      {showAccount && <button className="quiet" aria-current={section === 'account' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'account' })}>Mein Konto<span>Anmeldung und Konto</span></button>}
+      {showAdmin && <button className="quiet" aria-current={section === 'admin' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'admin' })}>Verwaltung<span>Mitglieder, Darstellung und Aktivität</span></button>}
     </nav>
     {section === 'plans' && <Plans me={me} onDirty={onDirty} sceneId={'sceneId' in location ? location.sceneId : undefined} />}
     {section === 'venues' && <Venues me={me} onDirty={onDirty} venueId={'venueId' in location ? location.venueId : undefined} />}
     {section === 'bestand' && <Bestand me={me} />}
     {section === 'help' && <Help topic={'topic' in location ? location.topic : undefined} />}
-    {section === 'account' && <div className="workspace-management"><LinkedAccounts me={me} /></div>}
-    {section === 'admin' && isAdmin && <div className="workspace-management">
+    {section === 'account' && showAccount && <div className="workspace-management"><LinkedAccounts me={me} /></div>}
+    {section === 'admin' && showAdmin && <div className="workspace-management">
       <SiteBranding workspaceId={me.workspace.id} branding={branding} onBranding={onBranding} />
       <Members me={me} />
       <AuditLog workspaceId={me.workspace.id} />

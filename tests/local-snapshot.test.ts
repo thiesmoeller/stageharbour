@@ -1,0 +1,124 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { createSeedSnapshot, LOCAL_SEED_IDS } from '../src/client/local/seed.js';
+import { parseSnapshot, serializeSnapshot } from '../src/client/local/snapshot.js';
+import { createLocalTransport } from '../src/client/local/transport.js';
+import type { LocalStore } from '../src/client/local/store.js';
+import { materialRequirementsSchema } from '../src/shared/ballast.js';
+import { groupWallType } from '../src/shared/inventory.js';
+import { venueRecordSchema } from '../src/shared/venueLibrary.js';
+
+function memoryStore(initial = createSeedSnapshot()): LocalStore {
+  let cache = parseSnapshot(initial);
+  return {
+    getSnapshot() {
+      return structuredClone(cache);
+    },
+    async replaceSnapshot(snapshot) {
+      cache = parseSnapshot(snapshot);
+    },
+    async resetToSeed() {
+      cache = createSeedSnapshot();
+      return structuredClone(cache);
+    },
+    async mutate(update) {
+      const draft = structuredClone(cache);
+      update(draft);
+      cache = parseSnapshot(draft);
+      return structuredClone(cache);
+    },
+  };
+}
+
+test('seed snapshot parses and survives serialize roundtrip', () => {
+  const seed = createSeedSnapshot();
+  const parsed = parseSnapshot(seed);
+  assert.equal(parsed.workspace.id, LOCAL_SEED_IDS.workspace);
+  assert.equal(parsed.inventory.panels.length, 2);
+  const again = serializeSnapshot(parsed);
+  assert.equal(again.schemaVersion, 1);
+  assert.equal(again.inventory.types.length, 2);
+});
+
+test('local transport inventory CRUD mutates snapshot', async () => {
+  const store = memoryStore();
+  const transport = createLocalTransport(store);
+  const base = `/api/workspaces/${LOCAL_SEED_IDS.workspace}/inventory`;
+
+  const finishWork = await transport.request(`${base}/finish-work`);
+  assert.deepEqual(finishWork, []);
+
+  const type = groupWallType('window', crypto.randomUUID(), crypto.randomUUID());
+  const createdType = await transport.request(`${base}/types`, type);
+  assert.equal((createdType as { id: string }).id, type.id);
+
+  const panel = await transport.request(`${base}/panels`, {
+    label: 'F-99',
+    type,
+    available: true,
+    note: null,
+  }) as { id: string; label: string; available: boolean };
+  assert.equal(panel.label, 'F-99');
+
+  const patched = await transport.request(`${base}/panels/${panel.id}`, { available: false }, 'PATCH') as { available: boolean };
+  assert.equal(patched.available, false);
+
+  const ballast = await transport.request(`${base}/ballast`, { slabs: 4, straps: 2 }, 'PUT');
+  assert.deepEqual(ballast, { slabs: 4, straps: 2 });
+
+  await transport.request(`${base}/panels/${panel.id}`, undefined, 'DELETE');
+  await transport.request(`${base}/types/${type.id}`, undefined, 'DELETE');
+
+  const snapshot = store.getSnapshot();
+  assert.equal(snapshot.inventory.panels.some(item => item.id === panel.id), false);
+  assert.equal(snapshot.inventory.types.some(item => item.id === type.id), false);
+  assert.deepEqual(snapshot.inventory.ballast, { slabs: 4, straps: 2 });
+});
+
+test('local transport requirements endpoint returns schema-valid data', async () => {
+  const store = memoryStore();
+  const transport = createLocalTransport(store);
+  const raw = await transport.request(
+    `/api/workspaces/${LOCAL_SEED_IDS.workspace}/productions/${LOCAL_SEED_IDS.production}/venues/${LOCAL_SEED_IDS.venue}/requirements`,
+  );
+  const parsed = materialRequirementsSchema.parse(raw);
+  assert.equal(typeof parsed.required.slabs, 'number');
+  assert.equal(typeof parsed.available.straps, 'number');
+  assert.equal(typeof parsed.shortage.slabs, 'number');
+});
+
+test('local transport venue PUT creates a new version', async () => {
+  const store = memoryStore();
+  const transport = createLocalTransport(store);
+  const before = venueRecordSchema.parse(
+    await transport.request(`/api/workspaces/${LOCAL_SEED_IDS.workspace}/venues/${LOCAL_SEED_IDS.venue}`),
+  );
+  assert.equal(before.venueVersionId, LOCAL_SEED_IDS.venueVersion);
+
+  const updated = venueRecordSchema.parse(
+    await transport.request(
+      `/api/workspaces/${LOCAL_SEED_IDS.workspace}/venues/${LOCAL_SEED_IDS.venue}`,
+      {
+        venueVersionId: LOCAL_SEED_IDS.venueVersion,
+        venue: { schemaVersion: 1, width: 9000, depth: 7000 },
+      },
+      'PUT',
+    ),
+  );
+  assert.notEqual(updated.venueVersionId, LOCAL_SEED_IDS.venueVersion);
+  assert.equal(updated.width, 9000);
+  assert.equal(updated.depth, 7000);
+  assert.equal(store.getSnapshot().venueVersions.length, 2);
+});
+
+test('local transport scene DELETE works', async () => {
+  const store = memoryStore();
+  const transport = createLocalTransport(store);
+  const result = await transport.request(
+    `/api/workspaces/${LOCAL_SEED_IDS.workspace}/scenes/${LOCAL_SEED_IDS.scene}`,
+    undefined,
+    'DELETE',
+  );
+  assert.deepEqual(result, { ok: true });
+  assert.equal(store.getSnapshot().scenes.some(scene => scene.id === LOCAL_SEED_IDS.scene), false);
+});

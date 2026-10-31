@@ -46,6 +46,7 @@ import { useViewportWheel } from './viewportWheel.js';
 import { LEASE_HEARTBEAT_MS } from '../../shared/leases.js';
 import { ApiError, request } from '../api.js';
 import { askConfirm, askPrompt } from '../ConfirmDialog.js';
+import { localCapabilities } from '../local/mode.js';
 import { Autosave, SaveConflict } from './autosave.js';
 import { BraceInspector } from './BraceInspector.js';
 import { BraceLayer } from './BraceLayer.js';
@@ -958,10 +959,12 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
   }
   const menus = <EditorMenuBar>
     <EditorMenu label="Datei">
-      <button className="quiet" aria-expanded={exportsOpen} onClick={() => {
-        setExportsOpen(open => !open);
-        setLibraryOpen(false);
-      }}>{exportsOpen ? 'PDF schließen' : 'PDF gestalten'}</button>
+      {localCapabilities.pdf
+        ? <button className="quiet" aria-expanded={exportsOpen} onClick={() => {
+          setExportsOpen(open => !open);
+          setLibraryOpen(false);
+        }}>{exportsOpen ? 'PDF schließen' : 'PDF gestalten'}</button>
+        : <button className="quiet" disabled title="Im lokalen Demo-Modus nicht verfügbar (kein PDF, keine Cloud).">PDF gestalten</button>}
       <button className="quiet" aria-expanded={venueOpen} disabled={venueOpen ? venueDirty : dirty} onClick={() => {
         setVenueOpen(open => {
           const next = !open;
@@ -997,7 +1000,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
         beginObjectPlacement({ ...current.current.present, placeholders: [...current.current.present.placeholders ?? [], item] }, { kind: 'placeholder', id: item.id });
       }}>{PLACEHOLDER_KIND_LABELS[kind]} hinzufügen</button>)}
     </EditorMenu>}
-    <EditorMenu label="Hilfe"><FeedbackButton /><button className="quiet" onClick={() => setHelpOpen(open => !open)}>Bedienung anzeigen</button><a href="#/hilfe">Zur vollständigen Hilfe</a></EditorMenu>
+    <EditorMenu label="Hilfe">{!localCapabilities.local && <FeedbackButton />}<button className="quiet" onClick={() => setHelpOpen(open => !open)}>Bedienung anzeigen</button><a href="#/hilfe">Zur vollständigen Hilfe</a></EditorMenu>
   </EditorMenuBar>;
   useFeedbackAdapter(() => ({
     work: {
@@ -1099,7 +1102,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
     {venueOpen && <VenuePanel onClose={() => { setVenueOpen(false); setOpenVenueSheet(false); }} closeDisabled={venueDirty} closeLabel="Spielstätte schließen" workspaceId={workspaceId} sceneId={initial.id} venue={venue} venueId={initial.venueId} venueName={venueName}
       venueUpdateAvailable={updateAvailable} readOnly={readOnly || !venueLease.holding} onDirty={setVenueDirty} onSaved={adoptVenue}
       onVenueRenamed={({ name }) => setVenueName(name)} sceneLayout={state.present} openSheetEditor={openVenueSheet} />}
-    {exportsOpen && <RecipientDocumentWorkspace workspaceId={workspaceId} productionId={initial.productionId}
+    {exportsOpen && localCapabilities.pdf && <RecipientDocumentWorkspace workspaceId={workspaceId} productionId={initial.productionId}
       seedSceneId={initial.id} seedVenueId={initial.venueId} defaultScope="scene"
       liveScene={{ ...initial, name: sceneName, venueName, venue, layout: state.present }}
       freezeDisabled={dirty || saveState.status !== 'saved'} onClose={() => setExportsOpen(false)} />}

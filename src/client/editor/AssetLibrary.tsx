@@ -7,6 +7,7 @@ import {
 import { newBrace, newWall, type Brace, type Layout, type Wall } from '../../shared/layout.js';
 import type { WallElementType } from '../../shared/wall-types.js';
 import { request } from '../api.js';
+import { localCapabilities } from '../local/mode.js';
 import { measureGlbFile } from './measureGlb.js';
 import { useEditingLease } from './useEditingLease.js';
 import { InventoryStock } from './InventoryPanel.js';
@@ -99,7 +100,13 @@ export function AssetLibrary({ workspaceId, assets, layout, readOnly, selected, 
   return <section className="asset-library" aria-label="Objektbibliothek">
     <div className="section-heading"><h3>Objektbibliothek</h3><span>Gemeinsam in der Theatergruppe</span></div>
     <div className="asset-tabs">
-      {([['inventory', 'Objektvorlagen'], ['panels', 'Plattenbestand'], ['wallTypes', 'Wandtypen'], ['import', 'GLB importieren'], ['catalog', 'Pascal-Katalog']] as const)
+      {([
+        ['inventory', 'Objektvorlagen'],
+        ['panels', 'Plattenbestand'],
+        ['wallTypes', 'Wandtypen'],
+        ...(localCapabilities.uploads ? [['import', 'GLB importieren'] as const] : []),
+        ...(!localCapabilities.local ? [['catalog', 'Pascal-Katalog'] as const] : []),
+      ] as const satisfies ReadonlyArray<readonly [LibraryTab, string]>)
         .map(([id, title]) => <button key={id} type="button" className="quiet" aria-pressed={tab === id} onClick={() => { setTab(id); setError(''); }}>{title}</button>)}
     </div>
     {tab === 'inventory' && <>
@@ -129,8 +136,8 @@ export function AssetLibrary({ workspaceId, assets, layout, readOnly, selected, 
           </div>
         </form>}
         <button type="button" disabled={readOnly || busy} onClick={() => onPlace(asset)}>Platzieren</button>
-        {!readOnly && renamingId !== asset.id && <button className="quiet" type="button" disabled={busy} onClick={() => setRenamingId(asset.id)}>Umbenennen</button>}
-        {!readOnly && <button className="quiet" type="button" disabled={busy} onClick={async () => {
+        {!readOnly && !localCapabilities.local && renamingId !== asset.id && <button className="quiet" type="button" disabled={busy} onClick={() => setRenamingId(asset.id)}>Umbenennen</button>}
+        {!readOnly && !localCapabilities.local && <button className="quiet" type="button" disabled={busy} onClick={async () => {
           setBusy(true); setError('');
           try { await requireLease(); await request(`${base}/${asset.id}`, undefined, 'DELETE'); onArchive(asset.id); }
           catch { setError('Das Objekt konnte nicht archiviert werden.'); }
@@ -138,20 +145,21 @@ export function AssetLibrary({ workspaceId, assets, layout, readOnly, selected, 
         }}>Archivieren</button>}
       </article>)}</div>
       {!assets.some(asset => !asset.archived) && <p className="muted">Speichern Sie Wände und Stützen als wiederverwendbare Vorlagen oder importieren Sie Modelle.</p>}
-      {!readOnly && <form onSubmit={event => void template(event)}><fieldset disabled={busy}>
+      {!readOnly && !localCapabilities.local && <form onSubmit={event => void template(event)}><fieldset disabled={busy}>
         <label htmlFor="template-name">Name der Objektvorlage</label><input id="template-name" name="name" required maxLength={120} />
         <label htmlFor="template-kind">Vorlage aus</label><select id="template-kind" name="kind">
           {selected && <option value="selection">Ausgewähltes Objekt ({selected.label})</option>}
           <option value="wall">Standardwand · 1200 × 2400 × 28 mm</option><option value="brace">Beispielstütze · Maße vor Einsatz prüfen</option>
         </select><button type="submit">Objektvorlage speichern</button>
       </fieldset></form>}
-      <p className="muted">Vorlagen erzeugen unabhängige Exemplare. Archivieren entfernt nur die Vorlage aus der Auswahl; bestehende Bühnenbilder behalten ihre Objekte.</p>
+      {localCapabilities.local && <p className="muted">Objektvorlagen anlegen und bearbeiten ist im lokalen Demo-Modus nicht verfügbar.</p>}
+      {!localCapabilities.local && <p className="muted">Vorlagen erzeugen unabhängige Exemplare. Archivieren entfernt nur die Vorlage aus der Auswahl; bestehende Bühnenbilder behalten ihre Objekte.</p>}
     </>}
     {tab === 'panels' && <InventoryStock workspaceId={workspaceId} layout={layout} readOnly={readOnly} onPanels={onPanels} />}
     {tab === 'wallTypes' && <WallTypePanel types={wallTypes} selectedId={selectedTypeId} readOnly={readOnly}
       onSelect={onWallTypeSelect} onCreate={onWallTypeCreate} onApply={onWallTypeApply} onPlace={onWallTypePlace} onRemove={onWallTypeRemove}
       onPendingChange={onPendingChange} />}
-    {tab === 'import' && <form onSubmit={event => void upload(event)}><fieldset disabled={busy || readOnly || measuring}>
+    {tab === 'import' && localCapabilities.uploads && <form onSubmit={event => void upload(event)}><fieldset disabled={busy || readOnly || measuring}>
       <p>GLB mit eingebetteten Texturen, bis {MAX_MODEL_MB} MB. Das Modell wird für alle Mitglieder gespeichert.</p>
       <label htmlFor="model-name">Modellname</label><input id="model-name" name="name" maxLength={120} required />
       <label htmlFor="model-file">GLB-Datei</label>

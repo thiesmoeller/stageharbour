@@ -20,7 +20,7 @@ Sign-in supports the user's existing Pocket ID installation through OpenID Conne
 
 Opening a plan for editing acquires an exclusive editing lock. Other users can view the plan and see who is editing it. Locks expire automatically after the editor disconnects. Concurrent editing of the same plan is outside version one.
 
-Version one requires an internet connection for editing. Users can download PDF construction plans for offline assembly at venues. Offline editing and synchronization are outside the initial scope.
+Version one requires an internet connection for editing. Users can download PDF construction plans for offline assembly at venues. Offline editing and synchronization are outside the initial scope. Browser-local demo mode is a separate client transport adapter (IndexedDB + disk backup on its own static host) and does not reopen offline editing of hosted CapRover workspaces; see [ADR 0008](adr/0008-browser-local-adapter.md).
 
 ## Construction plan revisions
 
