@@ -23,7 +23,9 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const webPort = Number(env.WEB_PORT || 5173);
   const apiPort = Number(env.PORT || 3000);
+  const base = env.VITE_BASE || '/';
   return {
+    base,
     plugins: [pascalForceWebGlBackend(), react()],
     // Pascal's published viewer uses this Next-style constant even outside Next.
     define: { 'process.env.NEXT_PUBLIC_ASSETS_CDN_URL': JSON.stringify('https://editor.pascal.app') },
