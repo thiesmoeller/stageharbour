@@ -35,6 +35,10 @@ Bootstrap runs only as an explicit command. It atomically creates an identity, p
 
 The Compose file is for local development only. Its database binds to loopback and persists in a named Docker volume. `docker compose stop` stops it without deleting data. CapRover production install and GitHub Actions auto-deploy from `main` are documented in [docs/caprover.md](docs/caprover.md).
 
+### Browser-local demo (no Docker / Postgres)
+
+`npm run dev:local` opens the SPA with `VITE_LOCAL_MODE=1` — no API, Docker, or Postgres. `npm run build:local` produces static assets with the same flag for any static host. Private CapRover installs use normal `npm run build` without the flag. Disk Speichern/Laden backs up the IndexedDB workspace; data is per-browser and is not the multi-user install. See [ADR 0008](docs/adr/0008-browser-local-adapter.md).
+
 ## Verification
 
 Before pushing, run `npm run check:ci` with PostgreSQL running and Chromium installed

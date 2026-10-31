@@ -53,6 +53,7 @@ import { doorOpenAngleDegrees, isDoorOpening, openingFromWallSpan, resolveWall, 
 import type { StageEditing } from './StageEditing.js';
 import { useViewportWheel } from './viewportWheel.js';
 import { ApiError, request, upload } from '../api.js';
+import { localCapabilities } from '../local/mode.js';
 import { ReportSheetEditor } from './ReportSheetEditor.js';
 import { type ReportTemplate } from '../../shared/reportTemplate.js';
 import { HangToolButton } from './HangToolButton.js';
@@ -1102,7 +1103,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
         <label className="split-control" hidden={activeView !== 'split'}>Aufteilung<input aria-label="Ansichten aufteilen" type="range" min="30" max="70" value={viewShare} onChange={event => setViewShare(Number(event.target.value))} /></label>
         <button type="button" onClick={toggleFullscreen}>Vollbild umschalten</button>
       </EditorMenu>
-      <EditorMenu label="Hilfe"><FeedbackButton /><button type="button" onClick={() => setHelpOpen(open => !open)}>Bedienung anzeigen</button><a href="#/hilfe">Zur vollständigen Hilfe</a></EditorMenu>
+      <EditorMenu label="Hilfe">{!localCapabilities.local && <FeedbackButton />}<button type="button" onClick={() => setHelpOpen(open => !open)}>Bedienung anzeigen</button><a href="#/hilfe">Zur vollständigen Hilfe</a></EditorMenu>
     </EditorMenuBar>
     <div className="editor-heading compact-editor-heading venue-document-heading">
       {onClose && <button type="button" className="quiet back-button" disabled={closeDisabled} onClick={onClose} aria-label={closeLabel} title={closeLabel}><ToolIcon name="back" /></button>}
@@ -1892,7 +1893,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
         </div></details>
         <details className="inspector-section" open={!!fileId || underlayDialogOpen}><summary>Planunterlage & Maßstab</summary><div className="inspector-section-body">
           <fieldset disabled={readOnly || busy || busyGesture()}>
-            <div className={`underlay-dropzone${underlayDrag ? ' underlay-dropzone--active' : ''}`}
+            {localCapabilities.uploads ? <div className={`underlay-dropzone${underlayDrag ? ' underlay-dropzone--active' : ''}`}
               data-testid="underlay-dropzone"
               onDragEnter={underlayDragOver} onDragOver={underlayDragOver} onDragLeave={underlayDragLeave}
               onDrop={event => { event.preventDefault(); setUnderlayDrag(false); void acceptUnderlayTransfer(event.dataTransfer); }}>
@@ -1905,7 +1906,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
               <label htmlFor="venue-file">Planunterlage hochladen</label>
               <input id="venue-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif,application/pdf"
                 onChange={event => void chooseFile(event.currentTarget.files?.[0])} />
-            </div>
+            </div> : <p className="muted" title="Im lokalen Demo-Modus nicht verfügbar.">Planunterlagen-Upload ist im lokalen Demo-Modus nicht verfügbar.</p>}
             <div className="form-actions">
               <button type="button" disabled={!fileId} onClick={() => setUnderlayDialogOpen(true)}>Planunterlage einrichten …</button>
             </div>

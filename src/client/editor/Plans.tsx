@@ -9,10 +9,13 @@ import type { Me } from '../../shared/contracts.js';
 import { can } from '../../shared/permissions.js';
 import { ApiError, request } from '../api.js';
 import { askConfirm } from '../ConfirmDialog.js';
+import { localCapabilities } from '../local/mode.js';
 import { Editor } from './Editor.js';
 import { RecipientDocumentWorkspace } from './RecipientDocumentWorkspace.js';
 import { PlanPreview } from './PlanPreview.js';
 import { writeWorkspaceLocation } from '../workspaceRoutes.js';
+
+const LOCAL_PDF_UNAVAILABLE = 'Im lokalen Demo-Modus nicht verfügbar (kein PDF, keine Cloud).';
 
 function uniqueBy<T>(items: T[], key: (item: T) => string) {
   const seen = new Set<string>();
@@ -487,15 +490,17 @@ export function Plans({ me, onDirty, sceneId }: { me: Me; onDirty: (value: boole
             </div>)}</div>
           </div>;
         })}
-        {!readOnly && productionScenes[0] && <button type="button" className="quiet" onClick={() => setPackageExport({
-          productionId: item.productionId,
-          seedSceneId: productionScenes[0]!.id,
-          seedVenueId: productionScenes[0]!.venueId,
-        })}>PDF gestalten</button>}
+        {!readOnly && productionScenes[0] && (localCapabilities.pdf && localCapabilities.packages
+          ? <button type="button" className="quiet" onClick={() => setPackageExport({
+            productionId: item.productionId,
+            seedSceneId: productionScenes[0]!.id,
+            seedVenueId: productionScenes[0]!.venueId,
+          })}>PDF gestalten</button>
+          : <button type="button" className="quiet" disabled title={LOCAL_PDF_UNAVAILABLE}>PDF gestalten</button>)}
       </section>;
     })}
     </div>
-    {packageExport && <RecipientDocumentWorkspace workspaceId={me.workspace.id} productionId={packageExport.productionId}
+    {packageExport && localCapabilities.pdf && localCapabilities.packages && <RecipientDocumentWorkspace workspaceId={me.workspace.id} productionId={packageExport.productionId}
       seedSceneId={packageExport.seedSceneId} seedVenueId={packageExport.seedVenueId} defaultScope="production"
       freezeDisabled={busy} onClose={() => setPackageExport(undefined)} />}
     <div className="section-heading"><h2>Bühnenbildvorlagen</h2></div>
