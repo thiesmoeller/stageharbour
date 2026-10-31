@@ -7,6 +7,7 @@ COPY scripts ./scripts
 RUN npm ci
 COPY tsconfig*.json vite.config.ts index.html ./
 COPY src ./src
+COPY assets ./assets
 RUN npm run build
 
 FROM node:24.22.2-bookworm-slim AS runtime

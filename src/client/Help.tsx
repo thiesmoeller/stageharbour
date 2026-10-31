@@ -41,7 +41,7 @@ export function Help({ topic }: { topic?: string }) {
         <li><strong>Spielstätte</strong> anlegen oder wählen: Umriss, feste Wände, Podeste, Überbauung.</li>
         <li><strong>Produktion / Bühnenbild</strong> öffnen: bewegliche Wände und Requisiten auf dem Grundriss platzieren.</li>
         <li>In den <strong>Eigenschaften</strong> Maße übernehmen (Übernehmen), in der <strong>Raumsicht</strong> prüfen.</li>
-        <li>Unter <strong>Datei → PDF gestalten</strong> zuerst Empfänger und Zweck wählen, Inhalte prüfen, die echte PDF-Vorschau ansehen und den Entwurf speichern.</li>
+        <li>Unter <strong>Datei → PDF gestalten</strong> öffnet sich das Dokumentstudio mit fertig zusammengestellten Seiten. Zweck und Inhalt anpassen, Seiten ordnen oder ein Layout ergänzen. In der Druckvorschau prüfen und das PDF exportieren; der Entwurf wird automatisch gespeichert.</li>
       </ol>
       <p className="muted">Der Status neben dem Bühnenbildnamen zeigt „Gespeichert“ oder Konflikte. Entwürfe mit offenen Änderungen blockieren das Verlassen des Bühnenbilds.</p>
     </section>
