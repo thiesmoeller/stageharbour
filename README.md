@@ -1,131 +1,92 @@
 # StageHarbour
 
-Scenery planning for touring theatre — German-language stage planner for a single theatre group's private workspace. Formerly referred to as Bühnenplaner / stageplanner in ops hosts.
+**One production. Many stages.**
 
-## Pascal editor integration
+Scenery planning for touring theatre — keep the set, the stock, and each venue adaptation in one place, then hand the crew a plan they can build from.
 
-The `feature/pascal-stage-editor` branch combines the latest `implement/phase-one` baseline with Pascal 0.9.2 core, viewer and standalone catalogue components. Both scene and venue editors use registered theatre objects, with the planner's millimetre documents, validation and undo history as the source of truth. The workspace offers full width, adjustable 2D/3D proportions, fullscreen, orthographic views, and 3D move/rotate handles. Venue edits have a separate unpublished draft with undo, redo and discard; publishing creates a venue version.
+<p align="center">
+  <img src="assets/branding/stageharbour/hamburg-daylight-stage-hero.png" alt="StageHarbour — scenic flats framing a harbour skyline" width="100%" />
+</p>
 
-The object library supports reusable wall/brace definitions, uploaded GLB models and Pascal catalogue models. Model placements use the existing placeholder workflow, including supporting surfaces, selection, clipboard, constraints and saved geometry. Materials apply to solid walls and walls with openings. Permanent venue walls appear in the plan, 3D and frozen PDF.
+## Try it now
 
-The productions overview has searchable production cards and scene previews. **Bestand** shows front/back panel previews, measured outlet/cable cutouts, and actual finish records. Panels can be renamed or deleted (clear scene assignments before deletion). Assigning a panel captures the intended finish; “Arbeit abgeschlossen” in Bestand confirms it as the actual finish. See [the finish decision](docs/adr/0006-physical-panel-finishes.md).
+**[Open the live demo →](https://thiesmoeller.github.io/stageharbour/)**
 
-**PDF gestalten** (Editor menu **Datei**, or on a production in the overview) opens the document studio with an automatic report already on paper. Page thumbnails stay beside the sheet; document presets (**Regie / Probe**, **Darstellende**, **Aufbau / Technik**) choose useful contents without a wizard. Paper, orientation and scale are visible in the inspector. Add layout pages, move/resize frames with snapping, edit positions numerically, and undo/redo changes. Generated covers, tables and cable sheets remain live when pages are arranged. Drafts autosave per production. **Druckvorschau** prepares the actual PDF; **PDF herunterladen** issues and downloads that reviewed artifact. Edits mark an older proof stale until refreshed. Technical sets include measured construction sheets, materials, warnings, and actual cable runs with a cable list. Draw an actual run in the scene editor with **Kabel** (start, destination, cable type, quantity, and slack); venue cable corridors remain separate routing guidance. Issued PDFs are immutable revisions. Apply migrations with `npm run db:migrate` before starting an existing installation.
+No account. No Docker. No install. The demo runs entirely in your browser with a seeded Beispiel-Theatergruppe workspace.
 
-This is an integration foundation, with remaining work documented in [the implementation status](docs/pascal-editor-status.md). The complete Pascal architectural editor shell is not mounted. Theatre transforms use shared commands and Drei handles; Pascal's separate architectural tool history remains disabled.
+| You can | How |
+| --- | --- |
+| Explore a production and open a Bühnenbild | Start from **Produktionen & Bühnenbilder** |
+| Edit the millimetre plan and linked 3D view | Open **Bühnenbild 1** |
+| Walk a Spielstätte, Bestand, and Hilfe | Use the workspace navigation |
+| Keep your edits | **Arbeitsbereich speichern…** writes a file on your device |
 
-For this machine, the existing `.env` selects <http://localhost:5174>, API port 3100 and PostgreSQL port 55432. Generic setup defaults below remain configurable. `npm run test:e2e` always builds fresh assets first and includes real SVG gestures and a drag of a rendered 3D handle.
+The UI is German. Clearing site data loses the browser copy unless you saved a file. The demo skips PDF export, uploads, and cloud sync — those belong to a self-hosted group install.
 
-Implemented: [slice 01](docs/issue-breakdown.md#01-enter-a-private-workspace-with-password-sign-in), [slice 02](docs/issue-breakdown.md#02-create-and-edit-a-saved-rectangular-stage-layout), [slice 03](docs/issue-breakdown.md#03-inspect-the-saved-layout-in-linked-threejs-views), [slice 04](docs/issue-breakdown.md#04-export-a-frozen-a4-overhead-construction-plan), [slice 05](docs/issue-breakdown.md#05-define-rectangular-door-and-window-wall-types), [slice 07](docs/issue-breakdown.md#07-assign-available-inventory-panels-to-scene-placements), [slice 08](docs/issue-breakdown.md#08-label-panels-for-assembly-and-record-connections), [slice 09](docs/issue-breakdown.md#09-place-weighted-rear-braces-with-measurable-footprints), [slice 10](docs/issue-breakdown.md#10-draw-a-measured-venue-and-trace-a-calibrated-reference), [slice 11](docs/issue-breakdown.md#11-arrange-sets-across-floor-levels-platforms-and-stairs), [slice 12](docs/issue-breakdown.md#12-warn-about-ceiling-and-overhead-obstruction-conflicts), [slice 13](docs/issue-breakdown.md#13-mark-keep-clear-zones-and-show-overlap-warnings), [slice 14](docs/issue-breakdown.md#14-annotate-venue-power-audio-and-routing-possibilities), [slice 15](docs/issue-breakdown.md#15-move-and-rotate-explicitly-grouped-set-pieces), [slice 16](docs/issue-breakdown.md#16-align-walls-with-snapping-guides-and-a-stage-centreline), [slice 17](docs/issue-breakdown.md#17-copy-cut-and-paste-layout-selections), [slice 18](docs/issue-breakdown.md#18-place-furniture-people-and-audio-placeholders), [slice 19](docs/issue-breakdown.md#19-duplicate-scenes-while-retaining-physical-panel-identities), [slice 20](docs/issue-breakdown.md#20-reuse-a-base-design-in-a-different-venue), [slice 21](docs/issue-breakdown.md#21-save-and-use-read-only-scene-templates), [slice 22](docs/issue-breakdown.md#22-apply-venue-updates-explicitly-to-existing-adaptations), [slice 23](docs/issue-breakdown.md#23-print-scaled-a4a3-plans-across-tiled-pages), [slice 24](docs/issue-breakdown.md#24-export-front-elevations-for-selected-wall-groups), [slice 25](docs/issue-breakdown.md#25-export-a-complete-scene-construction-package-and-parts-list), [slice 26](docs/issue-breakdown.md#26-sign-in-through-pocket-id-and-manage-linked-accounts), [slice 27](docs/issue-breakdown.md#27-invite-members-and-recover-passwords-through-brevo), and [slice 28](docs/issue-breakdown.md#28-protect-editing-with-exclusive-leases-and-stale-write-checks). After sign-in, editors can create a production with a rectangular venue, a venue adaptation and a scene, place 1200 × 2400 × 28 mm walls in a millimetre top-down plan, inspect the same layout in a linked Three.js view, undo or redo session edits, reload the autosaved layout, and export a named frozen construction plan on A4 or A3 at 1:25, 1:50 (default; 1200 mm → 24 mm on A4), or 1:100. Oversized plans tile with a 20 mm overlap and registration marks; selected wall groups add dimensioned front-elevation pages (one labelled orthogonal face per distinct wall facing, not a flattened corner); every page names the revision, date, scale, audience direction, and Blatt. Scenes can define reusable wall types with rectangular openings that agree in the plan, 3D view, and frozen PDFs. Weighted rear braces can be placed with adjustable millimetre footprints for clearance planning. Editors can draw an irregular millimetre venue outline and calibrate an optional image or PDF trace; frozen plans keep that outline and referenced source file. Walls and braces sit on an explicit supporting surface; permanent platforms and stairs live on the pinned venue version, movable ones on the scene layout, and 3D height comes from that id rather than overlapping polygons. Example millimetres only (400 mm platform, 1200×2000 mm stairs). A venue ceiling and rectangular overhead boxes warn when a wall or brace exceeds local clearance from its supporting surface; saving remains possible and the copy makes no structural certification claim. Labelled keep-clear polygons on a supporting surface warn when walls, braces, movable pieces, or furniture placeholders overlap them (1 mm contact tolerance); conflicted drafts still save and frozen plans keep the unresolved warnings. Explicit groups of walls, braces, stairs, and placeholders move and rotate together around the centroid of member centres; a group still needs a wall, and connections stay metadata. A per-venue stage centreline (point plus orientation in the versioned venue JSON) provides alignment; wall-edge and centreline snapping uses a documented 100 mm / 2.5° tolerance, groups snap as one pose, and Alt or disabling Einrasten bypasses snapping. Mirroring is not included. Copying a selection in a scene creates new placements 300 mm away without panel assignments; cut-and-paste keeps identities. A whole scene can be duplicated inside its production: the copy keeps physical panel assignments, assembly numbers, connections and the shared rigging setup, while placement records get new ids so later edits stay independent. Copying a scene into another production or venue is an explicit venue adaptation: wall types, groups and relative arrangement stay, `panelId` is cleared, only movable pieces transfer, and supporting surfaces map through an explicit destination map (unmapped support is diagnosed). Destination overhead and keep-clear checks rerun against the destination venue. A named **Szenenvorlage** stores a read-only clone of the arrangement (including wall types); inserting it into a production uses the destination venue and clears `panelId`, and later source or wall-type edits do not change the stored template. Venue-trace uploads still use the word Vorlage; scene templates are labelled Szenenvorlage. Editors can freeze a named Konstruktionspaket with a Stückliste for chosen scenes: shared `panelId`s count as one physical panel with multiple appearances, and later inventory, type, or venue edits do not change the stored package. Saving venue information inserts an immutable version; other adaptations keep their pin until an editor applies **Spielstättenfassung übernehmen**, which remaps support and reruns overhead and keep-clear. Frozen PDFs stay on the issued geometry. Resizable tables, chairs, person figures, speakers, and generic boxes are labelled millimetre placeholders on a supporting surface (example sizes only, not CAD). The workspace inventory stores physical panels with permanent example labels, availability and repair notes; placements can stay unassigned, and duplicate, incompatible or unavailable assignments warn without dropping existing references. Plans show assembly numbers beside permanent panel labels (for example `Position 3 · Platte W12`) and front/back markers; connections and rigging notes are explicit layout metadata. Venues can mark labelled power and audio pins and drawable cable-routing corridors as infrastructure, not as electrical calculations.
+Prefer running locally without Postgres? `npm run dev:local` builds the same browser-local mode.
 
-## Local setup
+---
 
-Requires Node.js 24 LTS, npm and Docker Compose. Commands run from the repository root.
+## Why StageHarbour
 
-1. `npm ci`
-2. `cp .env.example .env`
-3. Generate a signing secret with `openssl rand -base64 48` and put it in `BETTER_AUTH_SECRET` in `.env`. Set the workspace name and the three `BOOTSTRAP_ADMIN_*` values. Use a 12–128 character password. Keep `.env` private; it is ignored by Git.
-4. `docker compose up -d --wait db`
-5. `npm run db:migrate`
-6. `npm run admin:bootstrap`
-7. Remove the three bootstrap values from `.env`, then run `npm run dev`.
-8. Open <http://localhost:5173> and sign in with the administrator account.
+Touring theatre groups rebuild the same production in different rooms. Spreadsheets, SketchUp files, and WhatsApp threads do not survive that journey well.
 
-Bootstrap runs only as an explicit command. It atomically creates an identity, password account, workspace and administrator membership. Repeating the command for the existing administrator changes nothing, including the password. Once a workspace exists, bootstrap refuses to add or promote other users. There is no public registration or bootstrap HTTP endpoint.
+StageHarbour is the harbour for that work:
 
-The Compose file is for local development only. Its database binds to loopback and persists in a named Docker volume. `docker compose stop` stops it without deleting data. CapRover production install and GitHub Actions auto-deploy from `main` are documented in [docs/caprover.md](docs/caprover.md).
+1. **Carry your scenery system** — reusable walls, braces, panels, and stock stay the group’s property across productions.
+2. **Adapt with context** — each venue has its own geometry; adaptations and warnings stay visible.
+3. **Give crews a stable plan** — issued revisions keep labels, requirements, and warnings when you freeze them in a private install.
 
-### Browser-local demo (no Docker / Postgres)
+Built for set designers, technical leads, stage managers, and volunteer crews who share those jobs under time pressure.
 
-**Try it:** [https://thiesmoeller.github.io/stageharbour/](https://thiesmoeller.github.io/stageharbour/) — static build with `VITE_LOCAL_MODE=1`, no account or API. Speichern/Laden writes a backup file on your device; clearing site data loses the browser copy unless you saved a file.
+## What you can do
 
-Locally: `npm run dev:local` (no Docker/Postgres). `npm run build:local` produces the same static assets for any host. Private CapRover installs use normal `npm run build` without the flag.
+- **Plan in millimetres** — place walls, openings, braces, platforms, stairs, and placeholders on a measured top-down plan with a linked 3D view.
+- **Model real venues** — draw irregular outlines, calibrate a floor-plan trace, mark keep-clear zones, power/audio pins, and clearance warnings.
+- **Track physical stock** — assign panels from Bestand, catch duplicate or unavailable assignments, record intended vs actual finishes.
+- **Reuse across houses** — duplicate scenes, copy into another Spielstätte, and keep Szenenvorlagen as read-only starting points.
+- **Issue construction documents** *(self-hosted)* — document studio for Regie / Probe, Darstellende, and Aufbau / Technik presets; frozen PDF revisions with scale, elevations, and cable lists.
 
-GitHub Pages publishes from [`.github/workflows/pages-demo.yml`](.github/workflows/pages-demo.yml) on every push to `main`. See [ADR 0008](docs/adr/0008-browser-local-adapter.md).
+## Self-hosted workspace
 
-## Verification
+The full product is a private group install: sign-in, roles, exclusive editing leases, uploads, inventory, and PDF/package pipelines backed by PostgreSQL.
 
-Before pushing, run `npm run check:ci` with PostgreSQL running and Chromium installed
-(`npx playwright install chromium`). This runs the same unit, integration, build and
-full browser checks as the x86 CI gate. The ARM job runs its smaller smoke suite.
+CapRover deploy from `main` is documented in **[docs/caprover.md](docs/caprover.md)**.
+
+### Quick local development
+
+Requires Node.js 24 LTS, npm, and Docker Compose.
 
 ```sh
-npm run typecheck
+npm ci
+cp .env.example .env
+# Set BETTER_AUTH_SECRET, workspace name, and BOOTSTRAP_ADMIN_* in .env
+docker compose up -d --wait db
+npm run db:migrate
+npm run admin:bootstrap
+# Remove BOOTSTRAP_ADMIN_* from .env, then:
+npm run dev
+```
+
+Open http://localhost:5173 and sign in with the administrator account.
+
+Browser-local demo (no database): `npm run dev:local`  
+Same check suite as CI: `npm run check:ci` (Postgres + Chromium required)
+
+## Project status
+
+StageHarbour is under active development for a real theatre group. The German UI and millimetre editor are usable today; some catalogue and pilot work continues in [docs/issue-breakdown.md](docs/issue-breakdown.md) and [docs/pascal-editor-status.md](docs/pascal-editor-status.md).
+
+Brand direction lives in [assets/branding/stageharbour/BRAND.md](assets/branding/stageharbour/BRAND.md). Architecture decisions are recorded under [docs/adr/](docs/adr/).
+
+## Contributing
+
+Issues and pull requests are welcome. Please run the full gate before pushing to a branch you want merged:
+
+```sh
 npm test
 npm run test:integration
-npm run build
-npx playwright install chromium
 npm run test:e2e
 ```
 
-Integration/browser tests use local PostgreSQL at port 55432 by default; override `TEST_DATABASE_URL` for a dedicated test server. The test database user needs permission to create databases. Each run creates a uniquely named database, applies migrations twice, and removes that database afterwards. Tests do not reset the application database. Browser tests serve the built application and use a disposable example administrator.
-
-Long browser journeys should use `test.slow()` to scale the configured deadline for
-software rendering on CI, rather than replacing it with a shorter fixed timeout.
-Use named `test.step` phases so timeout locations remain visible in the job log.
-Failure artifacts are retained for three days; changing retention does not expire
-older uploads or immediately clear an existing GitHub storage quota.
-
-Tests cover concurrent/idempotent bootstrap, login, CSRF origin rejection, closed registration, cross-workspace access, non-members, viewer/editor role restrictions, immediate membership revocation, expired sessions, logout, reload, mobile layout and network-error recovery. Layout tests cover millimetre wall geometry and session undo/redo, revision-checked competing saves, pinned venue versions, malformed documents, viewer write denial, serialized autosave including retry after failure, exclusive editing leases with competing clients, and the browser workflow that creates a layout, moves a wall, undoes the move and reloads the saved result without restoring undo history. Duplicating a scene inside a production keeps panel assignments on independent placement records, refuses viewers and foreign workspaces, leaves a frozen source snapshot unchanged after editing the copy, and does not require the source editing lease. Copying into another production or venue clears `panelId`, uses the destination venue version, refuses viewers and foreign workspaces, and also reads the source without a lease. Capturing a Szenenvorlage clones layout JSON including wall types; instantiating into a production/venue clears `panelId` and leaves the template unchanged after later source edits; viewers can list templates but cannot capture or instantiate. Saving a venue inserts a new version; sibling adaptations stay pinned until they apply; a failed apply leaves the previous pin; freeze issued before apply keeps the old geometry. Package tests cover a production stock summary that counts a shared panel once across scenes, listed unassigned/unavailable assignments and spatial warnings, and frozen packages that ignore later inventory or venue edits. Inventory tests cover usable stock excluding unavailable panels, unassigned placements remaining valid, duplicate/incompatible/unavailable assignment warnings that keep the stored reference, create/list/assign/unassign with viewer and cross-workspace denial, and the browser workflow that assigns an example panel, shows a stock warning, and reloads the assignment. Export tests cover a 1200 mm wall measuring 24 mm on the A4 page at 1:50 (and 48 mm at 1:25 / 12 mm at 1:100), A3 paper, tiling a 20000 mm venue across three A4 pages with overlap and registration marks, a 90° wall group producing two labelled elevation faces (1200×2400 mm each at 1:50 as 24×48 mm, not one flattened width), frozen snapshots that ignore later source edits, retry from the same frozen paper and scale after a failed render, viewer freeze denial, and downloading a named revision from the editor. Assembly tests cover left-to-right numbering from the audience that stays put after a later move, connections that do not change coordinates, save/reload of numbers, connections and rigging notes, and frozen PDFs that keep issued labels and the manual-verification notice.
-
-`npm audit` currently reports four moderate findings through Drizzle Kit's legacy esbuild loader. They also appear with `--omit=dev` because Better Auth declares Drizzle Kit as an optional peer. This application uses the loader for migration tooling and does not run the affected esbuild development server. The findings remain unresolved; do not use an automatic downgrade of Drizzle Kit as an audit fix.
-
-## Structure and choices
-
-- `src/client`: React 19 with Vite 8, German UI, same-origin API access. React is a small browser shell here; layout documents, millimetre geometry and the command stack live in `src/shared` so they stay independent of rendering. Coordinates are millimetres with a centre-anchored wall, origin at the audience-left front of the venue, +x audience-right, +y away from the audience, and positive rotation counterclockwise. Vite's supported React integration and Node requirements are documented in the [official Vite guide](https://vite.dev/guide/).
-- `src/shared/assembly.ts`: assembly numbers and panel connections live in the versioned layout JSON. Numbers are assigned from the audience's left-to-right view (`+x` audience-right, looking toward `+y`) and then stick as explicit `assemblyNumber` metadata; later moves do not renumber them. Connections record which walls join and never move neighbouring panels. Connection compatibility is a crew check; the planner does not test hinge geometry.
-- `src/client/editor` and `src/server/productions`: top-down SVG editing with a 500 ms revision-checked autosave. Pending, saved, failed and conflict states stay visible; a 409 or 423 leaves the local draft intact. Undo history is session-only. Exclusive editing leases live in `src/server/productions/leases.ts`. The browser sends a heartbeat every 15 seconds; the server expires an abandoned lease after 45 seconds (three missed heartbeats). The same lease module covers scene plans, venue-record writes, and workspace inventory writes (`inventory` kind, resource id = workspace id). Different scenes can be edited concurrently; each scene, venue and workspace inventory has one editing user. Tabs signed in as the same user share ownership, so scene revisions and venue version checks remain necessary. Live collaborative editing is out of scope.
-- `src/shared/placeholders.ts`: resizable tables, chairs, person figures, speakers, and generic boxes with labels and millimetre size. They sit on an explicit supporting surface, join groups with a wall, appear in plan/3D/PDF, and participate in keep-clear overlap. Example sizes only; CAD and lighting stay deferred.
-- `src/shared/clipboard.ts`: session-only copy/cut/paste. Copy makes new ids 300 mm in +x/+y with no `panelId` or assembly number. Cut/paste keeps identities. Groups and internal connections remap; refs to uncopied walls are dropped. Shortcuts ignore focused text inputs. Placeholders and imported models share the clipboard.
-- `src/shared/scenes.ts`: whole-scene duplication inside a production, destination-venue copy, and read-only scene templates. Duplicate keeps `panelId` and assembly numbers and shares `riggingSetupId`. `copyLayoutIntoVenue` clears `panelId`, transfers only movable layout pieces, maps supporting surfaces through an explicit `surfaceMap`, and reruns destination overhead and keep-clear. Destination copy always remounts (`riggingSetupId` is new). `captureTemplateLayout` clones layout JSON including `wallTypes` into workspace-scoped `scene_template` rows. Instantiating reuses `copyLayoutIntoVenue`. `applyVenueVersion` retargets an adaptation onto a newer immutable venue version without clearing `panelId`. `POST .../scenes/:id/duplicate`, `POST .../scenes/:id/copy`, and template capture read the source without taking its lease; later edits lease the new scene. There is no unique constraint on `(production, venueVersion)` adaptations; find-or-create is application-level. Copy into a production that already has an adaptation for that venue reuses the current pin.
-- `src/shared/groups.ts`: explicit groups in versioned layout JSON. The documented pivot is the centroid of member centres in millimetres; positive rotation is counterclockwise, matching walls. Walls are required members; braces, stairs, and placeholders share the same pose transform. Movable platforms are not group members. Connections never auto-group.
-- `src/shared/keepClear.ts`: labelled keep-clear polygons tied to a supporting surface. Overlaps with walls, braces, movable platforms/stairs, and furniture placeholders on the same surface warn in the editor and as `unresolvedWarnings` on a frozen snapshot. Contact uses a documented 1 mm tolerance. Example millimetres only.
-- `src/shared/snapping.ts`: millimetre wall-edge and stage-centreline snapping with a documented 100 mm distance and 2.5° common-angle tolerance. Groups translate as one pose so members keep relative offsets. Alt or disabling Einrasten bypasses snapping. The centreline (a point plus orientation) lives in versioned venue JSON. Mirroring is out of scope.
-- `src/shared/overhead.ts`: venue ceiling height and axis-aligned rectangular overhead boxes. Clearance uses the object's supporting-surface elevation; conflicts warn in the editor and frozen PDF (`kein statischer Nachweis`) without blocking save. Example millimetres only.
-- `src/shared/levels.ts`: supporting surfaces (audience floor plus platforms), stairs that connect two surfaces, and placement diagnostics when a wall or brace has no surface or sits on an ambiguous edge. Permanent platforms/stairs are venue JSON; movable ones are layout JSON. Geometry stays in venue-version and scene JSONB (no extra migration).
-- `src/server/inventory` and `src/shared/inventory.ts`: workspace-scoped wall-type catalogue and physical panels. Scene placements keep an optional `panelId`; per-scene `layout.wallTypes` are unchanged. Compatibility is same type id, or same outer millimetres plus matching rectangular openings (opening ids ignored). The group has reported 29 panels (20 plain, 6 door, 2 window, 1 arch). Editor fixtures use example labels such as `Beispiel-P01` and example rectangular door/window openings; they are not real panel IDs. The arch panel is 250 mm thick; its opening profile is not recorded here (slice 06).
-- `src/shared/package.ts`: frozen multi-scene Konstruktionspaket with Stückliste. `freezePackage` clones layouts, venue geometry, inventory labels/availability, and warnings at issue time. A production stock summary counts each physical `panelId` once even when the same panel appears in several scenes; unassigned, unavailable, duplicate, incompatible, and shortage warnings plus overhead/keep-clear stay on the snapshot. PDFKit draws the lists; scene construction plans (overhead, tiling, elevations) are merged with pdf-lib. Rendering stays in `child_process.fork`. Viewers download existing packages but cannot freeze new ones.
-- `src/server/exports`, `src/shared/tiling.ts`, and `src/shared/elevations.ts`: named frozen construction-plan revisions. PDFKit draws a vector overhead from the frozen snapshot (design, resolved geometry, venue information, `warnings`, and `unresolvedWarnings`) plus optional front elevations for `elevationGroupIds` stored on that snapshot. Paper (A4/A3) and scale (1:25, 1:50, 1:100) are stored on the snapshot JSON so stored 1:50 A4 revisions remain readable without a migration; snapshots without elevation fields still parse. Plans that do not fit one sheet tile with a documented 20 mm overlap, 5 mm registration ticks, and Blatt labels. Each distinct wall facing of a selected group is one labelled orthogonal elevation (a 90° corner is two faces, never a flattened width); openings use the frozen rectangular left/sill/width/height box. Generated files live behind a local-filesystem storage interface; PDF bytes are not stored in JSONB. Rendering runs in a child process so it stays off the API event loop. Failure can be retried from the same snapshot.
-- `src/server/identity`: Better Auth identity/session integration, private bootstrap, and application-owned workspace authorization. See the [Fastify integration](https://better-auth.com/docs/integrations/fastify) and [Drizzle adapter](https://better-auth.com/docs/adapters/drizzle) documentation.
-- `src/server/db` and `drizzle`: PostgreSQL/Drizzle schema and checked-in migrations. Auth identities and workspace memberships are separate relational records; sessions use the database.
-- `src/shared/contracts.ts`: Zod REST schemas shared with the browser. Authenticated members can inspect generated OpenAPI at `/api/openapi.json`; Better Auth routes are handled separately.
-
-Dependencies are exact-pinned in `package.json` and `package-lock.json`, with TypeScript 5.9.3. `npm run build` checks all TypeScript, builds browser assets into `dist/web`, and compiles the backend into `dist/server`.
-
-For the built server, set `NODE_ENV=production`, an HTTPS `APP_ORIGIN`, and run `npm start` with `.env` configured. The server then serves the built UI and API together. The application currently trusts only the socket peer for authentication throttling. Trusted reverse-proxy configuration, persistent/shared rate-limit storage and HTTPS termination must be addressed in the installation slice. Authentication cookies are HttpOnly, SameSite=Lax and Secure when the configured origin uses HTTPS. Membership is read afresh on every protected request.
-
-## Container backend and persistent files
-
-GLB uploads, venue reference images/PDFs and generated PDFs already use filesystem storage. PostgreSQL stores file identifiers, storage keys and metadata; it does not store those binary payloads. Host development uses `STORAGE_DIR` (default `data/storage`).
-
-The optional Compose `app` profile builds the UI and backend and mounts the named `asset-data` volume at `/data/storage`, separately from `postgres-data`. Configure `.env` as above, plus `DEPLOY_APP_ORIGIN=https://planner.example.org` and optionally `BACKEND_PORT=3000`. Point an HTTPS reverse proxy for that origin at `127.0.0.1:3000` (or the chosen backend port). The container serves HTTP behind that proxy; the origin must be HTTPS for production authentication.
-
-```sh
-docker compose --profile app up -d --build
-```
-
-The backend runs migrations before listening and runs as the unprivileged `node` user. Its database host, listen address and storage path override the host-development values in `.env`. `docker compose up -d` without the profile continues to start only PostgreSQL for host development.
-
-When moving an existing host installation, stop its API before the cutover and copy the contents of its actual `STORAGE_DIR` into the volume before starting the container backend. For the default directory:
-
-```sh
-docker compose --profile app build backend
-docker compose --profile app create backend
-docker compose cp data/storage/. backend:/data/storage/
-docker compose --profile app run --rm --no-deps --user root --entrypoint chown backend -R node:node /data/storage
-docker compose --profile app up -d
-```
-
-Keep the workspace-relative directory structure and filenames intact: existing database keys point to them. No database blob migration is needed. Back up and restore `postgres-data` and `asset-data` together while writes are stopped. Container recreation preserves both volumes; `docker compose down -v` deletes them. External Pascal catalogue URLs remain external assets.
-
-Next: arch panel HITL measurements (slice 06), CapRover pilot restore checks and crew validation (slices 29–30). See [docs/caprover.md](docs/caprover.md) for CapRover setup.
-
-## Permissions and concurrent work
-
-`src/shared/permissions.ts` defines the capabilities used by the API and UI. Administrators manage members; administrators and editors modify scenes, venues, inventory/assets and issue exports. Viewers read plans and download existing exports. Membership is checked on every request. Demotion to viewer or revocation removes held leases, and concurrent membership changes cannot remove the last administrator.
-
-Inventory and GLB/catalog mutations check their lease in the same transaction as the database write. Venue publication and adoption refuse to alter sibling scenes held by another editor. Venue and scene deletion also respect active leases. Editors can retry acquisition from read-only views after release or expiry; active leases cannot be forcibly taken over.
-
-Loss of a scene lease stops editing and retains the local draft. The conflict panel offers a JSON download or a separate scene template, without overwriting the original. Venue drafts remain downloadable and discardable after lease loss. These drafts live in browser memory until recovered; closing the page does not persist them.
-
-Administrators can inspect the latest 100 workspace activities. Lease acquisition, expiry takeover and release are recorded transactionally. Successful workspace mutations are recorded by the response hook (an activity history, not a transactionally complete compliance log); payloads and secrets are excluded. Administrators can set site branding (product name, tagline, footer, logo) for self-hosted installations. Apply migration `0012` with `npm run db:migrate` before running this version.
+`main` is protected: changes go through a PR, and the `test` check must pass.
