@@ -37,11 +37,11 @@ The Compose file is for local development only. Its database binds to loopback a
 
 ### Browser-local demo (no Docker / Postgres)
 
-**Try it (once Pages is live):** [https://thiesmoeller.github.io/stageharbour/](https://thiesmoeller.github.io/stageharbour/) — static build with `VITE_LOCAL_MODE=1`, no account or API. Speichern/Laden writes a backup file on your device; clearing site data loses the browser copy unless you saved a file.
+**Try it:** [https://thiesmoeller.github.io/stageharbour/](https://thiesmoeller.github.io/stageharbour/) — static build with `VITE_LOCAL_MODE=1`, no account or API. Speichern/Laden writes a backup file on your device; clearing site data loses the browser copy unless you saved a file.
 
-Until then: `npm run dev:local` (no Docker/Postgres). `npm run build:local` produces the same static assets for any host. Private CapRover installs use normal `npm run build` without the flag.
+Locally: `npm run dev:local` (no Docker/Postgres). `npm run build:local` produces the same static assets for any host. Private CapRover installs use normal `npm run build` without the flag.
 
-GitHub Pages deploy: [`.github/workflows/pages-demo.yml`](.github/workflows/pages-demo.yml) on `main` (deploy is `continue-on-error` until Pages is enabled). This repository is **private**; GitHub Pages on private repos needs [GitHub Pro](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits#limits) (or make a public demo-only repo). After enabling Pages → **Source: GitHub Actions**, the workflow publishes automatically. See [ADR 0008](docs/adr/0008-browser-local-adapter.md).
+GitHub Pages publishes from [`.github/workflows/pages-demo.yml`](.github/workflows/pages-demo.yml) on every push to `main`. See [ADR 0008](docs/adr/0008-browser-local-adapter.md).
 
 ## Verification
 

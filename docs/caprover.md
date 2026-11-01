@@ -1,6 +1,6 @@
 # CapRover deployment
 
-Deploy **StageHarbour** to CapRover from the private GitHub repository. GitHub Actions builds the Docker image on every push to `main` and tells CapRover to run that image. CapRover never needs GitHub repository access.
+Deploy **StageHarbour** to CapRover from the GitHub repository. GitHub Actions builds the Docker image on every push to `main` and tells CapRover to run that image. CapRover never needs GitHub repository access.
 
 **Ops names (keep):** CapRover app `stageplanner`, Postgres app `stageplanner-db`, and historically `stageplanner.example.org`. These are technical fallbacks, not the public product name. Change CapRover app names only if you prefer other ids; keep the GitHub `CAPROVER_APP` secret in sync.
 
