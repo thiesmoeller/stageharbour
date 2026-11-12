@@ -1,0 +1,1364 @@
+{
+  "document": {
+    "diagnostics": [],
+    "issuedAt": "07.09.2026",
+    "pageCount": 5,
+    "revisionName": "Goldene Fassung",
+    "schemaVersion": 1,
+    "sheets": [
+      {
+        "bookmark": "1 Aufbau / Technik",
+        "bookmarkTitle": "Aufbau / Technik",
+        "code": "1",
+        "destination": "blatt-1",
+        "diagnostics": [],
+        "frames": [
+          {
+            "clip": {"height": 241, "width": 186, "x": 12, "y": 32},
+            "detail": false,
+            "id": "index",
+            "kind": "notes",
+            "paint": [
+              {
+                "bold": true,
+                "color": "#718264",
+                "height": 4,
+                "op": "text",
+                "size": 8,
+                "text": "AUFBAU / TECHNIK",
+                "width": 186,
+                "x": 12,
+                "y": 46
+              },
+              {
+                "bold": true,
+                "color": "#273d34",
+                "height": 12,
+                "op": "text",
+                "size": 26,
+                "text": "Beispielproduktion",
+                "width": 186,
+                "x": 12,
+                "y": 55
+              },
+              {
+                "color": "#77876a",
+                "height": 5,
+                "op": "text",
+                "size": 11,
+                "text": "Beispielsaal",
+                "width": 186,
+                "x": 12,
+                "y": 67
+              },
+              {"line": 0.3, "op": "line", "stroke": "#cad3c2", "x1": 12, "x2": 87, "y1": 84, "y2": 84},
+              {
+                "bold": true,
+                "color": "#87927d",
+                "height": 4,
+                "op": "text",
+                "size": 7,
+                "text": "BÜHNENBILDER IN DIESEM DOKUMENT",
+                "width": 186,
+                "x": 12,
+                "y": 91
+              },
+              {
+                "color": "#203c36",
+                "height": 4,
+                "op": "text",
+                "size": 9,
+                "text": "Bühnenbild 1",
+                "width": 186,
+                "x": 12,
+                "y": 98
+              },
+              {
+                "bold": true,
+                "color": "#87927d",
+                "height": 4,
+                "op": "text",
+                "size": 7,
+                "text": "BLICK AUF DIE BÜHNE",
+                "width": 186,
+                "x": 12,
+                "y": 122.4
+              },
+              {"line": 0.25, "op": "line", "stroke": "#d0d8cb", "x1": 25, "x2": 25, "y1": 256.7, "y2": 136.7},
+              {"line": 0.15, "op": "line", "stroke": "#e8ede3", "x1": 35, "x2": 35, "y1": 256.7, "y2": 136.7},
+              {"line": 0.25, "op": "line", "stroke": "#d0d8cb", "x1": 45, "x2": 45, "y1": 256.7, "y2": 136.7},
+              {"line": 0.15, "op": "line", "stroke": "#e8ede3", "x1": 55, "x2": 55, "y1": 256.7, "y2": 136.7},
+              {"line": 0.25, "op": "line", "stroke": "#d0d8cb", "x1": 65, "x2": 65, "y1": 256.7, "y2": 136.7},
+              {"line": 0.15, "op": "line", "stroke": "#e8ede3", "x1": 75, "x2": 75, "y1": 256.7, "y2": 136.7},
+              {"line": 0.25, "op": "line", "stroke": "#d0d8cb", "x1": 85, "x2": 85, "y1": 256.7, "y2": 136.7},
+              {"line": 0.15, "op": "line", "stroke": "#e8ede3", "x1": 95, "x2": 95, "y1": 256.7, "y2": 136.7},
+              {
+                "line": 0.25,
+                "op": "line",
+                "stroke": "#d0d8cb",
+                "x1": 105,
+                "x2": 105,
+                "y1": 256.7,
+                "y2": 136.7
+              },
+              {
+                "line": 0.15,
+                "op": "line",
+                "stroke": "#e8ede3",
+                "x1": 115,
+                "x2": 115,
+                "y1": 256.7,
+                "y2": 136.7
+              },
+              {
+                "line": 0.25,
+                "op": "line",
+                "stroke": "#d0d8cb",
+                "x1": 125,
+                "x2": 125,
+                "y1": 256.7,
+                "y2": 136.7
+              },
+              {
+                "line": 0.15,
+                "op": "line",
+                "stroke": "#e8ede3",
+                "x1": 135,
+                "x2": 135,
+                "y1": 256.7,
+                "y2": 136.7
+              },
+              {
+                "line": 0.25,
+                "op": "line",
+                "stroke": "#d0d8cb",
+                "x1": 145,
+                "x2": 145,
+                "y1": 256.7,
+                "y2": 136.7
+              },
+              {
+                "line": 0.15,
+                "op": "line",
+                "stroke": "#e8ede3",
+                "x1": 155,
+                "x2": 155,
+                "y1": 256.7,
+                "y2": 136.7
+              },
+              {
+                "line": 0.25,
+                "op": "line",
+                "stroke": "#d0d8cb",
+                "x1": 165,
+                "x2": 165,
+                "y1": 256.7,
+                "y2": 136.7
+              },
+              {
+                "line": 0.15,
+                "op": "line",
+                "stroke": "#e8ede3",
+                "x1": 175,
+                "x2": 175,
+                "y1": 256.7,
+                "y2": 136.7
+              },
+              {
+                "line": 0.25,
+                "op": "line",
+                "stroke": "#d0d8cb",
+                "x1": 185,
+                "x2": 185,
+                "y1": 256.7,
+                "y2": 136.7
+              },
+              {"line": 0.25, "op": "line", "stroke": "#d0d8cb", "x1": 25, "x2": 185, "y1": 256.7, "y2": 256.7},
+              {"line": 0.15, "op": "line", "stroke": "#e8ede3", "x1": 25, "x2": 185, "y1": 246.7, "y2": 246.7},
+              {"line": 0.25, "op": "line", "stroke": "#d0d8cb", "x1": 25, "x2": 185, "y1": 236.7, "y2": 236.7},
+              {"line": 0.15, "op": "line", "stroke": "#e8ede3", "x1": 25, "x2": 185, "y1": 226.7, "y2": 226.7},
+              {"line": 0.25, "op": "line", "stroke": "#d0d8cb", "x1": 25, "x2": 185, "y1": 216.7, "y2": 216.7},
+              {"line": 0.15, "op": "line", "stroke": "#e8ede3", "x1": 25, "x2": 185, "y1": 206.7, "y2": 206.7},
+              {"line": 0.25, "op": "line", "stroke": "#d0d8cb", "x1": 25, "x2": 185, "y1": 196.7, "y2": 196.7},
+              {"line": 0.15, "op": "line", "stroke": "#e8ede3", "x1": 25, "x2": 185, "y1": 186.7, "y2": 186.7},
+              {"line": 0.25, "op": "line", "stroke": "#d0d8cb", "x1": 25, "x2": 185, "y1": 176.7, "y2": 176.7},
+              {"line": 0.15, "op": "line", "stroke": "#e8ede3", "x1": 25, "x2": 185, "y1": 166.7, "y2": 166.7},
+              {"line": 0.25, "op": "line", "stroke": "#d0d8cb", "x1": 25, "x2": 185, "y1": 156.7, "y2": 156.7},
+              {"line": 0.15, "op": "line", "stroke": "#e8ede3", "x1": 25, "x2": 185, "y1": 146.7, "y2": 146.7},
+              {"line": 0.25, "op": "line", "stroke": "#d0d8cb", "x1": 25, "x2": 185, "y1": 136.7, "y2": 136.7},
+              {
+                "line": 0.8,
+                "op": "poly",
+                "points": [{"x": 25, "y": 256.7}, {"x": 185, "y": 256.7}, {"x": 185, "y": 136.7}, {"x": 25, "y": 136.7}],
+                "stroke": "#718469"
+              },
+              {
+                "fill": "#315d49",
+                "line": 0.5,
+                "op": "poly",
+                "points": [
+                  {"x": 53, "y": 216.98},
+                  {"x": 77, "y": 216.98},
+                  {"x": 77, "y": 216.42},
+                  {"x": 53, "y": 216.42}
+                ],
+                "stroke": "#243f34"
+              },
+              {
+                "fill": "#315d49",
+                "line": 0.5,
+                "op": "poly",
+                "points": [
+                  {"x": 77, "y": 216.98},
+                  {"x": 101, "y": 216.98},
+                  {"x": 101, "y": 216.42},
+                  {"x": 77, "y": 216.42}
+                ],
+                "stroke": "#243f34"
+              },
+              {
+                "fill": "#315d49",
+                "line": 0.5,
+                "op": "poly",
+                "points": [
+                  {"x": 113.28, "y": 228.7},
+                  {"x": 113.28, "y": 204.7},
+                  {"x": 112.72, "y": 204.7},
+                  {"x": 112.72, "y": 228.7}
+                ],
+                "stroke": "#243f34"
+              },
+              {
+                "bold": true,
+                "color": "#536950",
+                "height": 3,
+                "op": "text",
+                "size": 7,
+                "text": "↑ Blick zur Bühne (Zuschauerraum)",
+                "width": 70,
+                "x": 70,
+                "y": 256.7
+              },
+              {
+                "color": "#87927d",
+                "height": 4,
+                "op": "text",
+                "size": 7,
+                "text": "Orientierung · ohne Maßstab",
+                "width": 186,
+                "x": 12,
+                "y": 268
+              },
+              {"height": 4, "op": "link", "sheet": 2, "width": 186, "x": 12, "y": 98}
+            ],
+            "scale": null,
+            "scaleLabel": "—",
+            "sourceLabel": "Aufbau / Technik"
+          }
+        ],
+        "heightMm": 297,
+        "index": 1,
+        "neighbors": {},
+        "orientation": "portrait",
+        "paint": [
+          {
+            "bold": true,
+            "color": "#788676",
+            "height": 3,
+            "op": "text",
+            "size": 7,
+            "text": "BEISPIELPRODUKTION",
+            "width": 186,
+            "x": 12,
+            "y": 7
+          },
+          {
+            "bold": true,
+            "color": "#273d34",
+            "height": 7,
+            "op": "text",
+            "size": 16,
+            "text": "Aufbau / Technik",
+            "width": 186,
+            "x": 12,
+            "y": 12
+          },
+          {
+            "color": "#687762",
+            "height": 4,
+            "op": "text",
+            "size": 8,
+            "text": "Bühnenbild 1 · Beispielsaal",
+            "width": 186,
+            "x": 12,
+            "y": 20
+          },
+          {
+            "color": "#85907c",
+            "height": 3,
+            "op": "text",
+            "size": 6.5,
+            "text": "Fassung Goldene Fassung · 07.09.2026 · A4",
+            "width": 151,
+            "x": 12,
+            "y": 25
+          },
+          {
+            "color": "#617558",
+            "height": 3,
+            "op": "text",
+            "size": 6.5,
+            "text": "Blatt 1 von 5",
+            "width": 30,
+            "x": 168,
+            "y": 25
+          },
+          {"line": 0.25, "op": "line", "stroke": "#cad3c2", "x1": 12, "x2": 198, "y1": 30, "y2": 30},
+          {"line": 0.25, "op": "line", "stroke": "#cad3c2", "x1": 12, "x2": 198, "y1": 284, "y2": 284},
+          {
+            "color": "#203c36",
+            "height": 3.5,
+            "op": "text",
+            "size": 7,
+            "text": "— · 100 % drucken, nicht an Seite anpassen",
+            "width": 140,
+            "x": 12,
+            "y": 287
+          }
+        ],
+        "paper": "A4",
+        "scale": null,
+        "scaleLabel": "—",
+        "sourceKey": "document:index",
+        "title": "Aufbau / Technik",
+        "widthMm": 210
+      },
+      {
+        "bookmark": "2 Grundriss Bühnenbild 1",
+        "bookmarkTitle": "Grundriss Bühnenbild 1",
+        "code": "2",
+        "destination": "blatt-2",
+        "diagnostics": [],
+        "frames": [
+          {
+            "clip": {"height": 241, "width": 186, "x": 12, "y": 32},
+            "detail": false,
+            "id": "plan-a5000000-0000-4000-8000-000000000001-0-0",
+            "kind": "plan",
+            "paint": [
+              {
+                "line": 0.25,
+                "op": "line",
+                "stroke": "#d0d8cb",
+                "x1": 46.86,
+                "x2": 46.86,
+                "y1": 192.5,
+                "y2": 72.5
+              },
+              {
+                "line": 0.15,
+                "op": "line",
+                "stroke": "#e8ede3",
+                "x1": 56.86,
+                "x2": 56.86,
+                "y1": 192.5,
+                "y2": 72.5
+              },
+              {
+                "line": 0.25,
+                "op": "line",
+                "stroke": "#d0d8cb",
+                "x1": 66.86,
+                "x2": 66.86,
+                "y1": 192.5,
+                "y2": 72.5
+              },
+              {
+                "line": 0.15,
+                "op": "line",
+                "stroke": "#e8ede3",
+                "x1": 76.86,
+                "x2": 76.86,
+                "y1": 192.5,
+                "y2": 72.5
+              },
+              {
+                "line": 0.25,
+                "op": "line",
+                "stroke": "#d0d8cb",
+                "x1": 86.86,
+                "x2": 86.86,
+                "y1": 192.5,
+                "y2": 72.5
+              },
+              {
+                "line": 0.15,
+                "op": "line",
+                "stroke": "#e8ede3",
+                "x1": 96.86,
+                "x2": 96.86,
+                "y1": 192.5,
+                "y2": 72.5
+              },
+              {
+                "line": 0.25,
+                "op": "line",
+                "stroke": "#d0d8cb",
+                "x1": 106.86,
+                "x2": 106.86,
+                "y1": 192.5,
+                "y2": 72.5
+              },
+              {
+                "line": 0.15,
+                "op": "line",
+                "stroke": "#e8ede3",
+                "x1": 116.86,
+                "x2": 116.86,
+                "y1": 192.5,
+                "y2": 72.5
+              },
+              {
+                "line": 0.25,
+                "op": "line",
+                "stroke": "#d0d8cb",
+                "x1": 126.86,
+                "x2": 126.86,
+                "y1": 192.5,
+                "y2": 72.5
+              },
+              {
+                "line": 0.15,
+                "op": "line",
+                "stroke": "#e8ede3",
+                "x1": 136.86,
+                "x2": 136.86,
+                "y1": 192.5,
+                "y2": 72.5
+              },
+              {
+                "line": 0.25,
+                "op": "line",
+                "stroke": "#d0d8cb",
+                "x1": 146.86,
+                "x2": 146.86,
+                "y1": 192.5,
+                "y2": 72.5
+              },
+              {
+                "line": 0.15,
+                "op": "line",
+                "stroke": "#e8ede3",
+                "x1": 156.86,
+                "x2": 156.86,
+                "y1": 192.5,
+                "y2": 72.5
+              },
+              {
+                "line": 0.25,
+                "op": "line",
+                "stroke": "#d0d8cb",
+                "x1": 166.86,
+                "x2": 166.86,
+                "y1": 192.5,
+                "y2": 72.5
+              },
+              {
+                "line": 0.15,
+                "op": "line",
+                "stroke": "#e8ede3",
+                "x1": 176.86,
+                "x2": 176.86,
+                "y1": 192.5,
+                "y2": 72.5
+              },
+              {
+                "line": 0.25,
+                "op": "line",
+                "stroke": "#d0d8cb",
+                "x1": 186.86,
+                "x2": 186.86,
+                "y1": 192.5,
+                "y2": 72.5
+              },
+              {
+                "line": 0.15,
+                "op": "line",
+                "stroke": "#e8ede3",
+                "x1": 196.86,
+                "x2": 196.86,
+                "y1": 192.5,
+                "y2": 72.5
+              },
+              {
+                "line": 0.25,
+                "op": "line",
+                "stroke": "#d0d8cb",
+                "x1": 206.86,
+                "x2": 206.86,
+                "y1": 192.5,
+                "y2": 72.5
+              },
+              {
+                "line": 0.25,
+                "op": "line",
+                "stroke": "#d0d8cb",
+                "x1": 46.86,
+                "x2": 198,
+                "y1": 192.5,
+                "y2": 192.5
+              },
+              {
+                "line": 0.15,
+                "op": "line",
+                "stroke": "#e8ede3",
+                "x1": 46.86,
+                "x2": 198,
+                "y1": 182.5,
+                "y2": 182.5
+              },
+              {
+                "line": 0.25,
+                "op": "line",
+                "stroke": "#d0d8cb",
+                "x1": 46.86,
+                "x2": 198,
+                "y1": 172.5,
+                "y2": 172.5
+              },
+              {
+                "line": 0.15,
+                "op": "line",
+                "stroke": "#e8ede3",
+                "x1": 46.86,
+                "x2": 198,
+                "y1": 162.5,
+                "y2": 162.5
+              },
+              {
+                "line": 0.25,
+                "op": "line",
+                "stroke": "#d0d8cb",
+                "x1": 46.86,
+                "x2": 198,
+                "y1": 152.5,
+                "y2": 152.5
+              },
+              {
+                "line": 0.15,
+                "op": "line",
+                "stroke": "#e8ede3",
+                "x1": 46.86,
+                "x2": 198,
+                "y1": 142.5,
+                "y2": 142.5
+              },
+              {
+                "line": 0.25,
+                "op": "line",
+                "stroke": "#d0d8cb",
+                "x1": 46.86,
+                "x2": 198,
+                "y1": 132.5,
+                "y2": 132.5
+              },
+              {
+                "line": 0.15,
+                "op": "line",
+                "stroke": "#e8ede3",
+                "x1": 46.86,
+                "x2": 198,
+                "y1": 122.5,
+                "y2": 122.5
+              },
+              {
+                "line": 0.25,
+                "op": "line",
+                "stroke": "#d0d8cb",
+                "x1": 46.86,
+                "x2": 198,
+                "y1": 112.5,
+                "y2": 112.5
+              },
+              {
+                "line": 0.15,
+                "op": "line",
+                "stroke": "#e8ede3",
+                "x1": 46.86,
+                "x2": 198,
+                "y1": 102.5,
+                "y2": 102.5
+              },
+              {
+                "line": 0.25,
+                "op": "line",
+                "stroke": "#d0d8cb",
+                "x1": 46.86,
+                "x2": 198,
+                "y1": 92.5,
+                "y2": 92.5
+              },
+              {
+                "line": 0.15,
+                "op": "line",
+                "stroke": "#e8ede3",
+                "x1": 46.86,
+                "x2": 198,
+                "y1": 82.5,
+                "y2": 82.5
+              },
+              {
+                "line": 0.25,
+                "op": "line",
+                "stroke": "#d0d8cb",
+                "x1": 46.86,
+                "x2": 198,
+                "y1": 72.5,
+                "y2": 72.5
+              },
+              {
+                "line": 0.8,
+                "op": "poly",
+                "points": [
+                  {"x": 46.86, "y": 192.5},
+                  {"x": 206.86, "y": 192.5},
+                  {"x": 206.86, "y": 72.5},
+                  {"x": 46.86, "y": 72.5}
+                ],
+                "stroke": "#718469"
+              },
+              {
+                "fill": "#315d49",
+                "line": 0.5,
+                "op": "poly",
+                "points": [
+                  {"x": 74.86, "y": 152.78},
+                  {"x": 98.86, "y": 152.78},
+                  {"x": 98.86, "y": 152.22},
+                  {"x": 74.86, "y": 152.22}
+                ],
+                "stroke": "#243f34"
+              },
+              {
+                "fill": "#315d49",
+                "line": 0.5,
+                "op": "poly",
+                "points": [
+                  {"x": 98.86, "y": 152.78},
+                  {"x": 122.86, "y": 152.78},
+                  {"x": 122.86, "y": 152.22},
+                  {"x": 98.86, "y": 152.22}
+                ],
+                "stroke": "#243f34"
+              },
+              {
+                "fill": "#315d49",
+                "line": 0.5,
+                "op": "poly",
+                "points": [
+                  {"x": 135.14, "y": 164.5},
+                  {"x": 135.14, "y": 140.5},
+                  {"x": 134.58, "y": 140.5},
+                  {"x": 134.58, "y": 164.5}
+                ],
+                "stroke": "#243f34"
+              },
+              {
+                "bold": true,
+                "color": "#536950",
+                "height": 3,
+                "op": "text",
+                "size": 7,
+                "text": "↑ Blick zur Bühne (Zuschauerraum)",
+                "width": 70,
+                "x": 91.86,
+                "y": 192.5
+              }
+            ],
+            "scale": 50,
+            "scaleLabel": "1:50",
+            "sourceLabel": "Bühnenbild 1",
+            "window": {"maxX": 7557, "maxY": 8025, "minX": -1743, "minY": -4025}
+          }
+        ],
+        "heightMm": 297,
+        "index": 2,
+        "neighbors": {},
+        "orientation": "portrait",
+        "paint": [
+          {
+            "bold": true,
+            "color": "#788676",
+            "height": 3,
+            "op": "text",
+            "size": 7,
+            "text": "BEISPIELPRODUKTION",
+            "width": 186,
+            "x": 12,
+            "y": 7
+          },
+          {
+            "bold": true,
+            "color": "#273d34",
+            "height": 7,
+            "op": "text",
+            "size": 16,
+            "text": "Grundriss",
+            "width": 186,
+            "x": 12,
+            "y": 12
+          },
+          {
+            "color": "#687762",
+            "height": 4,
+            "op": "text",
+            "size": 8,
+            "text": "Bühnenbild 1 · Beispielsaal",
+            "width": 186,
+            "x": 12,
+            "y": 20
+          },
+          {
+            "color": "#85907c",
+            "height": 3,
+            "op": "text",
+            "size": 6.5,
+            "text": "Fassung Goldene Fassung · 07.09.2026 · A4",
+            "width": 151,
+            "x": 12,
+            "y": 25
+          },
+          {
+            "color": "#617558",
+            "height": 3,
+            "op": "text",
+            "size": 6.5,
+            "text": "Blatt 2 von 5",
+            "width": 30,
+            "x": 168,
+            "y": 25
+          },
+          {"line": 0.25, "op": "line", "stroke": "#cad3c2", "x1": 12, "x2": 198, "y1": 30, "y2": 30},
+          {"line": 0.25, "op": "line", "stroke": "#cad3c2", "x1": 12, "x2": 198, "y1": 284, "y2": 284},
+          {
+            "color": "#203c36",
+            "height": 3.5,
+            "op": "text",
+            "size": 7,
+            "text": "Maßstab 1:50 · 100 % drucken, nicht an Seite anpassen",
+            "width": 140,
+            "x": 12,
+            "y": 287
+          },
+          {"line": 0.6, "op": "line", "stroke": "#203c36", "x1": 178, "x2": 198, "y1": 288.5, "y2": 288.5},
+          {
+            "color": "#536950",
+            "height": 3,
+            "op": "text",
+            "size": 6,
+            "text": "1000 mm",
+            "width": 20,
+            "x": 178,
+            "y": 289.2
+          }
+        ],
+        "paper": "A4",
+        "scale": 50,
+        "scaleLabel": "1:50",
+        "sceneName": "Bühnenbild 1",
+        "sourceKey": "a5000000-0000-4000-8000-000000000001:plan-a5000000-0000-4000-8000-000000000001-0-0",
+        "title": "Grundriss",
+        "widthMm": 210
+      },
+      {
+        "bookmark": "3 Kabelplan Bühnenbild 1",
+        "bookmarkTitle": "Kabelplan Bühnenbild 1",
+        "code": "3",
+        "destination": "blatt-3",
+        "diagnostics": [],
+        "frames": [
+          {
+            "clip": {"height": 241, "width": 186, "x": 12, "y": 32},
+            "detail": false,
+            "id": "cables-a5000000-0000-4000-8000-000000000001",
+            "kind": "plan",
+            "paint": [
+              {"line": 0.25, "op": "line", "stroke": "#d0d8cb", "x1": 25, "x2": 25, "y1": 212.5, "y2": 92.5},
+              {"line": 0.15, "op": "line", "stroke": "#e8ede3", "x1": 35, "x2": 35, "y1": 212.5, "y2": 92.5},
+              {"line": 0.25, "op": "line", "stroke": "#d0d8cb", "x1": 45, "x2": 45, "y1": 212.5, "y2": 92.5},
+              {"line": 0.15, "op": "line", "stroke": "#e8ede3", "x1": 55, "x2": 55, "y1": 212.5, "y2": 92.5},
+              {"line": 0.25, "op": "line", "stroke": "#d0d8cb", "x1": 65, "x2": 65, "y1": 212.5, "y2": 92.5},
+              {"line": 0.15, "op": "line", "stroke": "#e8ede3", "x1": 75, "x2": 75, "y1": 212.5, "y2": 92.5},
+              {"line": 0.25, "op": "line", "stroke": "#d0d8cb", "x1": 85, "x2": 85, "y1": 212.5, "y2": 92.5},
+              {"line": 0.15, "op": "line", "stroke": "#e8ede3", "x1": 95, "x2": 95, "y1": 212.5, "y2": 92.5},
+              {"line": 0.25, "op": "line", "stroke": "#d0d8cb", "x1": 105, "x2": 105, "y1": 212.5, "y2": 92.5},
+              {"line": 0.15, "op": "line", "stroke": "#e8ede3", "x1": 115, "x2": 115, "y1": 212.5, "y2": 92.5},
+              {"line": 0.25, "op": "line", "stroke": "#d0d8cb", "x1": 125, "x2": 125, "y1": 212.5, "y2": 92.5},
+              {"line": 0.15, "op": "line", "stroke": "#e8ede3", "x1": 135, "x2": 135, "y1": 212.5, "y2": 92.5},
+              {"line": 0.25, "op": "line", "stroke": "#d0d8cb", "x1": 145, "x2": 145, "y1": 212.5, "y2": 92.5},
+              {"line": 0.15, "op": "line", "stroke": "#e8ede3", "x1": 155, "x2": 155, "y1": 212.5, "y2": 92.5},
+              {"line": 0.25, "op": "line", "stroke": "#d0d8cb", "x1": 165, "x2": 165, "y1": 212.5, "y2": 92.5},
+              {"line": 0.15, "op": "line", "stroke": "#e8ede3", "x1": 175, "x2": 175, "y1": 212.5, "y2": 92.5},
+              {"line": 0.25, "op": "line", "stroke": "#d0d8cb", "x1": 185, "x2": 185, "y1": 212.5, "y2": 92.5},
+              {"line": 0.25, "op": "line", "stroke": "#d0d8cb", "x1": 25, "x2": 185, "y1": 212.5, "y2": 212.5},
+              {"line": 0.15, "op": "line", "stroke": "#e8ede3", "x1": 25, "x2": 185, "y1": 202.5, "y2": 202.5},
+              {"line": 0.25, "op": "line", "stroke": "#d0d8cb", "x1": 25, "x2": 185, "y1": 192.5, "y2": 192.5},
+              {"line": 0.15, "op": "line", "stroke": "#e8ede3", "x1": 25, "x2": 185, "y1": 182.5, "y2": 182.5},
+              {"line": 0.25, "op": "line", "stroke": "#d0d8cb", "x1": 25, "x2": 185, "y1": 172.5, "y2": 172.5},
+              {"line": 0.15, "op": "line", "stroke": "#e8ede3", "x1": 25, "x2": 185, "y1": 162.5, "y2": 162.5},
+              {"line": 0.25, "op": "line", "stroke": "#d0d8cb", "x1": 25, "x2": 185, "y1": 152.5, "y2": 152.5},
+              {"line": 0.15, "op": "line", "stroke": "#e8ede3", "x1": 25, "x2": 185, "y1": 142.5, "y2": 142.5},
+              {"line": 0.25, "op": "line", "stroke": "#d0d8cb", "x1": 25, "x2": 185, "y1": 132.5, "y2": 132.5},
+              {"line": 0.15, "op": "line", "stroke": "#e8ede3", "x1": 25, "x2": 185, "y1": 122.5, "y2": 122.5},
+              {"line": 0.25, "op": "line", "stroke": "#d0d8cb", "x1": 25, "x2": 185, "y1": 112.5, "y2": 112.5},
+              {"line": 0.15, "op": "line", "stroke": "#e8ede3", "x1": 25, "x2": 185, "y1": 102.5, "y2": 102.5},
+              {"line": 0.25, "op": "line", "stroke": "#d0d8cb", "x1": 25, "x2": 185, "y1": 92.5, "y2": 92.5},
+              {
+                "line": 0.8,
+                "op": "poly",
+                "points": [{"x": 25, "y": 212.5}, {"x": 185, "y": 212.5}, {"x": 185, "y": 92.5}, {"x": 25, "y": 92.5}],
+                "stroke": "#718469"
+              },
+              {
+                "fill": "#315d49",
+                "line": 0.5,
+                "op": "poly",
+                "points": [
+                  {"x": 53, "y": 172.78},
+                  {"x": 77, "y": 172.78},
+                  {"x": 77, "y": 172.22},
+                  {"x": 53, "y": 172.22}
+                ],
+                "stroke": "#243f34"
+              },
+              {
+                "fill": "#315d49",
+                "line": 0.5,
+                "op": "poly",
+                "points": [
+                  {"x": 77, "y": 172.78},
+                  {"x": 101, "y": 172.78},
+                  {"x": 101, "y": 172.22},
+                  {"x": 77, "y": 172.22}
+                ],
+                "stroke": "#243f34"
+              },
+              {
+                "fill": "#315d49",
+                "line": 0.5,
+                "op": "poly",
+                "points": [
+                  {"x": 113.28, "y": 184.5},
+                  {"x": 113.28, "y": 160.5},
+                  {"x": 112.72, "y": 160.5},
+                  {"x": 112.72, "y": 184.5}
+                ],
+                "stroke": "#243f34"
+              },
+              {
+                "bold": true,
+                "color": "#536950",
+                "height": 3,
+                "op": "text",
+                "size": 7,
+                "text": "↑ Blick zur Bühne (Zuschauerraum)",
+                "width": 70,
+                "x": 70,
+                "y": 212.5
+              }
+            ],
+            "scale": 50,
+            "scaleLabel": "1:50",
+            "sourceLabel": "Kabelplan",
+            "window": {"maxX": 8650, "maxY": 9025, "minX": -650, "minY": -3025}
+          }
+        ],
+        "heightMm": 297,
+        "index": 3,
+        "neighbors": {},
+        "orientation": "portrait",
+        "paint": [
+          {
+            "bold": true,
+            "color": "#788676",
+            "height": 3,
+            "op": "text",
+            "size": 7,
+            "text": "BEISPIELPRODUKTION",
+            "width": 186,
+            "x": 12,
+            "y": 7
+          },
+          {
+            "bold": true,
+            "color": "#273d34",
+            "height": 7,
+            "op": "text",
+            "size": 16,
+            "text": "Kabelplan",
+            "width": 186,
+            "x": 12,
+            "y": 12
+          },
+          {
+            "color": "#687762",
+            "height": 4,
+            "op": "text",
+            "size": 8,
+            "text": "Bühnenbild 1 · Beispielsaal",
+            "width": 186,
+            "x": 12,
+            "y": 20
+          },
+          {
+            "color": "#85907c",
+            "height": 3,
+            "op": "text",
+            "size": 6.5,
+            "text": "Fassung Goldene Fassung · 07.09.2026 · A4",
+            "width": 151,
+            "x": 12,
+            "y": 25
+          },
+          {
+            "color": "#617558",
+            "height": 3,
+            "op": "text",
+            "size": 6.5,
+            "text": "Blatt 3 von 5",
+            "width": 30,
+            "x": 168,
+            "y": 25
+          },
+          {"line": 0.25, "op": "line", "stroke": "#cad3c2", "x1": 12, "x2": 198, "y1": 30, "y2": 30},
+          {"line": 0.25, "op": "line", "stroke": "#cad3c2", "x1": 12, "x2": 198, "y1": 284, "y2": 284},
+          {
+            "color": "#203c36",
+            "height": 3.5,
+            "op": "text",
+            "size": 7,
+            "text": "Maßstab 1:50 · 100 % drucken, nicht an Seite anpassen",
+            "width": 140,
+            "x": 12,
+            "y": 287
+          },
+          {"line": 0.6, "op": "line", "stroke": "#203c36", "x1": 178, "x2": 198, "y1": 288.5, "y2": 288.5},
+          {
+            "color": "#536950",
+            "height": 3,
+            "op": "text",
+            "size": 6,
+            "text": "1000 mm",
+            "width": 20,
+            "x": 178,
+            "y": 289.2
+          }
+        ],
+        "paper": "A4",
+        "scale": 50,
+        "scaleLabel": "1:50",
+        "sceneName": "Bühnenbild 1",
+        "sourceKey": "a5000000-0000-4000-8000-000000000001:cables-a5000000-0000-4000-8000-000000000001",
+        "title": "Kabelplan",
+        "widthMm": 210
+      },
+      {
+        "bookmark": "4 Stückliste",
+        "bookmarkTitle": "Stückliste",
+        "code": "4",
+        "destination": "blatt-4",
+        "diagnostics": [],
+        "frames": [
+          {
+            "clip": {"height": 241, "width": 186, "x": 12, "y": 32},
+            "detail": false,
+            "id": "Stückliste-1",
+            "kind": "schedule",
+            "paint": [
+              {
+                "fill": "#edf1e7",
+                "op": "poly",
+                "points": [{"x": 12, "y": 30}, {"x": 198, "y": 30}, {"x": 198, "y": 37.2}, {"x": 12, "y": 37.2}]
+              },
+              {
+                "bold": true,
+                "color": "#203c36",
+                "height": 4.2,
+                "op": "text",
+                "size": 8,
+                "text": "Nr.",
+                "width": 14.6,
+                "x": 12,
+                "y": 32
+              },
+              {
+                "bold": true,
+                "color": "#203c36",
+                "height": 4.2,
+                "op": "text",
+                "size": 8,
+                "text": "Bezeichnung",
+                "width": 70.4,
+                "x": 30.6,
+                "y": 32
+              },
+              {
+                "bold": true,
+                "color": "#203c36",
+                "height": 4.2,
+                "op": "text",
+                "size": 8,
+                "text": "Maß",
+                "width": 89,
+                "x": 105,
+                "y": 32
+              },
+              {"line": 0.4, "op": "line", "stroke": "#c5cbbd", "x1": 12, "x2": 198, "y1": 37.2, "y2": 37.2},
+              {
+                "color": "#203c36",
+                "height": 4.2,
+                "op": "text",
+                "size": 8,
+                "text": "1",
+                "width": 14.6,
+                "x": 12,
+                "y": 38.7
+              },
+              {
+                "color": "#203c36",
+                "height": 4.2,
+                "op": "text",
+                "size": 8,
+                "text": "Wand",
+                "width": 70.4,
+                "x": 30.6,
+                "y": 38.7
+              },
+              {
+                "color": "#203c36",
+                "height": 4.2,
+                "op": "text",
+                "size": 8,
+                "text": "1200 mm",
+                "width": 89,
+                "x": 105,
+                "y": 38.7
+              },
+              {"line": 0.2, "op": "line", "stroke": "#e2e7dc", "x1": 12, "x2": 198, "y1": 42.6, "y2": 42.6},
+              {
+                "color": "#203c36",
+                "height": 4.2,
+                "op": "text",
+                "size": 8,
+                "text": "2",
+                "width": 14.6,
+                "x": 12,
+                "y": 42.9
+              },
+              {
+                "color": "#203c36",
+                "height": 4.2,
+                "op": "text",
+                "size": 8,
+                "text": "Wand",
+                "width": 70.4,
+                "x": 30.6,
+                "y": 42.9
+              },
+              {
+                "color": "#203c36",
+                "height": 4.2,
+                "op": "text",
+                "size": 8,
+                "text": "1200 mm",
+                "width": 89,
+                "x": 105,
+                "y": 42.9
+              },
+              {"line": 0.2, "op": "line", "stroke": "#e2e7dc", "x1": 12, "x2": 198, "y1": 46.8, "y2": 46.8},
+              {
+                "color": "#203c36",
+                "height": 4.2,
+                "op": "text",
+                "size": 8,
+                "text": "3",
+                "width": 14.6,
+                "x": 12,
+                "y": 47.1
+              },
+              {
+                "color": "#203c36",
+                "height": 4.2,
+                "op": "text",
+                "size": 8,
+                "text": "Wand",
+                "width": 70.4,
+                "x": 30.6,
+                "y": 47.1
+              },
+              {
+                "color": "#203c36",
+                "height": 4.2,
+                "op": "text",
+                "size": 8,
+                "text": "1200 mm",
+                "width": 89,
+                "x": 105,
+                "y": 47.1
+              },
+              {"line": 0.2, "op": "line", "stroke": "#e2e7dc", "x1": 12, "x2": 198, "y1": 51, "y2": 51}
+            ],
+            "scale": null,
+            "scaleLabel": "—",
+            "sourceLabel": "Bühnenbild 1"
+          }
+        ],
+        "heightMm": 297,
+        "index": 4,
+        "neighbors": {},
+        "orientation": "portrait",
+        "paint": [
+          {
+            "bold": true,
+            "color": "#788676",
+            "height": 3,
+            "op": "text",
+            "size": 7,
+            "text": "BEISPIELPRODUKTION",
+            "width": 186,
+            "x": 12,
+            "y": 7
+          },
+          {
+            "bold": true,
+            "color": "#273d34",
+            "height": 7,
+            "op": "text",
+            "size": 16,
+            "text": "Stückliste",
+            "width": 186,
+            "x": 12,
+            "y": 12
+          },
+          {
+            "color": "#687762",
+            "height": 4,
+            "op": "text",
+            "size": 8,
+            "text": "Bühnenbild 1 · Beispielsaal",
+            "width": 186,
+            "x": 12,
+            "y": 20
+          },
+          {
+            "color": "#85907c",
+            "height": 3,
+            "op": "text",
+            "size": 6.5,
+            "text": "Fassung Goldene Fassung · 07.09.2026 · A4",
+            "width": 151,
+            "x": 12,
+            "y": 25
+          },
+          {
+            "color": "#617558",
+            "height": 3,
+            "op": "text",
+            "size": 6.5,
+            "text": "Blatt 4 von 5",
+            "width": 30,
+            "x": 168,
+            "y": 25
+          },
+          {"line": 0.25, "op": "line", "stroke": "#cad3c2", "x1": 12, "x2": 198, "y1": 30, "y2": 30},
+          {"line": 0.25, "op": "line", "stroke": "#cad3c2", "x1": 12, "x2": 198, "y1": 284, "y2": 284},
+          {
+            "color": "#203c36",
+            "height": 3.5,
+            "op": "text",
+            "size": 7,
+            "text": "— · 100 % drucken, nicht an Seite anpassen",
+            "width": 140,
+            "x": 12,
+            "y": 287
+          }
+        ],
+        "paper": "A4",
+        "scale": null,
+        "scaleLabel": "—",
+        "sceneName": "Bühnenbild 1",
+        "sourceKey": "a5000000-0000-4000-8000-000000000001:Stückliste-1",
+        "title": "Stückliste",
+        "widthMm": 210
+      },
+      {
+        "bookmark": "5 Hinweise",
+        "bookmarkTitle": "Hinweise",
+        "code": "5",
+        "destination": "blatt-5",
+        "diagnostics": [],
+        "frames": [
+          {
+            "clip": {"height": 241, "width": 186, "x": 12, "y": 32},
+            "detail": false,
+            "id": "notes-1",
+            "kind": "notes",
+            "paint": [
+              {
+                "bold": true,
+                "color": "#203c36",
+                "height": 4,
+                "op": "text",
+                "size": 9,
+                "text": "Hinweise",
+                "width": 186,
+                "x": 12,
+                "y": 32
+              },
+              {
+                "color": "#6a4e16",
+                "height": 4.222,
+                "op": "text",
+                "size": 8,
+                "text": "Verbindungskompatibilität prüft die Crew manuell. Es gibt keine automatische Scharnierprüfung.",
+                "width": 186,
+                "x": 12,
+                "y": 38
+              }
+            ],
+            "scale": null,
+            "scaleLabel": "—",
+            "sourceLabel": "Hinweise"
+          }
+        ],
+        "heightMm": 297,
+        "index": 5,
+        "neighbors": {},
+        "orientation": "portrait",
+        "paint": [
+          {
+            "bold": true,
+            "color": "#788676",
+            "height": 3,
+            "op": "text",
+            "size": 7,
+            "text": "BEISPIELPRODUKTION",
+            "width": 186,
+            "x": 12,
+            "y": 7
+          },
+          {
+            "bold": true,
+            "color": "#273d34",
+            "height": 7,
+            "op": "text",
+            "size": 16,
+            "text": "Hinweise",
+            "width": 186,
+            "x": 12,
+            "y": 12
+          },
+          {
+            "color": "#687762",
+            "height": 4,
+            "op": "text",
+            "size": 8,
+            "text": "Bühnenbild 1 · Beispielsaal",
+            "width": 186,
+            "x": 12,
+            "y": 20
+          },
+          {
+            "color": "#85907c",
+            "height": 3,
+            "op": "text",
+            "size": 6.5,
+            "text": "Fassung Goldene Fassung · 07.09.2026 · A4",
+            "width": 151,
+            "x": 12,
+            "y": 25
+          },
+          {
+            "color": "#617558",
+            "height": 3,
+            "op": "text",
+            "size": 6.5,
+            "text": "Blatt 5 von 5",
+            "width": 30,
+            "x": 168,
+            "y": 25
+          },
+          {"line": 0.25, "op": "line", "stroke": "#cad3c2", "x1": 12, "x2": 198, "y1": 30, "y2": 30},
+          {"line": 0.25, "op": "line", "stroke": "#cad3c2", "x1": 12, "x2": 198, "y1": 284, "y2": 284},
+          {
+            "color": "#203c36",
+            "height": 3.5,
+            "op": "text",
+            "size": 7,
+            "text": "— · 100 % drucken, nicht an Seite anpassen",
+            "width": 140,
+            "x": 12,
+            "y": 287
+          }
+        ],
+        "paper": "A4",
+        "scale": null,
+        "scaleLabel": "—",
+        "sceneName": "Bühnenbild 1",
+        "sourceKey": "a5000000-0000-4000-8000-000000000001:notes-1",
+        "title": "Hinweise",
+        "widthMm": 210
+      }
+    ]
+  },
+  "snapshot": {
+    "elevationGroupIds": [],
+    "issuedAt": "2026-09-07T12:00:00.000Z",
+    "layers": {
+      "audience": false,
+      "cables": true,
+      "constraints": true,
+      "dimensions": true,
+      "infrastructure": true,
+      "labels": true,
+      "orientation": true,
+      "scenery": true,
+      "softGoods": true,
+      "venueContext": true,
+      "warnings": true
+    },
+    "paper": "A4",
+    "productionName": "Beispielproduktion",
+    "resolvedBraces": [],
+    "resolvedPlaceholders": [],
+    "resolvedWalls": [
+      {
+        "corners": [{"x": 1400, "y": 1986}, {"x": 2600, "y": 1986}, {"x": 2600, "y": 2014}, {"x": 1400, "y": 2014}],
+        "id": "a6000000-0000-4000-8000-000000000001",
+        "label": "Wand",
+        "openings": []
+      },
+      {
+        "corners": [{"x": 2600, "y": 1986}, {"x": 3800, "y": 1986}, {"x": 3800, "y": 2014}, {"x": 2600, "y": 2014}],
+        "id": "a6000000-0000-4000-8000-000000000002",
+        "label": "Wand",
+        "openings": []
+      },
+      {
+        "corners": [{"x": 4414, "y": 1400}, {"x": 4414, "y": 2600}, {"x": 4386, "y": 2600}, {"x": 4386, "y": 1400}],
+        "id": "a6000000-0000-4000-8000-000000000003",
+        "label": "Wand",
+        "openings": []
+      }
+    ],
+    "revisionId": "f1000000-0000-4000-8000-000000000001",
+    "revisionName": "Goldene Fassung",
+    "scale": 50,
+    "sceneName": "Bühnenbild 1",
+    "schemaVersion": 1,
+    "unresolvedWarnings": [],
+    "venueName": "Beispielsaal",
+    "venueVersionId": "a3000000-0000-4000-8000-000000000001",
+    "warnings": []
+  }
+}

@@ -1,0 +1,550 @@
+{
+  "ballastStock": {"slabs": 0, "straps": 0},
+  "description": "Every wall type at several door open percentages, door walls at non-right rotations, and banded or per-face surface finishes (mesh groups) on arch and multi-opening panels.",
+  "document": {"paper": "A4", "scale": 100},
+  "elevationGroupIds": [],
+  "layout": {
+    "braces": [],
+    "schemaVersion": 1,
+    "venueFixtureState": {"doors": [{"doorOpenPercent": 90, "wallId": "01030000-0000-4000-8000-000000000080"}]},
+    "wallTypes": [
+      {
+        "height": 2400,
+        "id": "06030000-0000-4000-8000-000000000001",
+        "name": "Glattwand",
+        "openings": [],
+        "thickness": 28,
+        "width": 1200
+      },
+      {
+        "height": 2400,
+        "id": "06030000-0000-4000-8000-000000000002",
+        "name": "Türwand · Scharnier links",
+        "openings": [
+          {
+            "height": 2000,
+            "hinge": "left",
+            "id": "07030000-0000-4000-8000-000000000001",
+            "left": 200,
+            "sill": 0,
+            "width": 800
+          }
+        ],
+        "thickness": 28,
+        "width": 1200
+      },
+      {
+        "height": 2400,
+        "id": "06030000-0000-4000-8000-000000000003",
+        "name": "Türwand · Scharnier rechts",
+        "openings": [
+          {
+            "height": 2000,
+            "hinge": "right",
+            "id": "07030000-0000-4000-8000-000000000002",
+            "left": 200,
+            "sill": 0,
+            "width": 800
+          }
+        ],
+        "thickness": 28,
+        "width": 1200
+      },
+      {
+        "height": 2400,
+        "id": "06030000-0000-4000-8000-000000000004",
+        "name": "Fensterwand",
+        "openings": [
+          {
+            "height": 900,
+            "id": "07030000-0000-4000-8000-000000000003",
+            "left": 390,
+            "sill": 1100,
+            "width": 420
+          }
+        ],
+        "thickness": 28,
+        "width": 1200
+      },
+      {
+        "height": 2400,
+        "id": "06030000-0000-4000-8000-000000000005",
+        "name": "Bogen",
+        "openings": [
+          {
+            "height": 2000,
+            "id": "07030000-0000-4000-8000-000000000004",
+            "left": 200,
+            "profile": "arch",
+            "sill": 0,
+            "width": 800
+          }
+        ],
+        "thickness": 250,
+        "width": 1200
+      },
+      {
+        "height": 2400,
+        "id": "06030000-0000-4000-8000-000000000006",
+        "name": "Halbe Wand",
+        "openings": [],
+        "thickness": 250,
+        "width": 600
+      },
+      {
+        "height": 2600,
+        "id": "06030000-0000-4000-8000-000000000007",
+        "name": "Breite Mehrfachwand",
+        "openings": [
+          {
+            "height": 2100,
+            "hinge": "right",
+            "id": "07030000-0000-4000-8000-000000000005",
+            "left": 1500,
+            "sill": 0,
+            "width": 900
+          },
+          {
+            "height": 800,
+            "id": "07030000-0000-4000-8000-000000000006",
+            "left": 300,
+            "sill": 1000,
+            "width": 500
+          },
+          {
+            "height": 1500,
+            "id": "07030000-0000-4000-8000-000000000007",
+            "left": 900,
+            "profile": "arch",
+            "sill": 300,
+            "width": 400
+          }
+        ],
+        "thickness": 40,
+        "width": 2400
+      }
+    ],
+    "walls": [
+      {
+        "height": 2400,
+        "id": "01030000-0000-4000-8000-000000000001",
+        "label": "Glattwand 0 %",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "typeId": "06030000-0000-4000-8000-000000000001",
+        "width": 1200,
+        "x": 1500,
+        "y": 1000
+      },
+      {
+        "height": 2400,
+        "id": "01030000-0000-4000-8000-000000000002",
+        "label": "Türwand · Scharnier links 0 %",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "typeId": "06030000-0000-4000-8000-000000000002",
+        "width": 1200,
+        "x": 1500,
+        "y": 2800
+      },
+      {
+        "doorOpenPercent": 25,
+        "height": 2400,
+        "id": "01030000-0000-4000-8000-000000000003",
+        "label": "Türwand · Scharnier links 25 %",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "typeId": "06030000-0000-4000-8000-000000000002",
+        "width": 1200,
+        "x": 4500,
+        "y": 2800
+      },
+      {
+        "doorOpenPercent": 50,
+        "height": 2400,
+        "id": "01030000-0000-4000-8000-000000000004",
+        "label": "Türwand · Scharnier links 50 %",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "typeId": "06030000-0000-4000-8000-000000000002",
+        "width": 1200,
+        "x": 7500,
+        "y": 2800
+      },
+      {
+        "doorOpenPercent": 100,
+        "height": 2400,
+        "id": "01030000-0000-4000-8000-000000000005",
+        "label": "Türwand · Scharnier links 100 %",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "typeId": "06030000-0000-4000-8000-000000000002",
+        "width": 1200,
+        "x": 10500,
+        "y": 2800
+      },
+      {
+        "height": 2400,
+        "id": "01030000-0000-4000-8000-000000000006",
+        "label": "Türwand · Scharnier rechts 0 %",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "typeId": "06030000-0000-4000-8000-000000000003",
+        "width": 1200,
+        "x": 1500,
+        "y": 4600
+      },
+      {
+        "doorOpenPercent": 25,
+        "height": 2400,
+        "id": "01030000-0000-4000-8000-000000000007",
+        "label": "Türwand · Scharnier rechts 25 %",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "typeId": "06030000-0000-4000-8000-000000000003",
+        "width": 1200,
+        "x": 4500,
+        "y": 4600
+      },
+      {
+        "doorOpenPercent": 50,
+        "height": 2400,
+        "id": "01030000-0000-4000-8000-000000000008",
+        "label": "Türwand · Scharnier rechts 50 %",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "typeId": "06030000-0000-4000-8000-000000000003",
+        "width": 1200,
+        "x": 7500,
+        "y": 4600
+      },
+      {
+        "doorOpenPercent": 100,
+        "height": 2400,
+        "id": "01030000-0000-4000-8000-000000000009",
+        "label": "Türwand · Scharnier rechts 100 %",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "typeId": "06030000-0000-4000-8000-000000000003",
+        "width": 1200,
+        "x": 10500,
+        "y": 4600
+      },
+      {
+        "height": 2400,
+        "id": "01030000-0000-4000-8000-000000000010",
+        "label": "Fensterwand 0 %",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "typeId": "06030000-0000-4000-8000-000000000004",
+        "width": 1200,
+        "x": 1500,
+        "y": 6400
+      },
+      {
+        "height": 2400,
+        "id": "01030000-0000-4000-8000-000000000011",
+        "label": "Bogen 0 %",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 250,
+        "typeId": "06030000-0000-4000-8000-000000000005",
+        "width": 1200,
+        "x": 1500,
+        "y": 8200
+      },
+      {
+        "height": 2400,
+        "id": "01030000-0000-4000-8000-000000000012",
+        "label": "Halbe Wand 0 %",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 250,
+        "typeId": "06030000-0000-4000-8000-000000000006",
+        "width": 600,
+        "x": 1500,
+        "y": 10000
+      },
+      {
+        "height": 2600,
+        "id": "01030000-0000-4000-8000-000000000013",
+        "label": "Breite Mehrfachwand 0 %",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 40,
+        "typeId": "06030000-0000-4000-8000-000000000007",
+        "width": 2400,
+        "x": 1500,
+        "y": 11800
+      },
+      {
+        "doorOpenPercent": 25,
+        "height": 2600,
+        "id": "01030000-0000-4000-8000-000000000014",
+        "label": "Breite Mehrfachwand 25 %",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 40,
+        "typeId": "06030000-0000-4000-8000-000000000007",
+        "width": 2400,
+        "x": 4500,
+        "y": 11800
+      },
+      {
+        "doorOpenPercent": 50,
+        "height": 2600,
+        "id": "01030000-0000-4000-8000-000000000015",
+        "label": "Breite Mehrfachwand 50 %",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 40,
+        "typeId": "06030000-0000-4000-8000-000000000007",
+        "width": 2400,
+        "x": 7500,
+        "y": 11800
+      },
+      {
+        "doorOpenPercent": 100,
+        "height": 2600,
+        "id": "01030000-0000-4000-8000-000000000016",
+        "label": "Breite Mehrfachwand 100 %",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 40,
+        "typeId": "06030000-0000-4000-8000-000000000007",
+        "width": 2400,
+        "x": 10500,
+        "y": 11800
+      },
+      {
+        "doorOpenPercent": 60,
+        "height": 2400,
+        "id": "01030000-0000-4000-8000-000000000017",
+        "label": "Tür 0°",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "typeId": "06030000-0000-4000-8000-000000000002",
+        "width": 1200,
+        "x": 2000,
+        "y": 14500
+      },
+      {
+        "doorOpenPercent": 60,
+        "height": 2400,
+        "id": "01030000-0000-4000-8000-000000000018",
+        "label": "Tür 15°",
+        "rotation": 15,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "typeId": "06030000-0000-4000-8000-000000000003",
+        "width": 1200,
+        "x": 3800,
+        "y": 14500
+      },
+      {
+        "doorOpenPercent": 60,
+        "height": 2400,
+        "id": "01030000-0000-4000-8000-000000000019",
+        "label": "Tür 45°",
+        "rotation": 45,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "typeId": "06030000-0000-4000-8000-000000000002",
+        "width": 1200,
+        "x": 5600,
+        "y": 14500
+      },
+      {
+        "doorOpenPercent": 60,
+        "height": 2400,
+        "id": "01030000-0000-4000-8000-000000000020",
+        "label": "Tür 90°",
+        "rotation": 90,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "typeId": "06030000-0000-4000-8000-000000000003",
+        "width": 1200,
+        "x": 7400,
+        "y": 14500
+      },
+      {
+        "doorOpenPercent": 60,
+        "height": 2400,
+        "id": "01030000-0000-4000-8000-000000000021",
+        "label": "Tür 135°",
+        "rotation": 135,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "typeId": "06030000-0000-4000-8000-000000000002",
+        "width": 1200,
+        "x": 9200,
+        "y": 14500
+      },
+      {
+        "doorOpenPercent": 60,
+        "height": 2400,
+        "id": "01030000-0000-4000-8000-000000000022",
+        "label": "Tür 180°",
+        "rotation": 180,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "typeId": "06030000-0000-4000-8000-000000000003",
+        "width": 1200,
+        "x": 11000,
+        "y": 14500
+      },
+      {
+        "doorOpenPercent": 60,
+        "height": 2400,
+        "id": "01030000-0000-4000-8000-000000000023",
+        "label": "Tür 270°",
+        "rotation": 270,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "typeId": "06030000-0000-4000-8000-000000000002",
+        "width": 1200,
+        "x": 12800,
+        "y": 14500
+      },
+      {
+        "doorOpenPercent": 60,
+        "height": 2400,
+        "id": "01030000-0000-4000-8000-000000000024",
+        "label": "Tür -45°",
+        "rotation": -45,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "typeId": "06030000-0000-4000-8000-000000000003",
+        "width": 1200,
+        "x": 14600,
+        "y": 14500
+      },
+      {
+        "height": 2600,
+        "id": "01030000-0000-4000-8000-000000000025",
+        "label": "Beflächung 1",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "surfaces": {
+          "back": {"full": {"kind": "library", "ref": "library:color-white", "rotationDeg": 180, "scaleMm": 600}},
+          "edge": {"kind": "paint", "ral": "9005"},
+          "front": {"full": {"kind": "paint", "ral": "3020"}}
+        },
+        "thickness": 40,
+        "typeId": "06030000-0000-4000-8000-000000000007",
+        "width": 2400,
+        "x": 2000,
+        "y": 17000
+      },
+      {
+        "height": 2400,
+        "id": "01030000-0000-4000-8000-000000000026",
+        "label": "Beflächung 2",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "surfaces": {
+          "back": {"lower": {"kind": "paint", "ral": "7040"}, "splitMm": 2000},
+          "front": {
+            "lower": {"kind": "paint", "ral": "5010"},
+            "splitMm": 800,
+            "upper": {"kind": "paint", "ral": "9016"}
+          }
+        },
+        "thickness": 250,
+        "typeId": "06030000-0000-4000-8000-000000000005",
+        "width": 1200,
+        "x": 5000,
+        "y": 17000
+      },
+      {
+        "height": 2600,
+        "id": "01030000-0000-4000-8000-000000000027",
+        "label": "Beflächung 3",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "surfaces": {
+          "back": {"lower": {"kind": "paint", "ral": "6011"}, "splitMm": 1, "upper": {"kind": "paint", "ral": "8025"}},
+          "front": {"splitMm": 2399, "upper": {"kind": "paint", "ral": "1003"}}
+        },
+        "thickness": 40,
+        "typeId": "06030000-0000-4000-8000-000000000007",
+        "width": 2400,
+        "x": 8000,
+        "y": 17000
+      },
+      {
+        "doorOpenPercent": 40,
+        "height": 2000,
+        "id": "01030000-0000-4000-8000-000000000028",
+        "label": "Veraltete Maße",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 20,
+        "typeId": "06030000-0000-4000-8000-000000000001",
+        "width": 1000,
+        "x": 11500,
+        "y": 17000
+      }
+    ]
+  },
+  "name": "wall-types",
+  "panels": [],
+  "scene": {
+    "id": "17030000-0000-4000-8000-000000000001",
+    "name": "Wandtypen-Szene",
+    "productionId": "f0000000-0000-4000-8000-000000000001",
+    "productionName": "Goldene Produktion",
+    "venueId": "17030000-0000-4000-8000-000000000002",
+    "venueName": "Sehr großer Saal",
+    "venueVersionId": "17030000-0000-4000-8000-000000000003"
+  },
+  "venue": {
+    "depth": 19000,
+    "schemaVersion": 1,
+    "walls": [
+      {
+        "doorOpenPercent": 10,
+        "height": 3500,
+        "id": "01030000-0000-4000-8000-000000000080",
+        "label": "Hallenwand mit Tür",
+        "openings": [
+          {
+            "height": 2100,
+            "hinge": "left",
+            "id": "07030000-0000-4000-8000-000000000080",
+            "left": 500,
+            "sill": 0,
+            "width": 900
+          },
+          {
+            "height": 2200,
+            "hinge": "right",
+            "id": "07030000-0000-4000-8000-000000000081",
+            "left": 3000,
+            "profile": "arch",
+            "sill": 0,
+            "width": 1000
+          }
+        ],
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 250,
+        "width": 6000,
+        "x": 7000,
+        "y": 18500
+      }
+    ],
+    "width": 14000
+  }
+}

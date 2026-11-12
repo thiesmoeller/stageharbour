@@ -1,0 +1,1366 @@
+{
+  "ballastStock": {"slabs": 4, "straps": 2},
+  "description": "Every element kind and geometry option: all wall types, rotations, door states, surface finishes, hinge connections, ballast modes, every platform style (one rotated, one stacked), stairs, placeholders, groups, panel assignments, cables, dimensions, wall pictures and a venue shell.",
+  "document": {"paper": "A3", "scale": 50},
+  "elevationGroupIds": ["0a010000-0000-4000-8000-000000000001", "0a010000-0000-4000-8000-000000000002"],
+  "layout": {
+    "braces": [
+      {
+        "footprintDepth": 500,
+        "footprintWidth": 40,
+        "height": 1200,
+        "id": "02010000-0000-4000-8000-000000000001",
+        "label": "Stütze ohne Ballast",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "x": 1000,
+        "y": 2200
+      },
+      {
+        "ballast": {"mode": "single", "side": "left"},
+        "footprintDepth": 500,
+        "footprintWidth": 40,
+        "height": 1200,
+        "id": "02010000-0000-4000-8000-000000000002",
+        "label": "Stütze einfach links",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "x": 2200,
+        "y": 2200
+      },
+      {
+        "ballast": {"mode": "single", "side": "right"},
+        "footprintDepth": 500,
+        "footprintWidth": 40,
+        "height": 1200,
+        "id": "02010000-0000-4000-8000-000000000003",
+        "label": "Stütze einfach rechts",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "x": 3400,
+        "y": 2200
+      },
+      {
+        "ballast": {"mode": "heavy"},
+        "footprintDepth": 500,
+        "footprintWidth": 40,
+        "height": 1200,
+        "id": "02010000-0000-4000-8000-000000000004",
+        "label": "Stütze schwer",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "x": 4600,
+        "y": 2200
+      },
+      {
+        "ballast": {"mode": "heavy"},
+        "footprintDepth": 700,
+        "footprintWidth": 600,
+        "height": 2000,
+        "id": "02010000-0000-4000-8000-000000000005",
+        "label": "Große Stütze gedreht",
+        "rotation": 30,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "x": 6000,
+        "y": 2500
+      },
+      {
+        "ballast": {"mode": "none"},
+        "footprintDepth": 500,
+        "footprintWidth": 40,
+        "height": 1200,
+        "id": "02010000-0000-4000-8000-000000000006",
+        "label": "Stütze auf Podest",
+        "rotation": 0,
+        "supportingSurfaceId": "03010000-0000-4000-8000-000000000001",
+        "x": 7000,
+        "y": 3300
+      },
+      {
+        "ballast": {"mode": "single", "side": "right"},
+        "footprintDepth": 500,
+        "footprintWidth": 40,
+        "height": 1200,
+        "id": "02010000-0000-4000-8000-000000000007",
+        "label": "Stütze auf Podest einfach",
+        "rotation": -15,
+        "supportingSurfaceId": "03010000-0000-4000-8000-000000000001",
+        "x": 7800,
+        "y": 4200
+      }
+    ],
+    "cableRuns": [
+      {
+        "cableType": "CEE 16 A",
+        "end": {"label": "Bühne", "x": 3000, "y": 4200},
+        "id": "0b010000-0000-4000-8000-000000000001",
+        "label": "Hauptstrom",
+        "path": [{"x": 500, "y": 8500}, {"x": 500, "y": 4200}, {"x": 3000, "y": 4200}],
+        "purpose": "power",
+        "quantity": 2,
+        "slackMm": 1500,
+        "start": {
+          "connectionPointId": "12010000-0000-4000-8000-000000000001",
+          "label": "Technikstand",
+          "x": 500,
+          "y": 8500
+        }
+      },
+      {
+        "cableType": "XLR",
+        "end": {"label": "Lautsprecher", "x": 11000, "y": 800},
+        "id": "0b010000-0000-4000-8000-000000000002",
+        "label": "Ton",
+        "path": [{"x": 11500, "y": 500}, {"x": 11000, "y": 800}],
+        "purpose": "audio",
+        "quantity": 1,
+        "slackMm": 0,
+        "start": {
+          "connectionPointId": "12010000-0000-4000-8000-000000000002",
+          "label": "Wandkasten",
+          "x": 11500,
+          "y": 500
+        }
+      }
+    ],
+    "connections": [
+      {
+        "a": "01010000-0000-4000-8000-000000000001",
+        "b": "01010000-0000-4000-8000-000000000002",
+        "id": "09010000-0000-4000-8000-000000000001"
+      },
+      {
+        "a": "01010000-0000-4000-8000-000000000002",
+        "b": "01010000-0000-4000-8000-000000000003",
+        "id": "09010000-0000-4000-8000-000000000002"
+      },
+      {
+        "a": "01010000-0000-4000-8000-000000000003",
+        "b": "01010000-0000-4000-8000-000000000004",
+        "id": "09010000-0000-4000-8000-000000000003"
+      }
+    ],
+    "dimensions": [
+      {
+        "a": {"corner": 0, "kind": "wall", "scope": "scene", "wallId": "01010000-0000-4000-8000-000000000001"},
+        "b": {"corner": 1, "kind": "wall", "scope": "scene", "wallId": "01010000-0000-4000-8000-000000000004"},
+        "id": "14010000-0000-4000-8000-000000000001",
+        "offset": 400,
+        "orientation": "horizontal"
+      },
+      {
+        "a": {"index": 1, "kind": "outline"},
+        "b": {"index": 2, "kind": "outline"},
+        "id": "14010000-0000-4000-8000-000000000002",
+        "offset": 12500,
+        "orientation": "vertical"
+      },
+      {
+        "a": {
+          "edge": 0,
+          "kind": "platformEdge",
+          "platformId": "03010000-0000-4000-8000-000000000001",
+          "scope": "scene",
+          "t": 0.5
+        },
+        "b": {"braceId": "02010000-0000-4000-8000-000000000006", "corner": 2, "kind": "brace"},
+        "id": "14010000-0000-4000-8000-000000000003",
+        "offset": -300,
+        "orientation": "aligned"
+      }
+    ],
+    "groups": [
+      {
+        "id": "0a010000-0000-4000-8000-000000000001",
+        "members": [
+          {"id": "01010000-0000-4000-8000-000000000001", "kind": "wall"},
+          {"id": "01010000-0000-4000-8000-000000000002", "kind": "wall"},
+          {"id": "01010000-0000-4000-8000-000000000003", "kind": "wall"},
+          {"id": "01010000-0000-4000-8000-000000000004", "kind": "wall"},
+          {"id": "02010000-0000-4000-8000-000000000001", "kind": "brace"}
+        ],
+        "rotation": 0
+      },
+      {
+        "id": "0a010000-0000-4000-8000-000000000002",
+        "members": [
+          {"id": "01010000-0000-4000-8000-000000000005", "kind": "wall"},
+          {"id": "01010000-0000-4000-8000-000000000006", "kind": "wall"},
+          {"id": "01010000-0000-4000-8000-000000000008", "kind": "wall"},
+          {"id": "02010000-0000-4000-8000-000000000005", "kind": "brace"},
+          {"id": "04010000-0000-4000-8000-000000000001", "kind": "stair"},
+          {"id": "05010000-0000-4000-8000-000000000004", "kind": "placeholder"}
+        ],
+        "rotation": 0
+      }
+    ],
+    "measureLines": [
+      {
+        "id": "16010000-0000-4000-8000-000000000001",
+        "label": "Frontbreite",
+        "x1": 1000,
+        "x2": 4600,
+        "y1": 1000,
+        "y2": 1000
+      }
+    ],
+    "placeholders": [
+      {
+        "depth": 800,
+        "height": 750,
+        "id": "05010000-0000-4000-8000-000000000001",
+        "kind": "table",
+        "label": "Tisch vorn",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "width": 1200,
+        "x": 5000,
+        "y": 600
+      },
+      {
+        "depth": 450,
+        "height": 900,
+        "id": "05010000-0000-4000-8000-000000000002",
+        "kind": "chair",
+        "label": "Stuhl mit Figur",
+        "rotation": 0,
+        "seatedFigure": true,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "width": 450,
+        "x": 4000,
+        "y": 700
+      },
+      {
+        "depth": 450,
+        "height": 900,
+        "id": "05010000-0000-4000-8000-000000000003",
+        "kind": "chair",
+        "label": "Stuhl gedreht",
+        "rotation": 45,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "width": 450,
+        "x": 3200,
+        "y": 700
+      },
+      {
+        "depth": 400,
+        "height": 1750,
+        "id": "05010000-0000-4000-8000-000000000004",
+        "kind": "person",
+        "label": "Person",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "width": 500,
+        "x": 6500,
+        "y": 700
+      },
+      {
+        "depth": 350,
+        "height": 600,
+        "id": "05010000-0000-4000-8000-000000000005",
+        "kind": "speaker",
+        "label": "Lautsprecher",
+        "rotation": -30,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "width": 400,
+        "x": 10200,
+        "y": 800
+      },
+      {
+        "depth": 600,
+        "height": 600,
+        "id": "05010000-0000-4000-8000-000000000006",
+        "kind": "box",
+        "label": "Kiste auf Podest",
+        "rotation": 0,
+        "supportingSurfaceId": "03010000-0000-4000-8000-000000000002",
+        "width": 600,
+        "x": 10600,
+        "y": 6000
+      },
+      {
+        "depth": 800,
+        "height": 750,
+        "id": "05010000-0000-4000-8000-000000000007",
+        "kind": "table",
+        "label": "Tisch auf Bühnenelement",
+        "rotation": 10,
+        "supportingSurfaceId": "03010000-0000-4000-8000-000000000003",
+        "width": 1200,
+        "x": 3500,
+        "y": 5900
+      },
+      {
+        "depth": 400,
+        "height": 1750,
+        "id": "05010000-0000-4000-8000-000000000008",
+        "kind": "person",
+        "label": "Person auf Bühnenelement",
+        "rotation": 0,
+        "supportingSurfaceId": "03010000-0000-4000-8000-000000000008",
+        "width": 500,
+        "x": 6000,
+        "y": 1000
+      }
+    ],
+    "platforms": [
+      {
+        "elevation": 300,
+        "id": "03010000-0000-4000-8000-000000000001",
+        "label": "Schwebendes Trapezpodest",
+        "outline": [{"x": 6200, "y": 3800}, {"x": 8200, "y": 3800}, {"x": 7900, "y": 5200}, {"x": 6500, "y": 5200}],
+        "style": "floating",
+        "surfaces": {
+          "sides": {"kind": "paint", "ral": "9010"},
+          "top": {"kind": "library", "ref": "library:wood-finewood27"}
+        }
+      },
+      {
+        "elevation": 500,
+        "id": "03010000-0000-4000-8000-000000000002",
+        "label": "Massives Podest",
+        "outline": [{"x": 9600, "y": 5250}, {"x": 11600, "y": 5250}, {"x": 11600, "y": 6750}, {"x": 9600, "y": 6750}],
+        "style": "solid",
+        "surfaces": {"sides": {"kind": "library", "ref": "library:color-white"}, "top": {"kind": "paint", "ral": "7035"}}
+      },
+      {
+        "elevation": 200,
+        "id": "03010000-0000-4000-8000-000000000007",
+        "label": "Niedriges Massivpodest",
+        "outline": [
+          {"x": 10301.163761, "y": 2859.143618},
+          {"x": 11240.856382, "y": 3201.163761},
+          {"x": 10898.836239, "y": 4140.856382},
+          {"x": 9959.143618, "y": 3798.836239}
+        ],
+        "style": "solid"
+      },
+      {
+        "deckGrain": 0,
+        "elevation": 400,
+        "id": "03010000-0000-4000-8000-000000000003",
+        "label": "Bühnenelement 4 x 2 m, 400",
+        "outline": [{"x": 1000, "y": 4600}, {"x": 5000, "y": 4600}, {"x": 5000, "y": 6600}, {"x": 1000, "y": 6600}],
+        "style": "stageDeck"
+      },
+      {
+        "deckGrain": 90,
+        "elevation": 600,
+        "id": "03010000-0000-4000-8000-000000000004",
+        "label": "Bühnenelement Faser 90°, 600",
+        "outline": [{"x": 0, "y": 6700}, {"x": 3000, "y": 6700}, {"x": 3000, "y": 8700}, {"x": 0, "y": 8700}],
+        "style": "stageDeck"
+      },
+      {
+        "elevation": 200,
+        "id": "03010000-0000-4000-8000-000000000005",
+        "label": "Bühnenelement gedreht, 200",
+        "outline": [
+          {"x": 5383.974596, "y": 6666.987298},
+          {"x": 7116.025404, "y": 7666.987298},
+          {"x": 6616.025404, "y": 8533.012702},
+          {"x": 4883.974596, "y": 7533.012702}
+        ],
+        "style": "stageDeck"
+      },
+      {
+        "deckGrain": 0,
+        "elevation": 1000,
+        "id": "03010000-0000-4000-8000-000000000006",
+        "label": "Bühnenelement gestapelt, 1000",
+        "outline": [{"x": 10100, "y": 5750}, {"x": 11100, "y": 5750}, {"x": 11100, "y": 6250}, {"x": 10100, "y": 6250}],
+        "style": "stageDeck",
+        "supportingSurfaceId": "03010000-0000-4000-8000-000000000002"
+      },
+      {
+        "deckGrain": 90,
+        "elevation": 1200,
+        "id": "03010000-0000-4000-8000-000000000008",
+        "label": "Bühnenelement hoch, 1200",
+        "outline": [{"x": 5500, "y": 500}, {"x": 6500, "y": 500}, {"x": 6500, "y": 1500}, {"x": 5500, "y": 1500}],
+        "style": "stageDeck"
+      }
+    ],
+    "riggingNotes": "Alle Scharniere nach dem Aufbau prüfen. Stützen mit Gehwegplatten beschweren.",
+    "schemaVersion": 1,
+    "stairs": [
+      {
+        "id": "04010000-0000-4000-8000-000000000001",
+        "label": "Treppe",
+        "lowerSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "riserHeight": 160,
+        "rotation": 90,
+        "run": 2000,
+        "upperSurfaceId": "03010000-0000-4000-8000-000000000001",
+        "width": 1200,
+        "x": 5600,
+        "y": 4500
+      },
+      {
+        "id": "04010000-0000-4000-8000-000000000002",
+        "label": "Treppe auf Podest",
+        "lowerSurfaceId": "03010000-0000-4000-8000-000000000002",
+        "riserHeight": 200,
+        "rotation": 0,
+        "run": 800,
+        "upperSurfaceId": "03010000-0000-4000-8000-000000000006",
+        "width": 800,
+        "x": 9200,
+        "y": 6000
+      },
+      {
+        "id": "04010000-0000-4000-8000-000000000003",
+        "label": "Gedrehte Treppe",
+        "lowerSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "riserHeight": 100,
+        "rotation": 20,
+        "run": 600,
+        "upperSurfaceId": "03010000-0000-4000-8000-000000000007",
+        "width": 900,
+        "x": 9400,
+        "y": 3500
+      }
+    ],
+    "venueFixtureState": {
+      "curtains": [{"id": "10010000-0000-4000-8000-000000000001", "openPercent": 25}],
+      "doors": [{"doorOpenPercent": 70, "wallId": "01010000-0000-4000-8000-000000000040"}]
+    },
+    "wallPictures": [
+      {
+        "along": 200,
+        "assetId": "0d010000-0000-4000-8000-000000000001",
+        "face": "front",
+        "height": 800,
+        "heightAboveFloor": 1200,
+        "id": "0c010000-0000-4000-8000-000000000001",
+        "note": "Auf Angelschnur",
+        "wallId": "01010000-0000-4000-8000-000000000001",
+        "width": 600
+      },
+      {
+        "along": 400,
+        "assetId": "0d010000-0000-4000-8000-000000000002",
+        "face": "back",
+        "height": 500,
+        "heightAboveFloor": 900,
+        "id": "0c010000-0000-4000-8000-000000000002",
+        "wallId": "01010000-0000-4000-8000-000000000008",
+        "width": 400
+      }
+    ],
+    "wallTypes": [
+      {
+        "height": 2400,
+        "id": "06010000-0000-4000-8000-000000000001",
+        "name": "Glattwand",
+        "openings": [],
+        "thickness": 28,
+        "width": 1200
+      },
+      {
+        "height": 2400,
+        "id": "06010000-0000-4000-8000-000000000002",
+        "name": "Türwand · Scharnier links",
+        "openings": [
+          {
+            "height": 2000,
+            "hinge": "left",
+            "id": "07010000-0000-4000-8000-000000000001",
+            "left": 200,
+            "sill": 0,
+            "width": 800
+          }
+        ],
+        "thickness": 28,
+        "width": 1200
+      },
+      {
+        "height": 2400,
+        "id": "06010000-0000-4000-8000-000000000003",
+        "name": "Türwand · Scharnier rechts",
+        "openings": [
+          {
+            "height": 2000,
+            "hinge": "right",
+            "id": "07010000-0000-4000-8000-000000000002",
+            "left": 200,
+            "sill": 0,
+            "width": 800
+          }
+        ],
+        "thickness": 28,
+        "width": 1200
+      },
+      {
+        "height": 2400,
+        "id": "06010000-0000-4000-8000-000000000004",
+        "name": "Fensterwand",
+        "openings": [
+          {
+            "height": 900,
+            "id": "07010000-0000-4000-8000-000000000003",
+            "left": 390,
+            "sill": 1100,
+            "width": 420
+          }
+        ],
+        "thickness": 28,
+        "width": 1200
+      },
+      {
+        "height": 2400,
+        "id": "06010000-0000-4000-8000-000000000005",
+        "name": "Bogen",
+        "openings": [
+          {
+            "height": 2000,
+            "id": "07010000-0000-4000-8000-000000000004",
+            "left": 200,
+            "profile": "arch",
+            "sill": 0,
+            "width": 800
+          }
+        ],
+        "thickness": 250,
+        "width": 1200
+      },
+      {
+        "height": 2400,
+        "id": "06010000-0000-4000-8000-000000000006",
+        "name": "Halbe Wand",
+        "openings": [],
+        "thickness": 250,
+        "width": 600
+      },
+      {
+        "height": 2600,
+        "id": "06010000-0000-4000-8000-000000000007",
+        "name": "Breite Mehrfachwand",
+        "openings": [
+          {
+            "height": 2100,
+            "hinge": "right",
+            "id": "07010000-0000-4000-8000-000000000005",
+            "left": 1500,
+            "sill": 0,
+            "width": 900
+          },
+          {
+            "height": 800,
+            "id": "07010000-0000-4000-8000-000000000006",
+            "left": 300,
+            "sill": 1000,
+            "width": 500
+          },
+          {
+            "height": 1500,
+            "id": "07010000-0000-4000-8000-000000000007",
+            "left": 900,
+            "profile": "arch",
+            "sill": 300,
+            "width": 400
+          }
+        ],
+        "thickness": 40,
+        "width": 2400
+      }
+    ],
+    "walls": [
+      {
+        "assemblyNumber": 1,
+        "finishAssignment": {
+          "id": "18010000-0000-4000-8000-000000000001",
+          "surfaces": {"edge": {"kind": "paint", "ral": "9005"}, "front": {"full": {"kind": "paint", "ral": "9010"}}}
+        },
+        "height": 2400,
+        "id": "01010000-0000-4000-8000-000000000001",
+        "label": "Glattwand vorn",
+        "panelId": "08010000-0000-4000-8000-000000000001",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "surfaces": {
+          "back": {
+            "lower": {"kind": "library", "ref": "library:wood-finewood27", "rotationDeg": 90, "scaleMm": 800},
+            "splitMm": 1200,
+            "upper": {"kind": "paint", "ral": "7016"}
+          },
+          "edge": {"kind": "paint", "ral": "9005"},
+          "front": {"full": {"kind": "paint", "ral": "9010"}}
+        },
+        "thickness": 28,
+        "typeId": "06010000-0000-4000-8000-000000000001",
+        "width": 1200,
+        "x": 1000,
+        "y": 1500
+      },
+      {
+        "assemblyNumber": 2,
+        "doorOpenPercent": 50,
+        "height": 2400,
+        "id": "01010000-0000-4000-8000-000000000002",
+        "label": "Türwand · Scharnier links",
+        "panelId": "08010000-0000-4000-8000-000000000002",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "surfaces": {"front": {"full": {"kind": "library", "ref": "library:color-white"}}},
+        "thickness": 28,
+        "typeId": "06010000-0000-4000-8000-000000000002",
+        "width": 1200,
+        "x": 2200,
+        "y": 1500
+      },
+      {
+        "assemblyNumber": 3,
+        "doorOpenPercent": 100,
+        "height": 2400,
+        "id": "01010000-0000-4000-8000-000000000003",
+        "label": "Türwand · Scharnier rechts",
+        "panelId": "08010000-0000-4000-8000-000000000003",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "typeId": "06010000-0000-4000-8000-000000000003",
+        "width": 1200,
+        "x": 3400,
+        "y": 1500
+      },
+      {
+        "assemblyNumber": 4,
+        "height": 2400,
+        "id": "01010000-0000-4000-8000-000000000004",
+        "label": "Fensterwand",
+        "panelId": "08010000-0000-4000-8000-000000000004",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "surfaces": {
+          "back": {"splitMm": 1000, "upper": {"kind": "paint", "ral": "8025"}},
+          "front": {
+            "lower": {"kind": "paint", "ral": "6011"},
+            "splitMm": 1000,
+            "upper": {"kind": "paint", "ral": "9001"}
+          }
+        },
+        "thickness": 28,
+        "typeId": "06010000-0000-4000-8000-000000000004",
+        "width": 1200,
+        "x": 4600,
+        "y": 1500
+      },
+      {
+        "assemblyNumber": 5,
+        "height": 2400,
+        "id": "01010000-0000-4000-8000-000000000005",
+        "label": "Bogen",
+        "panelId": "08010000-0000-4000-8000-000000000005",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 250,
+        "typeId": "06010000-0000-4000-8000-000000000005",
+        "width": 1200,
+        "x": 1000,
+        "y": 3500
+      },
+      {
+        "height": 2400,
+        "id": "01010000-0000-4000-8000-000000000006",
+        "label": "Halbe Wand",
+        "panelId": "08010000-0000-4000-8000-000000000006",
+        "rotation": 90,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 250,
+        "typeId": "06010000-0000-4000-8000-000000000006",
+        "width": 600,
+        "x": 2300,
+        "y": 3500
+      },
+      {
+        "assemblyNumber": 7,
+        "doorOpenPercent": 33.3,
+        "height": 2600,
+        "id": "01010000-0000-4000-8000-000000000007",
+        "label": "Breite Mehrfachwand",
+        "panelId": "08010000-0000-4000-8000-000000000008",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "surfaces": {
+          "front": {
+            "lower": {"kind": "paint", "ral": "5010"},
+            "splitMm": 1500,
+            "upper": {"kind": "paint", "ral": "1003"}
+          }
+        },
+        "thickness": 40,
+        "typeId": "06010000-0000-4000-8000-000000000007",
+        "width": 2400,
+        "x": 4200,
+        "y": 3500
+      },
+      {
+        "height": 2400,
+        "id": "01010000-0000-4000-8000-000000000008",
+        "label": "Schräge Wand",
+        "panelId": "08010000-0000-4000-8000-000000000010",
+        "rotation": 37.5,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "width": 1200,
+        "x": 7000,
+        "y": 2000
+      },
+      {
+        "height": 2400,
+        "id": "01010000-0000-4000-8000-000000000009",
+        "label": "Halbe Wand",
+        "panelId": "08010000-0000-4000-8000-000000000012",
+        "rotation": -22.5,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 250,
+        "typeId": "06010000-0000-4000-8000-000000000006",
+        "width": 600,
+        "x": 8500,
+        "y": 2000
+      },
+      {
+        "doorOpenPercent": 25,
+        "height": 2200,
+        "id": "01010000-0000-4000-8000-000000000010",
+        "label": "Wand ohne Typ",
+        "openings": [
+          {
+            "height": 2000,
+            "hinge": "left",
+            "id": "07010000-0000-4000-8000-000000000020",
+            "left": 300,
+            "sill": 0,
+            "width": 800
+          },
+          {
+            "height": 800,
+            "id": "07010000-0000-4000-8000-000000000021",
+            "left": 1200,
+            "sill": 900,
+            "width": 400
+          }
+        ],
+        "rotation": 15,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 40,
+        "width": 1800,
+        "x": 10000,
+        "y": 2000
+      },
+      {
+        "height": 2000,
+        "id": "01010000-0000-4000-8000-000000000011",
+        "label": "Wand ohne Typ 90°",
+        "rotation": 90,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 50,
+        "width": 2000,
+        "x": 11200,
+        "y": 4300
+      },
+      {
+        "height": 2400,
+        "id": "01010000-0000-4000-8000-000000000012",
+        "label": "Glattwand auf Podest",
+        "panelId": "08010000-0000-4000-8000-000000000007",
+        "rotation": 15,
+        "supportingSurfaceId": "03010000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "typeId": "06010000-0000-4000-8000-000000000001",
+        "width": 1200,
+        "x": 7200,
+        "y": 4500
+      },
+      {
+        "doorOpenPercent": 75,
+        "height": 2400,
+        "id": "01010000-0000-4000-8000-000000000013",
+        "label": "Türwand auf Seitenbühne",
+        "panelId": "08010000-0000-4000-8000-000000000013",
+        "rotation": 0,
+        "supportingSurfaceId": "03010000-0000-4000-8000-000000000020",
+        "thickness": 28,
+        "typeId": "06010000-0000-4000-8000-000000000002",
+        "width": 1200,
+        "x": 9300,
+        "y": 7800
+      },
+      {
+        "height": 2400,
+        "id": "01010000-0000-4000-8000-000000000014",
+        "label": "Glattwand auf Bühnenelement",
+        "panelId": "08010000-0000-4000-8000-000000000009",
+        "rotation": 0,
+        "supportingSurfaceId": "03010000-0000-4000-8000-000000000003",
+        "thickness": 28,
+        "typeId": "06010000-0000-4000-8000-000000000001",
+        "width": 1200,
+        "x": 3000,
+        "y": 5200
+      }
+    ]
+  },
+  "name": "kitchen-sink",
+  "panels": [
+    {
+      "available": true,
+      "id": "08010000-0000-4000-8000-000000000001",
+      "label": "G-01",
+      "note": null,
+      "type": {
+        "height": 2400,
+        "id": "06010000-0000-4000-8000-000000000001",
+        "name": "Glattwand",
+        "openings": [],
+        "thickness": 28,
+        "width": 1200
+      },
+      "typeId": "06010000-0000-4000-8000-000000000001"
+    },
+    {
+      "available": true,
+      "id": "08010000-0000-4000-8000-000000000002",
+      "label": "T-01",
+      "note": null,
+      "type": {
+        "height": 2400,
+        "id": "06010000-0000-4000-8000-000000000002",
+        "name": "Türwand · Scharnier links",
+        "openings": [
+          {
+            "height": 2000,
+            "hinge": "left",
+            "id": "07010000-0000-4000-8000-000000000001",
+            "left": 200,
+            "sill": 0,
+            "width": 800
+          }
+        ],
+        "thickness": 28,
+        "width": 1200
+      },
+      "typeId": "06010000-0000-4000-8000-000000000002"
+    },
+    {
+      "available": true,
+      "id": "08010000-0000-4000-8000-000000000003",
+      "label": "T-02",
+      "note": null,
+      "type": {
+        "height": 2400,
+        "id": "06010000-0000-4000-8000-000000000003",
+        "name": "Türwand · Scharnier rechts",
+        "openings": [
+          {
+            "height": 2000,
+            "hinge": "right",
+            "id": "07010000-0000-4000-8000-000000000002",
+            "left": 200,
+            "sill": 0,
+            "width": 800
+          }
+        ],
+        "thickness": 28,
+        "width": 1200
+      },
+      "typeId": "06010000-0000-4000-8000-000000000003"
+    },
+    {
+      "available": true,
+      "id": "08010000-0000-4000-8000-000000000004",
+      "label": "F-01",
+      "note": null,
+      "type": {
+        "height": 2400,
+        "id": "06010000-0000-4000-8000-000000000004",
+        "name": "Fensterwand",
+        "openings": [
+          {
+            "height": 900,
+            "id": "07010000-0000-4000-8000-000000000003",
+            "left": 390,
+            "sill": 1100,
+            "width": 420
+          }
+        ],
+        "thickness": 28,
+        "width": 1200
+      },
+      "typeId": "06010000-0000-4000-8000-000000000004"
+    },
+    {
+      "available": true,
+      "id": "08010000-0000-4000-8000-000000000005",
+      "label": "B-01",
+      "note": null,
+      "type": {
+        "height": 2400,
+        "id": "06010000-0000-4000-8000-000000000005",
+        "name": "Bogen",
+        "openings": [
+          {
+            "height": 2000,
+            "id": "07010000-0000-4000-8000-000000000004",
+            "left": 200,
+            "profile": "arch",
+            "sill": 0,
+            "width": 800
+          }
+        ],
+        "thickness": 250,
+        "width": 1200
+      },
+      "typeId": "06010000-0000-4000-8000-000000000005"
+    },
+    {
+      "available": true,
+      "id": "08010000-0000-4000-8000-000000000006",
+      "label": "H-01",
+      "note": null,
+      "type": {
+        "height": 2400,
+        "id": "06010000-0000-4000-8000-000000000006",
+        "name": "Halbe Wand",
+        "openings": [],
+        "thickness": 250,
+        "width": 600
+      },
+      "typeId": "06010000-0000-4000-8000-000000000006"
+    },
+    {
+      "available": true,
+      "id": "08010000-0000-4000-8000-000000000007",
+      "label": "G-02",
+      "note": "Reserve",
+      "type": {
+        "height": 2400,
+        "id": "06010000-0000-4000-8000-000000000001",
+        "name": "Glattwand",
+        "openings": [],
+        "thickness": 28,
+        "width": 1200
+      },
+      "typeId": "06010000-0000-4000-8000-000000000001"
+    },
+    {
+      "available": true,
+      "id": "08010000-0000-4000-8000-000000000008",
+      "label": "M-01",
+      "note": null,
+      "type": {
+        "height": 2600,
+        "id": "06010000-0000-4000-8000-000000000007",
+        "name": "Breite Mehrfachwand",
+        "openings": [
+          {
+            "height": 2100,
+            "hinge": "right",
+            "id": "07010000-0000-4000-8000-000000000005",
+            "left": 1500,
+            "sill": 0,
+            "width": 900
+          },
+          {
+            "height": 800,
+            "id": "07010000-0000-4000-8000-000000000006",
+            "left": 300,
+            "sill": 1000,
+            "width": 500
+          },
+          {
+            "height": 1500,
+            "id": "07010000-0000-4000-8000-000000000007",
+            "left": 900,
+            "profile": "arch",
+            "sill": 300,
+            "width": 400
+          }
+        ],
+        "thickness": 40,
+        "width": 2400
+      },
+      "typeId": "06010000-0000-4000-8000-000000000007"
+    },
+    {
+      "available": true,
+      "id": "08010000-0000-4000-8000-000000000009",
+      "label": "G-03",
+      "note": null,
+      "type": {
+        "height": 2400,
+        "id": "06010000-0000-4000-8000-000000000001",
+        "name": "Glattwand",
+        "openings": [],
+        "thickness": 28,
+        "width": 1200
+      },
+      "typeId": "06010000-0000-4000-8000-000000000001"
+    },
+    {
+      "available": true,
+      "id": "08010000-0000-4000-8000-000000000010",
+      "label": "G-04",
+      "note": null,
+      "type": {
+        "height": 2400,
+        "id": "06010000-0000-4000-8000-000000000001",
+        "name": "Glattwand",
+        "openings": [],
+        "thickness": 28,
+        "width": 1200
+      },
+      "typeId": "06010000-0000-4000-8000-000000000001"
+    },
+    {
+      "available": false,
+      "id": "08010000-0000-4000-8000-000000000011",
+      "label": "G-05",
+      "note": "Defekt",
+      "type": {
+        "height": 2400,
+        "id": "06010000-0000-4000-8000-000000000001",
+        "name": "Glattwand",
+        "openings": [],
+        "thickness": 28,
+        "width": 1200
+      },
+      "typeId": "06010000-0000-4000-8000-000000000001"
+    },
+    {
+      "available": true,
+      "id": "08010000-0000-4000-8000-000000000012",
+      "label": "H-02",
+      "note": null,
+      "type": {
+        "height": 2400,
+        "id": "06010000-0000-4000-8000-000000000006",
+        "name": "Halbe Wand",
+        "openings": [],
+        "thickness": 250,
+        "width": 600
+      },
+      "typeId": "06010000-0000-4000-8000-000000000006"
+    },
+    {
+      "available": true,
+      "id": "08010000-0000-4000-8000-000000000013",
+      "label": "T-03",
+      "note": null,
+      "type": {
+        "height": 2400,
+        "id": "06010000-0000-4000-8000-000000000002",
+        "name": "Türwand · Scharnier links",
+        "openings": [
+          {
+            "height": 2000,
+            "hinge": "left",
+            "id": "07010000-0000-4000-8000-000000000001",
+            "left": 200,
+            "sill": 0,
+            "width": 800
+          }
+        ],
+        "thickness": 28,
+        "width": 1200
+      },
+      "typeId": "06010000-0000-4000-8000-000000000002"
+    }
+  ],
+  "scene": {
+    "id": "17010000-0000-4000-8000-000000000001",
+    "name": "Alles-Szene",
+    "productionId": "f0000000-0000-4000-8000-000000000001",
+    "productionName": "Goldene Produktion",
+    "venueId": "17010000-0000-4000-8000-000000000002",
+    "venueName": "Großer Probensaal",
+    "venueVersionId": "17010000-0000-4000-8000-000000000003"
+  },
+  "venue": {
+    "audienceViewpoint": {
+      "heightMm": 1600,
+      "label": "Publikumssicht",
+      "targetHeightMm": 1200,
+      "targetX": 6000,
+      "targetY": 4500,
+      "x": 6000,
+      "y": -2000
+    },
+    "cableRoutingCorridors": [
+      {
+        "id": "13010000-0000-4000-8000-000000000001",
+        "label": "Kabelkanal Süd",
+        "path": [{"x": 500, "y": 8500}, {"x": 500, "y": 4000}, {"x": 5000, "y": 600}]
+      }
+    ],
+    "ceilingHeight": 5000,
+    "connectionPoints": [
+      {
+        "id": "12010000-0000-4000-8000-000000000001",
+        "kind": "power",
+        "label": "Lichtstrom",
+        "x": 500,
+        "y": 8500
+      },
+      {
+        "id": "12010000-0000-4000-8000-000000000002",
+        "kind": "audio",
+        "label": "Tonanschluss",
+        "notes": "Wandkasten",
+        "x": 11500,
+        "y": 500
+      }
+    ],
+    "curtains": [
+      {
+        "bottomClearance": 0,
+        "height": 4500,
+        "id": "10010000-0000-4000-8000-000000000001",
+        "label": "Vorhang vorn",
+        "length": 8000,
+        "openPercent": 0,
+        "opening": "traveler",
+        "rotation": 0,
+        "x": 6000,
+        "y": 700
+      },
+      {
+        "bottomClearance": 100,
+        "height": 4200,
+        "id": "10010000-0000-4000-8000-000000000002",
+        "label": "Vorhang Seite",
+        "length": 3000,
+        "openPercent": 60,
+        "opening": "stackLeft",
+        "rotation": 90,
+        "x": 11800,
+        "y": 2500
+      }
+    ],
+    "depth": 9000,
+    "floorFinish": "library:wood-finewood27",
+    "keepClearZones": [
+      {
+        "id": "0e010000-0000-4000-8000-000000000001",
+        "label": "Notausgang Ost",
+        "polygon": [{"x": 11000, "y": 0}, {"x": 12000, "y": 0}, {"x": 12000, "y": 1200}, {"x": 11000, "y": 1200}],
+        "reason": "Notausgang",
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001"
+      }
+    ],
+    "overheadBoxes": [
+      {
+        "bottomHeight": 2600,
+        "id": "11010000-0000-4000-8000-000000000001",
+        "label": "Lüftungskanal",
+        "length": 3000,
+        "rotation": 10,
+        "thickness": 400,
+        "width": 700,
+        "x": 10000,
+        "y": 3000
+      }
+    ],
+    "placeholders": [
+      {
+        "depth": 450,
+        "height": 900,
+        "id": "05010000-0000-4000-8000-000000000030",
+        "kind": "chair",
+        "label": "Parkett 1",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "width": 450,
+        "x": 3300,
+        "y": 8000
+      },
+      {
+        "depth": 450,
+        "height": 900,
+        "id": "05010000-0000-4000-8000-000000000033",
+        "kind": "chair",
+        "label": "Parkett 4",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "width": 450,
+        "x": 3300,
+        "y": 8500
+      },
+      {
+        "depth": 450,
+        "height": 900,
+        "id": "05010000-0000-4000-8000-000000000031",
+        "kind": "chair",
+        "label": "Parkett 2",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "width": 450,
+        "x": 3800,
+        "y": 8000
+      },
+      {
+        "depth": 450,
+        "height": 900,
+        "id": "05010000-0000-4000-8000-000000000034",
+        "kind": "chair",
+        "label": "Parkett 5",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "width": 450,
+        "x": 3800,
+        "y": 8500
+      },
+      {
+        "depth": 450,
+        "height": 900,
+        "id": "05010000-0000-4000-8000-000000000032",
+        "kind": "chair",
+        "label": "Parkett 3",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "width": 450,
+        "x": 4300,
+        "y": 8000
+      },
+      {
+        "depth": 450,
+        "height": 900,
+        "id": "05010000-0000-4000-8000-000000000035",
+        "kind": "chair",
+        "label": "Parkett 6",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "width": 450,
+        "x": 4300,
+        "y": 8500
+      }
+    ],
+    "platforms": [
+      {
+        "elevation": 400,
+        "id": "03010000-0000-4000-8000-000000000020",
+        "label": "Seitenbühne",
+        "outline": [{"x": 8000, "y": 6500}, {"x": 12000, "y": 6500}, {"x": 12000, "y": 9000}, {"x": 8000, "y": 9000}],
+        "style": "floating"
+      },
+      {
+        "deckGrain": 0,
+        "elevation": 600,
+        "id": "03010000-0000-4000-8000-000000000021",
+        "label": "Fest installiertes Bühnenelement",
+        "outline": [{"x": 0, "y": 500}, {"x": 1000, "y": 500}, {"x": 1000, "y": 1500}, {"x": 0, "y": 1500}],
+        "style": "stageDeck"
+      }
+    ],
+    "schemaVersion": 1,
+    "stageCentreline": {"rotation": 90, "x": 6000, "y": 4500},
+    "stairs": [
+      {
+        "id": "04010000-0000-4000-8000-000000000020",
+        "label": "Treppe zur Seitenbühne",
+        "lowerSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "riserHeight": 160,
+        "rotation": -90,
+        "run": 2000,
+        "upperSurfaceId": "03010000-0000-4000-8000-000000000020",
+        "width": 1200,
+        "x": 7500,
+        "y": 7750
+      }
+    ],
+    "trusses": [
+      {
+        "bottomHeight": 3500,
+        "hangPoints": [
+          {"id": "15010000-0000-4000-8000-000000000001", "offsetMm": -2000},
+          {"id": "15010000-0000-4000-8000-000000000002", "offsetMm": 0},
+          {"id": "15010000-0000-4000-8000-000000000003", "offsetMm": 2000}
+        ],
+        "id": "0f010000-0000-4000-8000-000000000001",
+        "label": "Traverse vorn",
+        "length": 6000,
+        "rotation": 0,
+        "sectionWidth": 400,
+        "thickness": 300,
+        "x": 6000,
+        "y": 2500
+      },
+      {
+        "bottomHeight": 4000,
+        "hangPoints": [],
+        "id": "0f010000-0000-4000-8000-000000000002",
+        "label": "Traverse schräg",
+        "length": 3000,
+        "rotation": 20,
+        "sectionWidth": 300,
+        "thickness": 250,
+        "x": 9000,
+        "y": 5000
+      }
+    ],
+    "wallTypes": [
+      {
+        "height": 2400,
+        "id": "06010000-0000-4000-8000-000000000002",
+        "name": "Türwand · Scharnier links",
+        "openings": [
+          {
+            "height": 2000,
+            "hinge": "left",
+            "id": "07010000-0000-4000-8000-000000000001",
+            "left": 200,
+            "sill": 0,
+            "width": 800
+          }
+        ],
+        "thickness": 28,
+        "width": 1200
+      }
+    ],
+    "walls": [
+      {
+        "doorOpenPercent": 40,
+        "height": 4200,
+        "id": "01010000-0000-4000-8000-000000000040",
+        "label": "Hallenrückwand",
+        "openings": [
+          {
+            "height": 2100,
+            "hinge": "right",
+            "id": "07010000-0000-4000-8000-000000000040",
+            "left": 1000,
+            "sill": 0,
+            "width": 1000
+          },
+          {
+            "height": 1200,
+            "id": "07010000-0000-4000-8000-000000000041",
+            "left": 4000,
+            "sill": 1000,
+            "width": 1500
+          }
+        ],
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 300,
+        "width": 12000,
+        "x": 6000,
+        "y": 8900
+      },
+      {
+        "height": 2400,
+        "id": "01010000-0000-4000-8000-000000000041",
+        "label": "Seitentür",
+        "rotation": 90,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "typeId": "06010000-0000-4000-8000-000000000002",
+        "width": 1200,
+        "x": 300,
+        "y": 4500
+      }
+    ],
+    "width": 12000
+  }
+}

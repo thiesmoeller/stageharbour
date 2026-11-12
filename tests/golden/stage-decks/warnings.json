@@ -1,0 +1,29 @@
+{
+  "counts": {"inventory": 2, "overlap": 2},
+  "warnings": [
+    {
+      "family": "inventory",
+      "ids": [],
+      "kind": "shortage",
+      "message": "Plattenbestand reicht nicht: 1 Plätze, 0 verfügbare Platten."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01040000-0000-4000-8000-000000000001"],
+      "kind": "unassigned",
+      "message": "„Glattwand“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "overlap",
+      "ids": ["03040000-0000-4000-8000-000000000020", "03040000-0000-4000-8000-000000000021"],
+      "kind": "scene",
+      "message": "Podest „Massiver Unterbau“ überschneidet Podest „Bühnenelement auf Unterbau“."
+    },
+    {
+      "family": "overlap",
+      "ids": ["03040000-0000-4000-8000-000000000020", "03040000-0000-4000-8000-000000000022"],
+      "kind": "scene",
+      "message": "Podest „Massiver Unterbau“ überschneidet Podest „Bühnenelement auf Unterbau 2“."
+    }
+  ]
+}

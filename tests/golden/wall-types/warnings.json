@@ -1,0 +1,215 @@
+{
+  "counts": {"inventory": 35},
+  "warnings": [
+    {
+      "family": "inventory",
+      "ids": [],
+      "kind": "shortage",
+      "message": "Plattenbestand reicht nicht: 1 Plätze, 0 verfügbare Platten."
+    },
+    {
+      "family": "inventory",
+      "ids": [],
+      "kind": "shortage",
+      "message": "Plattenbestand reicht nicht: 1 Plätze, 0 verfügbare Platten."
+    },
+    {
+      "family": "inventory",
+      "ids": [],
+      "kind": "shortage",
+      "message": "Plattenbestand reicht nicht: 2 Plätze, 0 verfügbare Platten."
+    },
+    {
+      "family": "inventory",
+      "ids": [],
+      "kind": "shortage",
+      "message": "Plattenbestand reicht nicht: 2 Plätze, 0 verfügbare Platten."
+    },
+    {
+      "family": "inventory",
+      "ids": [],
+      "kind": "shortage",
+      "message": "Plattenbestand reicht nicht: 6 Plätze, 0 verfügbare Platten."
+    },
+    {
+      "family": "inventory",
+      "ids": [],
+      "kind": "shortage",
+      "message": "Plattenbestand reicht nicht: 8 Plätze, 0 verfügbare Platten."
+    },
+    {
+      "family": "inventory",
+      "ids": [],
+      "kind": "shortage",
+      "message": "Plattenbestand reicht nicht: 8 Plätze, 0 verfügbare Platten."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01030000-0000-4000-8000-000000000001"],
+      "kind": "unassigned",
+      "message": "„Glattwand 0 %“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01030000-0000-4000-8000-000000000002"],
+      "kind": "unassigned",
+      "message": "„Türwand · Scharnier links 0 %“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01030000-0000-4000-8000-000000000003"],
+      "kind": "unassigned",
+      "message": "„Türwand · Scharnier links 25 %“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01030000-0000-4000-8000-000000000004"],
+      "kind": "unassigned",
+      "message": "„Türwand · Scharnier links 50 %“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01030000-0000-4000-8000-000000000005"],
+      "kind": "unassigned",
+      "message": "„Türwand · Scharnier links 100 %“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01030000-0000-4000-8000-000000000006"],
+      "kind": "unassigned",
+      "message": "„Türwand · Scharnier rechts 0 %“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01030000-0000-4000-8000-000000000007"],
+      "kind": "unassigned",
+      "message": "„Türwand · Scharnier rechts 25 %“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01030000-0000-4000-8000-000000000008"],
+      "kind": "unassigned",
+      "message": "„Türwand · Scharnier rechts 50 %“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01030000-0000-4000-8000-000000000009"],
+      "kind": "unassigned",
+      "message": "„Türwand · Scharnier rechts 100 %“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01030000-0000-4000-8000-000000000010"],
+      "kind": "unassigned",
+      "message": "„Fensterwand 0 %“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01030000-0000-4000-8000-000000000011"],
+      "kind": "unassigned",
+      "message": "„Bogen 0 %“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01030000-0000-4000-8000-000000000012"],
+      "kind": "unassigned",
+      "message": "„Halbe Wand 0 %“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01030000-0000-4000-8000-000000000013"],
+      "kind": "unassigned",
+      "message": "„Breite Mehrfachwand 0 %“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01030000-0000-4000-8000-000000000014"],
+      "kind": "unassigned",
+      "message": "„Breite Mehrfachwand 25 %“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01030000-0000-4000-8000-000000000015"],
+      "kind": "unassigned",
+      "message": "„Breite Mehrfachwand 50 %“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01030000-0000-4000-8000-000000000016"],
+      "kind": "unassigned",
+      "message": "„Breite Mehrfachwand 100 %“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01030000-0000-4000-8000-000000000017"],
+      "kind": "unassigned",
+      "message": "„Tür 0°“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01030000-0000-4000-8000-000000000018"],
+      "kind": "unassigned",
+      "message": "„Tür 15°“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01030000-0000-4000-8000-000000000019"],
+      "kind": "unassigned",
+      "message": "„Tür 45°“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01030000-0000-4000-8000-000000000020"],
+      "kind": "unassigned",
+      "message": "„Tür 90°“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01030000-0000-4000-8000-000000000021"],
+      "kind": "unassigned",
+      "message": "„Tür 135°“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01030000-0000-4000-8000-000000000022"],
+      "kind": "unassigned",
+      "message": "„Tür 180°“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01030000-0000-4000-8000-000000000023"],
+      "kind": "unassigned",
+      "message": "„Tür 270°“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01030000-0000-4000-8000-000000000024"],
+      "kind": "unassigned",
+      "message": "„Tür -45°“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01030000-0000-4000-8000-000000000025"],
+      "kind": "unassigned",
+      "message": "„Beflächung 1“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01030000-0000-4000-8000-000000000026"],
+      "kind": "unassigned",
+      "message": "„Beflächung 2“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01030000-0000-4000-8000-000000000027"],
+      "kind": "unassigned",
+      "message": "„Beflächung 3“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01030000-0000-4000-8000-000000000028"],
+      "kind": "unassigned",
+      "message": "„Veraltete Maße“ hat keine Platte zugewiesen."
+    }
+  ]
+}

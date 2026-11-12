@@ -1,0 +1,97 @@
+{
+  "ballastStock": {"slabs": 0, "straps": 0},
+  "description": "The browser demo scene exactly as createSeedSnapshot() builds it: three plain walls on an empty 8 x 6 m hall, with the demo inventory.",
+  "document": {"paper": "A4", "scale": 50},
+  "elevationGroupIds": [],
+  "layout": {
+    "braces": [],
+    "schemaVersion": 1,
+    "walls": [
+      {
+        "height": 2400,
+        "id": "a6000000-0000-4000-8000-000000000001",
+        "label": "Wand",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "width": 1200,
+        "x": 2000,
+        "y": 2000
+      },
+      {
+        "height": 2400,
+        "id": "a6000000-0000-4000-8000-000000000002",
+        "label": "Wand",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "width": 1200,
+        "x": 3200,
+        "y": 2000
+      },
+      {
+        "height": 2400,
+        "id": "a6000000-0000-4000-8000-000000000003",
+        "label": "Wand",
+        "rotation": 90,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "width": 1200,
+        "x": 4400,
+        "y": 2000
+      }
+    ]
+  },
+  "name": "demo-seed",
+  "panels": [
+    {
+      "available": true,
+      "id": "a9000000-0000-4000-8000-000000000001",
+      "label": "G-01",
+      "note": null,
+      "type": {
+        "height": 2400,
+        "id": "a7000000-0000-4000-8000-000000000001",
+        "name": "Glattwand",
+        "openings": [],
+        "thickness": 28,
+        "width": 1200
+      },
+      "typeId": "a7000000-0000-4000-8000-000000000001"
+    },
+    {
+      "available": true,
+      "id": "a9000000-0000-4000-8000-000000000002",
+      "label": "T-01",
+      "note": null,
+      "type": {
+        "height": 2400,
+        "id": "a7000000-0000-4000-8000-000000000002",
+        "name": "Türwand · Scharnier links",
+        "openings": [
+          {
+            "height": 2000,
+            "hinge": "left",
+            "id": "a8000000-0000-4000-8000-000000000001",
+            "left": 200,
+            "sill": 0,
+            "width": 800
+          }
+        ],
+        "thickness": 28,
+        "width": 1200
+      },
+      "typeId": "a7000000-0000-4000-8000-000000000002"
+    }
+  ],
+  "scene": {
+    "id": "a5000000-0000-4000-8000-000000000001",
+    "name": "Bühnenbild 1",
+    "productionId": "a4000000-0000-4000-8000-000000000001",
+    "productionName": "Beispielproduktion",
+    "venueId": "a2000000-0000-4000-8000-000000000001",
+    "venueName": "Beispielsaal",
+    "venueVersionId": "a3000000-0000-4000-8000-000000000001"
+  },
+  "venue": {"depth": 6000, "schemaVersion": 1, "width": 8000}
+}

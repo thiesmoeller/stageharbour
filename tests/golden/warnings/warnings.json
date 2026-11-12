@@ -1,0 +1,425 @@
+{
+  "counts": {"inventory": 28, "keep-clear": 7, "overhead": 8, "overlap": 20, "placement": 7},
+  "warnings": [
+    {
+      "family": "inventory",
+      "ids": ["01020000-0000-4000-8000-000000000020", "08020000-0000-4000-8000-000000000001"],
+      "kind": "duplicate",
+      "message": "Platte G-01 ist in diesem Bühnenbild mehrfach zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01020000-0000-4000-8000-000000000019", "08020000-0000-4000-8000-000000000003"],
+      "kind": "incompatible",
+      "message": "Platte G-03 passt nicht zu „Falscher Typ“."
+    },
+    {
+      "family": "inventory",
+      "ids": [],
+      "kind": "shortage",
+      "message": "Plattenbestand reicht nicht: 1 Plätze, 0 verfügbare Platten."
+    },
+    {
+      "family": "inventory",
+      "ids": [],
+      "kind": "shortage",
+      "message": "Plattenbestand reicht nicht: 1 Plätze, 0 verfügbare Platten."
+    },
+    {
+      "family": "inventory",
+      "ids": [],
+      "kind": "shortage",
+      "message": "Plattenbestand reicht nicht: 24 Plätze, 3 verfügbare Platten."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01020000-0000-4000-8000-000000000001"],
+      "kind": "unassigned",
+      "message": "„Kreuz A“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01020000-0000-4000-8000-000000000002"],
+      "kind": "unassigned",
+      "message": "„Kreuz B“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01020000-0000-4000-8000-000000000003"],
+      "kind": "unassigned",
+      "message": "„Links“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01020000-0000-4000-8000-000000000004"],
+      "kind": "unassigned",
+      "message": "„Rechts bündig“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01020000-0000-4000-8000-000000000005"],
+      "kind": "unassigned",
+      "message": "„Waagerecht“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01020000-0000-4000-8000-000000000006"],
+      "kind": "unassigned",
+      "message": "„Spitze an Fläche“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01020000-0000-4000-8000-000000000007"],
+      "kind": "unassigned",
+      "message": "„Durchbohrt A“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01020000-0000-4000-8000-000000000008"],
+      "kind": "unassigned",
+      "message": "„Durchbohrt B“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01020000-0000-4000-8000-000000000009"],
+      "kind": "unassigned",
+      "message": "„Auf Freihaltezone“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01020000-0000-4000-8000-000000000010"],
+      "kind": "unassigned",
+      "message": "„Wand ohne Auflage“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01020000-0000-4000-8000-000000000011"],
+      "kind": "unassigned",
+      "message": "„Wand unbekannte Auflage“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01020000-0000-4000-8000-000000000012"],
+      "kind": "unassigned",
+      "message": "„Hohe Wand auf Podest“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01020000-0000-4000-8000-000000000013"],
+      "kind": "unassigned",
+      "message": "„Wand unter Kanal“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01020000-0000-4000-8000-000000000014"],
+      "kind": "unassigned",
+      "message": "„Wand auf Podest A“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01020000-0000-4000-8000-000000000015"],
+      "kind": "unassigned",
+      "message": "„Ohne Platte 1“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01020000-0000-4000-8000-000000000016"],
+      "kind": "unassigned",
+      "message": "„Ohne Platte 2“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01020000-0000-4000-8000-000000000022"],
+      "kind": "unassigned",
+      "message": "„Halbe ohne Bestand“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01020000-0000-4000-8000-000000000023"],
+      "kind": "unassigned",
+      "message": "„Kante Berührung“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01020000-0000-4000-8000-000000000024"],
+      "kind": "unassigned",
+      "message": "„Ein Millimeter“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01020000-0000-4000-8000-000000000025"],
+      "kind": "unassigned",
+      "message": "„Zwei Millimeter Abstand“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01020000-0000-4000-8000-000000000026"],
+      "kind": "unassigned",
+      "message": "„Veraltete Maße auf Podest“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01020000-0000-4000-8000-000000000017", "08020000-0000-4000-8000-000000000090"],
+      "kind": "unavailable",
+      "message": "Die zugewiesene Platte für „Fehlende Platte“ ist nicht im Plattenbestand."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01020000-0000-4000-8000-000000000018", "08020000-0000-4000-8000-000000000002"],
+      "kind": "unavailable",
+      "message": "Platte G-02 ist nicht verfügbar."
+    },
+    {
+      "family": "keep-clear",
+      "ids": ["0e020000-0000-4000-8000-000000000001", "02020000-0000-4000-8000-000000000001"],
+      "kind": "brace",
+      "message": "Freihaltezone „Notausgang West“ überschneidet Stütze „Stütze auf Zone“."
+    },
+    {
+      "family": "keep-clear",
+      "ids": ["0e020000-0000-4000-8000-000000000001", "05020000-0000-4000-8000-000000000001"],
+      "kind": "placeholder",
+      "message": "Freihaltezone „Notausgang West“ überschneidet Platzhalter „Kiste auf Zone“."
+    },
+    {
+      "family": "keep-clear",
+      "ids": ["0e020000-0000-4000-8000-000000000001", "03020000-0000-4000-8000-000000000003"],
+      "kind": "platform",
+      "message": "Freihaltezone „Notausgang West“ überschneidet Podest „Podest auf Zone“."
+    },
+    {
+      "family": "keep-clear",
+      "ids": ["0e020000-0000-4000-8000-000000000001", "04020000-0000-4000-8000-000000000001"],
+      "kind": "stair",
+      "message": "Freihaltezone „Notausgang West“ überschneidet Treppe „Treppe auf Zone“."
+    },
+    {
+      "family": "keep-clear",
+      "ids": ["0e020000-0000-4000-8000-000000000001", "01020000-0000-4000-8000-000000000009"],
+      "kind": "wall",
+      "message": "Freihaltezone „Notausgang West“ überschneidet Wand „Auf Freihaltezone“."
+    },
+    {
+      "family": "keep-clear",
+      "ids": ["0e020000-0000-4000-8000-000000000002", "01020000-0000-4000-8000-000000000023"],
+      "kind": "wall",
+      "message": "Freihaltezone „Fluchtweg Mitte“ überschneidet Wand „Kante Berührung“."
+    },
+    {
+      "family": "keep-clear",
+      "ids": ["0e020000-0000-4000-8000-000000000002", "01020000-0000-4000-8000-000000000024"],
+      "kind": "wall",
+      "message": "Freihaltezone „Fluchtweg Mitte“ überschneidet Wand „Ein Millimeter“."
+    },
+    {
+      "family": "overhead",
+      "ids": ["01020000-0000-4000-8000-000000000012"],
+      "kind": "ceiling",
+      "message": "„Hohe Wand auf Podest“ überschreitet von der Auflagefläche die Deckenhöhe 2600 mm. Geometrische Prüfung, kein statischer Nachweis."
+    },
+    {
+      "family": "overhead",
+      "ids": ["01020000-0000-4000-8000-000000000013"],
+      "kind": "ceiling",
+      "message": "„Wand unter Kanal“ überschreitet von der Auflagefläche die Deckenhöhe 2600 mm. Geometrische Prüfung, kein statischer Nachweis."
+    },
+    {
+      "family": "overhead",
+      "ids": ["01020000-0000-4000-8000-000000000014"],
+      "kind": "ceiling",
+      "message": "„Wand auf Podest A“ überschreitet von der Auflagefläche die Deckenhöhe 2600 mm. Geometrische Prüfung, kein statischer Nachweis."
+    },
+    {
+      "family": "overhead",
+      "ids": ["02020000-0000-4000-8000-000000000004"],
+      "kind": "ceiling",
+      "message": "„Hohe Stütze auf Podest“ überschreitet von der Auflagefläche die Deckenhöhe 2600 mm. Geometrische Prüfung, kein statischer Nachweis."
+    },
+    {
+      "family": "overhead",
+      "ids": ["01020000-0000-4000-8000-000000000012", "0f020000-0000-4000-8000-000000000001"],
+      "kind": "overhead",
+      "message": "„Hohe Wand auf Podest“ ragt von der Auflagefläche in die Traverse „Traverse“. Geometrische Prüfung, kein statischer Nachweis."
+    },
+    {
+      "family": "overhead",
+      "ids": ["01020000-0000-4000-8000-000000000013", "11020000-0000-4000-8000-000000000001"],
+      "kind": "overhead",
+      "message": "„Wand unter Kanal“ ragt von der Auflagefläche in die Überbauung „Lüftungskanal“. Geometrische Prüfung, kein statischer Nachweis."
+    },
+    {
+      "family": "overhead",
+      "ids": ["01020000-0000-4000-8000-000000000014", "11020000-0000-4000-8000-000000000001"],
+      "kind": "overhead",
+      "message": "„Wand auf Podest A“ ragt von der Auflagefläche in die Überbauung „Lüftungskanal“. Geometrische Prüfung, kein statischer Nachweis."
+    },
+    {
+      "family": "overhead",
+      "ids": ["02020000-0000-4000-8000-000000000004", "0f020000-0000-4000-8000-000000000001"],
+      "kind": "overhead",
+      "message": "„Hohe Stütze auf Podest“ ragt von der Auflagefläche in die Traverse „Traverse“. Geometrische Prüfung, kein statischer Nachweis."
+    },
+    {
+      "family": "overlap",
+      "ids": ["01020000-0000-4000-8000-000000000001", "01020000-0000-4000-8000-000000000002"],
+      "kind": "scene",
+      "message": "Wand „Kreuz A“ überschneidet Wand „Kreuz B“."
+    },
+    {
+      "family": "overlap",
+      "ids": ["01020000-0000-4000-8000-000000000001", "05020000-0000-4000-8000-000000000004"],
+      "kind": "scene",
+      "message": "Wand „Kreuz A“ überschneidet Platzhalter „Person im Kreuz“."
+    },
+    {
+      "family": "overlap",
+      "ids": ["01020000-0000-4000-8000-000000000002", "05020000-0000-4000-8000-000000000004"],
+      "kind": "scene",
+      "message": "Wand „Kreuz B“ überschneidet Platzhalter „Person im Kreuz“."
+    },
+    {
+      "family": "overlap",
+      "ids": ["01020000-0000-4000-8000-000000000005", "02020000-0000-4000-8000-000000000002"],
+      "kind": "scene",
+      "message": "Wand „Waagerecht“ überschneidet Stütze „Stütze an Wand“."
+    },
+    {
+      "family": "overlap",
+      "ids": ["01020000-0000-4000-8000-000000000006", "02020000-0000-4000-8000-000000000002"],
+      "kind": "scene",
+      "message": "Wand „Spitze an Fläche“ überschneidet Stütze „Stütze an Wand“."
+    },
+    {
+      "family": "overlap",
+      "ids": ["01020000-0000-4000-8000-000000000007", "01020000-0000-4000-8000-000000000008"],
+      "kind": "scene",
+      "message": "Wand „Durchbohrt A“ überschneidet Wand „Durchbohrt B“."
+    },
+    {
+      "family": "overlap",
+      "ids": ["01020000-0000-4000-8000-000000000009", "02020000-0000-4000-8000-000000000001"],
+      "kind": "scene",
+      "message": "Wand „Auf Freihaltezone“ überschneidet Stütze „Stütze auf Zone“."
+    },
+    {
+      "family": "overlap",
+      "ids": ["01020000-0000-4000-8000-000000000009", "04020000-0000-4000-8000-000000000001"],
+      "kind": "scene",
+      "message": "Wand „Auf Freihaltezone“ überschneidet Treppe „Treppe auf Zone“."
+    },
+    {
+      "family": "overlap",
+      "ids": ["01020000-0000-4000-8000-000000000009", "05020000-0000-4000-8000-000000000001"],
+      "kind": "scene",
+      "message": "Wand „Auf Freihaltezone“ überschneidet Platzhalter „Kiste auf Zone“."
+    },
+    {
+      "family": "overlap",
+      "ids": ["01020000-0000-4000-8000-000000000012", "02020000-0000-4000-8000-000000000004"],
+      "kind": "scene",
+      "message": "Wand „Hohe Wand auf Podest“ überschneidet Stütze „Hohe Stütze auf Podest“."
+    },
+    {
+      "family": "overlap",
+      "ids": ["01020000-0000-4000-8000-000000000013", "04020000-0000-4000-8000-000000000002"],
+      "kind": "scene",
+      "message": "Wand „Wand unter Kanal“ überschneidet Treppe „Treppe unbekannt“."
+    },
+    {
+      "family": "overlap",
+      "ids": ["01020000-0000-4000-8000-000000000013", "04020000-0000-4000-8000-000000000003"],
+      "kind": "scene",
+      "message": "Wand „Wand unter Kanal“ überschneidet Treppe „Treppe zwischen Podesten“."
+    },
+    {
+      "family": "overlap",
+      "ids": ["01020000-0000-4000-8000-000000000013", "05020000-0000-4000-8000-000000000003"],
+      "kind": "scene",
+      "message": "Wand „Wand unter Kanal“ überschneidet Platzhalter „Tisch auf Treppe“."
+    },
+    {
+      "family": "overlap",
+      "ids": ["01020000-0000-4000-8000-000000000014", "04020000-0000-4000-8000-000000000003"],
+      "kind": "scene",
+      "message": "Wand „Wand auf Podest A“ überschneidet Treppe „Treppe zwischen Podesten“."
+    },
+    {
+      "family": "overlap",
+      "ids": ["02020000-0000-4000-8000-000000000005", "04020000-0000-4000-8000-000000000001"],
+      "kind": "scene",
+      "message": "Stütze „Stütze unbekannte Auflage“ überschneidet Treppe „Treppe auf Zone“."
+    },
+    {
+      "family": "overlap",
+      "ids": ["03020000-0000-4000-8000-000000000001", "03020000-0000-4000-8000-000000000002"],
+      "kind": "scene",
+      "message": "Podest „Podest A“ überschneidet Podest „Podest B“."
+    },
+    {
+      "family": "overlap",
+      "ids": ["04020000-0000-4000-8000-000000000001", "05020000-0000-4000-8000-000000000001"],
+      "kind": "scene",
+      "message": "Treppe „Treppe auf Zone“ überschneidet Platzhalter „Kiste auf Zone“."
+    },
+    {
+      "family": "overlap",
+      "ids": ["04020000-0000-4000-8000-000000000002", "05020000-0000-4000-8000-000000000003"],
+      "kind": "scene",
+      "message": "Treppe „Treppe unbekannt“ überschneidet Platzhalter „Tisch auf Treppe“."
+    },
+    {
+      "family": "overlap",
+      "ids": ["05020000-0000-4000-8000-000000000002", "05020000-0000-4000-8000-000000000005"],
+      "kind": "scene",
+      "message": "Platzhalter „Stuhl ohne Auflage“ überschneidet Platzhalter „Lautsprecher unbekannt“."
+    },
+    {
+      "family": "overlap",
+      "ids": ["01020000-0000-4000-8000-000000000050", "05020000-0000-4000-8000-000000000050"],
+      "kind": "venue",
+      "message": "Wand „Hallenpfeiler“ überschneidet Platzhalter „Stuhl am Pfeiler“."
+    },
+    {
+      "family": "placement",
+      "ids": ["01020000-0000-4000-8000-000000000010"],
+      "kind": "missing-surface",
+      "message": "Bitte eine Auflagefläche wählen. Ohne Auswahl wird die Höhe nicht stillschweigend gesetzt."
+    },
+    {
+      "family": "placement",
+      "ids": ["02020000-0000-4000-8000-000000000003"],
+      "kind": "missing-surface",
+      "message": "Bitte eine Auflagefläche wählen. Ohne Auswahl wird die Höhe nicht stillschweigend gesetzt."
+    },
+    {
+      "family": "placement",
+      "ids": ["05020000-0000-4000-8000-000000000002"],
+      "kind": "missing-surface",
+      "message": "Bitte eine Auflagefläche wählen. Ohne Auswahl wird die Höhe nicht stillschweigend gesetzt."
+    },
+    {
+      "family": "placement",
+      "ids": ["01020000-0000-4000-8000-000000000011"],
+      "kind": "unknown-surface",
+      "message": "Die gewählte Auflagefläche ist nicht vorhanden."
+    },
+    {
+      "family": "placement",
+      "ids": ["02020000-0000-4000-8000-000000000005"],
+      "kind": "unknown-surface",
+      "message": "Die gewählte Auflagefläche ist nicht vorhanden."
+    },
+    {
+      "family": "placement",
+      "ids": ["04020000-0000-4000-8000-000000000002"],
+      "kind": "unknown-surface",
+      "message": "Die gewählte Auflagefläche ist nicht vorhanden."
+    },
+    {
+      "family": "placement",
+      "ids": ["05020000-0000-4000-8000-000000000005"],
+      "kind": "unknown-surface",
+      "message": "Die gewählte Auflagefläche ist nicht vorhanden."
+    }
+  ]
+}

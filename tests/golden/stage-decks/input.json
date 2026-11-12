@@ -1,0 +1,188 @@
+{
+  "ballastStock": {"slabs": 0, "straps": 0},
+  "description": "Bühnenelemente of many sizes, grains, leg heights and rotations (including odd 0,5 m tilings), plus decks stacked on a solid base so legs land on lower surfaces.",
+  "document": {"paper": "A4", "scale": 100},
+  "elevationGroupIds": [],
+  "layout": {
+    "braces": [],
+    "platforms": [
+      {
+        "deckGrain": 0,
+        "elevation": 200,
+        "id": "03040000-0000-4000-8000-000000000001",
+        "label": "Bühnenelement 1",
+        "outline": [{"x": 500, "y": 500}, {"x": 2500, "y": 500}, {"x": 2500, "y": 1500}, {"x": 500, "y": 1500}],
+        "style": "stageDeck"
+      },
+      {
+        "deckGrain": 90,
+        "elevation": 400,
+        "id": "03040000-0000-4000-8000-000000000002",
+        "label": "Bühnenelement 2",
+        "outline": [{"x": 3500, "y": 500}, {"x": 5500, "y": 500}, {"x": 5500, "y": 1500}, {"x": 3500, "y": 1500}],
+        "style": "stageDeck"
+      },
+      {
+        "deckGrain": 0,
+        "elevation": 600,
+        "id": "03040000-0000-4000-8000-000000000003",
+        "label": "Bühnenelement 3",
+        "outline": [{"x": 6750, "y": 750}, {"x": 10250, "y": 750}, {"x": 10250, "y": 2250}, {"x": 6750, "y": 2250}],
+        "style": "stageDeck"
+      },
+      {
+        "deckGrain": 90,
+        "elevation": 800,
+        "id": "03040000-0000-4000-8000-000000000004",
+        "label": "Bühnenelement 4",
+        "outline": [{"x": 11250, "y": 750}, {"x": 14750, "y": 750}, {"x": 14750, "y": 2250}, {"x": 11250, "y": 2250}],
+        "style": "stageDeck"
+      },
+      {
+        "deckGrain": 0,
+        "elevation": 1000,
+        "id": "03040000-0000-4000-8000-000000000005",
+        "label": "Bühnenelement 5",
+        "outline": [{"x": 750, "y": 3750}, {"x": 1250, "y": 3750}, {"x": 1250, "y": 4250}, {"x": 750, "y": 4250}],
+        "style": "stageDeck"
+      },
+      {
+        "deckGrain": 0,
+        "elevation": 1200,
+        "id": "03040000-0000-4000-8000-000000000006",
+        "label": "Bühnenelement 6",
+        "outline": [{"x": 2750, "y": 3750}, {"x": 4250, "y": 3750}, {"x": 4250, "y": 4250}, {"x": 2750, "y": 4250}],
+        "style": "stageDeck"
+      },
+      {
+        "deckGrain": 0,
+        "elevation": 400,
+        "id": "03040000-0000-4000-8000-000000000007",
+        "label": "Bühnenelement 7",
+        "outline": [{"x": 6000, "y": 3000}, {"x": 8000, "y": 3000}, {"x": 8000, "y": 5000}, {"x": 6000, "y": 5000}],
+        "style": "stageDeck"
+      },
+      {
+        "deckGrain": 90,
+        "elevation": 400,
+        "id": "03040000-0000-4000-8000-000000000008",
+        "label": "Bühnenelement 8",
+        "outline": [{"x": 9500, "y": 3000}, {"x": 11500, "y": 3000}, {"x": 11500, "y": 5000}, {"x": 9500, "y": 5000}],
+        "style": "stageDeck"
+      },
+      {
+        "deckGrain": 0,
+        "elevation": 600,
+        "id": "03040000-0000-4000-8000-000000000009",
+        "label": "Bühnenelement 9",
+        "outline": [{"x": 1500, "y": 6750}, {"x": 6500, "y": 6750}, {"x": 6500, "y": 9250}, {"x": 1500, "y": 9250}],
+        "style": "stageDeck"
+      },
+      {
+        "deckGrain": 0,
+        "elevation": 400,
+        "id": "03040000-0000-4000-8000-000000000010",
+        "label": "Bühnenelement 10",
+        "outline": [{"x": 11500, "y": 6000}, {"x": 11500, "y": 10000}, {"x": 8500, "y": 10000}, {"x": 8500, "y": 6000}],
+        "style": "stageDeck"
+      },
+      {
+        "deckGrain": 0,
+        "elevation": 200,
+        "id": "03040000-0000-4000-8000-000000000011",
+        "label": "Bühnenelement 11",
+        "outline": [
+          {"x": 14146.446609, "y": 6585.786438},
+          {"x": 15914.213562, "y": 8353.553391},
+          {"x": 14853.553391, "y": 9414.213562},
+          {"x": 13085.786438, "y": 7646.446609}
+        ],
+        "style": "stageDeck"
+      },
+      {
+        "deckGrain": 0,
+        "elevation": 1000,
+        "id": "03040000-0000-4000-8000-000000000012",
+        "label": "Bühnenelement 12",
+        "outline": [{"x": 16000, "y": 3500}, {"x": 17000, "y": 3500}, {"x": 17000, "y": 4500}, {"x": 16000, "y": 4500}],
+        "style": "stageDeck"
+      },
+      {
+        "elevation": 300,
+        "id": "03040000-0000-4000-8000-000000000020",
+        "label": "Massiver Unterbau",
+        "outline": [{"x": 2000, "y": 10500}, {"x": 8000, "y": 10500}, {"x": 8000, "y": 13500}, {"x": 2000, "y": 13500}],
+        "style": "solid"
+      },
+      {
+        "deckGrain": 0,
+        "elevation": 900,
+        "id": "03040000-0000-4000-8000-000000000021",
+        "label": "Bühnenelement auf Unterbau",
+        "outline": [{"x": 3000, "y": 11000}, {"x": 5000, "y": 11000}, {"x": 5000, "y": 13000}, {"x": 3000, "y": 13000}],
+        "style": "stageDeck",
+        "supportingSurfaceId": "03040000-0000-4000-8000-000000000020"
+      },
+      {
+        "deckGrain": 90,
+        "elevation": 1200,
+        "id": "03040000-0000-4000-8000-000000000022",
+        "label": "Bühnenelement auf Unterbau 2",
+        "outline": [{"x": 5200, "y": 11500}, {"x": 7200, "y": 11500}, {"x": 7200, "y": 12500}, {"x": 5200, "y": 12500}],
+        "style": "stageDeck",
+        "supportingSurfaceId": "03040000-0000-4000-8000-000000000020"
+      }
+    ],
+    "schemaVersion": 1,
+    "stairs": [
+      {
+        "id": "04040000-0000-4000-8000-000000000001",
+        "label": "Treppe",
+        "lowerSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "riserHeight": 200,
+        "rotation": 0,
+        "run": 2000,
+        "upperSurfaceId": "03040000-0000-4000-8000-000000000001",
+        "width": 1200,
+        "x": 1500,
+        "y": 2500
+      }
+    ],
+    "wallTypes": [
+      {
+        "height": 2400,
+        "id": "06040000-0000-4000-8000-000000000001",
+        "name": "Glattwand",
+        "openings": [],
+        "thickness": 28,
+        "width": 1200
+      }
+    ],
+    "walls": [
+      {
+        "height": 2400,
+        "id": "01040000-0000-4000-8000-000000000001",
+        "label": "Glattwand",
+        "rotation": 0,
+        "supportingSurfaceId": "03040000-0000-4000-8000-000000000021",
+        "thickness": 28,
+        "typeId": "06040000-0000-4000-8000-000000000001",
+        "width": 1200,
+        "x": 4000,
+        "y": 12000
+      }
+    ]
+  },
+  "name": "stage-decks",
+  "panels": [],
+  "scene": {
+    "id": "17040000-0000-4000-8000-000000000001",
+    "name": "Bühnenelement-Szene",
+    "productionId": "f0000000-0000-4000-8000-000000000001",
+    "productionName": "Goldene Produktion",
+    "venueId": "17040000-0000-4000-8000-000000000002",
+    "venueName": "Weite Halle",
+    "venueVersionId": "17040000-0000-4000-8000-000000000003"
+  },
+  "venue": {"depth": 14000, "schemaVersion": 1, "width": 18000}
+}

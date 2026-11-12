@@ -1,0 +1,875 @@
+{
+  "assembly": [
+    {
+      "assemblyNumber": 1,
+      "caption": "Position 1",
+      "id": "01030000-0000-4000-8000-000000000001",
+      "stored": null
+    },
+    {
+      "assemblyNumber": 2,
+      "caption": "Position 2",
+      "id": "01030000-0000-4000-8000-000000000002",
+      "stored": null
+    },
+    {
+      "assemblyNumber": 3,
+      "caption": "Position 3",
+      "id": "01030000-0000-4000-8000-000000000006",
+      "stored": null
+    },
+    {
+      "assemblyNumber": 4,
+      "caption": "Position 4",
+      "id": "01030000-0000-4000-8000-000000000010",
+      "stored": null
+    },
+    {
+      "assemblyNumber": 5,
+      "caption": "Position 5",
+      "id": "01030000-0000-4000-8000-000000000011",
+      "stored": null
+    },
+    {
+      "assemblyNumber": 6,
+      "caption": "Position 6",
+      "id": "01030000-0000-4000-8000-000000000012",
+      "stored": null
+    },
+    {
+      "assemblyNumber": 7,
+      "caption": "Position 7",
+      "id": "01030000-0000-4000-8000-000000000013",
+      "stored": null
+    },
+    {
+      "assemblyNumber": 8,
+      "caption": "Position 8",
+      "id": "01030000-0000-4000-8000-000000000017",
+      "stored": null
+    },
+    {
+      "assemblyNumber": 9,
+      "caption": "Position 9",
+      "id": "01030000-0000-4000-8000-000000000025",
+      "stored": null
+    },
+    {
+      "assemblyNumber": 10,
+      "caption": "Position 10",
+      "id": "01030000-0000-4000-8000-000000000018",
+      "stored": null
+    },
+    {
+      "assemblyNumber": 11,
+      "caption": "Position 11",
+      "id": "01030000-0000-4000-8000-000000000003",
+      "stored": null
+    },
+    {
+      "assemblyNumber": 12,
+      "caption": "Position 12",
+      "id": "01030000-0000-4000-8000-000000000007",
+      "stored": null
+    },
+    {
+      "assemblyNumber": 13,
+      "caption": "Position 13",
+      "id": "01030000-0000-4000-8000-000000000014",
+      "stored": null
+    },
+    {
+      "assemblyNumber": 14,
+      "caption": "Position 14",
+      "id": "01030000-0000-4000-8000-000000000026",
+      "stored": null
+    },
+    {
+      "assemblyNumber": 15,
+      "caption": "Position 15",
+      "id": "01030000-0000-4000-8000-000000000019",
+      "stored": null
+    },
+    {
+      "assemblyNumber": 16,
+      "caption": "Position 16",
+      "id": "01030000-0000-4000-8000-000000000020",
+      "stored": null
+    },
+    {
+      "assemblyNumber": 17,
+      "caption": "Position 17",
+      "id": "01030000-0000-4000-8000-000000000004",
+      "stored": null
+    },
+    {
+      "assemblyNumber": 18,
+      "caption": "Position 18",
+      "id": "01030000-0000-4000-8000-000000000008",
+      "stored": null
+    },
+    {
+      "assemblyNumber": 19,
+      "caption": "Position 19",
+      "id": "01030000-0000-4000-8000-000000000015",
+      "stored": null
+    },
+    {
+      "assemblyNumber": 20,
+      "caption": "Position 20",
+      "id": "01030000-0000-4000-8000-000000000027",
+      "stored": null
+    },
+    {
+      "assemblyNumber": 21,
+      "caption": "Position 21",
+      "id": "01030000-0000-4000-8000-000000000021",
+      "stored": null
+    },
+    {
+      "assemblyNumber": 22,
+      "caption": "Position 22",
+      "id": "01030000-0000-4000-8000-000000000005",
+      "stored": null
+    },
+    {
+      "assemblyNumber": 23,
+      "caption": "Position 23",
+      "id": "01030000-0000-4000-8000-000000000009",
+      "stored": null
+    },
+    {
+      "assemblyNumber": 24,
+      "caption": "Position 24",
+      "id": "01030000-0000-4000-8000-000000000016",
+      "stored": null
+    },
+    {
+      "assemblyNumber": 25,
+      "caption": "Position 25",
+      "id": "01030000-0000-4000-8000-000000000022",
+      "stored": null
+    },
+    {
+      "assemblyNumber": 26,
+      "caption": "Position 26",
+      "id": "01030000-0000-4000-8000-000000000028",
+      "stored": null
+    },
+    {
+      "assemblyNumber": 27,
+      "caption": "Position 27",
+      "id": "01030000-0000-4000-8000-000000000023",
+      "stored": null
+    },
+    {
+      "assemblyNumber": 28,
+      "caption": "Position 28",
+      "id": "01030000-0000-4000-8000-000000000024",
+      "stored": null
+    }
+  ],
+  "braces": [],
+  "cableLengthsMm": [],
+  "cableSchedule": [],
+  "dimensions": [],
+  "elevations": [],
+  "groups": [],
+  "materialRequirements": {
+    "available": {"slabs": 0, "straps": 0},
+    "required": {"braces": 0, "slabs": 0, "straps": 0},
+    "shortage": {"slabs": 0, "straps": 0}
+  },
+  "materials": {"braces": 0, "slabs": 0, "straps": 0},
+  "package": {
+    "inventory": [],
+    "sceneLists": [
+      {
+        "braces": [],
+        "inventoryWarnings": [
+          {
+            "kind": "unassigned",
+            "message": "„Glattwand 0 %“ hat keine Platte zugewiesen.",
+            "wallId": "01030000-0000-4000-8000-000000000001"
+          },
+          {
+            "kind": "unassigned",
+            "message": "„Türwand · Scharnier links 0 %“ hat keine Platte zugewiesen.",
+            "wallId": "01030000-0000-4000-8000-000000000002"
+          },
+          {
+            "kind": "unassigned",
+            "message": "„Türwand · Scharnier links 25 %“ hat keine Platte zugewiesen.",
+            "wallId": "01030000-0000-4000-8000-000000000003"
+          },
+          {
+            "kind": "unassigned",
+            "message": "„Türwand · Scharnier links 50 %“ hat keine Platte zugewiesen.",
+            "wallId": "01030000-0000-4000-8000-000000000004"
+          },
+          {
+            "kind": "unassigned",
+            "message": "„Türwand · Scharnier links 100 %“ hat keine Platte zugewiesen.",
+            "wallId": "01030000-0000-4000-8000-000000000005"
+          },
+          {
+            "kind": "unassigned",
+            "message": "„Türwand · Scharnier rechts 0 %“ hat keine Platte zugewiesen.",
+            "wallId": "01030000-0000-4000-8000-000000000006"
+          },
+          {
+            "kind": "unassigned",
+            "message": "„Türwand · Scharnier rechts 25 %“ hat keine Platte zugewiesen.",
+            "wallId": "01030000-0000-4000-8000-000000000007"
+          },
+          {
+            "kind": "unassigned",
+            "message": "„Türwand · Scharnier rechts 50 %“ hat keine Platte zugewiesen.",
+            "wallId": "01030000-0000-4000-8000-000000000008"
+          },
+          {
+            "kind": "unassigned",
+            "message": "„Türwand · Scharnier rechts 100 %“ hat keine Platte zugewiesen.",
+            "wallId": "01030000-0000-4000-8000-000000000009"
+          },
+          {
+            "kind": "unassigned",
+            "message": "„Fensterwand 0 %“ hat keine Platte zugewiesen.",
+            "wallId": "01030000-0000-4000-8000-000000000010"
+          },
+          {
+            "kind": "unassigned",
+            "message": "„Bogen 0 %“ hat keine Platte zugewiesen.",
+            "wallId": "01030000-0000-4000-8000-000000000011"
+          },
+          {
+            "kind": "unassigned",
+            "message": "„Halbe Wand 0 %“ hat keine Platte zugewiesen.",
+            "wallId": "01030000-0000-4000-8000-000000000012"
+          },
+          {
+            "kind": "unassigned",
+            "message": "„Breite Mehrfachwand 0 %“ hat keine Platte zugewiesen.",
+            "wallId": "01030000-0000-4000-8000-000000000013"
+          },
+          {
+            "kind": "unassigned",
+            "message": "„Breite Mehrfachwand 25 %“ hat keine Platte zugewiesen.",
+            "wallId": "01030000-0000-4000-8000-000000000014"
+          },
+          {
+            "kind": "unassigned",
+            "message": "„Breite Mehrfachwand 50 %“ hat keine Platte zugewiesen.",
+            "wallId": "01030000-0000-4000-8000-000000000015"
+          },
+          {
+            "kind": "unassigned",
+            "message": "„Breite Mehrfachwand 100 %“ hat keine Platte zugewiesen.",
+            "wallId": "01030000-0000-4000-8000-000000000016"
+          },
+          {
+            "kind": "unassigned",
+            "message": "„Tür 0°“ hat keine Platte zugewiesen.",
+            "wallId": "01030000-0000-4000-8000-000000000017"
+          },
+          {
+            "kind": "unassigned",
+            "message": "„Tür 15°“ hat keine Platte zugewiesen.",
+            "wallId": "01030000-0000-4000-8000-000000000018"
+          },
+          {
+            "kind": "unassigned",
+            "message": "„Tür 45°“ hat keine Platte zugewiesen.",
+            "wallId": "01030000-0000-4000-8000-000000000019"
+          },
+          {
+            "kind": "unassigned",
+            "message": "„Tür 90°“ hat keine Platte zugewiesen.",
+            "wallId": "01030000-0000-4000-8000-000000000020"
+          },
+          {
+            "kind": "unassigned",
+            "message": "„Tür 135°“ hat keine Platte zugewiesen.",
+            "wallId": "01030000-0000-4000-8000-000000000021"
+          },
+          {
+            "kind": "unassigned",
+            "message": "„Tür 180°“ hat keine Platte zugewiesen.",
+            "wallId": "01030000-0000-4000-8000-000000000022"
+          },
+          {
+            "kind": "unassigned",
+            "message": "„Tür 270°“ hat keine Platte zugewiesen.",
+            "wallId": "01030000-0000-4000-8000-000000000023"
+          },
+          {
+            "kind": "unassigned",
+            "message": "„Tür -45°“ hat keine Platte zugewiesen.",
+            "wallId": "01030000-0000-4000-8000-000000000024"
+          },
+          {
+            "kind": "unassigned",
+            "message": "„Beflächung 1“ hat keine Platte zugewiesen.",
+            "wallId": "01030000-0000-4000-8000-000000000025"
+          },
+          {
+            "kind": "unassigned",
+            "message": "„Beflächung 2“ hat keine Platte zugewiesen.",
+            "wallId": "01030000-0000-4000-8000-000000000026"
+          },
+          {
+            "kind": "unassigned",
+            "message": "„Beflächung 3“ hat keine Platte zugewiesen.",
+            "wallId": "01030000-0000-4000-8000-000000000027"
+          },
+          {
+            "kind": "unassigned",
+            "message": "„Veraltete Maße“ hat keine Platte zugewiesen.",
+            "wallId": "01030000-0000-4000-8000-000000000028"
+          },
+          {"kind": "shortage", "message": "Plattenbestand reicht nicht: 2 Plätze, 0 verfügbare Platten."},
+          {"kind": "shortage", "message": "Plattenbestand reicht nicht: 8 Plätze, 0 verfügbare Platten."},
+          {"kind": "shortage", "message": "Plattenbestand reicht nicht: 8 Plätze, 0 verfügbare Platten."},
+          {"kind": "shortage", "message": "Plattenbestand reicht nicht: 1 Plätze, 0 verfügbare Platten."},
+          {"kind": "shortage", "message": "Plattenbestand reicht nicht: 2 Plätze, 0 verfügbare Platten."},
+          {"kind": "shortage", "message": "Plattenbestand reicht nicht: 1 Plätze, 0 verfügbare Platten."},
+          {"kind": "shortage", "message": "Plattenbestand reicht nicht: 6 Plätze, 0 verfügbare Platten."}
+        ],
+        "keepClearWarnings": [],
+        "materials": {"braces": 0, "slabs": 0, "straps": 0},
+        "overheadWarnings": [],
+        "sceneId": "17030000-0000-4000-8000-000000000001",
+        "sceneName": "Wandtypen-Szene",
+        "walls": [
+          {
+            "height": 2400,
+            "label": "Glattwand 0 %",
+            "rotation": 0,
+            "thickness": 28,
+            "wallId": "01030000-0000-4000-8000-000000000001",
+            "width": 1200,
+            "x": 1500,
+            "y": 1000
+          },
+          {
+            "height": 2400,
+            "label": "Türwand · Scharnier links 0 %",
+            "rotation": 0,
+            "thickness": 28,
+            "wallId": "01030000-0000-4000-8000-000000000002",
+            "width": 1200,
+            "x": 1500,
+            "y": 2800
+          },
+          {
+            "height": 2400,
+            "label": "Türwand · Scharnier links 25 %",
+            "rotation": 0,
+            "thickness": 28,
+            "wallId": "01030000-0000-4000-8000-000000000003",
+            "width": 1200,
+            "x": 4500,
+            "y": 2800
+          },
+          {
+            "height": 2400,
+            "label": "Türwand · Scharnier links 50 %",
+            "rotation": 0,
+            "thickness": 28,
+            "wallId": "01030000-0000-4000-8000-000000000004",
+            "width": 1200,
+            "x": 7500,
+            "y": 2800
+          },
+          {
+            "height": 2400,
+            "label": "Türwand · Scharnier links 100 %",
+            "rotation": 0,
+            "thickness": 28,
+            "wallId": "01030000-0000-4000-8000-000000000005",
+            "width": 1200,
+            "x": 10500,
+            "y": 2800
+          },
+          {
+            "height": 2400,
+            "label": "Türwand · Scharnier rechts 0 %",
+            "rotation": 0,
+            "thickness": 28,
+            "wallId": "01030000-0000-4000-8000-000000000006",
+            "width": 1200,
+            "x": 1500,
+            "y": 4600
+          },
+          {
+            "height": 2400,
+            "label": "Türwand · Scharnier rechts 25 %",
+            "rotation": 0,
+            "thickness": 28,
+            "wallId": "01030000-0000-4000-8000-000000000007",
+            "width": 1200,
+            "x": 4500,
+            "y": 4600
+          },
+          {
+            "height": 2400,
+            "label": "Türwand · Scharnier rechts 50 %",
+            "rotation": 0,
+            "thickness": 28,
+            "wallId": "01030000-0000-4000-8000-000000000008",
+            "width": 1200,
+            "x": 7500,
+            "y": 4600
+          },
+          {
+            "height": 2400,
+            "label": "Türwand · Scharnier rechts 100 %",
+            "rotation": 0,
+            "thickness": 28,
+            "wallId": "01030000-0000-4000-8000-000000000009",
+            "width": 1200,
+            "x": 10500,
+            "y": 4600
+          },
+          {
+            "height": 2400,
+            "label": "Fensterwand 0 %",
+            "rotation": 0,
+            "thickness": 28,
+            "wallId": "01030000-0000-4000-8000-000000000010",
+            "width": 1200,
+            "x": 1500,
+            "y": 6400
+          },
+          {
+            "height": 2400,
+            "label": "Bogen 0 %",
+            "rotation": 0,
+            "thickness": 250,
+            "wallId": "01030000-0000-4000-8000-000000000011",
+            "width": 1200,
+            "x": 1500,
+            "y": 8200
+          },
+          {
+            "height": 2400,
+            "label": "Halbe Wand 0 %",
+            "rotation": 0,
+            "thickness": 250,
+            "wallId": "01030000-0000-4000-8000-000000000012",
+            "width": 600,
+            "x": 1500,
+            "y": 10000
+          },
+          {
+            "height": 2600,
+            "label": "Breite Mehrfachwand 0 %",
+            "rotation": 0,
+            "thickness": 40,
+            "wallId": "01030000-0000-4000-8000-000000000013",
+            "width": 2400,
+            "x": 1500,
+            "y": 11800
+          },
+          {
+            "height": 2600,
+            "label": "Breite Mehrfachwand 25 %",
+            "rotation": 0,
+            "thickness": 40,
+            "wallId": "01030000-0000-4000-8000-000000000014",
+            "width": 2400,
+            "x": 4500,
+            "y": 11800
+          },
+          {
+            "height": 2600,
+            "label": "Breite Mehrfachwand 50 %",
+            "rotation": 0,
+            "thickness": 40,
+            "wallId": "01030000-0000-4000-8000-000000000015",
+            "width": 2400,
+            "x": 7500,
+            "y": 11800
+          },
+          {
+            "height": 2600,
+            "label": "Breite Mehrfachwand 100 %",
+            "rotation": 0,
+            "thickness": 40,
+            "wallId": "01030000-0000-4000-8000-000000000016",
+            "width": 2400,
+            "x": 10500,
+            "y": 11800
+          },
+          {
+            "height": 2400,
+            "label": "Tür 0°",
+            "rotation": 0,
+            "thickness": 28,
+            "wallId": "01030000-0000-4000-8000-000000000017",
+            "width": 1200,
+            "x": 2000,
+            "y": 14500
+          },
+          {
+            "height": 2400,
+            "label": "Tür 15°",
+            "rotation": 15,
+            "thickness": 28,
+            "wallId": "01030000-0000-4000-8000-000000000018",
+            "width": 1200,
+            "x": 3800,
+            "y": 14500
+          },
+          {
+            "height": 2400,
+            "label": "Tür 45°",
+            "rotation": 45,
+            "thickness": 28,
+            "wallId": "01030000-0000-4000-8000-000000000019",
+            "width": 1200,
+            "x": 5600,
+            "y": 14500
+          },
+          {
+            "height": 2400,
+            "label": "Tür 90°",
+            "rotation": 90,
+            "thickness": 28,
+            "wallId": "01030000-0000-4000-8000-000000000020",
+            "width": 1200,
+            "x": 7400,
+            "y": 14500
+          },
+          {
+            "height": 2400,
+            "label": "Tür 135°",
+            "rotation": 135,
+            "thickness": 28,
+            "wallId": "01030000-0000-4000-8000-000000000021",
+            "width": 1200,
+            "x": 9200,
+            "y": 14500
+          },
+          {
+            "height": 2400,
+            "label": "Tür 180°",
+            "rotation": 180,
+            "thickness": 28,
+            "wallId": "01030000-0000-4000-8000-000000000022",
+            "width": 1200,
+            "x": 11000,
+            "y": 14500
+          },
+          {
+            "height": 2400,
+            "label": "Tür 270°",
+            "rotation": 270,
+            "thickness": 28,
+            "wallId": "01030000-0000-4000-8000-000000000023",
+            "width": 1200,
+            "x": 12800,
+            "y": 14500
+          },
+          {
+            "height": 2400,
+            "label": "Tür -45°",
+            "rotation": -45,
+            "thickness": 28,
+            "wallId": "01030000-0000-4000-8000-000000000024",
+            "width": 1200,
+            "x": 14600,
+            "y": 14500
+          },
+          {
+            "height": 2600,
+            "label": "Beflächung 1",
+            "rotation": 0,
+            "thickness": 40,
+            "wallId": "01030000-0000-4000-8000-000000000025",
+            "width": 2400,
+            "x": 2000,
+            "y": 17000
+          },
+          {
+            "height": 2400,
+            "label": "Beflächung 2",
+            "rotation": 0,
+            "thickness": 250,
+            "wallId": "01030000-0000-4000-8000-000000000026",
+            "width": 1200,
+            "x": 5000,
+            "y": 17000
+          },
+          {
+            "height": 2600,
+            "label": "Beflächung 3",
+            "rotation": 0,
+            "thickness": 40,
+            "wallId": "01030000-0000-4000-8000-000000000027",
+            "width": 2400,
+            "x": 8000,
+            "y": 17000
+          },
+          {
+            "height": 2000,
+            "label": "Veraltete Maße",
+            "rotation": 0,
+            "thickness": 20,
+            "wallId": "01030000-0000-4000-8000-000000000028",
+            "width": 1000,
+            "x": 11500,
+            "y": 17000
+          }
+        ]
+      }
+    ],
+    "stock": {
+      "appearances": 0,
+      "conflicts": [],
+      "panels": [],
+      "physicalPanels": 0,
+      "unassigned": [
+        {
+          "sceneId": "17030000-0000-4000-8000-000000000001",
+          "sceneName": "Wandtypen-Szene",
+          "wallId": "01030000-0000-4000-8000-000000000001",
+          "wallLabel": "Glattwand 0 %"
+        },
+        {
+          "sceneId": "17030000-0000-4000-8000-000000000001",
+          "sceneName": "Wandtypen-Szene",
+          "wallId": "01030000-0000-4000-8000-000000000002",
+          "wallLabel": "Türwand · Scharnier links 0 %"
+        },
+        {
+          "sceneId": "17030000-0000-4000-8000-000000000001",
+          "sceneName": "Wandtypen-Szene",
+          "wallId": "01030000-0000-4000-8000-000000000003",
+          "wallLabel": "Türwand · Scharnier links 25 %"
+        },
+        {
+          "sceneId": "17030000-0000-4000-8000-000000000001",
+          "sceneName": "Wandtypen-Szene",
+          "wallId": "01030000-0000-4000-8000-000000000004",
+          "wallLabel": "Türwand · Scharnier links 50 %"
+        },
+        {
+          "sceneId": "17030000-0000-4000-8000-000000000001",
+          "sceneName": "Wandtypen-Szene",
+          "wallId": "01030000-0000-4000-8000-000000000005",
+          "wallLabel": "Türwand · Scharnier links 100 %"
+        },
+        {
+          "sceneId": "17030000-0000-4000-8000-000000000001",
+          "sceneName": "Wandtypen-Szene",
+          "wallId": "01030000-0000-4000-8000-000000000006",
+          "wallLabel": "Türwand · Scharnier rechts 0 %"
+        },
+        {
+          "sceneId": "17030000-0000-4000-8000-000000000001",
+          "sceneName": "Wandtypen-Szene",
+          "wallId": "01030000-0000-4000-8000-000000000007",
+          "wallLabel": "Türwand · Scharnier rechts 25 %"
+        },
+        {
+          "sceneId": "17030000-0000-4000-8000-000000000001",
+          "sceneName": "Wandtypen-Szene",
+          "wallId": "01030000-0000-4000-8000-000000000008",
+          "wallLabel": "Türwand · Scharnier rechts 50 %"
+        },
+        {
+          "sceneId": "17030000-0000-4000-8000-000000000001",
+          "sceneName": "Wandtypen-Szene",
+          "wallId": "01030000-0000-4000-8000-000000000009",
+          "wallLabel": "Türwand · Scharnier rechts 100 %"
+        },
+        {
+          "sceneId": "17030000-0000-4000-8000-000000000001",
+          "sceneName": "Wandtypen-Szene",
+          "wallId": "01030000-0000-4000-8000-000000000010",
+          "wallLabel": "Fensterwand 0 %"
+        },
+        {
+          "sceneId": "17030000-0000-4000-8000-000000000001",
+          "sceneName": "Wandtypen-Szene",
+          "wallId": "01030000-0000-4000-8000-000000000011",
+          "wallLabel": "Bogen 0 %"
+        },
+        {
+          "sceneId": "17030000-0000-4000-8000-000000000001",
+          "sceneName": "Wandtypen-Szene",
+          "wallId": "01030000-0000-4000-8000-000000000012",
+          "wallLabel": "Halbe Wand 0 %"
+        },
+        {
+          "sceneId": "17030000-0000-4000-8000-000000000001",
+          "sceneName": "Wandtypen-Szene",
+          "wallId": "01030000-0000-4000-8000-000000000013",
+          "wallLabel": "Breite Mehrfachwand 0 %"
+        },
+        {
+          "sceneId": "17030000-0000-4000-8000-000000000001",
+          "sceneName": "Wandtypen-Szene",
+          "wallId": "01030000-0000-4000-8000-000000000014",
+          "wallLabel": "Breite Mehrfachwand 25 %"
+        },
+        {
+          "sceneId": "17030000-0000-4000-8000-000000000001",
+          "sceneName": "Wandtypen-Szene",
+          "wallId": "01030000-0000-4000-8000-000000000015",
+          "wallLabel": "Breite Mehrfachwand 50 %"
+        },
+        {
+          "sceneId": "17030000-0000-4000-8000-000000000001",
+          "sceneName": "Wandtypen-Szene",
+          "wallId": "01030000-0000-4000-8000-000000000016",
+          "wallLabel": "Breite Mehrfachwand 100 %"
+        },
+        {
+          "sceneId": "17030000-0000-4000-8000-000000000001",
+          "sceneName": "Wandtypen-Szene",
+          "wallId": "01030000-0000-4000-8000-000000000017",
+          "wallLabel": "Tür 0°"
+        },
+        {
+          "sceneId": "17030000-0000-4000-8000-000000000001",
+          "sceneName": "Wandtypen-Szene",
+          "wallId": "01030000-0000-4000-8000-000000000018",
+          "wallLabel": "Tür 15°"
+        },
+        {
+          "sceneId": "17030000-0000-4000-8000-000000000001",
+          "sceneName": "Wandtypen-Szene",
+          "wallId": "01030000-0000-4000-8000-000000000019",
+          "wallLabel": "Tür 45°"
+        },
+        {
+          "sceneId": "17030000-0000-4000-8000-000000000001",
+          "sceneName": "Wandtypen-Szene",
+          "wallId": "01030000-0000-4000-8000-000000000020",
+          "wallLabel": "Tür 90°"
+        },
+        {
+          "sceneId": "17030000-0000-4000-8000-000000000001",
+          "sceneName": "Wandtypen-Szene",
+          "wallId": "01030000-0000-4000-8000-000000000021",
+          "wallLabel": "Tür 135°"
+        },
+        {
+          "sceneId": "17030000-0000-4000-8000-000000000001",
+          "sceneName": "Wandtypen-Szene",
+          "wallId": "01030000-0000-4000-8000-000000000022",
+          "wallLabel": "Tür 180°"
+        },
+        {
+          "sceneId": "17030000-0000-4000-8000-000000000001",
+          "sceneName": "Wandtypen-Szene",
+          "wallId": "01030000-0000-4000-8000-000000000023",
+          "wallLabel": "Tür 270°"
+        },
+        {
+          "sceneId": "17030000-0000-4000-8000-000000000001",
+          "sceneName": "Wandtypen-Szene",
+          "wallId": "01030000-0000-4000-8000-000000000024",
+          "wallLabel": "Tür -45°"
+        },
+        {
+          "sceneId": "17030000-0000-4000-8000-000000000001",
+          "sceneName": "Wandtypen-Szene",
+          "wallId": "01030000-0000-4000-8000-000000000025",
+          "wallLabel": "Beflächung 1"
+        },
+        {
+          "sceneId": "17030000-0000-4000-8000-000000000001",
+          "sceneName": "Wandtypen-Szene",
+          "wallId": "01030000-0000-4000-8000-000000000026",
+          "wallLabel": "Beflächung 2"
+        },
+        {
+          "sceneId": "17030000-0000-4000-8000-000000000001",
+          "sceneName": "Wandtypen-Szene",
+          "wallId": "01030000-0000-4000-8000-000000000027",
+          "wallLabel": "Beflächung 3"
+        },
+        {
+          "sceneId": "17030000-0000-4000-8000-000000000001",
+          "sceneName": "Wandtypen-Szene",
+          "wallId": "01030000-0000-4000-8000-000000000028",
+          "wallLabel": "Veraltete Maße"
+        }
+      ],
+      "unavailable": [],
+      "venueMaterials": [
+        {
+          "available": {"slabs": 0, "straps": 0},
+          "required": {"braces": 0, "slabs": 0, "straps": 0},
+          "shortage": {"slabs": 0, "straps": 0},
+          "venueId": "17030000-0000-4000-8000-000000000002",
+          "venueName": "Sehr großer Saal"
+        }
+      ]
+    }
+  },
+  "panelDemand": {
+    "type:Bogen": {
+      "count": 2,
+      "usable": 0,
+      "walls": ["01030000-0000-4000-8000-000000000011", "01030000-0000-4000-8000-000000000026"]
+    },
+    "type:Breite Mehrfachwand": {
+      "count": 6,
+      "usable": 0,
+      "walls": [
+        "01030000-0000-4000-8000-000000000013",
+        "01030000-0000-4000-8000-000000000014",
+        "01030000-0000-4000-8000-000000000015",
+        "01030000-0000-4000-8000-000000000016",
+        "01030000-0000-4000-8000-000000000025",
+        "01030000-0000-4000-8000-000000000027"
+      ]
+    },
+    "type:Fensterwand": {"count": 1, "usable": 0, "walls": ["01030000-0000-4000-8000-000000000010"]},
+    "type:Glattwand": {
+      "count": 2,
+      "usable": 0,
+      "walls": ["01030000-0000-4000-8000-000000000001", "01030000-0000-4000-8000-000000000028"]
+    },
+    "type:Halbe Wand": {"count": 1, "usable": 0, "walls": ["01030000-0000-4000-8000-000000000012"]},
+    "type:Türwand · Scharnier links": {
+      "count": 8,
+      "usable": 0,
+      "walls": [
+        "01030000-0000-4000-8000-000000000002",
+        "01030000-0000-4000-8000-000000000003",
+        "01030000-0000-4000-8000-000000000004",
+        "01030000-0000-4000-8000-000000000005",
+        "01030000-0000-4000-8000-000000000017",
+        "01030000-0000-4000-8000-000000000019",
+        "01030000-0000-4000-8000-000000000021",
+        "01030000-0000-4000-8000-000000000023"
+      ]
+    },
+    "type:Türwand · Scharnier rechts": {
+      "count": 8,
+      "usable": 0,
+      "walls": [
+        "01030000-0000-4000-8000-000000000006",
+        "01030000-0000-4000-8000-000000000007",
+        "01030000-0000-4000-8000-000000000008",
+        "01030000-0000-4000-8000-000000000009",
+        "01030000-0000-4000-8000-000000000018",
+        "01030000-0000-4000-8000-000000000020",
+        "01030000-0000-4000-8000-000000000022",
+        "01030000-0000-4000-8000-000000000024"
+      ]
+    }
+  },
+  "planExtent": {
+    "contentBoundsScenery": {"maxX": 15034.164, "maxY": 18625, "minX": 300, "minY": 986},
+    "contentBoundsVenue": {"maxX": 15034.164, "maxY": 19000, "minX": 0, "minY": 0},
+    "scenery": {"maxX": 15434.164, "maxY": 17525, "minX": -100, "minY": 586},
+    "venue": {"maxX": 14400, "maxY": 19400, "minX": -400, "minY": -400}
+  },
+  "stageDecks": {"decks": [], "legTotal": 0, "legsByElevation": {}, "moduleTotal": 0, "modulesBySize": {}}
+}

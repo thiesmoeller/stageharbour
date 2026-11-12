@@ -1,0 +1,696 @@
+{
+  "ballastStock": {"slabs": 1, "straps": 0},
+  "description": "Deliberately triggers every warning family: overlaps (and the contact cases that must not warn), keep-clear (including the 1 mm tolerance edge), ceiling and overhead conflicts, missing/unknown supporting surface, and every inventory warning kind.",
+  "document": {"paper": "A4", "scale": 100},
+  "elevationGroupIds": [],
+  "layout": {
+    "braces": [
+      {
+        "footprintDepth": 500,
+        "footprintWidth": 40,
+        "height": 1200,
+        "id": "02020000-0000-4000-8000-000000000001",
+        "label": "Stütze auf Zone",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "x": 500,
+        "y": 500
+      },
+      {
+        "footprintDepth": 500,
+        "footprintWidth": 600,
+        "height": 1200,
+        "id": "02020000-0000-4000-8000-000000000002",
+        "label": "Stütze an Wand",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "x": 5600,
+        "y": 1000
+      },
+      {
+        "footprintDepth": 500,
+        "footprintWidth": 40,
+        "height": 1200,
+        "id": "02020000-0000-4000-8000-000000000003",
+        "label": "Stütze ohne Auflage",
+        "rotation": 0,
+        "x": 7500,
+        "y": 3200
+      },
+      {
+        "ballast": {"mode": "heavy"},
+        "footprintDepth": 500,
+        "footprintWidth": 40,
+        "height": 2400,
+        "id": "02020000-0000-4000-8000-000000000004",
+        "label": "Hohe Stütze auf Podest",
+        "rotation": 0,
+        "supportingSurfaceId": "03020000-0000-4000-8000-000000000020",
+        "x": 7400,
+        "y": 5200
+      },
+      {
+        "footprintDepth": 500,
+        "footprintWidth": 40,
+        "height": 1200,
+        "id": "02020000-0000-4000-8000-000000000005",
+        "label": "Stütze unbekannte Auflage",
+        "rotation": 0,
+        "supportingSurfaceId": "03020000-0000-4000-8000-000000000098",
+        "x": 1500,
+        "y": 2500
+      }
+    ],
+    "placeholders": [
+      {
+        "depth": 600,
+        "height": 600,
+        "id": "05020000-0000-4000-8000-000000000001",
+        "kind": "box",
+        "label": "Kiste auf Zone",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "width": 600,
+        "x": 1200,
+        "y": 500
+      },
+      {
+        "depth": 450,
+        "height": 900,
+        "id": "05020000-0000-4000-8000-000000000002",
+        "kind": "chair",
+        "label": "Stuhl ohne Auflage",
+        "rotation": 0,
+        "width": 450,
+        "x": 6500,
+        "y": 2000
+      },
+      {
+        "depth": 800,
+        "height": 750,
+        "id": "05020000-0000-4000-8000-000000000003",
+        "kind": "table",
+        "label": "Tisch auf Treppe",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "width": 1200,
+        "x": 5000,
+        "y": 4800
+      },
+      {
+        "depth": 400,
+        "height": 1750,
+        "id": "05020000-0000-4000-8000-000000000004",
+        "kind": "person",
+        "label": "Person im Kreuz",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "width": 500,
+        "x": 9500,
+        "y": 1500
+      },
+      {
+        "depth": 350,
+        "height": 600,
+        "id": "05020000-0000-4000-8000-000000000005",
+        "kind": "speaker",
+        "label": "Lautsprecher unbekannt",
+        "rotation": 0,
+        "supportingSurfaceId": "03020000-0000-4000-8000-000000000096",
+        "width": 400,
+        "x": 6200,
+        "y": 2000
+      }
+    ],
+    "platforms": [
+      {
+        "elevation": 400,
+        "id": "03020000-0000-4000-8000-000000000001",
+        "label": "Podest A",
+        "outline": [{"x": 1500, "y": 3250}, {"x": 3500, "y": 3250}, {"x": 3500, "y": 4750}, {"x": 1500, "y": 4750}],
+        "style": "floating"
+      },
+      {
+        "elevation": 600,
+        "id": "03020000-0000-4000-8000-000000000002",
+        "label": "Podest B",
+        "outline": [{"x": 2100, "y": 3550}, {"x": 4100, "y": 3550}, {"x": 4100, "y": 5050}, {"x": 2100, "y": 5050}],
+        "style": "solid"
+      },
+      {
+        "elevation": 300,
+        "id": "03020000-0000-4000-8000-000000000003",
+        "label": "Podest auf Zone",
+        "outline": [{"x": 700, "y": 200}, {"x": 1700, "y": 200}, {"x": 1700, "y": 1000}, {"x": 700, "y": 1000}],
+        "style": "floating"
+      },
+      {
+        "elevation": 2400,
+        "id": "03020000-0000-4000-8000-000000000004",
+        "label": "Hohes Podest",
+        "outline": [{"x": 7600, "y": 5600}, {"x": 8800, "y": 5600}, {"x": 8800, "y": 6800}, {"x": 7600, "y": 6800}],
+        "style": "solid"
+      }
+    ],
+    "schemaVersion": 1,
+    "stairs": [
+      {
+        "id": "04020000-0000-4000-8000-000000000001",
+        "label": "Treppe auf Zone",
+        "lowerSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "riserHeight": 160,
+        "rotation": 0,
+        "run": 2000,
+        "upperSurfaceId": "03020000-0000-4000-8000-000000000001",
+        "width": 1200,
+        "x": 1200,
+        "y": 1300
+      },
+      {
+        "id": "04020000-0000-4000-8000-000000000002",
+        "label": "Treppe unbekannt",
+        "lowerSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "riserHeight": 160,
+        "rotation": 0,
+        "run": 2000,
+        "upperSurfaceId": "03020000-0000-4000-8000-000000000097",
+        "width": 1200,
+        "x": 5000,
+        "y": 4800
+      },
+      {
+        "id": "04020000-0000-4000-8000-000000000003",
+        "label": "Treppe zwischen Podesten",
+        "lowerSurfaceId": "03020000-0000-4000-8000-000000000001",
+        "riserHeight": 160,
+        "rotation": 0,
+        "run": 2000,
+        "upperSurfaceId": "03020000-0000-4000-8000-000000000002",
+        "width": 1200,
+        "x": 3200,
+        "y": 4300
+      }
+    ],
+    "wallTypes": [
+      {
+        "height": 2400,
+        "id": "06020000-0000-4000-8000-000000000001",
+        "name": "Glattwand",
+        "openings": [],
+        "thickness": 28,
+        "width": 1200
+      },
+      {
+        "height": 2400,
+        "id": "06020000-0000-4000-8000-000000000002",
+        "name": "Türwand · Scharnier links",
+        "openings": [
+          {
+            "height": 2000,
+            "hinge": "left",
+            "id": "07020000-0000-4000-8000-000000000001",
+            "left": 200,
+            "sill": 0,
+            "width": 800
+          }
+        ],
+        "thickness": 28,
+        "width": 1200
+      },
+      {
+        "height": 2400,
+        "id": "06020000-0000-4000-8000-000000000006",
+        "name": "Halbe Wand",
+        "openings": [],
+        "thickness": 250,
+        "width": 600
+      }
+    ],
+    "walls": [
+      {
+        "height": 2400,
+        "id": "01020000-0000-4000-8000-000000000001",
+        "label": "Kreuz A",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "width": 1200,
+        "x": 9500,
+        "y": 1500
+      },
+      {
+        "height": 2400,
+        "id": "01020000-0000-4000-8000-000000000002",
+        "label": "Kreuz B",
+        "rotation": 90,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "width": 1200,
+        "x": 9500,
+        "y": 1500
+      },
+      {
+        "height": 2400,
+        "id": "01020000-0000-4000-8000-000000000003",
+        "label": "Links",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "width": 1200,
+        "x": 3000,
+        "y": 1000
+      },
+      {
+        "height": 2400,
+        "id": "01020000-0000-4000-8000-000000000004",
+        "label": "Rechts bündig",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "width": 1200,
+        "x": 4200,
+        "y": 1000
+      },
+      {
+        "height": 2400,
+        "id": "01020000-0000-4000-8000-000000000005",
+        "label": "Waagerecht",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "width": 1200,
+        "x": 6000,
+        "y": 1000
+      },
+      {
+        "height": 2400,
+        "id": "01020000-0000-4000-8000-000000000006",
+        "label": "Spitze an Fläche",
+        "rotation": 28,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "width": 1200,
+        "x": 5470.231444,
+        "y": 704.317062
+      },
+      {
+        "height": 2400,
+        "id": "01020000-0000-4000-8000-000000000007",
+        "label": "Durchbohrt A",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "width": 1200,
+        "x": 8000,
+        "y": 1000
+      },
+      {
+        "height": 2400,
+        "id": "01020000-0000-4000-8000-000000000008",
+        "label": "Durchbohrt B",
+        "rotation": 28,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "width": 1200,
+        "x": 7470.231444,
+        "y": 718.317062
+      },
+      {
+        "height": 2400,
+        "id": "01020000-0000-4000-8000-000000000009",
+        "label": "Auf Freihaltezone",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "width": 1200,
+        "x": 1000,
+        "y": 500
+      },
+      {
+        "height": 2400,
+        "id": "01020000-0000-4000-8000-000000000010",
+        "label": "Wand ohne Auflage",
+        "rotation": 0,
+        "thickness": 28,
+        "width": 1200,
+        "x": 5200,
+        "y": 3500
+      },
+      {
+        "height": 2400,
+        "id": "01020000-0000-4000-8000-000000000011",
+        "label": "Wand unbekannte Auflage",
+        "rotation": 0,
+        "supportingSurfaceId": "03020000-0000-4000-8000-000000000099",
+        "thickness": 28,
+        "width": 1200,
+        "x": 6600,
+        "y": 3500
+      },
+      {
+        "height": 2400,
+        "id": "01020000-0000-4000-8000-000000000012",
+        "label": "Hohe Wand auf Podest",
+        "rotation": 0,
+        "supportingSurfaceId": "03020000-0000-4000-8000-000000000020",
+        "thickness": 28,
+        "width": 1200,
+        "x": 7800,
+        "y": 5200
+      },
+      {
+        "height": 2400,
+        "id": "01020000-0000-4000-8000-000000000013",
+        "label": "Wand unter Kanal",
+        "rotation": 0,
+        "supportingSurfaceId": "03020000-0000-4000-8000-000000000020",
+        "thickness": 28,
+        "width": 1200,
+        "x": 4000,
+        "y": 5200
+      },
+      {
+        "height": 2400,
+        "id": "01020000-0000-4000-8000-000000000014",
+        "label": "Wand auf Podest A",
+        "rotation": 0,
+        "supportingSurfaceId": "03020000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "width": 1200,
+        "x": 2500,
+        "y": 5200
+      },
+      {
+        "height": 2400,
+        "id": "01020000-0000-4000-8000-000000000015",
+        "label": "Ohne Platte 1",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "typeId": "06020000-0000-4000-8000-000000000001",
+        "width": 1200,
+        "x": 8800,
+        "y": 3500
+      },
+      {
+        "height": 2400,
+        "id": "01020000-0000-4000-8000-000000000016",
+        "label": "Ohne Platte 2",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "typeId": "06020000-0000-4000-8000-000000000001",
+        "width": 1200,
+        "x": 8800,
+        "y": 4300
+      },
+      {
+        "height": 2400,
+        "id": "01020000-0000-4000-8000-000000000017",
+        "label": "Fehlende Platte",
+        "panelId": "08020000-0000-4000-8000-000000000090",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "typeId": "06020000-0000-4000-8000-000000000001",
+        "width": 1200,
+        "x": 10100,
+        "y": 3500
+      },
+      {
+        "height": 2400,
+        "id": "01020000-0000-4000-8000-000000000018",
+        "label": "Nicht verfügbar",
+        "panelId": "08020000-0000-4000-8000-000000000002",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "typeId": "06020000-0000-4000-8000-000000000001",
+        "width": 1200,
+        "x": 10100,
+        "y": 4300
+      },
+      {
+        "height": 2400,
+        "id": "01020000-0000-4000-8000-000000000019",
+        "label": "Falscher Typ",
+        "panelId": "08020000-0000-4000-8000-000000000003",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "typeId": "06020000-0000-4000-8000-000000000002",
+        "width": 1200,
+        "x": 10100,
+        "y": 5100
+      },
+      {
+        "height": 2400,
+        "id": "01020000-0000-4000-8000-000000000020",
+        "label": "Doppelt A",
+        "panelId": "08020000-0000-4000-8000-000000000001",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "typeId": "06020000-0000-4000-8000-000000000001",
+        "width": 1200,
+        "x": 11400,
+        "y": 3500
+      },
+      {
+        "height": 2400,
+        "id": "01020000-0000-4000-8000-000000000021",
+        "label": "Doppelt B",
+        "panelId": "08020000-0000-4000-8000-000000000001",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "typeId": "06020000-0000-4000-8000-000000000001",
+        "width": 1200,
+        "x": 11400,
+        "y": 4300
+      },
+      {
+        "height": 2400,
+        "id": "01020000-0000-4000-8000-000000000022",
+        "label": "Halbe ohne Bestand",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 250,
+        "typeId": "06020000-0000-4000-8000-000000000006",
+        "width": 600,
+        "x": 11400,
+        "y": 5100
+      },
+      {
+        "height": 2400,
+        "id": "01020000-0000-4000-8000-000000000023",
+        "label": "Kante Berührung",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "width": 1200,
+        "x": 3600,
+        "y": 2786
+      },
+      {
+        "height": 2400,
+        "id": "01020000-0000-4000-8000-000000000024",
+        "label": "Ein Millimeter",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "width": 1200,
+        "x": 5000,
+        "y": 2785
+      },
+      {
+        "height": 2400,
+        "id": "01020000-0000-4000-8000-000000000025",
+        "label": "Zwei Millimeter Abstand",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 28,
+        "width": 1200,
+        "x": 6400,
+        "y": 2784
+      },
+      {
+        "height": 2000,
+        "id": "01020000-0000-4000-8000-000000000026",
+        "label": "Veraltete Maße auf Podest",
+        "rotation": 0,
+        "supportingSurfaceId": "03020000-0000-4000-8000-000000000020",
+        "thickness": 20,
+        "typeId": "06020000-0000-4000-8000-000000000001",
+        "width": 1000,
+        "x": 5600,
+        "y": 6300
+      }
+    ]
+  },
+  "name": "warnings",
+  "panels": [
+    {
+      "available": true,
+      "id": "08020000-0000-4000-8000-000000000001",
+      "label": "G-01",
+      "note": null,
+      "type": {
+        "height": 2400,
+        "id": "06020000-0000-4000-8000-000000000001",
+        "name": "Glattwand",
+        "openings": [],
+        "thickness": 28,
+        "width": 1200
+      },
+      "typeId": "06020000-0000-4000-8000-000000000001"
+    },
+    {
+      "available": false,
+      "id": "08020000-0000-4000-8000-000000000002",
+      "label": "G-02",
+      "note": "Reparatur",
+      "type": {
+        "height": 2400,
+        "id": "06020000-0000-4000-8000-000000000001",
+        "name": "Glattwand",
+        "openings": [],
+        "thickness": 28,
+        "width": 1200
+      },
+      "typeId": "06020000-0000-4000-8000-000000000001"
+    },
+    {
+      "available": true,
+      "id": "08020000-0000-4000-8000-000000000003",
+      "label": "G-03",
+      "note": null,
+      "type": {
+        "height": 2400,
+        "id": "06020000-0000-4000-8000-000000000001",
+        "name": "Glattwand",
+        "openings": [],
+        "thickness": 28,
+        "width": 1200
+      },
+      "typeId": "06020000-0000-4000-8000-000000000001"
+    },
+    {
+      "available": true,
+      "id": "08020000-0000-4000-8000-000000000004",
+      "label": "G-04",
+      "note": null,
+      "type": {
+        "height": 2400,
+        "id": "06020000-0000-4000-8000-000000000001",
+        "name": "Glattwand",
+        "openings": [],
+        "thickness": 28,
+        "width": 1200
+      },
+      "typeId": "06020000-0000-4000-8000-000000000001"
+    }
+  ],
+  "scene": {
+    "id": "17020000-0000-4000-8000-000000000001",
+    "name": "Warn-Szene",
+    "productionId": "f0000000-0000-4000-8000-000000000001",
+    "productionName": "Goldene Produktion",
+    "venueId": "17020000-0000-4000-8000-000000000002",
+    "venueName": "L-förmige Halle",
+    "venueVersionId": "17020000-0000-4000-8000-000000000003"
+  },
+  "venue": {
+    "ceilingHeight": 2600,
+    "depth": 7000,
+    "keepClearZones": [
+      {
+        "id": "0e020000-0000-4000-8000-000000000001",
+        "label": "Notausgang West",
+        "polygon": [{"x": 0, "y": 0}, {"x": 2000, "y": 0}, {"x": 2000, "y": 1000}, {"x": 0, "y": 1000}],
+        "reason": "Notausgang",
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001"
+      },
+      {
+        "id": "0e020000-0000-4000-8000-000000000002",
+        "label": "Fluchtweg Mitte",
+        "polygon": [{"x": 3000, "y": 2800}, {"x": 7200, "y": 2800}, {"x": 7200, "y": 3200}, {"x": 3000, "y": 3200}],
+        "reason": "Fluchtweg",
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001"
+      }
+    ],
+    "outline": [
+      {"x": 0, "y": 0},
+      {"x": 12000, "y": 0},
+      {"x": 12000, "y": 7000},
+      {"x": 3000, "y": 7000},
+      {"x": 3000, "y": 5800},
+      {"x": 0, "y": 5800}
+    ],
+    "overheadBoxes": [
+      {
+        "bottomHeight": 2000,
+        "id": "11020000-0000-4000-8000-000000000001",
+        "label": "Lüftungskanal",
+        "length": 3000,
+        "rotation": 0,
+        "thickness": 400,
+        "width": 800,
+        "x": 4000,
+        "y": 5200
+      }
+    ],
+    "placeholders": [
+      {
+        "depth": 450,
+        "height": 900,
+        "id": "05020000-0000-4000-8000-000000000050",
+        "kind": "chair",
+        "label": "Stuhl am Pfeiler",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "width": 450,
+        "x": 11800,
+        "y": 6100
+      }
+    ],
+    "platforms": [
+      {
+        "elevation": 400,
+        "id": "03020000-0000-4000-8000-000000000020",
+        "label": "Hauptbühne",
+        "outline": [{"x": 3500, "y": 4700}, {"x": 9500, "y": 4700}, {"x": 9500, "y": 6700}, {"x": 3500, "y": 6700}],
+        "style": "floating"
+      }
+    ],
+    "schemaVersion": 1,
+    "trusses": [
+      {
+        "bottomHeight": 2200,
+        "hangPoints": [],
+        "id": "0f020000-0000-4000-8000-000000000001",
+        "label": "Traverse",
+        "length": 2000,
+        "rotation": 0,
+        "sectionWidth": 400,
+        "thickness": 300,
+        "x": 7800,
+        "y": 5200
+      }
+    ],
+    "walls": [
+      {
+        "height": 3000,
+        "id": "01020000-0000-4000-8000-000000000050",
+        "label": "Hallenpfeiler",
+        "rotation": 0,
+        "supportingSurfaceId": "00000000-0000-4000-8000-000000000001",
+        "thickness": 400,
+        "width": 400,
+        "x": 11800,
+        "y": 6000
+      }
+    ],
+    "width": 12000
+  }
+}
