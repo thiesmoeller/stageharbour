@@ -56,11 +56,39 @@ A reference line defined for a venue that marks the stage's lateral centre and s
 A user-defined set of set pieces that move and rotate together around the centroid of member centres. Panel connections are not groups.
 _Avoid_: Auto-group
 
+**Bauteil** (part):
+A group-defined parametric stage element definition, authored in the **Bühnentechnik-Designer**. It is built from bodies of stock material and child parts, and declares parameters, variants, connectors and traits. Every stage element a group places is a placement of a Bauteil.
+_Avoid_: Asset, Element definition (alone)
+
+**Bauteil revision**:
+An immutable saved revision of a Bauteil. Placements reference the part id and revision, so later edits to the part do not change existing Bühnenbilder until the crew updates them explicitly.
+
+**Variante** (variant):
+A named set of parameter values that the group actually owns, for example a 2 × 1 m deck or a 1 × 1 m deck. Dimensions the group does not own are not offered as variants.
+
+**Parameter scope**:
+Who sets a parameter of a Bauteil: the variant, the placement, or the Bühnenbild state (for example door open or curtain open).
+
+**Verbinder** (connector):
+A typed attachment point on a Bauteil, such as a hinge edge, brace mount, deck edge or leg socket. A connector mates only with the same kind or a listed partner kind.
+
+**Joint**:
+A connection between two connectors of two placed objects. It is the general mechanism for hinges, brace alignment and deck legs.
+_Was_: Panel connection (as the general term)
+
+**Trait**:
+A composable capability of a Bauteil, such as walkable surface, finishable faces or stock tracking. A part can combine several traits.
+
+**Stock material**:
+A profile, sheet or hardware item with a weight, named by the bodies of a Bauteil so that cut lists and weight derive from the geometry. Only hardware and ballast are listed by hand.
+_Avoid_: Material (alone)
+
 **Wall element**:
-A physical panel used to construct a stage arrangement. The group's existing wall elements measure 1.20 × 2.40 metres.
+A Bauteil that forms a wall face, such as the group's 1.20 × 2.40 metre panel. Openings are holes in its sheet, a Tür is a child part, and hinge-edge connectors let neighbouring wall elements join.
+_Was_: Physical panel (the physical piece is now a Bestandsstück)
 
 **Surface finish**:
-How a wall face is clad in the Raumsicht: matte RAL paint, or a Pascal library surface (wood, fabric, stone, …) with optional scale and grain direction. Not a Three.js material object.
+How a face is clad in the Raumsicht: matte RAL paint, or a surface from the app-owned material library (wood, fabric, stone, …) with optional scale and grain direction. Not a Three.js material object.
 _Avoid_: Material (alone)
 
 **Face surfacing**:
@@ -71,30 +99,46 @@ _Avoid_: Texture slot
 The rotation of a patterned library surface on a face (0° / 90° / 180° / 270°), used so wood planks and similar patterns run the intended way.
 
 **Wall element type**:
-A definition of a kind of wall element, including distinguishing features such as a window opening.
+A Bauteil variant or child part that gives a wall element its distinguishing features, such as a window opening or a Tür.
+_Was_: Separate definition kind for wall elements
 
 **Inventory template**:
-A reusable definition of a wall element, weighted rear brace or scenic object. Placing a template creates an independent stage-layout instance; the template is not itself a physical panel label or a count of available pieces.
+A Bauteil as offered for insertion; placing one creates an independent stage-layout object referencing a Bauteil revision. The template is not itself a Bestandsstück label or a count of available pieces.
+_Was_: Reusable definition of a wall element, weighted rear brace or scenic object
 
 **Bestand**:
-The workspace home for physical panel stock and stocked wall-element types (including doors and windows as types). Crews design stage layouts first and assign panels later; one-off wall types may still exist only on a stage layout. The actual paint or wallpaper on physical panels is recorded here, separately from stage-layout designs.
+The workspace home for the group's Bauteile, Bestandsstücke and stock counts. Crews design stage layouts first and assign Bestandsstücke later; one-off parts may still exist only on a stage layout. The actual paint or wallpaper on a Bestandsstück is recorded here, separately from stage-layout designs.
 _Avoid_: Materialien, Inventar (alone), Bibliothek
+
+**Bestandsstück** (stock item):
+One labelled physical piece of one Bauteil variant, kept across productions, venues and stage layouts.
+_Was_: Physical panel
+
+**Stock count**:
+Counted, unlabelled stock such as ballast plates or Steckfüße, with a unit and an available quantity.
+_Was_: Ballast stock
+
+**Bühnentechnik-Designer**:
+The workspace page at `#/designer` where a group authors its Bauteile: bodies, child parts, parameters, variants, connectors and traits, with live cut list and weight.
+
+**Stage canvas**:
+The app-owned 3D view used by the Raumsicht and the Bühnentechnik-Designer preview. It replaces the Pascal viewer.
 
 **Scenic object**:
 A prop or piece of scenery represented by a model with physical outside dimensions and a placement in a stage layout.
 
 **Panel connection**:
-A physical join between neighbouring wall elements that contributes to keeping the assembled walls upright.
+A **joint** between hinge-edge connectors of neighbouring wall elements that contributes to keeping the assembled walls upright.
 The group chooses nearly arbitrary connection angles by positioning and screwing on removable-pin scenery hinges during the initial rigging of a stage arrangement.
 
 **Rigging setup**:
 The mounted hinge configuration used across stage layouts within a venue adaptation. Remounting hinges establishes a separate rigging setup; removing and reinserting pins does not.
 
 **Weighted rear brace**:
-A large triangular support placed behind a wall and weighted down, used by the group to stabilise longer straight runs of connected panels.
+A Bauteil (Stützdreieck) placed behind a wall and weighted down, used by the group to stabilise longer straight runs of connected panels. It attaches through a brace-mount connector, and its ballast comes from stock counts.
 
 **Panel label**:
-A permanent identifier for a physical wall element in the group's inventory, retained across productions, venues, and stage layouts.
+A permanent identifier for a Bestandsstück of a wall element, retained across productions, venues, and stage layouts.
 _Avoid_: Assembly number
 
 **Assembly number**:
@@ -116,7 +160,7 @@ A part of a venue identified as suitable for routing the group's long cables.
 An actual, scene-specific cable path from a labelled start to a labelled destination. It records purpose, cable type, quantity, route length, and handling slack. A cable run may follow a venue cable routing corridor, but the corridor remains guidance rather than a committed run.
 
 **Raised platform**:
-A stage floor area elevated above the venue's reference floor level. Platforms have a build style: floating (thin slab), solid (filled down to the next surface under the centroid), or Bühnenelement (catalog stage-deck modules 2×1 / 2×0,5 / 1×1 / 1×0,5 m with legs; size and height snap to that grid). Podiums may overlap in plan; Höhe über Fußboden stays absolute, and each Steckfuß lands on the next surface directly under that foot.
+A stage floor area elevated above the venue's reference floor level. Platforms have a build style: floating (thin slab), solid (filled down to the next surface under the centroid), or Bühnenelement (a Bauteil whose variants are the stage-deck modules 2×1 / 2×0,5 / 1×1 / 1×0,5 m; each Steckfuß is a child part attached at a leg socket). Podiums may overlap in plan; Höhe über Fußboden stays absolute, and each Steckfuß lands on the next surface directly under that foot.
 
 **Performance area**:
 The space used for acting and set placement, which can span the audience floor, stairs, and raised stage surfaces.
@@ -161,7 +205,7 @@ Coarse house or rehearsal fill (front/back/ambient) used in Raumsicht. Session b
 A venue soft-goods track (theatre molton) with plan length, drop height, and a parametric opening (traveler from centre, or stack to one side). In the ground plan it uses the USITT wavy soft-goods symbol; in 3D it renders as matte black molton with vertical folds that gather when open.
 
 **Placeholder**:
-A labelled, resizable stand-in for furniture, a person figure, a speaker, or a generic box. Placeholders carry example millimetre dimensions, sit on an explicit supporting surface, and are not measured inventory or CAD models. Venue chairs use a built-in low-poly chair form.
+A labelled, resizable stand-in for furniture, a person figure, a speaker, or a generic box. Placeholders carry example millimetre dimensions, sit on an explicit supporting surface, and are not measured inventory or CAD models. Placeholders and venue furniture such as chairs are Bauteile in the starter library.
 _Avoid_: Lighting fixture, CAD furniture
 
 **Venue trace / underlay**:
