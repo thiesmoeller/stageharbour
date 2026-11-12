@@ -3,8 +3,6 @@ import type { ImportReport, PartSummary } from '../../shared/parts/catalog.js';
 import { STARTER_PARTS } from '../../shared/parts/starter/index.js';
 import { archivePart, exportLibrary, importLibrary, setPartFavourite, unarchivePart } from '../partsApi.js';
 
-const STARTER_IDS = new Set(STARTER_PARTS.map(part => part.id));
-
 function download(filename: string, data: unknown) {
   const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
   const anchor = document.createElement('a');
@@ -158,5 +156,3 @@ export function LibrarySidebar({ workspaceId, parts, currentId, readOnly, onOpen
     </section>
   </aside>;
 }
-
-export const isStarterPart = (partId: string): boolean => STARTER_IDS.has(partId);
