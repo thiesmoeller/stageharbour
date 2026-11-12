@@ -126,7 +126,7 @@ test('venue vertex gestures have preview, cancel, one undo and publish semantics
   await expect(page.locator('#vertex-x-0')).toHaveValue('0');
   await page.getByRole('button', { name: 'Spielstätte wiederholen' }).click();
   await expect(page.locator('#vertex-x-0')).toHaveValue('300');
-  await expect(page.locator('[data-renderer="pascal"] canvas')).toBeVisible();
+  await expect(page.locator('[data-renderer="stage"] canvas')).toBeVisible();
   await revealEditorCommand(page, 'Spielstätte speichern');
   await page.getByRole('button', { name: 'Spielstätte speichern', exact: true }).click();
   await expect(page.getByText('Spielstättenfassung gespeichert', { exact: true })).toBeVisible();
@@ -244,7 +244,7 @@ test('venue inline cutout is drawn on a permanent wall without a wall type', asy
   await expect(opening).toHaveCount(0);
   await expect(stageWall).toHaveAttribute('data-opening-count', '0');
   await page.getByRole('button', { name: 'Von oben', exact: true }).click();
-  const canvas = page.locator('[data-renderer="pascal"] canvas');
+  const canvas = page.locator('[data-renderer="stage"] canvas');
   await canvas.scrollIntoViewIfNeeded();
   await expect(async () => {
     const png = await canvas.screenshot();
@@ -321,7 +321,7 @@ test('rendered Pascal translation handle moves the shared plan and undoes once',
   await page.getByRole('button', { name: '2D + 3D', exact: true }).click();
   await page.getByRole('button', { name: 'Von oben', exact: true }).click();
   await page.getByRole('button', { name: '3D verschieben', exact: true }).click();
-  const canvas = page.locator('[data-renderer="pascal"] canvas');
+  const canvas = page.locator('[data-renderer="stage"] canvas');
   await canvas.scrollIntoViewIfNeeded();
   let handle: { x: number; y: number } | undefined;
   await expect(async () => {
@@ -454,7 +454,7 @@ test('scene face resizing previews, cancels, commits and undoes once', async ({ 
   const dimensions = () => solid.evaluate(element => ['data-width', 'data-depth', 'data-height'].map(key => element.getAttribute(key)).join('/'));
   const initial = await dimensions();
   await page.getByRole('button', { name: 'Auswahl einpassen', exact: true }).click();
-  const canvas = page.locator('[data-renderer="pascal"] canvas');
+  const canvas = page.locator('[data-renderer="stage"] canvas');
   await canvas.scrollIntoViewIfNeeded();
   const pushPull = page.getByRole('button', { name: 'Größe ziehen', exact: true });
   let centre = { x: 0, y: 0 };

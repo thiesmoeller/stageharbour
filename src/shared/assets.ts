@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { wallFieldsStoredSchema, braceSchema } from './layout.js';
+import { MODEL_ASSET_BASE_URL } from './assetHosts.js';
 
 /** Uploaded GLB files stay under this limit so every workspace member can load them. */
 export const MAX_MODEL_BYTES = 50 * 1024 * 1024;
@@ -27,14 +28,16 @@ export function modelDimensionsFromReference(
   };
 }
 
+const catalogHost = new URL(MODEL_ASSET_BASE_URL);
+
 // Model definitions are immutable; scenes can resize individual instances.
 export const modelSourceSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('upload'), fileId: z.uuid() }),
   z.strictObject({ kind: z.literal('catalog'), catalogId: z.string().min(1).max(160),
     url: z.url().refine(value => {
       const url = new URL(value);
-      return url.protocol === 'https:' && url.hostname === 'byrpxoiotywskoojsrzd.supabase.co'
-        && url.pathname.startsWith('/storage/v1/object/public/items/system/') && url.pathname.endsWith('/model.glb') && !url.search && !url.hash;
+      return url.origin === catalogHost.origin
+        && url.pathname.startsWith(`${catalogHost.pathname}/system/`) && url.pathname.endsWith('/model.glb') && !url.search && !url.hash;
     }),
     offset: vector, rotation: vector, scale: vector,
   }),

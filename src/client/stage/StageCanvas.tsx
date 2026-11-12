@@ -1,4 +1,4 @@
-import { createContext, useContext, useImperativeHandle, useLayoutEffect, useMemo, type CSSProperties, type ReactNode, type Ref } from 'react';
+import { createContext, useContext, useEffect, useImperativeHandle, useLayoutEffect, useMemo, type CSSProperties, type ReactNode, type Ref } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, OrthographicCamera, PerspectiveCamera } from '@react-three/drei';
 import { MOUSE, OrthographicCamera as ThreeOrthographicCamera, PerspectiveCamera as ThreePerspectiveCamera, type Camera, type Mesh, type Scene } from 'three';
@@ -8,6 +8,7 @@ import {
 } from './cameraFraming.js';
 import { DEFAULT_LIGHT_THEME_ID, lightTheme, type LightTheme, type LightThemeId } from './lightThemes.js';
 import { applyStageAppearance, applyStageRendererSettings, createStageRenderer, pixelRatioRange, shadowMapConfig, type StageQuality, type StageRenderer } from './renderer.js';
+import { stageTextures } from './stageAssets.js';
 import { StageLights } from './StageLights.js';
 
 /** A camera, or a function of the canvas size in CSS pixels (re-applied when the size changes). */
@@ -44,6 +45,8 @@ export type StageCanvasProps = {
   /** Stage extent in view-space metres: fits the shadow camera, the ground and `frame` cameras. */
   bounds?: StageBounds;
   camera?: StageCameraInput;
+  /** Change it to put the camera back on `camera` after the user moved it (a "fit" button). */
+  cameraRevision?: number;
   controls?: StageControlsConfig | false;
   /** Theme lights. Callers that bring their own lighting rig pass false. */
   lights?: boolean;
@@ -75,7 +78,7 @@ export function useStageCanvas() {
 const DEFAULT_CAMERA: StageCameraConfig = { mode: 'frame' };
 
 export function StageCanvas({
-  children, theme = DEFAULT_LIGHT_THEME_ID, quality = 'enhanced', bounds, camera = DEFAULT_CAMERA, controls = {},
+  children, theme = DEFAULT_LIGHT_THEME_ID, quality = 'enhanced', bounds, camera = DEFAULT_CAMERA, cameraRevision = 0, controls = {},
   lights = true, ground = 'none', onPointerMissed, frameloop = 'demand', preserveDrawingBuffer = false, ref, ...rest
 }: StageCanvasProps) {
   const spec = lightTheme(theme);
@@ -89,7 +92,8 @@ export function StageCanvas({
     <StageCanvasContext.Provider value={context}>
       <StageHandle handleRef={ref} />
       <RendererAppearance theme={spec} quality={quality} />
-      <StageCameraRig input={camera} bounds={stableBounds} controls={controls} />
+      <TextureArrivals />
+      <StageCameraRig input={camera} revision={cameraRevision} bounds={stableBounds} controls={controls} />
       {lights && <StageLights theme={spec} quality={quality} bounds={stableBounds} shadowGroundY={ground !== 'none' ? groundBounds.min[1] : undefined} />}
       {ground !== 'none' && <StageGround mode={ground} theme={spec} bounds={groundBounds} />}
       {children}
@@ -109,6 +113,13 @@ function StageHandle({ handleRef }: { handleRef?: Ref<StageCanvasHandle> }) {
       state.gl.render(state.scene, state.camera);
     },
   }), [get]);
+  return null;
+}
+
+/** Textures arrive after the frame that first used their material; a demand-driven canvas draws again. */
+function TextureArrivals() {
+  const invalidate = useThree(state => state.invalidate);
+  useEffect(() => stageTextures.subscribe(() => invalidate()), [invalidate]);
   return null;
 }
 
@@ -140,7 +151,7 @@ const MOUSE_BUTTONS = {
   preview: { LEFT: MOUSE.ROTATE, MIDDLE: MOUSE.DOLLY, RIGHT: MOUSE.PAN },
 } as const;
 
-function StageCameraRig({ input, bounds, controls }: { input: StageCameraInput; bounds?: StageBounds; controls: StageControlsConfig | false }) {
+function StageCameraRig({ input, revision, bounds, controls }: { input: StageCameraInput; revision: number; bounds?: StageBounds; controls: StageControlsConfig | false }) {
   const width = useThree(state => state.size.width);
   const height = useThree(state => state.size.height);
   const camera = useThree(state => state.camera);
@@ -165,7 +176,7 @@ function StageCameraRig({ input, bounds, controls }: { input: StageCameraInput; 
       active.update();
     }
     invalidate();
-  }, [lookKey, camera, active, invalidate]);
+  }, [lookKey, revision, camera, active, invalidate]);
   useLayoutEffect(() => {
     if (!active || !buttons) return;
     Object.assign(active.mouseButtons, MOUSE_BUTTONS[buttons]);

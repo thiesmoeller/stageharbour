@@ -54,7 +54,7 @@ function useBlackoutAnim(initial = 1, onLevel?: (level: number) => void) {
 /**
  * Session light board: masters, blackout, per-fixture on/level/colour.
  * When `live` is set, levels are written there for useFrame SpotLight updates
- * so Pascal/StageView need not re-render on every fader tick.
+ * so StageView need not re-render on every fader tick.
  */
 export function useLightBoard(
   fixtures: readonly LightingFixture[],

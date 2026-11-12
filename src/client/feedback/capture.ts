@@ -76,7 +76,7 @@ export async function captureWorkView(view: 'plan' | 'stage' | 'split', svg: SVG
       // Split can still ship the Grundriss when 3D is not ready yet.
       if (view === 'stage') throw new Error('Raumsicht ist noch nicht bereit.');
     } else {
-      const stageCapture = stage.capturePng({ maxEdge: FEEDBACK_CAPTURE_MAX_EDGE, preferCanvas: true });
+      const stageCapture = stage.capturePng({ maxEdge: FEEDBACK_CAPTURE_MAX_EDGE });
       captures.push(view === 'split'
         ? withBudget(stageCapture, FEEDBACK_STAGE_BUDGET_MS, 'Raumsicht-Aufnahme dauerte zu lange.')
         : stageCapture);

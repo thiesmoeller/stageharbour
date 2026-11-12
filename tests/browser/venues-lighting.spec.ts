@@ -80,7 +80,7 @@ test('design a venue independently, reuse it in a production, and save scene lig
     await page.getByRole('button', { name: 'Wiederholen', exact: true }).click();
     await expect(page.getByLabel('Frontlichtfarbe')).toHaveValue('#c1d8ff');
     await expect(page.locator('.save-status')).toHaveText('Gespeichert', { timeout: 15_000 });
-    const canvas = page.locator('[data-renderer="pascal"] canvas');
+    const canvas = page.locator('[data-renderer="stage"] canvas');
     await expect(canvas).toBeVisible();
     await toggleLighting(page);
     await page.waitForTimeout(1000);

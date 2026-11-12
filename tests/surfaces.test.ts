@@ -21,7 +21,8 @@ import {
   wallGeometryGroupCoverage,
   wallShadowVolumes,
 } from '../src/shared/wallMeshGeometry.js';
-import { libraryPresetWithSurface } from '../src/client/editor/surfaceMaterials.js';
+import { libraryMaterial } from '../src/client/stage/materialLibrary.js';
+import { librarySurfaceTiling } from '../src/client/stage/surfaceMaterials.js';
 
 test('migrateWallSurfaces lifts finish and RAL into surfaces', () => {
   const fromFinish = migrateWallSurfaces({
@@ -100,15 +101,17 @@ test('uniform finish applies to front, back and edge; per-face detects bands and
   assert.equal(applyUniformFinish(undefined), undefined);
 });
 
-test('libraryPresetWithSurface applies rotation and scale to mapProperties', () => {
-  const preset = libraryPresetWithSurface(
-    { kind: 'library', ref: 'library:wood-finewood27', scaleMm: 1000, rotationDeg: 90 },
+test('a library finish with a pattern size tiles by rotation and scale', () => {
+  const material = libraryMaterial('library:wood-finewood27');
+  assert.ok(material);
+  const tiling = librarySurfaceTiling(
+    material,
+    { scaleMm: 1000, rotationDeg: 90 },
     { faceWidthMm: 4000, faceHeightMm: 2400 },
   );
-  assert.ok(preset);
-  assert.equal(preset!.mapProperties.rotation, Math.PI / 2);
-  assert.equal(preset!.mapProperties.repeatX, 2.4);
-  assert.equal(preset!.mapProperties.repeatY, 4);
+  assert.equal(tiling.rotation, Math.PI / 2);
+  assert.equal(tiling.repeatX, 2.4);
+  assert.equal(tiling.repeatY, 4);
 });
 
 test('applyWallPanelUVs map face corners to 0–1 in panel millimetres', () => {

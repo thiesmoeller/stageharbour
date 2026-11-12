@@ -64,7 +64,7 @@ test('lighting and display settings never reduce 3D canvas height', async ({ pag
   await createProduction(page, { productionName: 'Dock lighting', venueName: 'Lighting venue', sceneName: 'Lighting stage' });
   await page.getByRole('button', { name: 'Licht', exact: true }).click();
   await page.getByRole('button', { name: 'Raumansicht öffnen', exact: true }).click();
-  const stage = page.locator('[data-renderer="pascal"]');
+  const stage = page.locator('[data-renderer="stage"]');
   await expect(stage.locator('canvas')).toBeVisible({ timeout: 30_000 });
   const height = (await stage.boundingBox())!.height;
   expect(height).toBeGreaterThan(768 * .84);
@@ -83,7 +83,11 @@ test('lighting and display settings never reduce 3D canvas height', async ({ pag
   await expect(page.getByLabel('Frontlicht (%)')).toBeVisible();
   await expectCanvasFillsViewport();
   await page.getByRole('button', { name: 'Anzeige', exact: true }).click();
-  await expect(page.getByLabel('Hohe Renderqualität')).toBeVisible();
+  const highQuality = page.getByLabel('Hohe Renderqualität');
+  await expect(highQuality).toBeVisible();
+  await expect(stage).toHaveAttribute('data-quality', 'simple');
+  await highQuality.check();
+  await expect(stage).toHaveAttribute('data-quality', 'enhanced');
   await expect(page.locator('.lighting-panel')).toBeHidden();
   await expectCanvasFillsViewport();
   await page.getByRole('button', { name: '2D + 3D', exact: true }).click();

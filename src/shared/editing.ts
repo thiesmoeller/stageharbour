@@ -29,7 +29,7 @@ export function mixedPropertyValue(values: readonly (string | undefined)[]): str
   return normalized.every(value => value === first) ? first : MIXED_PROPERTY;
 }
 
-/** Paint the same Pascal library finish onto every listed wall (front, back, edge). */
+/** Paint the same library finish onto every listed wall (front, back, edge). */
 export function applyWallFinish(layout: Layout, wallIds: readonly string[], finish: string | undefined): Layout {
   const ids = new Set(wallIds);
   if (!ids.size) return layout;

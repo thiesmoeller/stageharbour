@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useThree } from '@react-three/fiber';
 import { DoubleSide, Mesh, Plane, Quaternion, Vector2, Vector3, type Material, type Object3D } from 'three';
 import type { VenueGeometry } from '../../shared/layout.js';
+import { hitWorldNormal, instanceOwner } from '../stage/instancing.js';
 import {
   applyPushPull, classifyLocalFace, inferenceDeltaMm, inferenceFaceAligned, localNormalFromWorld, planRotationFor,
   resolveDragDeltaMm, resolvePushPullFace, stageDeckDragAxisMm,
@@ -22,19 +23,24 @@ type DragState = {
 
 type NodeHit = { id: string; kind: PushPullKind; openingId?: string; edge?: OpeningEdge };
 
-function kindFromNode(object: Object3D, scope: 'venue' | 'scene'): NodeHit | undefined {
-  let current: Object3D | null = object;
-  while (current) {
-    const meta = current.userData?.pushPull as {
-      id?: string; kind?: PushPullKind; scope?: string; openingId?: string; edge?: OpeningEdge;
-    } | undefined;
+type PushPullMeta = { id?: string; kind?: PushPullKind; scope?: string; openingId?: string; edge?: OpeningEdge };
+type Hit = { object: Object3D; instanceId?: number };
+
+/** What a hit belongs to: asked of the instance's owner first, then up the parent chain. */
+function kindFromHit(hit: Hit, scope: 'venue' | 'scene'): NodeHit | undefined {
+  const usable = (meta: PushPullMeta | undefined): NodeHit | undefined => {
     if (meta?.kind === 'wallOpening' && meta.id && meta.openingId && meta.edge && meta.scope === scope) {
       return { id: meta.id, kind: 'wallOpening', openingId: meta.openingId, edge: meta.edge };
     }
     if (meta?.id && meta.kind && meta.kind !== 'wallOpening' && meta.scope === scope) {
       return { id: meta.id, kind: meta.kind };
     }
-    current = current.parent;
+  };
+  const owned = usable(instanceOwner(hit.object, hit.instanceId)?.userData?.pushPull as PushPullMeta | undefined);
+  if (owned) return owned;
+  for (let current: Object3D | null = hit.object; current; current = current.parent) {
+    const found = usable(current.userData?.pushPull as PushPullMeta | undefined);
+    if (found) return found;
   }
 }
 
@@ -120,7 +126,7 @@ export function PushPullControls({
       raycaster.setFromCamera(ndc, camera);
       return raycaster.intersectObjects(scene.children, true).find(hit => {
         if (!hit.object.visible || hit.object.name === 'venue-floor' || hit.object.userData?.pushPullIgnore) return false;
-        return !!kindFromNode(hit.object, scope) && !!hit.face;
+        return !!kindFromHit(hit, scope) && !!hit.face;
       });
     }
     /**
@@ -134,9 +140,9 @@ export function PushPullControls({
       for (const hit of raycaster.intersectObjects(scene.children, true)) {
         if (!hit.object.visible || hit.object.name === 'venue-floor' || hit.object.userData?.pushPullIgnore) continue;
         if (isInvisiblePickProxy(hit.object)) continue;
-        if (isSameHandle(kindFromNode(hit.object, scope), handle)) continue;
+        if (isSameHandle(kindFromHit(hit, scope), handle)) continue;
         if (!hit.face) continue;
-        const faceNormal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld).normalize();
+        const faceNormal = hitWorldNormal(hit, new Vector3())!;
         if (!inferenceFaceAligned(
           { x: axisNormal.x, y: axisNormal.y, z: axisNormal.z },
           { x: faceNormal.x, y: faceNormal.y, z: faceNormal.z },
@@ -144,8 +150,8 @@ export function PushPullControls({
         return hit.point;
       }
     }
-    function handleFor(hit: { object: Object3D; face: { normal: Vector3 }; point: Vector3 }) {
-      const meta = kindFromNode(hit.object, scope);
+    function handleFor(hit: Hit & { face: { normal: Vector3 }; point: Vector3 }) {
+      const meta = kindFromHit(hit, scope);
       if (!meta) return;
       if (meta.kind === 'wallOpening' && meta.openingId && meta.edge) {
         const handle: PushPullHandle = {
@@ -155,7 +161,7 @@ export function PushPullControls({
         const normal = openingGrowNormal(meta.edge, rotation, true, new Vector3());
         return { handle, point: hit.point.clone(), normal };
       }
-      const worldNormal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld).normalize();
+      const worldNormal = hitWorldNormal(hit, new Vector3())!;
       const rotation = planRotationFor(venue, { kind: meta.kind as Exclude<PushPullKind, 'wallOpening'>, id: meta.id, face: 'py' });
       const local = localNormalFromWorld({ x: worldNormal.x, y: worldNormal.y, z: worldNormal.z }, rotation, true);
       const resolved = resolvePushPullFace({ kind: meta.kind as Exclude<PushPullKind, 'wallOpening'>, id: meta.id, face: classifyLocalFace(local) });
@@ -166,7 +172,7 @@ export function PushPullControls({
       const active = drag.current;
       if (!active) {
         const hit = pick(event.clientX, event.clientY);
-        setHover(hit?.face ? handleFor({ object: hit.object, face: hit.face, point: hit.point }) : undefined);
+        setHover(hit?.face ? handleFor({ object: hit.object, instanceId: hit.instanceId, face: hit.face, point: hit.point }) : undefined);
         return;
       }
       const rect = target.getBoundingClientRect();
@@ -191,7 +197,7 @@ export function PushPullControls({
       });
       snapPoint.copy(active.origin).addScaledVector(active.normal, deltaMm / 1000);
       setHover({ handle: active.handle, point: snapPoint.clone(), normal: active.normal, inferred });
-      // Skip redundant previews — stage-deck remounts thrash WebGL buffers otherwise.
+      // Skip redundant previews: every preview rebuilds the stage model.
       if (active.lastDeltaMm === deltaMm) return;
       const next = applyPushPull(active.start, active.handle, deltaMm);
       active.lastDeltaMm = deltaMm;
@@ -202,7 +208,7 @@ export function PushPullControls({
       if (event.button !== 0) return;
       const hit = pick(event.clientX, event.clientY);
       if (!hit?.face) return;
-      const picked = handleFor({ object: hit.object, face: hit.face, point: hit.point });
+      const picked = handleFor({ object: hit.object, instanceId: hit.instanceId, face: hit.face, point: hit.point });
       if (!picked) return;
       event.preventDefault();
       event.stopPropagation();

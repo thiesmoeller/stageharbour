@@ -1,44 +1,11 @@
-import type { OverheadBox } from '../../shared/overhead.js';
 import type { HangPlan } from '../../shared/hangPlan.js';
 import { fixtureFloorPool, resolveFixtureAim } from '../../shared/hangPlan.js';
 import { trussHangWorld, type Truss } from '../../shared/truss.js';
 
-export function StageOverhead({ boxes, trusses = [], hangPlan, showTrusses = true, showLightingFixtures = true }: {
-  boxes: OverheadBox[];
-  trusses?: Truss[];
-  hangPlan?: HangPlan;
-  showTrusses?: boolean;
-  showLightingFixtures?: boolean;
-}) {
-  const fixtures = hangPlan?.fixtures ?? [];
-  return <>
-    {boxes.map(box =>
-      <mesh key={box.id} position={[box.x, box.bottomHeight + box.thickness / 2, box.y]}
-        rotation={[0, -box.rotation * Math.PI / 180, 0]}>
-        <boxGeometry args={[box.length, box.thickness, box.width]} />
-        <meshBasicMaterial color="#8a6a3a" transparent opacity={0.35} />
-      </mesh>)}
-    {showTrusses && trusses.map(truss =>
-      <group key={truss.id} position={[truss.x, truss.bottomHeight + truss.thickness / 2, truss.y]}
-        rotation={[0, -truss.rotation * Math.PI / 180, 0]}>
-        <mesh>
-          <boxGeometry args={[truss.length, truss.thickness * 0.35, truss.sectionWidth]} />
-          <meshBasicMaterial color="#4f86ba" transparent opacity={0.45} />
-        </mesh>
-      </group>)}
-    {showLightingFixtures && fixtures.map(fixture => {
-      const truss = trusses.find(item => item.id === fixture.trussId);
-      const hang = truss?.hangPoints.find(point => point.id === fixture.hangPointId);
-      if (!truss || !hang) return null;
-      const world = trussHangWorld(truss, hang);
-      return <LightingFixtureMesh key={fixture.id} id={fixture.id} x={world.x} y={truss.bottomHeight} z={world.y} showPool={false} />;
-    })}
-  </>;
-}
 
 /**
- * Scheinwerfer marker in millimetre venue space (inside X-mirror).
- * Box + flat floor pool only — no SpotLights/cones (Pascal WebGPU forceWebGL).
+ * Scheinwerfer marker in millimetre venue space (inside X-mirror): body, lens and an optional
+ * flat floor pool. The light itself comes from FixtureSpotLights.
  */
 export function LightingFixtureMesh({ id, x, y, z, aimX, aimY, aimZ, selected = false, intensity = 100, color = '#ffe0b3', beamDeg = 40, showPool = true, onSelect }: {
   id?: string;
@@ -95,19 +62,6 @@ export function LightingFixtureMesh({ id, x, y, z, aimX, aimY, aimZ, selected = 
   </group>;
 }
 
-export function StageOverheadList({ boxes, trusses = [] }: { boxes: OverheadBox[]; trusses?: Truss[] }) {
-  if (!boxes.length && !trusses.length) return null;
-  return <ul aria-label="Überbauungen in der Raumsicht">
-    {boxes.map(box => <li key={box.id} data-testid={`stage-overhead-${box.id}`}
-      data-x={box.x} data-z={box.y} data-bottom={box.bottomHeight} data-thickness={box.thickness}
-      data-length={box.length} data-width={box.width} data-rotation={box.rotation}>
-      {box.label}: Unterkante {box.bottomHeight} mm, {box.length} × {box.width} × {box.thickness} mm</li>)}
-    {trusses.map(truss => <li key={truss.id} data-testid={`stage-truss-${truss.id}`}
-      data-x={truss.x} data-z={truss.y} data-bottom={truss.bottomHeight} data-thickness={truss.thickness}
-      data-length={truss.length} data-width={truss.sectionWidth} data-rotation={truss.rotation}>
-      {truss.label}: Unterkante {truss.bottomHeight} mm, {truss.length} × {truss.sectionWidth} × {truss.thickness} mm</li>)}
-  </ul>;
-}
 
 /** Hang world position + resolved aim for a fixture (millimetres). */
 export function fixtureHangPose(fixture: HangPlan['fixtures'][number], trusses: readonly Truss[], stageWidth: number, stageDepth: number) {

@@ -6,7 +6,7 @@ import { newWall, venueGeometrySchema } from '../src/shared/layout.js';
 import { resolveWall } from '../src/shared/wall-types.js';
 import { wallSolid } from '../src/shared/transforms.js';
 import { buildWallPanelGeometry, openingFlushSides, openingTouchesBoundary, wallGeometryGroupCoverage, wallShadowVolumes } from '../src/shared/wallMeshGeometry.js';
-import { openingEdgeHandles, openingJambSolids } from '../src/client/editor/WallMesh.js';
+import { openingEdgeHandles, openingJambSolids } from '../src/client/editor/wallOpeningHandles.js';
 
 const size = { x: 5000, y: 2989, z: 200 };
 const cut = { id: randomUUID(), left: 1000, sill: 0, width: 2000, height: 2500 };

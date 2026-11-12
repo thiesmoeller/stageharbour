@@ -116,7 +116,7 @@ export function resolveStageCamera(config: StageCameraConfig, viewport: Viewport
     : framePerspective(bounds, { aspect: viewport.width / Math.max(1, viewport.height), fov: config.fov, direction: config.direction, margin: config.margin });
 }
 
-/** The Raumsicht camera presets, as the editor computes them today (StageCamera + PascalStageCanvas). */
+/** The Raumsicht camera presets. */
 export type StageViewPreset = 'orbit' | 'audience' | 'top' | 'front' | 'side';
 
 export function isOrthographicPreset(view: StageViewPreset) {

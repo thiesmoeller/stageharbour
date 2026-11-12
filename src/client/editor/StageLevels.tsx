@@ -1,32 +1,31 @@
-import { useLayoutEffect, useMemo } from 'react';
-import { BoxGeometry, ExtrudeGeometry, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, Shape, type Material } from 'three';
+import { useMemo } from 'react';
+import { ExtrudeGeometry, Shape, type Material } from 'three';
 import type { StageModel } from '../../shared/transforms.js';
 import { platformCentroid, platformSurfaceFinish, surfaceElevationUnderPoint, orientedPlatformBox, type Platform } from '../../shared/levels.js';
 import {
   STAGE_DECK_FRAME_PROFILE_MM, STAGE_DECK_LEG_SECTION_MM, STAGE_DECK_RUBBER_HEIGHT_MM,
   STAGE_DECK_RUBBER_SECTION_MM, STAGE_DECK_TOP_THICKNESS_MM, layoutStageDeckModules, stageDeckLegPositions,
-  type StageDeckModule,
 } from '../../shared/stageDeck.js';
-import { createSurfaceMaterial, disposeSurfaceMaterial } from './surfaceMaterials.js';
-import { useSurfaceRegistry } from './SurfaceRegistryContext.js';
+import { UNIT_BOX, UNIT_PLANE, geometryKey } from '../stage/geometryCache.js';
+import { placeMatrix, primitiveInstance, type StageInstance } from '../stage/instancing.js';
+import { useCachedGeometry } from '../stage/StageInstances.js';
+import type { FlatMaterialSpec } from '../stage/surfaceMaterials.js';
+import { useElementInstances, useFlatMaterials, useSurfaceMaterial } from './stageMaterialHooks.js';
 
 /** GUIL-style TM-440 / PTA-440: phenolic infield, aluminum frame + Steckfüße, rubber caps. */
-const DECK_TOP = '#4a3426';
-const ALUMINUM = '#c4c8cd';
-const RUBBER = '#1a1a1a';
+const MATERIALS = {
+  platform: { color: '#c5d0b8' },
+  step: { color: '#d5decc' },
+  deckTop: { color: '#4a3426', roughness: 0.9, metalness: 0 },
+  aluminum: { color: '#c4c8cd', roughness: 0.35, metalness: 0.65 },
+  rubber: { color: '#1a1a1a' },
+  seam: { color: '#9aa890', opacity: 0.35, unlit: true },
+} as const satisfies Record<string, FlatMaterialSpec>;
+
 /** Keep phenolic and frame from sharing a face (avoids Z-fighting). */
 const FIT_GAP_MM = 1;
-/** One immutable buffer shared by every deck frame/infield; Pascal's WebGL backend
- * becomes unstable when a large deck allocates dozens of equivalent box buffers. */
-const UNIT_BOX_GEOMETRY = new BoxGeometry(1, 1, 1);
-const UNIT_PLANE_GEOMETRY = new PlaneGeometry(1, 1);
-const ALUMINUM_LIT = new MeshStandardMaterial({ color: ALUMINUM, metalness: 0.65, roughness: 0.35 });
-const ALUMINUM_FLAT = new MeshBasicMaterial({ color: ALUMINUM });
-const DECK_LIT = new MeshStandardMaterial({ color: DECK_TOP, roughness: 0.9, metalness: 0 });
-const DECK_FLAT = new MeshBasicMaterial({ color: DECK_TOP });
-const RUBBER_LIT = new MeshStandardMaterial({ color: RUBBER });
-const RUBBER_FLAT = new MeshBasicMaterial({ color: RUBBER });
-const SEAM_MATERIAL = new MeshBasicMaterial({ color: '#9aa890', transparent: true, opacity: 0.35 });
+const SOLID = { cast: true, receive: true }, CAST = { cast: true };
+const EMPTY: StageInstance[] = [];
 
 function outlinePlanRotation(outline: Platform['outline']) {
   const a = outline[0], b = outline[1];
@@ -46,165 +45,136 @@ function isRectangularOutline(outline: Platform['outline']) {
   });
 }
 
-function AluminumMaterial({ lit }: { lit: boolean }) {
-  return <primitive object={lit ? ALUMINUM_LIT : ALUMINUM_FLAT} attach="material" dispose={null} />;
+/** Extruded deck with texture coordinates normalised like a box: 0..1 across the top, and along the walls. */
+function buildPolygonDeck(points: readonly (readonly [number, number])[], thickness: number) {
+  const shape = new Shape();
+  points.forEach(([x, y], index) => index ? shape.lineTo(x, y) : shape.moveTo(x, y));
+  shape.closePath();
+  const extruded = new ExtrudeGeometry(shape, { depth: thickness, bevelEnabled: false, steps: 1 });
+  const xs = points.map(point => point[0]), ys = points.map(point => point[1]);
+  const minX = Math.min(...xs), minY = Math.min(...ys);
+  const width = Math.max(1, Math.max(...xs) - minX), depth = Math.max(1, Math.max(...ys) - minY);
+  const uv = extruded.getAttribute('uv');
+  // ExtrudeGeometry writes millimetre coordinates: (x, y) on the caps (group 0), (run, 1 − z) on the walls.
+  for (const group of extruded.groups) {
+    for (let index = group.start; index < group.start + group.count; index++) {
+      if (group.materialIndex === 0) uv.setXY(index, (uv.getX(index) - minX) / width, (uv.getY(index) - minY) / depth);
+      else uv.setXY(index, uv.getX(index) / Math.max(width, depth), (uv.getY(index) - 1) / thickness);
+    }
+  }
+  extruded.rotateX(Math.PI / 2);
+  return extruded;
 }
 
-function PlatformMaterials({ top, sides, lit, polygon = false }: {
-  top: Material | null; sides: Material | null; lit: boolean; polygon?: boolean;
+/** Deck slab with a finish, or with an outline that is not a rectangle: one mesh, materials per face. */
+function DeckSlab({ localOutline, thickness, width, depth, position, rotationY, top, sides }: {
+  localOutline: readonly (readonly [number, number])[] | undefined;
+  thickness: number; width: number; depth: number;
+  position: [number, number, number]; rotationY: number;
+  top: Material; sides: Material;
 }) {
-  const Surface = lit ? 'meshStandardMaterial' : 'meshBasicMaterial';
-  const slot = (index: number, material: Material | null) => material
-    ? <primitive key={index} object={material} attach={`material-${index}`} dispose={null} />
-    : <Surface key={index} attach={`material-${index}`} color="#c5d0b8" />;
-  if (polygon) return <>{slot(0, sides)}{slot(1, top)}</>;
-  return <>{[0, 1, 3, 4, 5].map(index => slot(index, sides))}{slot(2, top)}</>;
-}
-
-/** One catalog module: aluminum rim + inset phenolic — volumes do not overlap. */
-function StageDeckModuleMesh({ module, elevation, lit }: {
-  module: StageDeckModule; elevation: number; lit: boolean;
-}) {
-  const t = STAGE_DECK_TOP_THICKNESS_MM;
-  const f = STAGE_DECK_FRAME_PROFILE_MM;
-  const y = elevation - t / 2;
-  const { x, y: z, width, depth } = module;
-  const innerW = Math.max(1, width - 2 * f - FIT_GAP_MM);
-  const innerD = Math.max(1, depth - 2 * f - FIT_GAP_MM);
-  const edges = [
-    { pos: [x, y, z + (depth - f) / 2] as const, size: [width, t, f] as const },
-    { pos: [x, y, z - (depth - f) / 2] as const, size: [width, t, f] as const },
-    { pos: [x + (width - f) / 2, y, z] as const, size: [f, t, Math.max(1, depth - 2 * f)] as const },
-    { pos: [x - (width - f) / 2, y, z] as const, size: [f, t, Math.max(1, depth - 2 * f)] as const },
-  ];
-  return <group>
-    {edges.map((edge, index) =>
-      <mesh key={index} castShadow={lit} receiveShadow={lit} position={[...edge.pos]}
-        scale={[...edge.size]} geometry={UNIT_BOX_GEOMETRY} dispose={null}>
-        <AluminumMaterial lit={lit} />
-      </mesh>)}
-    <mesh castShadow={lit} receiveShadow={lit} position={[x, y, z]}
-      scale={[innerW, t, innerD]} geometry={UNIT_BOX_GEOMETRY} dispose={null}>
-      <primitive object={lit ? DECK_LIT : DECK_FLAT} attach="material" dispose={null} />
-    </mesh>
+  const polygon = !!localOutline;
+  const geometry = useCachedGeometry(
+    polygon ? geometryKey('platform-deck', localOutline, thickness) : UNIT_BOX.key,
+    polygon ? () => buildPolygonDeck(localOutline, thickness) : UNIT_BOX.build,
+  );
+  // Box faces are +x −x +y −y +z −z; an extrusion has its caps first and its walls second.
+  const materials = useMemo(() => polygon ? [top, sides] : [sides, sides, top, sides, sides, sides], [polygon, top, sides]);
+  return <group position={position} rotation={[0, rotationY, 0]}>
+    <mesh castShadow receiveShadow geometry={geometry} material={materials} dispose={null}
+      position={[0, polygon ? 0 : -thickness / 2, 0]} scale={polygon ? 1 : [width, thickness, depth]} />
   </group>;
 }
 
-function PlatformMesh({ platform, peers, lit }: { platform: Platform; peers: readonly Platform[]; lit: boolean }) {
-  const registry = useSurfaceRegistry();
+function PlatformParts({ platform, peers }: { platform: Platform; peers: readonly Platform[] }) {
+  const flat = useFlatMaterials(MATERIALS);
   const centre = platformCentroid(platform.outline);
   const rotation = outlinePlanRotation(platform.outline);
   const style = platform.style ?? 'floating';
   const box = orientedPlatformBox(platform.outline);
   const cos = Math.cos(rotation), sin = Math.sin(rotation);
-  const worldPoint = (localX: number, localY: number) => ({
-    x: centre.x + localX * cos - localY * sin,
-    y: centre.y + localX * sin + localY * cos,
-  });
   /** Höhe über Fußboden stays absolute; each foot lands on the surface directly under it. */
   const solidBase = style === 'solid'
     ? surfaceElevationUnderPoint(centre, peers, platform.elevation, platform.id)
     : 0;
   const rise = Math.max(1, platform.elevation - solidBase);
   const deckThickness = style === 'solid' ? rise : style === 'stageDeck' ? STAGE_DECK_TOP_THICKNESS_MM : 40;
-  const deckY = platform.elevation;
-  const topFinish = platformSurfaceFinish(platform, 'top');
-  const sideFinish = platformSurfaceFinish(platform, 'sides');
-  const topFinishKey = JSON.stringify(topFinish ?? null);
-  const sideFinishKey = JSON.stringify(sideFinish ?? null);
-  const topMaterial = useMemo(() => lit
-    ? createSurfaceMaterial(topFinish, {
-      faceWidthMm: box.width, faceHeightMm: box.depth, shading: 'rendered',
-      registry: { workspaceId: registry.workspaceId, surface: topFinish?.kind === 'registry' ? registry.surfaces.find(item => item.id === topFinish.surfaceId) : undefined },
-    })
-    : null, [topFinishKey, box.width, box.depth, lit, registry.workspaceId, registry.surfaces]);
-  const sideMaterial = useMemo(() => lit
-    ? createSurfaceMaterial(sideFinish, {
-      faceWidthMm: Math.max(box.width, box.depth), faceHeightMm: deckThickness, shading: 'rendered',
-      registry: { workspaceId: registry.workspaceId, surface: sideFinish?.kind === 'registry' ? registry.surfaces.find(item => item.id === sideFinish.surfaceId) : undefined },
-    })
-    : null, [sideFinishKey, box.width, box.depth, deckThickness, lit, registry.workspaceId, registry.surfaces]);
-  useLayoutEffect(() => () => {
-    disposeSurfaceMaterial(topMaterial);
-    disposeSurfaceMaterial(sideMaterial);
-  }, [topMaterial, sideMaterial]);
+  const topMaterial = useSurfaceMaterial(platformSurfaceFinish(platform, 'top'), box.width, box.depth);
+  const sideMaterial = useSurfaceMaterial(platformSurfaceFinish(platform, 'sides'), Math.max(box.width, box.depth), deckThickness);
   const rectangular = isRectangularOutline(platform.outline);
   const renderDeckSurface = style !== 'stageDeck' || !!topMaterial;
-  const outlineKey = platform.outline.map(point => `${point.x},${point.y}`).join(';');
-  const geometry = useMemo(() => {
-    if (rectangular || !renderDeckSurface) return undefined;
-    const shape = new Shape();
-    platform.outline.forEach((point, index) => {
-      const dx = point.x - centre.x, dy = point.y - centre.y;
-      const x = dx * cos + dy * sin;
-      const y = -dx * sin + dy * cos;
-      if (index === 0) shape.moveTo(x, y);
-      else shape.lineTo(x, y);
-    });
-    shape.closePath();
-    const extruded = new ExtrudeGeometry(shape, { depth: deckThickness, bevelEnabled: false, steps: 1 });
-    extruded.rotateX(Math.PI / 2);
-    return extruded;
-  }, [outlineKey, centre.x, centre.y, cos, sin, deckThickness, rectangular, renderDeckSurface]);
-  const legs = style === 'stageDeck' ? stageDeckLegPositions(box.width, box.depth, platform.deckGrain) : [];
-  const modules = style === 'stageDeck' ? layoutStageDeckModules(box.width, box.depth, platform.deckGrain) : [];
-  return <group position={[centre.x, 0, centre.y]} rotation={[0, -rotation, 0]}>
-    {renderDeckSurface && rectangular && <mesh castShadow={lit} receiveShadow={lit}
-      position={[0, deckY - deckThickness / 2, 0]} scale={[box.width, deckThickness, box.depth]}
-      geometry={UNIT_BOX_GEOMETRY} dispose={null}>
-      <PlatformMaterials top={topMaterial} sides={sideMaterial} lit={lit} />
-    </mesh>}
-    {renderDeckSurface && geometry && <mesh castShadow={lit} receiveShadow={lit} position={[0, deckY, 0]} geometry={geometry}>
-      <PlatformMaterials top={topMaterial} sides={sideMaterial} lit={lit} polygon />
-    </mesh>}
-    {style === 'stageDeck' && !topMaterial && modules.map((module, index) =>
-      <StageDeckModuleMesh key={`module-${index}`} module={module} elevation={platform.elevation} lit={lit} />)}
-    {style === 'stageDeck' && topMaterial && modules.map((module, index) =>
-      <mesh key={`seam-${index}`} position={[module.x, platform.elevation + 1, module.y]}
-        rotation={[-Math.PI / 2, 0, 0]} scale={[module.width - 20, module.depth - 20, 1]}
-        geometry={UNIT_PLANE_GEOMETRY} material={SEAM_MATERIAL} dispose={null}>
-      </mesh>)}
-    {style === 'stageDeck' && legs.map((leg, index) => {
-      const baseElevation = surfaceElevationUnderPoint(worldPoint(leg.x, leg.y), peers, platform.elevation, platform.id);
+  const finished = !!topMaterial || !!sideMaterial;
+  const localOutline = useMemo(() => rectangular ? undefined : platform.outline.map(point => {
+    const dx = point.x - centre.x, dy = point.y - centre.y;
+    return [dx * cos + dy * sin, -dx * sin + dy * cos] as const;
+  }), [platform.outline, rectangular, centre.x, centre.y, cos, sin]);
+
+  const instances = useMemo(() => {
+    const base = placeMatrix(undefined, [centre.x, 0, centre.y], [1, 1, 1], [0, -rotation, 0]);
+    const parts: StageInstance[] = [];
+    if (renderDeckSurface && rectangular && !finished) {
+      parts.push(primitiveInstance(UNIT_BOX, placeMatrix(base, [0, platform.elevation - deckThickness / 2, 0], [box.width, deckThickness, box.depth]), flat.platform, SOLID));
+    }
+    if (style !== 'stageDeck') return parts;
+    const modules = layoutStageDeckModules(box.width, box.depth, platform.deckGrain);
+    if (topMaterial) {
+      for (const module of modules) {
+        parts.push(primitiveInstance(UNIT_PLANE,
+          placeMatrix(base, [module.x, platform.elevation + 1, module.y], [module.width - 20, module.depth - 20, 1], [-Math.PI / 2, 0, 0]), flat.seam));
+      }
+    } else {
+      // One catalog module: aluminum rim + inset phenolic — volumes do not overlap.
+      const t = STAGE_DECK_TOP_THICKNESS_MM, f = STAGE_DECK_FRAME_PROFILE_MM, y = platform.elevation - t / 2;
+      for (const { x, y: z, width, depth } of modules) {
+        const side = Math.max(1, depth - 2 * f);
+        parts.push(
+          primitiveInstance(UNIT_BOX, placeMatrix(base, [x, y, z + (depth - f) / 2], [width, t, f]), flat.aluminum, SOLID),
+          primitiveInstance(UNIT_BOX, placeMatrix(base, [x, y, z - (depth - f) / 2], [width, t, f]), flat.aluminum, SOLID),
+          primitiveInstance(UNIT_BOX, placeMatrix(base, [x + (width - f) / 2, y, z], [f, t, side]), flat.aluminum, SOLID),
+          primitiveInstance(UNIT_BOX, placeMatrix(base, [x - (width - f) / 2, y, z], [f, t, side]), flat.aluminum, SOLID),
+          primitiveInstance(UNIT_BOX, placeMatrix(base, [x, y, z], [Math.max(1, width - 2 * f - FIT_GAP_MM), t, Math.max(1, depth - 2 * f - FIT_GAP_MM)]), flat.deckTop, SOLID),
+        );
+      }
+    }
+    for (const leg of stageDeckLegPositions(box.width, box.depth, platform.deckGrain)) {
+      const under = { x: centre.x + leg.x * cos - leg.y * sin, y: centre.y + leg.x * sin + leg.y * cos };
+      const baseElevation = surfaceElevationUnderPoint(under, peers, platform.elevation, platform.id);
       const postTop = Math.max(baseElevation + STAGE_DECK_RUBBER_HEIGHT_MM + 1, platform.elevation - STAGE_DECK_TOP_THICKNESS_MM);
       const postHeight = Math.max(1, postTop - baseElevation - STAGE_DECK_RUBBER_HEIGHT_MM);
-      return <group key={`leg-${index}`} position={[leg.x, baseElevation, leg.y]}>
-        <mesh castShadow={lit} position={[0, STAGE_DECK_RUBBER_HEIGHT_MM / 2, 0]}
-          scale={[STAGE_DECK_RUBBER_SECTION_MM, STAGE_DECK_RUBBER_HEIGHT_MM, STAGE_DECK_RUBBER_SECTION_MM]}
-          geometry={UNIT_BOX_GEOMETRY} dispose={null}>
-          <primitive object={lit ? RUBBER_LIT : RUBBER_FLAT} attach="material" dispose={null} />
-        </mesh>
-        <mesh castShadow={lit} position={[0, STAGE_DECK_RUBBER_HEIGHT_MM + postHeight / 2, 0]}
-          scale={[STAGE_DECK_LEG_SECTION_MM, postHeight, STAGE_DECK_LEG_SECTION_MM]}
-          geometry={UNIT_BOX_GEOMETRY} dispose={null}>
-          <AluminumMaterial lit={lit} />
-        </mesh>
-      </group>;
-    })}
-  </group>;
+      parts.push(
+        primitiveInstance(UNIT_BOX,
+          placeMatrix(base, [leg.x, baseElevation + STAGE_DECK_RUBBER_HEIGHT_MM / 2, leg.y], [STAGE_DECK_RUBBER_SECTION_MM, STAGE_DECK_RUBBER_HEIGHT_MM, STAGE_DECK_RUBBER_SECTION_MM]),
+          flat.rubber, CAST),
+        primitiveInstance(UNIT_BOX,
+          placeMatrix(base, [leg.x, baseElevation + STAGE_DECK_RUBBER_HEIGHT_MM + postHeight / 2, leg.y], [STAGE_DECK_LEG_SECTION_MM, postHeight, STAGE_DECK_LEG_SECTION_MM]),
+          flat.aluminum, CAST),
+      );
+    }
+    return parts;
+  }, [platform, peers, flat, renderDeckSurface, rectangular, finished, !!topMaterial, deckThickness]);
+  useElementInstances(instances);
+
+  if (!renderDeckSurface || (rectangular && !finished)) return null;
+  return <DeckSlab localOutline={localOutline} thickness={deckThickness} width={box.width} depth={box.depth}
+    position={[centre.x, platform.elevation, centre.y]} rotationY={-rotation}
+    top={topMaterial ?? flat.platform} sides={sideMaterial ?? flat.platform} />;
 }
 
-export function StageLevels({ model, lit = false, peerPlatforms }: {
-  model: StageModel; lit?: boolean; peerPlatforms?: readonly Platform[];
+function StairSteps({ stair }: { stair: StageModel['stairs'][number] }) {
+  const flat = useFlatMaterials(MATERIALS);
+  const instances = useMemo(() => stair.steps.map(step => primitiveInstance(UNIT_BOX,
+    placeMatrix(undefined, [step.x, step.y, step.z], [step.width, step.height, step.depth], [0, step.rotationY, 0]), flat.step, SOLID)), [stair, flat]);
+  useElementInstances(instances.length ? instances : EMPTY);
+  return null;
+}
+
+/** Podeste and Treppen in millimetres. `peerPlatforms` are the surfaces feet and solid bases can land on. */
+export function StageLevels({ model, peerPlatforms }: {
+  model: Pick<StageModel, 'platforms' | 'stairs'>; peerPlatforms?: readonly Platform[];
 }) {
-  const Surface = lit ? 'meshStandardMaterial' : 'meshBasicMaterial';
   const peers = peerPlatforms ?? model.platforms;
   return <>
-    {model.platforms.map(platform => <PlatformMesh key={platform.id} platform={platform} peers={peers} lit={lit} />)}
-    {model.stairs.flatMap(stair => stair.steps.map((step, index) =>
-      <mesh castShadow={lit} receiveShadow={lit} key={`${stair.id}-${index}`} position={[step.x, step.y, step.z]} rotation={[0, step.rotationY, 0]}>
-        <boxGeometry args={[step.width, step.height, step.depth]} />
-        <Surface color="#d5decc" />
-      </mesh>))}
+    {model.platforms.map(platform => <PlatformParts key={platform.id} platform={platform} peers={peers} />)}
+    {model.stairs.map(stair => <StairSteps key={stair.id} stair={stair} />)}
   </>;
-}
-
-export function StageLevelList({ model }: { model: StageModel }) {
-  if (!model.platforms.length && !model.stairs.length) return null;
-  return <ul aria-label="Ebenen in der Raumsicht">
-    {model.platforms.map(platform => <li key={platform.id} data-testid={`stage-platform-${platform.id}`} data-elevation={platform.elevation}>
-      {platform.label}: {platform.elevation} mm über Fußboden</li>)}
-    {model.stairs.map(stair => <li key={stair.id} data-testid={`stage-stair-${stair.id}`} data-rise={stair.rise}>
-      {stair.label}: {stair.rise} mm Steigung</li>)}
-  </ul>;
 }

@@ -14,7 +14,7 @@ const SPOT_AT_FULL = 10;
 
 /**
  * SpotLights for Scheinwerfer. Levels come from `lightBoardLive` in useFrame
- * so fader moves do not re-render the Pascal scene tree.
+ * so fader moves do not re-render the scene tree.
  */
 export function FixtureSpotLights({ hangPlan, trusses = [], stageWidth, stageDepth, lightBoardLive, enabled }: {
   hangPlan?: HangPlan;
