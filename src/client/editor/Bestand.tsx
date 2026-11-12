@@ -1,136 +1,115 @@
-import { BallastStock } from './BallastStock.js';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { can } from '../../shared/permissions.js';
 import type { Me } from '../../shared/contracts.js';
-import { inventorySchema } from '../../shared/inventory.js';
-import type { WallElementType } from '../../shared/wall-types.js';
-import { ApiError, request } from '../api.js';
-import { InventoryStock } from './InventoryPanel.js';
-import { WallTypePanel } from './WallTypePanel.js';
-import { useEditingLease } from './useEditingLease.js';
+import type { PartSummary, StockItem } from '../../shared/parts/catalog.js';
+import {
+  createStockItem, listParts, listStockItems, updateStockItem,
+} from '../partsApi.js';
+import { BallastStock } from './BallastStock.js';
 
-const EMPTY_LAYOUT = { schemaVersion: 1 as const, walls: [], braces: [] };
+type BestandTab = 'items' | 'parts' | 'hardware';
 
-type BestandTab = 'panels' | 'types' | 'ballast';
-
-/** Workspace home for physical panels and stocked wall-element types (ADR 0005). */
+/** Workspace stock is catalog based: a physical item references one stable part and optional variant. */
 export function Bestand({ me }: { me: Me }) {
-  const [tab, setTab] = useState<BestandTab>('panels');
-  const readOnly = !can(me.workspace.role, 'inventory');
-  return <section className="plans venue-library" aria-label="Bestand" data-testid="bestand-page">
-    <div className="section-heading">
-      <div>
-        <h2>Bestand</h2>
-        <p className="muted">Platten, Wandtypen und Beschwerung des Arbeitsbereichs. Bühnenbilder zuerst entwerfen; Platten später zuweisen.</p>
-      </div>
-    </div>
-    <div className="asset-tabs" role="tablist" aria-label="Bestand">
-      <button type="button" role="tab" className="quiet" aria-selected={tab === 'panels'} aria-pressed={tab === 'panels'}
-        data-testid="bestand-tab-panels" onClick={() => setTab('panels')}>Platten</button>
-      <button type="button" role="tab" className="quiet" aria-selected={tab === 'types'} aria-pressed={tab === 'types'}
-        data-testid="bestand-tab-types" onClick={() => setTab('types')}>Wandtypen</button>
-      <button type="button" role="tab" className="quiet" aria-selected={tab === 'ballast'} aria-pressed={tab === 'ballast'}
-        data-testid="bestand-tab-ballast" onClick={() => setTab('ballast')}>Beschwerung</button>
-    </div>
-    {tab === 'ballast' && <BallastStock workspaceId={me.workspace.id} readOnly={readOnly} />}
-    {tab === 'panels' && <InventoryStock workspaceId={me.workspace.id} layout={EMPTY_LAYOUT} readOnly={readOnly}
-      onPanels={() => { /* stock list is self-contained */ }} />}
-    {tab === 'types' && <InventoryTypesStock workspaceId={me.workspace.id} readOnly={readOnly} />}
-  </section>;
-}
-
-function InventoryTypesStock({ workspaceId, readOnly }: { workspaceId: string; readOnly: boolean }) {
-  const [types, setTypes] = useState<WallElementType[]>([]);
-  const [selectedId, setSelectedId] = useState<string | undefined>();
+  const [tab, setTab] = useState<BestandTab>('items');
+  const [parts, setParts] = useState<PartSummary[]>([]);
+  const [items, setItems] = useState<StockItem[]>([]);
+  const [createPartId, setCreatePartId] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const base = `/api/workspaces/${workspaceId}/inventory`;
-  const lease = useEditingLease(base, !readOnly);
-  const holding = lease.holding;
-
+  const readOnly = !can(me.workspace.role, 'inventory');
   async function load() {
-    const data = inventorySchema.parse(await request(base));
-    setTypes(data.types);
-    return data;
+    const [nextParts, nextItems] = await Promise.all([
+      listParts(me.workspace.id, { includeArchived: true }),
+      listStockItems(me.workspace.id, { includeArchived: true }),
+    ]);
+    setParts(nextParts);
+    setItems(nextItems);
   }
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const data = inventorySchema.parse(await request(base));
-        if (!cancelled) setTypes(data.types);
-      } catch {
-        if (!cancelled) setError('Wandtypen konnten nicht geladen werden.');
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [base]);
-
-  async function acquire() {
-    setBusy(true); setError('');
-    try { if (await lease.acquire()) await load(); }
-    catch (caught) {
-      setError(caught instanceof ApiError && caught.status === 423
-        ? 'Der Bestand wird bereits bearbeitet.'
-        : 'Bestand konnte nicht gesperrt werden.');
-    } finally { setBusy(false); }
-  }
-
-  async function persistCreate(type: WallElementType) {
+    let active = true;
+    void load().catch(() => { if (active) setError('Bestand konnte nicht geladen werden.'); });
+    return () => { active = false; };
+  }, [me.workspace.id]);
+  async function create(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const partId = String(data.get('partId') ?? '');
+    const variantKey = String(data.get('variantKey') ?? '') || null;
+    const label = String(data.get('label') ?? '').trim();
+    if (!partId || !label) return;
     setBusy(true); setError('');
     try {
-      await request(`${base}/types`, type);
+      await createStockItem(me.workspace.id, { partId, label, variantKey });
+      form.reset();
+      setCreatePartId('');
       await load();
-      setSelectedId(type.id);
-    } catch (caught) {
-      setError(caught instanceof ApiError && caught.status === 409
-        ? 'Dieser Wandtyp ist im Bestand bereits angelegt.'
-        : 'Wandtyp konnte nicht angelegt werden.');
-    } finally { setBusy(false); }
+    } catch {
+      setError('Bestandsstück konnte nicht angelegt werden.');
+    } finally {
+      setBusy(false);
+    }
   }
-
-  async function persistApply(type: WallElementType) {
+  async function usable(item: StockItem, value: boolean) {
+    const previous = items;
+    setItems(current => current.map(candidate => candidate.id === item.id ? { ...candidate, usable: value } : candidate));
     setBusy(true); setError('');
     try {
-      await request(`${base}/types/${type.id}`, type, 'PUT');
+      await updateStockItem(me.workspace.id, item.id, { usable: value });
       await load();
-    } catch (caught) {
-      setError(caught instanceof ApiError && caught.status === 409
-        ? 'Dieser Wandtyp ist im Bestand bereits anders definiert.'
-        : 'Wandtyp konnte nicht gespeichert werden.');
-    } finally { setBusy(false); }
+    } catch {
+      setItems(previous);
+      setError('Bestandsstück konnte nicht gespeichert werden.');
+    } finally {
+      setBusy(false);
+    }
   }
-
-  async function persistRemove(id: string) {
-    setBusy(true); setError('');
-    try {
-      await request(`${base}/types/${id}`, undefined, 'DELETE');
-      await load();
-      setSelectedId(undefined);
-    } catch (caught) {
-      setError(caught instanceof ApiError && caught.status === 409
-        ? 'Dieser Wandtyp wird noch von Platten verwendet.'
-        : 'Wandtyp konnte nicht gelöscht werden.');
-    } finally { setBusy(false); }
-  }
-
-  return <div className="inventory-panel" data-testid="bestand-types">
-    <p className="muted">Wandtypen für Platten (inkl. Tür/Fenster). Einmalige Typen bleiben im Bühnenbild möglich.</p>
+  return <section className="plans venue-library" aria-label="Bestand" data-testid="bestand-page">
+    <div className="section-heading"><div><h2>Bestand</h2>
+      <p className="muted">Physische Bestandsstücke und Bauteile des Arbeitsbereichs.</p></div></div>
+    <div className="asset-tabs" role="tablist" aria-label="Bestand">
+      <button type="button" role="tab" className="quiet" data-testid="bestand-tab-items" aria-selected={tab === 'items'} onClick={() => setTab('items')}>Bestandsstücke</button>
+      <button type="button" role="tab" className="quiet" data-testid="bestand-tab-parts" aria-selected={tab === 'parts'} onClick={() => setTab('parts')}>Bauteile</button>
+      <button type="button" role="tab" className="quiet" data-testid="bestand-tab-ballast" aria-selected={tab === 'hardware'} onClick={() => setTab('hardware')}>Beschwerung</button>
+    </div>
     {error && <p role="alert" className="error">{error}</p>}
-    {lease.message && <p role="status">{lease.message}</p>}
-    {!readOnly && !holding && <div className="form-actions">
-      <button type="button" onClick={() => void acquire()} disabled={busy}>Wandtypen bearbeiten</button>
+    {tab === 'hardware' && <BallastStock workspaceId={me.workspace.id} readOnly={readOnly} />}
+    {tab === 'items' && <div className="inventory-panel" data-testid="bestand-items">
+      {!readOnly && <form onSubmit={create}><fieldset disabled={busy}>
+        <h3>Bestandsstück anlegen</h3>
+        <label htmlFor="stock-label">Etikett</label><input id="stock-label" name="label" maxLength={120} required />
+        <label htmlFor="stock-part">Bauteil</label><select id="stock-part" name="partId" required value={createPartId}
+          onChange={event => setCreatePartId(event.target.value)}>
+          <option value="" disabled>Bauteil wählen</option>
+          {parts.filter(part => !part.archived && part.stock === 'item').map(part => <option key={part.id} value={part.id}>{part.name}</option>)}
+        </select>
+        {!!parts.find(part => part.id === createPartId)?.variants.length && <>
+          <label htmlFor="stock-variant">Variante</label><select id="stock-variant" name="variantKey" required defaultValue="">
+            <option value="" disabled>Variante wählen</option>
+            {parts.find(part => part.id === createPartId)?.variants.map(variant =>
+              <option key={variant.key} value={variant.key}>{variant.label}</option>)}
+          </select>
+        </>}
+        <div className="form-actions"><button type="submit">Bestandsstück anlegen</button></div>
+      </fieldset></form>}
+      <table><thead><tr><th>Etikett</th><th>Bauteil</th><th>Variante</th><th>Status</th></tr></thead><tbody>
+        {items.filter(item => !item.archived).map(item => <tr key={item.id}>
+          <td>{item.label}</td><td>{item.partName}</td><td>{item.variantLabel ?? 'Standard'}</td>
+          <td><label><input type="checkbox" checked={item.usable} disabled={readOnly || busy}
+            onChange={event => void usable(item, event.target.checked)} /> verwendbar</label></td>
+        </tr>)}
+      </tbody></table>
+      {!items.some(item => !item.archived) && <p className="muted">Noch keine Bestandsstücke.</p>}
     </div>}
-    <fieldset disabled={busy}>
-      <WallTypePanel
-        types={types}
-        selectedId={selectedId}
-        readOnly={!holding || readOnly}
-        onSelect={setSelectedId}
-        onCreate={type => { void persistCreate(type); }}
-        onApply={type => { void persistApply(type); }}
-        onRemove={id => { void persistRemove(id); }}
-      />
-    </fieldset>
-  </div>;
+    {tab === 'parts' && <div className="inventory-panel" data-testid="bestand-parts">
+      <p className="muted">Bauteile werden im Bauteildesigner gepflegt; Starterteile sind in jedem Arbeitsbereich verfügbar.</p>
+      <table><thead><tr><th>Bauteil</th><th>Kategorie</th><th>Revision</th><th>Bestandsart</th></tr></thead><tbody>
+        {parts.filter(part => !part.archived).map(part => <tr key={part.id}>
+          <td>{part.favourite ? '★ ' : ''}{part.name}</td><td>{part.category}</td><td>{part.latestRevision}</td>
+          <td>{part.stock === 'item' ? 'Bestandsstück' : part.stock === 'count' ? 'Stückzahl' : 'ohne Bestand'}</td>
+        </tr>)}
+      </tbody></table>
+    </div>}
+  </section>;
 }

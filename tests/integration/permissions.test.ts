@@ -76,7 +76,9 @@ test('inventory lease protects GLB upload, catalog creation and archival', async
 test('recovery saves a local draft separately without changing or unlocking the original', async () => {
   const scene = await createScene();
   await post(`${base}/scenes/${scene.id}/lease`);
-  const draft = { name: 'Geretteter Entwurf', layout: { schemaVersion: 1, walls: [], braces: [], riggingNotes: 'Lokale Änderung' }, sourceSurfaces: [] };
+  const draft = { name: 'Geretteter Entwurf', layout: {
+    schemaVersion: 2, objects: [], joints: [], riggingNotes: 'Lokale Änderung',
+  }, sourceSurfaces: [] };
   assert.equal((await post(`${base}/scenes/${scene.id}/recover`, 'viewer', draft)).statusCode, 403);
   const result = await post(`${base}/scenes/${scene.id}/recover`, 'editor', draft);
   assert.equal(result.statusCode, 201, result.body);

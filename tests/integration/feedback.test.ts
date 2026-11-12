@@ -38,7 +38,7 @@ test('viewer can report with server-controlled identity and attachments', async 
   const auditBefore = await fixture.db.select({ id: auditEvent.id }).from(auditEvent);
   const response = await app.inject({ method: 'POST', url, headers, payload: { ...payload(),
     images: [{ type: 'image/png', base64: pngBytes(16, 16).toString('base64') }],
-    snapshot: JSON.stringify({ version: 1, kind: 'layout', layout: { schemaVersion: 1, walls: [], braces: [] }, venue: { schemaVersion: 1, width: 8000, depth: 6000 } }),
+    snapshot: JSON.stringify({ version: 1, kind: 'layout', layout: { schemaVersion: 2, objects: [], joints: [] }, venue: { schemaVersion: 1, width: 8000, depth: 6000 } }),
   } });
   assert.equal(response.statusCode, 200, response.body);
   assert.equal(mail.messages.length, 1);

@@ -4,7 +4,7 @@ import { freezeExportSchema, freezeSnapshot, constructionSnapshotSchema, DRAWING
 import type { ExportLayers } from './exportLayers.js';
 import { inventoryPanelSchema, inventoryWarnings, type InventoryPanel } from './inventory.js';
 import { keepClearWarningSchema } from './keepClear.js';
-import type { Scene } from './layout.js';
+import type { LayoutObject, Scene } from './layout.js';
 import { overheadWarningsSchema } from './overhead.js';
 import type { DrawingScale, PaperSize } from './tiling.js';
 
@@ -79,13 +79,13 @@ function labelsOf(panels: readonly InventoryPanel[]) {
   return Object.fromEntries(panels.map(item => [item.id, item.label]));
 }
 
-function wallPart(wall: Scene['layout']['walls'][number], panels: readonly InventoryPanel[]) {
-  const match = wall.panelId ? panels.find(item => item.id === wall.panelId) : undefined;
+function wallPart(object: LayoutObject, panels: readonly InventoryPanel[]) {
+  const match = object.stockItemId ? panels.find(item => item.id === object.stockItemId) : undefined;
   return {
-    wallId: wall.id, label: wall.label, assemblyNumber: wall.assemblyNumber,
-    panelId: wall.panelId, panelLabel: match?.label,
-    width: wall.width, height: wall.height, thickness: wall.thickness,
-    x: wall.x, y: wall.y, rotation: wall.rotation,
+    wallId: object.id, label: object.label, assemblyNumber: object.assemblyNumber,
+    panelId: object.stockItemId, panelLabel: match?.label,
+    width: object.values?.B ?? 0, height: object.values?.H ?? 0, thickness: object.values?.D ?? object.values?.T ?? 0,
+    x: object.x, y: object.y, rotation: object.rotation,
   };
 }
 
@@ -93,11 +93,8 @@ function sceneList(scene: Scene, snapshot: ConstructionSnapshot, panels: readonl
   return {
     sceneId: scene.id, sceneName: snapshot.sceneName,
     materials: sceneMaterials(snapshot.layout),
-    walls: snapshot.layout.walls.map(wall => wallPart(wall, panels)),
-    braces: (snapshot.layout.braces ?? []).map(brace => ({
-      id: brace.id, label: brace.label, ballast: brace.ballast,
-      footprintWidth: brace.footprintWidth, footprintDepth: brace.footprintDepth, height: brace.height,
-    })),
+    walls: snapshot.layout.objects.map(object => wallPart(object, panels)),
+    braces: [],
     inventoryWarnings: inventoryWarnings(snapshot.layout, panels),
     overheadWarnings: snapshot.warnings,
     keepClearWarnings: snapshot.unresolvedWarnings,

@@ -192,7 +192,7 @@ test('beam: an oriented box along its centre line', () => {
 });
 
 test('sheet without holes: 24 vertices in three groups', () => {
-  const wall = resolvePart(STARTER_WALL, { variant: 'voll' }, STARTER_CONTEXT);
+  const wall = resolvePart(STARTER_WALL, { variant: 'plain' }, STARTER_CONTEXT);
   const sheet = solid(wall, 'platte');
   const geometry = buildSolidGeometry(sheet);
   assertFinite(geometry);
@@ -212,7 +212,7 @@ test('sheet without holes: 24 vertices in three groups', () => {
 });
 
 test('sheet UVs follow the wall panel convention', () => {
-  const wall = resolvePart(STARTER_WALL, { variant: 'tuer' }, STARTER_CONTEXT);
+  const wall = resolvePart(STARTER_WALL, { variant: 'doorLeft' }, STARTER_CONTEXT);
   const geometry = buildSolidGeometry(solid(wall, 'platte'));
   const positions = attribute(geometry, 'position'), normals = attribute(geometry, 'normal'), uv = attribute(geometry, 'uv');
   for (let i = 0; i < positions.length / 3; i++) {
@@ -276,7 +276,7 @@ test('sheet with an arch hole: counts and a closed surface', () => {
 
 test('notched outlines, several holes and polygon outlines stay closed', () => {
   const cases: [string, ResolvedPart][] = [
-    ['door notch', resolvePart(STARTER_WALL, { variant: 'tuer' }, STARTER_CONTEXT)],
+    ['door notch', resolvePart(STARTER_WALL, { variant: 'doorLeft' }, STARTER_CONTEXT)],
     ['arch to the floor', sheetWith([{ shape: 'arch', key: 'bogen', x: -400, y: 0, width: 800, height: 1900 }])],
     ['window and door', sheetWith([
       { shape: 'rect', key: 'tuer', x: -450, y: 0, width: 400, height: 1800 },
@@ -486,11 +486,15 @@ test('a part geometry has one material slot per stock material and finishable fa
   assertBounds(built.geometry, [deck.bounds.min, deck.bounds.max], 'deck');
   assertWindingMatchesNormals(built.geometry, 'deck');
 
-  const wall = buildPartGeometry(resolvePart(STARTER_WALL, { variant: 'tuer' }, STARTER_CONTEXT));
+  const wall = buildPartGeometry(resolvePart(STARTER_WALL, { variant: 'doorLeft' }, STARTER_CONTEXT));
   assert.deepEqual(wall.slots, [
     { index: 0, material: 'tischlerplatte-28', face: 'edge' },
     { index: 1, material: 'tischlerplatte-28', face: 'front' },
     { index: 2, material: 'tischlerplatte-28', face: 'back' },
+    { index: 3, material: 'tuerrahmen-25x50' },
+    { index: 4, material: 'holz-koerper' },
+    { index: 5, material: 'stoff-koerper' },
+    { index: 6, material: 'stoff-koerper', face: 'tuer/blatt' },
   ]);
 
   // A face for `all` sides is one slot; a face for one side wins over it.

@@ -172,7 +172,7 @@ test('Bühnenelement puts its Steckfüße where stageDeckLegPositions puts them'
 test('Bühnenelement: frame, deck, connectors and children', () => {
   const resolved = resolvePart(STARTER_DECK, {}, STARTER_CONTEXT);
   assert.equal(resolved.variant, '2x1');
-  assert.deepEqual(resolved.values, { B: 2000, T: 1000, H: 600 });
+  assert.deepEqual(resolved.values, { B: 2000, T: 1000, BO: 0, TO: 0, H: 600, HO: 0 });
   assert.deepEqual(resolved.solids.map(item => item.id), [
     'platte', 'rahmen-lang[0]', 'rahmen-lang[1]', 'rahmen-quer[0]', 'rahmen-quer[1]',
     'fuss[0,0]/gummifuss', 'fuss[0,0]/rohr', 'fuss[0,1]/gummifuss', 'fuss[0,1]/rohr',
@@ -266,7 +266,7 @@ test('placing moves solids, connectors, surfaces and faces as three.js would', (
 });
 
 test('Wandelement: full panel and door variant', () => {
-  const full = resolvePart(STARTER_WALL, { variant: 'voll' }, STARTER_CONTEXT);
+  const full = resolvePart(STARTER_WALL, { variant: 'plain' }, STARTER_CONTEXT);
   const panelSheet = sheet(full, 'platte');
   assertPolygon(panelSheet.outline, [[-600, 0], [600, 0], [600, 2400], [-600, 2400]], 'outline');
   assert.deepEqual(panelSheet.holes, []);
@@ -274,7 +274,7 @@ test('Wandelement: full panel and door variant', () => {
   assertBounds(full, 'platte', [-600, 0, -14], [600, 2400, 14]);
   assert.equal(full.height, 2400);
 
-  const door = resolvePart(STARTER_WALL, { variant: 'tuer' }, STARTER_CONTEXT);
+  const door = resolvePart(STARTER_WALL, { variant: 'doorLeft' }, STARTER_CONTEXT);
   assert.deepEqual(door.issues, []);
   const cut = sheet(door, 'platte');
   // A door that reaches the floor is a notch of the outline, not a hole.
@@ -284,10 +284,14 @@ test('Wandelement: full panel and door variant', () => {
   assert.deepEqual(cut.openings.map(item => [item.key, item.shape, item.placement, item.bounds]),
     [['tuer', 'rect', 'edge', { x: -400, y: 0, width: 800, height: 2000 }]]);
   assert.deepEqual(cut.blank, { width: 1200, height: 2400 });
-  assertPolygon(door.footprint, [[-600, -14], [600, -14], [600, 14], [-600, 14]], 'footprint');
+  assertPolygon(door.footprint, [
+    [-425, -64], [425, -64], [600, -14], [600, 14], [-600, 14], [-600, -14],
+  ], 'footprint');
 
   const connector = (id: string) => door.connectors.find(item => item.id === id)!;
-  assert.deepEqual(door.connectors.map(item => [item.id, item.kind]), [['links', 'hinge-edge'], ['rechts', 'hinge-edge'], ['stuetze', 'brace-mount']]);
+  assert.deepEqual(door.connectors.map(item => [item.id, item.kind]), [
+    ['links', 'hinge-edge'], ['rechts', 'hinge-edge'], ['stuetze', 'brace-mount'], ['tuer/band', 'hinge-edge'],
+  ]);
   assertPoint(connector('links').position, [-600, 0, 0]);
   assertPoint(connector('rechts').position, [600, 0, 0]);
   assertPoint(connector('links').axis, [0, 1, 0]);
@@ -295,7 +299,7 @@ test('Wandelement: full panel and door variant', () => {
   assertPoint(connector('stuetze').position, [0, 0, 14]);
 
   const faces = Object.fromEntries(door.faces.map(face => [face.key, face]));
-  assert.deepEqual(Object.keys(faces), ['front', 'back', 'edge']);
+  assert.deepEqual(Object.keys(faces), ['front', 'back', 'edge', 'tuer/blatt']);
   // The front faces the audience (-Z), as the wall panel of wallMeshGeometry does.
   assertPoint(faces.front!.plane!.normal, [0, 0, -1]);
   assertPoint(faces.front!.plane!.origin, [0, 0, -14]);
@@ -544,19 +548,19 @@ test('children of children: ids, counts and totals', () => {
 test('variants and scopes', () => {
   const standard = resolvePart(STARTER_BRACE, {}, STARTER_CONTEXT);
   assert.equal(standard.variant, 'standard');
-  assert.deepEqual(standard.values, { T: 500, H: 1200, ballast: 0 });
-  assert.deepEqual(standard.derived, { s: 40, wandZ: -230, spitzeZ: 230 });
+  assert.deepEqual(standard.values, { B: 40, T: 500, H: 1200, TO: 0, HO: 0, ballast: 0 });
+  assert.deepEqual(standard.derived, { D: 500, L: 1200, s: 40, wandZ: -230, spitzeZ: 230 });
   assert.equal(standard.stock, 'count');
   assert.equal(standard.planSymbol, 'footprint');
   assert.deepEqual(standard.part, refOf(STARTER_BRACE));
 
   const tall = resolvePart(STARTER_BRACE, { variant: 'hoch', values: { ballast: 2 } }, STARTER_CONTEXT);
-  assert.deepEqual(tall.values, { T: 800, H: 2400, ballast: 2 });
+  assert.deepEqual(tall.values, { B: 40, T: 800, H: 2400, TO: 0, HO: 0, ballast: 2 });
   assert.deepEqual(tall.issues, []);
 
   // A placement cannot reach into the variant, nor state into placement.
   const reaching = resolvePart(STARTER_BRACE, { values: { T: 700 }, state: { ballast: 1 } }, STARTER_CONTEXT);
-  assert.deepEqual(reaching.values, { T: 500, H: 1200, ballast: 0 });
+  assert.deepEqual(reaching.values, { B: 40, T: 500, H: 1200, TO: 0, HO: 0, ballast: 0 });
   assert.deepEqual(codes(reaching), ['warning:wrong-scope', 'warning:wrong-scope']);
   assert.deepEqual(reaching.issues.map(item => item.parameter), ['T', 'ballast']);
   const stateInValues = resolvePart(DOOR_WALL, { values: { offen: 90 } }, FIXTURE_CONTEXT);
@@ -580,7 +584,7 @@ test('variants and scopes', () => {
   assert.match(unmatched.issues[0]!.message, /T = 510, H = 1200/);
 
   const deck = resolvePart(STARTER_DECK, { variant: '1x05', values: { H: 1000 } }, STARTER_CONTEXT);
-  assert.deepEqual(deck.values, { B: 1000, T: 500, H: 1000 });
+  assert.deepEqual(deck.values, { B: 1000, T: 500, BO: 0, TO: 0, H: 1000, HO: 0 });
   assert.equal(deck.partCounts[0]!.variant, '1000');
   // Without variants the variant-scope parameters keep their defaults.
   assert.equal(resolvePart(DOOR_WALL, {}, FIXTURE_CONTEXT).variant, undefined);

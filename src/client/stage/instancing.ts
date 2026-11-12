@@ -10,7 +10,7 @@ export type StageInstance = {
   geometryKey: string;
   buildGeometry: () => BufferGeometry;
   /** A shared material: its identity is the material key, so reuse one object per look. */
-  material: Material;
+  material: Material | Material[];
   /** Placement in the space of the group that renders the batches. */
   matrix: Matrix4;
   castShadow?: boolean;
@@ -30,7 +30,7 @@ export type InstanceBatch = {
   key: string;
   geometryKey: string;
   buildGeometry: () => BufferGeometry;
-  material: Material;
+  material: Material | Material[];
   castShadow: boolean;
   receiveShadow: boolean;
   /** Index in this list is the instance id. */
@@ -47,7 +47,10 @@ export function batchInstances(groups: Iterable<{ instances: readonly StageInsta
   for (const group of groups) {
     for (const instance of group.instances) {
       const castShadow = instance.castShadow ?? false, receiveShadow = instance.receiveShadow ?? false;
-      const key = instanceBatchKey(instance.geometryKey, instance.material.uuid, castShadow, receiveShadow);
+      const materialKey = Array.isArray(instance.material)
+        ? instance.material.map(material => material.uuid).join(',')
+        : instance.material.uuid;
+      const key = instanceBatchKey(instance.geometryKey, materialKey, castShadow, receiveShadow);
       let batch = batches.get(key);
       if (!batch) {
         batch = { key, geometryKey: instance.geometryKey, buildGeometry: instance.buildGeometry, material: instance.material, castShadow, receiveShadow, items: [] };

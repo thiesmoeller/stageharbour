@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { MeshBasicMaterial } from 'three';
+import { MeshBasicMaterial, type Material } from 'three';
 import type { WallSolid } from '../../shared/transforms.js';
 import {
   buildWallPanelGeometry, openingFlushSides, wallShadowVolumes,
@@ -33,7 +33,7 @@ const PICK_MATERIAL = new MeshBasicMaterial({ transparent: true, opacity: 0, dep
 const SHADOW_ONLY_MATERIAL = new MeshBasicMaterial({ colorWrite: false, depthWrite: false });
 const SOLID = { cast: true, receive: true };
 
-function doorFittingInstances(wall: WallSolid, base: StageInstance['matrix'], frame: StageInstance['material'], leaf: StageInstance['material']): StageInstance[] {
+function doorFittingInstances(wall: WallSolid, base: StageInstance['matrix'], frame: Material, leaf: Material): StageInstance[] {
   const hw = wall.size.x / 2, hh = wall.size.y / 2;
   const front = -wall.size.z / 2;
   const angle = doorOpenAngleDegrees(wall.doorOpenPercent) * Math.PI / 180;

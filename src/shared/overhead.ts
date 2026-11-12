@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { stairCorners, supportingSurfaces, surfaceElevation, type Platform, type StairUnit } from './levels.js';
 import { type PlanPoint } from './venue.js';
 import { trussCorners, type Truss } from './truss.js';
+import type { ResolvedLayoutObject } from './layoutObjects.js';
 
 const name = z.string().trim().min(1).max(120);
 const dimension = z.number().finite().min(1).max(100000);
@@ -128,6 +129,46 @@ export function overheadClearance(layout: LayoutOverhead, venue: VenueOverhead):
         warnings.push({
           objectId: object.id, kind: 'overhead', obstructionId: truss.id,
           message: `„${object.label}“ ragt von der Auflagefläche in die Traverse „${truss.label}“. ${disclaimer}`,
+        });
+      }
+    }
+  }
+  return warnings;
+}
+
+export function resolvedOverheadClearance(
+  objects: readonly ResolvedLayoutObject[],
+  venue: VenueOverhead,
+): OverheadWarning[] {
+  const warnings: OverheadWarning[] = [];
+  for (const object of objects) {
+    const bottom = object.bounds.min.y, top = object.bounds.max.y;
+    if (venue.ceilingHeight !== undefined && top >= venue.ceilingHeight) {
+      warnings.push({
+        objectId: object.object.id,
+        kind: 'ceiling',
+        message: `„${object.object.label}“ überschreitet von der Auflagefläche die Deckenhöhe ${venue.ceilingHeight} mm. ${disclaimer}`,
+      });
+    }
+    for (const box of venue.overheadBoxes ?? []) {
+      if (planOverlap(object.footprint, overheadBoxCorners(box))
+        && heightOverlap(bottom, top, box.bottomHeight, box.bottomHeight + box.thickness)) {
+        warnings.push({
+          objectId: object.object.id,
+          kind: 'overhead',
+          obstructionId: box.id,
+          message: `„${object.object.label}“ ragt von der Auflagefläche in die Überbauung „${box.label}“. ${disclaimer}`,
+        });
+      }
+    }
+    for (const truss of venue.trusses ?? []) {
+      if (planOverlap(object.footprint, trussCorners(truss))
+        && heightOverlap(bottom, top, truss.bottomHeight, truss.bottomHeight + truss.thickness)) {
+        warnings.push({
+          objectId: object.object.id,
+          kind: 'overhead',
+          obstructionId: truss.id,
+          message: `„${object.object.label}“ ragt von der Auflagefläche in die Traverse „${truss.label}“. ${disclaimer}`,
         });
       }
     }

@@ -20,7 +20,7 @@ export async function openInspector(page: Page, title: string) {
 
 /** Open the library dock (and optionally switch to a named tab). */
 export async function openLibrary(page: Page, tab?: string) {
-  const library = page.getByRole('region', { name: 'Objektbibliothek' });
+  const library = page.getByRole('region', { name: 'Bibliothek', exact: true });
   if (!(await library.isVisible().catch(() => false))) {
     await page.getByRole('button', { name: 'Bibliothek', exact: true }).click();
   }
@@ -34,10 +34,10 @@ export async function commitWallPlacement(
   page: Page,
   x = 4000,
   y = 3000,
-  testId = 'placing-wall',
+  _testId = 'placing-wall',
   { bypassSnap = false }: { bypassSnap?: boolean } = {},
 ) {
-  await expect(page.getByTestId(testId)).toBeAttached();
+  await expect(page.locator('.plan-placement-hint')).toBeVisible();
   await page.locator('.plan-canvas > svg').scrollIntoViewIfNeeded();
   const screen = await page.locator('.plan-canvas > svg').evaluate((svg, point) => {
     const ctm = (svg as SVGSVGElement).getScreenCTM();
@@ -48,7 +48,7 @@ export async function commitWallPlacement(
   if (bypassSnap) await page.keyboard.down('Alt');
   await page.mouse.click(screen.x, screen.y);
   if (bypassSnap) await page.keyboard.up('Alt');
-  await expect(page.getByTestId(testId)).toHaveCount(0);
+  await expect(page.locator('.plan-placement-hint')).toHaveCount(0);
 }
 
 export const commitObjectPlacement = (
@@ -60,20 +60,26 @@ export const commitObjectPlacement = (
 
 /** Plan wall groups only — avoid RAL picker testids that also start with wall-. */
 export function planWalls(page: Page) {
-  return page.locator('.plan-canvas g[data-testid^="wall-"]');
+  return page.locator('.plan-canvas g[data-testid^="object-"][aria-label^="Wandelement"]');
 }
 
 /** Start wall placement from the tool rail and commit at plan coordinates (mm). */
 export async function placeWallAt(page: Page, x = 4000, y = 3000) {
-  await page.getByRole('button', { name: 'Wand hinzufügen', exact: true }).click();
+  await page.getByRole('button', { name: 'Wandelement · Glattwand einsetzen', exact: true }).click();
   await commitWallPlacement(page, x, y);
   await showProperties(page);
 }
 
 /** Start a preview placement from a named button and commit at plan coordinates (mm). */
 export async function placeNamedObjectAt(page: Page, name: string, x = 4000, y = 3000) {
-  const button = page.getByRole('button', { name, exact: true });
-  if (!await button.isVisible()) await page.locator('.editor-menubar summary').filter({ hasText: /^Einfügen$/ }).click();
+  const replacement: Record<string, string> = {
+    'Stütze hinzufügen': 'Stützdreieck · 50 × 120 cm einsetzen',
+    'Kiste hinzufügen': 'Kiste einsetzen',
+    'Tisch hinzufügen': 'Tisch einsetzen',
+    'Podest hinzufügen': 'Bühnenelement · 2 × 1 m einsetzen',
+    'Treppe hinzufügen': 'Treppe einsetzen',
+  };
+  const button = page.getByRole('button', { name: replacement[name] ?? name, exact: true });
   await button.click();
   await commitObjectPlacement(page, x, y);
   await showProperties(page);

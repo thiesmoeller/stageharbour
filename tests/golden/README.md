@@ -75,3 +75,28 @@ Aspects left out of the argument are skipped. Load inputs with `loadFixtures()` 
 - Client-only rendering that depends on materials or the lit/unlit mode: surface textures, shadows, seam planes over stage decks with a top finish, pick-handle boxes, shadow volumes. The unfinished-deck geometry (frame and infield per module) is recorded.
 - Byte-level PDF output (the PDF library stamps creation dates); 3D view images in documents.
 - Interactive behaviour (snapping, group transforms, push-pull).
+
+## Layout v2 comparison (A4/A5)
+
+`tests/golden/v2.ts` migrates each frozen v1 input, resolves the starter catalog, and feeds neutral
+footprints, solids and supporting surfaces into `compare.ts` at the default 0.5 mm tolerance.
+The demo seed matches all three aspects exactly. Stage-deck footprints and surfaces also match, as
+do wall-type supporting surfaces.
+
+The remaining differences are intentional model changes and are locked by
+`tests/golden-compare.test.ts`:
+
+- An open door is now a child part. Its swung leaf participates in the resolved physical footprint;
+  v1 plan footprints always stayed the closed panel rectangle. A few rotated leaves differ slightly
+  because the old renderer and the part kernel use different hinge/depth pivots.
+- Window, arch and door panels are real sheets with holes. A neutral bounding box cannot reproduce
+  the old renderer's list of synthetic panel/frame boxes even though the authored cut-out matches.
+- Furniture/person starter parts are constructive part solids. The old placeholder renderer used
+  different approximations (including a sphere for a seated head).
+- A migrated stage-deck platform remains one placement with its exact outer footprint and top
+  elevation. Its starter definition is one deck with four legs; v1 subdivided every large platform
+  into many renderer-only 2×1 m modules. That tiling is deliberately not persisted as hidden child
+  placements.
+- Floating/solid platforms preserve their oriented bounding rectangle. The current parametric
+  kernel cannot accept an arbitrary polygon as placement values, so irregular v1 platform outlines
+  are the one footprint/surface difference.

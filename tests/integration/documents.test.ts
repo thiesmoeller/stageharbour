@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { createApp } from '../../src/server/app.js';
 import { bootstrapAdministrator } from '../../src/server/identity/bootstrap.js';
-import { newWall, type Scene } from '../../src/shared/layout.js';
+import type { LayoutObject, Scene } from '../../src/shared/layout.js';
+import { STARTER_PART_IDS } from '../../src/shared/parts/starter/index.js';
 import { newPlaceholder } from '../../src/shared/placeholders.js';
 import { testAdministrator, testDatabase } from '../helpers/database.js';
 
@@ -11,6 +12,17 @@ let fixture: Awaited<ReturnType<typeof testDatabase>>;
 let app: Awaited<ReturnType<typeof createApp>>;
 let headers: { cookie: string; origin: string };
 let scene: Scene;
+
+const wall = (x: number, y: number): LayoutObject => ({
+  id: randomUUID(),
+  label: 'Wandelement',
+  part: { id: STARTER_PART_IDS.wall, revision: 1 },
+  variant: 'plain',
+  values: { B: 1200, H: 2400, D: 28 },
+  x,
+  y,
+  rotation: 0,
+});
 
 before(async () => {
   fixture = await testDatabase();
@@ -26,7 +38,7 @@ before(async () => {
   assert.equal((await app.inject({ method: 'POST', url: `/api/workspaces/${fixture.config.WORKSPACE_ID}/scenes/${scene.id}/lease`, headers })).statusCode, 200);
   assert.equal((await app.inject({
     method: 'PUT', url: `/api/workspaces/${fixture.config.WORKSPACE_ID}/scenes/${scene.id}/layout`, headers,
-    payload: { revision: 0, layout: { schemaVersion: 1, walls: [newWall(randomUUID(), 2000, 3000)] } },
+    payload: { revision: 0, layout: { schemaVersion: 2, objects: [wall(2000, 3000)], joints: [] } },
   })).statusCode, 200);
 });
 after(async () => { await app?.close(); await fixture?.dispose(); });
@@ -60,7 +72,7 @@ test('preparation does not issue, and a stale preview cannot be issued', async (
   assert.equal(file.headers['content-type'], 'application/pdf');
   assert.equal((await app.inject({
     method: 'PUT', url: `/api/workspaces/${fixture.config.WORKSPACE_ID}/scenes/${scene.id}/layout`, headers,
-    payload: { revision: 1, layout: { schemaVersion: 1, walls: [newWall(randomUUID(), 4000, 3000)] } },
+    payload: { revision: 1, layout: { schemaVersion: 2, objects: [wall(4000, 3000)], joints: [] } },
   })).statusCode, 200);
   const issued = await app.inject({
     method: 'POST', url: `/api/workspaces/${fixture.config.WORKSPACE_ID}/documents/${job.id}/issue`, headers, payload: {},

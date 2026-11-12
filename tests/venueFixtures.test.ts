@@ -26,7 +26,7 @@ function doorVenue(): { venue: VenueGeometry; wallId: string; curtainId: string;
 
 test('scene opening overlays override venue curtain and door defaults', () => {
   const { venue, wallId, curtainId } = doorVenue();
-  const empty: Layout = { schemaVersion: 1, walls: [], braces: [] };
+  const empty: Layout = { schemaVersion: 2, objects: [], joints: [] };
   let layout: Layout = empty;
   layout = setCurtainOpenPercent(layout, curtainId, 75);
   layout = setVenueDoorOpenPercent(layout, wallId, 90);
@@ -39,14 +39,14 @@ test('scene opening overlays override venue curtain and door defaults', () => {
 
 test('stageModel applies venue door opening overlays', () => {
   const { venue, wallId } = doorVenue();
-  const layout = setVenueDoorOpenPercent({ schemaVersion: 1, walls: [], braces: [] }, wallId, 55);
+  const layout = setVenueDoorOpenPercent({ schemaVersion: 2, objects: [], joints: [] }, wallId, 55);
   const model = stageModel(layout, venue);
   assert.equal(model.walls.find(wall => wall.id === wallId)?.doorOpenPercent, 55);
 });
 
 test('prune drops orphan fixture overlays; duplicate keeps them', () => {
   const { venue, wallId, curtainId } = doorVenue();
-  let layout = setCurtainOpenPercent({ schemaVersion: 1, walls: [], braces: [] }, curtainId, 40);
+  let layout = setCurtainOpenPercent({ schemaVersion: 2, objects: [], joints: [] }, curtainId, 40);
   layout = setVenueDoorOpenPercent(layout, wallId, 30);
   layout = setCurtainOpenPercent(layout, randomUUID(), 99);
   layout = setVenueDoorOpenPercent(layout, randomUUID(), 99);

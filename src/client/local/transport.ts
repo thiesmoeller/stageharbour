@@ -7,13 +7,13 @@ import {
   duplicateSceneSchema,
   instantiateTemplateSchema,
   layoutSchema,
+  emptyLayout as createEmptyLayout,
   renameProductionSchema,
   renameSceneSchema,
   renameSceneTemplateSchema,
   saveLayoutSchema,
   saveVenueSchema,
   venueGeometrySchema,
-  wallCorners,
   type Layout,
   type Scene,
 } from '../../shared/layout.js';
@@ -21,12 +21,11 @@ import { ballastStockSchema, materialRequirements } from '../../shared/ballast.j
 import {
   createPanelSchema,
   sameGeometry,
-  snapshotPanelAssignments,
   updatePanelSchema,
   upsertInventoryTypeSchema,
   type InventoryPanel,
 } from '../../shared/inventory.js';
-import { saveReportTemplatesSchema, stripLayoutReportTemplates } from '../../shared/reportTemplate.js';
+import { saveReportTemplatesSchema } from '../../shared/reportTemplate.js';
 import {
   applyVenueVersion,
   captureTemplateLayout,
@@ -34,9 +33,11 @@ import {
   copyLayoutIntoVenue,
   duplicateLayout,
 } from '../../shared/scenes.js';
-import { overheadClearance } from '../../shared/overhead.js';
-import { keepClearWarnings } from '../../shared/keepClear.js';
-import { resolveWall, wallTypeSchema, type WallElementType } from '../../shared/wall-types.js';
+import { resolvedOverheadClearance } from '../../shared/overhead.js';
+import { resolvedKeepClearWarnings } from '../../shared/keepClear.js';
+import { wallTypeSchema, type WallElementType } from '../../shared/wall-types.js';
+import { createLayoutPartIndex, resolveLayoutObjects } from '../../shared/layoutObjects.js';
+import { STARTER_PART_IDS } from '../../shared/parts/starter/index.js';
 import { createVenueSchema, publishVenueSchema, renameVenueSchema, venuePlanPreview } from '../../shared/venueLibrary.js';
 import { boundsFromOutline } from '../../shared/venue.js';
 import { z } from 'zod';
@@ -149,6 +150,15 @@ function toSceneSummary(snapshot: LocalSnapshot, scene: LocalScene) {
   const full = toSceneRecord(snapshot, scene);
   const layout = full.layout;
   const venue = full.venue;
+  const partIndex = createLayoutPartIndex({
+    parts: snapshot.catalog.revisions.map(item => item.definition),
+    materials: snapshot.catalog.materials,
+  });
+  const objects = resolveLayoutObjects(layout, partIndex);
+  const walls = objects.filter(item => item.object.part.id === STARTER_PART_IDS.wall);
+  const platforms = objects.filter(item => [
+    STARTER_PART_IDS.deck, STARTER_PART_IDS.floatingPlatform, STARTER_PART_IDS.solidPlatform,
+  ].includes(item.object.part.id));
   return {
     id: full.id,
     name: full.name,
@@ -162,10 +172,11 @@ function toSceneSummary(snapshot: LocalSnapshot, scene: LocalScene) {
     preview: {
       width: venue.width,
       depth: venue.depth,
-      walls: (layout.walls ?? []).map(wall => ({
-        corners: wallCorners(resolveWall(wall, layout.wallTypes ?? [])),
-      })),
-      platforms: [...(venue.platforms ?? []), ...(layout.platforms ?? [])].map(platform => ({ outline: platform.outline })),
+      walls: walls.map(item => ({ corners: item.footprint })),
+      platforms: [
+        ...(venue.platforms ?? []).map(platform => ({ outline: platform.outline })),
+        ...platforms.map(item => ({ outline: item.footprint })),
+      ],
     },
   };
 }
@@ -192,7 +203,7 @@ function toVenueRecord(snapshot: LocalSnapshot, venueId: string, versionId?: str
 }
 
 function emptyLayout(): Layout {
-  return { schemaVersion: 1, walls: [], braces: [] };
+  return createEmptyLayout();
 }
 
 export function createLocalTransport(store: LocalStore, options: PartsHandlerOptions = {}): ApiTransport {
@@ -388,20 +399,21 @@ export function createLocalTransport(store: LocalStore, options: PartsHandlerOpt
       }
       const version = findVenueVersion(snapshot, scene.venueVersionId);
       const venue = venueGeometrySchema.parse(version.geometry);
-      const layout = snapshotPanelAssignments(
-        scene.layout,
-        stripLayoutReportTemplates(layoutSchema.parse(input.layout)),
-        nextId,
-      );
+      const layout = layoutSchema.parse(input.layout);
       const revision = scene.revision + 1;
       await store.mutate(draft => {
         const row = findScene(draft, params!.sceneId!);
         row.layout = layout;
         row.revision = revision;
       });
+      const partIndex = createLayoutPartIndex({
+        parts: snapshot.catalog.revisions.map(item => item.definition),
+        materials: snapshot.catalog.materials,
+      });
+      const objects = resolveLayoutObjects(layout, partIndex);
       return {
         revision,
-        warnings: [...overheadClearance(layout, venue), ...keepClearWarnings(venue, layout)],
+        warnings: [...resolvedOverheadClearance(objects, venue), ...resolvedKeepClearWarnings(venue, objects)],
       };
     }
 
@@ -811,16 +823,7 @@ export function createLocalTransport(store: LocalStore, options: PartsHandlerOpt
     if (params && method === 'GET') {
       const snapshot = store.getSnapshot();
       requireWorkspace(snapshot, params.workspaceId!);
-      return snapshot.scenes.flatMap(record => record.layout.walls.flatMap(wall => wall.panelId && wall.finishAssignment
-        ? [{
-          sceneId: record.id,
-          sceneName: record.name,
-          wallId: wall.id,
-          wallLabel: wall.label,
-          panelId: wall.panelId,
-          assignment: wall.finishAssignment,
-        }]
-        : []));
+      return [];
     }
 
     params = match(path, '/api/workspaces/:workspaceId/inventory/types');
@@ -902,26 +905,9 @@ export function createLocalTransport(store: LocalStore, options: PartsHandlerOpt
       const snapshot = store.getSnapshot();
       requireWorkspace(snapshot, params.workspaceId!);
       const input = finishCompleteBodySchema.parse(body);
-      const scene = findScene(snapshot, input.sceneId);
-      const wall = scene.layout.walls.find(item => item.id === input.wallId && item.panelId === panelId);
-      if (!wall?.finishAssignment || wall.finishAssignment.id !== input.assignmentId) {
-        fail(409, 'Die Zuweisung wurde geändert. Bitte den Bestand neu laden.');
-      }
+      findScene(snapshot, input.sceneId);
       findInventoryPanel(snapshot, panelId);
-      let updated: InventoryPanel | undefined;
-      await store.mutate(draft => {
-        const panel = findInventoryPanel(draft, panelId);
-        if (panel.currentFinish?.assignmentId !== wall.finishAssignment!.id) {
-          panel.currentFinish = {
-            surfaces: wall.finishAssignment!.surfaces,
-            description: '',
-            assignmentId: wall.finishAssignment!.id,
-            confirmedAt: new Date().toISOString(),
-          };
-        }
-        updated = panel;
-      });
-      return updated!;
+      fail(410, 'Oberflächenarbeiten werden jetzt am Bestandsstück des Bauteils dokumentiert.');
     }
 
     params = match(path, '/api/workspaces/:workspaceId/inventory/panels/:panelId');
@@ -959,7 +945,7 @@ export function createLocalTransport(store: LocalStore, options: PartsHandlerOpt
       const snapshot = store.getSnapshot();
       requireWorkspace(snapshot, params.workspaceId!);
       findInventoryPanel(snapshot, panelId);
-      const used = snapshot.scenes.filter(record => record.layout.walls.some(wall => wall.panelId === panelId));
+      const used = snapshot.scenes.filter(record => record.layout.objects.some(object => object.stockItemId === panelId));
       if (used.length) {
         fail(409, `Platte ist noch zugewiesen: ${used.map(record => record.name).join(', ')}. Zuweisungen zuerst in den Bühnenbildern lösen.`);
       }

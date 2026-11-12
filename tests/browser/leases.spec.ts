@@ -18,7 +18,8 @@ test('a second session sees who is editing and cannot modify the plan', async ({
     venueName: 'Probesaal',
   });
   await expect(adminPage.getByRole('heading', { name: 'Bühnenbild 1' })).toBeVisible();
-  await expect(adminPage.getByRole('button', { name: 'Wand hinzufügen' })).toBeVisible();
+  const adminWall = adminPage.getByRole('button', { name: 'Wandelement · Glattwand einsetzen', exact: true });
+  await expect(adminWall).toBeEnabled();
   await expect(adminPage.locator('.save-status')).toHaveText('Gespeichert', { timeout: 10_000 });
 
   await signIn(editorPage, testEditor);
@@ -26,13 +27,14 @@ test('a second session sees who is editing and cannot modify the plan', async ({
   await expect(card).toContainText('Bearbeitung durch Test Administration');
   await card.click();
   await expect(editorPage.getByRole('heading', { name: 'Bühnenbild 1' })).toBeVisible();
-  await expect(editorPage.getByText('Nur Ansicht · Bearbeitung durch Test Administration')).toBeVisible();
-  await expect(editorPage.getByRole('button', { name: 'Wand hinzufügen' })).toHaveCount(0);
+  await expect(editorPage.getByRole('button', { name: 'Bearbeitung anfordern', exact: true })).toBeVisible();
+  const editorWall = editorPage.getByRole('button', { name: 'Wandelement · Glattwand einsetzen', exact: true });
+  await expect(editorWall).toBeDisabled();
 
   await adminPage.getByRole('button', { name: 'Zur Übersicht', exact: true }).click();
   await expect(adminPage.getByRole('heading', { name: 'Beispiel-Theatergruppe' })).toBeVisible();
-  await editorPage.getByRole('button', { name: 'Bearbeitung erneut anfordern', exact: true }).click();
-  await expect(editorPage.getByRole('button', { name: 'Wand hinzufügen' })).toBeVisible({ timeout: 15_000 });
+  await editorPage.getByRole('button', { name: 'Bearbeitung anfordern', exact: true }).click();
+  await expect(editorWall).toBeEnabled({ timeout: 15_000 });
   await expect(editorPage.locator('.save-status')).toHaveText('Gespeichert', { timeout: 15_000 });
 
   await adminContext.close();
@@ -66,11 +68,12 @@ test('lease loss preserves the local scene and offers separate template recovery
     productionName: 'Entwurfsrettung',
     venueName: 'Probebühne',
   });
-  await expect(page.getByRole('button', { name: 'Wand hinzufügen' })).toBeVisible();
+  const wall = page.getByRole('button', { name: 'Wandelement · Glattwand einsetzen', exact: true });
+  await expect(wall).toBeEnabled();
   await page.route('**/scenes/*/layout', route => route.fulfill({ status: 423, contentType: 'application/json', body: JSON.stringify({ message: 'Bearbeitung abgelaufen' }) }));
   await placeWallAt(page);
   await expect(page.locator('.save-status')).toHaveText('Bearbeitung abgelaufen');
-  await expect(page.getByRole('button', { name: 'Wand hinzufügen' })).toHaveCount(0);
+  await expect(wall).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Lokalen Entwurf herunterladen' })).toBeVisible();
   const saved = page.waitForResponse(response => response.url().endsWith('/recover') && response.request().method() === 'POST');
   await page.getByRole('button', { name: 'Entwurf als Bühnenbildvorlage sichern' }).click();
@@ -80,7 +83,7 @@ test('lease loss preserves the local scene and offers separate template recovery
   await prompt.getByRole('button', { name: 'Sichern' }).click();
   const response = await saved;
   expect(response.status()).toBe(201);
-  expect((await response.json()).layout.walls).toHaveLength(1);
+  expect((await response.json()).layout.objects).toHaveLength(1);
   await expect(page.getByText('Entwurf als Bühnenbildvorlage gesichert. Sie finden ihn in der Übersicht.')).toBeVisible();
   await expect(page.locator('.save-status')).toHaveText('Bearbeitung abgelaufen');
 });

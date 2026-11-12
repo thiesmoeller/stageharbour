@@ -1,13 +1,8 @@
-import { braceCorners } from './braceTransforms.js';
-import type { Layout } from './layout.js';
-import { wallCorners } from './layout.js';
-import { stairCorners } from './levels.js';
-import { placeholderCorners } from './placeholders.js';
-import { resolveWall } from './wall-types.js';
+import type { ResolvedLayoutObject } from './layoutObjects.js';
 
 export type PlanBounds = { minX: number; maxX: number; minY: number; maxY: number };
 export type SelectableMember = {
-  kind: 'wall' | 'brace' | 'stair' | 'placeholder' | 'platform';
+  kind: 'object';
   id: string;
 };
 
@@ -35,28 +30,11 @@ export function boundsContain(outer: PlanBounds, inner: PlanBounds) {
  * Plan millimetre rubber-band hit test. An object is selected only when its
  * entire plan footprint lies inside the box (grazing a corner does not count).
  */
-export function membersInBounds(layout: Layout, bounds: PlanBounds): SelectableMember[] {
-  const types = layout.wallTypes ?? [];
+export function membersInBounds(objects: readonly ResolvedLayoutObject[], bounds: PlanBounds): SelectableMember[] {
   const members: SelectableMember[] = [];
-  for (const wall of layout.walls) {
-    const box = pointsBounds(wallCorners(resolveWall(wall, types)));
-    if (box && boundsContain(bounds, box)) members.push({ kind: 'wall', id: wall.id });
-  }
-  for (const brace of layout.braces ?? []) {
-    const box = pointsBounds(braceCorners(brace));
-    if (box && boundsContain(bounds, box)) members.push({ kind: 'brace', id: brace.id });
-  }
-  for (const stair of layout.stairs ?? []) {
-    const box = pointsBounds(stairCorners(stair));
-    if (box && boundsContain(bounds, box)) members.push({ kind: 'stair', id: stair.id });
-  }
-  for (const item of layout.placeholders ?? []) {
-    const box = pointsBounds(placeholderCorners(item));
-    if (box && boundsContain(bounds, box)) members.push({ kind: 'placeholder', id: item.id });
-  }
-  for (const platform of layout.platforms ?? []) {
-    const box = pointsBounds(platform.outline);
-    if (box && boundsContain(bounds, box)) members.push({ kind: 'platform', id: platform.id });
+  for (const object of objects) {
+    const box = pointsBounds(object.footprint);
+    if (box && boundsContain(bounds, box)) members.push({ kind: 'object', id: object.object.id });
   }
   return members;
 }

@@ -34,8 +34,9 @@ test('the starter parts and the fixtures pass', () => {
     assert.deepEqual(result.issues, [], definition.name);
     assert.equal(result.ok, true);
   }
-  // Three variants, each with ballast 0, 1 and 2.
-  assert.equal(validateDefinition(STARTER_BRACE, STARTER_CONTEXT).evaluated, 9);
+  // Three variants and the migration-only dimension overrides are sampled at
+  // their defaults and endpoints, including ballast 0, 1 and 2.
+  assert.equal(validateDefinition(STARTER_BRACE, STARTER_CONTEXT).evaluated, 87);
   // Defaults, six single ends, eight corners.
   assert.equal(validateDefinition(STARTER_TABLE, STARTER_CONTEXT).evaluated, 15);
 });

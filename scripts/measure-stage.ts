@@ -20,8 +20,10 @@ import { gzipSync } from 'node:zlib';
 import { chromium, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import { testAdministrator } from '../tests/helpers/database.js';
 import { layoutSchema, newBrace, newWall, type Layout } from '../src/shared/layout.js';
+import { layoutV1ToV2, type LayoutV1 } from '../src/shared/layoutMigrate.js';
 import { AUDIENCE_FLOOR_ID, newPlatform, newStair } from '../src/shared/levels.js';
 import { newPlaceholder } from '../src/shared/placeholders.js';
+import { STARTER_CONTEXT } from '../src/shared/parts/starter/index.js';
 
 const BASE_URL = 'http://127.0.0.1:4173';
 const VIEWPORT = { width: 1280, height: 800 };
@@ -431,20 +433,24 @@ async function createScene(page: Page, names: { production: string; venue: strin
   return sceneId;
 }
 
-function emptyLayout(): Layout {
-  return layoutSchema.parse({ schemaVersion: 1, walls: [], braces: [] });
+function emptyLayout(): LayoutV1 {
+  return { schemaVersion: 1, walls: [], braces: [] };
+}
+
+function migratedLayout(layout: LayoutV1): Layout {
+  return layoutV1ToV2(layout, { part: STARTER_CONTEXT.part });
 }
 
 function smallLayout(): Layout {
   const platform = { ...newPlatform(randomUUID(), 2500, 4000), style: 'stageDeck' as const };
-  return {
+  return migratedLayout({
     ...emptyLayout(),
     walls: [newWall(randomUUID(), 4000, 3000), { ...newWall(randomUUID(), 5300, 3000) }],
     braces: [newBrace(randomUUID(), 4000, 3300)],
     placeholders: [{ ...newPlaceholder('table', randomUUID(), 1000, 1000) }],
     platforms: [platform],
     stairs: [newStair(randomUUID(), AUDIENCE_FLOOR_ID, platform.id, 5200, 4500)],
-  };
+  });
 }
 
 function denseLayout() {
@@ -458,7 +464,7 @@ function denseLayout() {
   });
   const placeholders = Array.from({ length: 250 }, (_, index) => newPlaceholder('chair', randomUUID(), 2500 + (index % 25) * 550, 8000 + Math.floor(index / 25) * 700));
   const walls = Array.from({ length: 10 }, (_, index) => newWall(randomUUID(), 2000 + index * 1300, 6800));
-  const layout: Layout = { ...emptyLayout(), walls, platforms, placeholders };
+  const layout = migratedLayout({ ...emptyLayout(), walls, platforms, placeholders });
   return { layout, objects: { chairs: placeholders.length, stageDeckPlatforms: platforms.length, walls: walls.length } };
 }
 

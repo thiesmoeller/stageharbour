@@ -5,6 +5,7 @@ import { createApp } from '../../src/server/app.js';
 import { bootstrapAdministrator } from '../../src/server/identity/bootstrap.js';
 import { testAdministrator, testDatabase } from '../helpers/database.js';
 import type { SurfaceCatalogClient } from '../../src/server/surfaces/polyHaven.js';
+import { STARTER_PART_IDS } from '../../src/shared/parts/starter/index.js';
 
 let fixture: Awaited<ReturnType<typeof testDatabase>>;
 let app: Awaited<ReturnType<typeof createApp>>;
@@ -89,11 +90,13 @@ test('workspace and production PBR surfaces share authenticated texture files wi
   assert.equal(privateSurface.statusCode, 201, privateSurface.body);
   await app.inject({ method: 'POST', url: `/api/workspaces/${fixture.config.WORKSPACE_ID}/scenes/${scene.id}/lease`, headers });
   const layout = {
-    schemaVersion: 1, walls: [], braces: [],
-    platforms: [{
-      id: randomUUID(), label: 'Show floor', elevation: 400,
-      outline: [{ x: 0, y: 0 }, { x: 2000, y: 0 }, { x: 2000, y: 1000 }, { x: 0, y: 1000 }],
-      surfaces: { top: { kind: 'registry', surfaceId: privateSurface.json().id } },
+    schemaVersion: 2, joints: [],
+    objects: [{
+      id: randomUUID(), label: 'Show floor',
+      part: { id: STARTER_PART_IDS.floatingPlatform, revision: 1 },
+      values: { B: 2000, T: 1000, H: 400 },
+      x: 1000, y: 500, rotation: 0,
+      finishes: { top: { kind: 'registry', surfaceId: privateSurface.json().id } },
     }],
   };
   assert.equal((await app.inject({

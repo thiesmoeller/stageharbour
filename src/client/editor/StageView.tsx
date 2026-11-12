@@ -20,6 +20,9 @@ import type { HangPlan } from '../../shared/hangPlan.js';
 import type { Asset } from '../../shared/assets.js';
 import type { StageViewPreset as StageCameraView } from '../stage/cameraFraming.js';
 import type { StageEditing } from './StageEditing.js';
+import { useLayoutParts } from './useLayoutParts.js';
+import { resolveLayoutObjects } from '../../shared/layoutObjects.js';
+import { supportingSurfaces } from '../../shared/levels.js';
 const RaumsichtCanvas = lazy(() => import('./RaumsichtCanvas.js'));
 
 import type { StageCaptureHandle } from './StageCapture.js';
@@ -47,6 +50,15 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
 } & StageEditing) {
   const dock = useContext(EditorDockContext);
   const model = stageModel(layout, venue);
+  const catalog = useLayoutParts(workspaceId, layout);
+  const supportElevations = useMemo(
+    () => new Map(supportingSurfaces(venue).map(surface => [surface.id, surface.elevation])),
+    [venue],
+  );
+  const resolvedObjects = useMemo(
+    () => resolveLayoutObjects(layout, catalog.index, { supportElevations }),
+    [layout, catalog.index, supportElevations],
+  );
   const curtains = effectiveCurtains(venue, layout);
   const savedLighting = layout.lighting ?? venue.lighting ?? defaultLighting;
   const lighting = useMemo(() => captureLightLook ? { ...savedLighting, enabled: true } : savedLighting, [captureLightLook, savedLighting]);
@@ -165,7 +177,7 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
       onClose={() => selectFixture(null)}
     />}
     </DockPortal>
-    <Suspense fallback={<p role="status">Raumsicht wird geladen …</p>}><RaumsichtCanvas model={model} layout={layout} venue={venue} audience={audience} view={view} assets={assets} workspaceId={workspaceId} lighting={lighting} planDisplay={planDisplay} onCaptureReady={onCaptureReady ?? onFeedbackCaptureReady} aimOnly={exportAim}
+    <Suspense fallback={<p role="status">Raumsicht wird geladen …</p>}><RaumsichtCanvas model={model} layout={layout} venue={venue} resolvedObjects={resolvedObjects} audience={audience} view={view} assets={assets} workspaceId={workspaceId} lighting={lighting} planDisplay={planDisplay} onCaptureReady={onCaptureReady ?? onFeedbackCaptureReady} aimOnly={exportAim}
       enhanced={!simple}
       selectedFixtureId={boardOpen ? selectedFixtureId : null}
       onFixtureSelect={boardOpen ? id => selectFixture(id) : undefined}
@@ -204,6 +216,8 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
       {wall.label}: Vorderseite {facing(wall.frontNormal)}</li>)}</ul>
     <StageBraceList braces={model.braces} />
     <StagePlaceholderList placeholders={model.placeholders} />
+    <ul aria-label="Bauteile in der Raumsicht">{resolvedObjects.map(item => <li key={item.object.id}
+      data-testid={`stage-object-${item.object.id}`}>{item.object.label}: {item.resolved.name}</li>)}</ul>
     <StageLevelList model={model} />
     <StageOverheadList boxes={venue.overheadBoxes ?? []} trusses={venue.trusses ?? []} />
     <StageCurtainList curtains={curtains} />

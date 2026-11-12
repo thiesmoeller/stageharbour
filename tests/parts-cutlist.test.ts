@@ -52,21 +52,21 @@ test('Stützdreieck: other sizes and ballast', () => {
 });
 
 test('Wandelement: net area without the door, weight from the net area', () => {
-  const full = resolvePart(STARTER_WALL, { variant: 'voll' }, STARTER_CONTEXT);
+  const full = resolvePart(STARTER_WALL, { variant: 'plain' }, STARTER_CONTEXT);
   assert.deepEqual(full.cutList.sheets, [{
     material: 'tischlerplatte-28', thicknessMm: 28, widthMm: 1200, heightMm: 2400, count: 1,
     areaMm2: 2_880_000, grossAreaMm2: 2_880_000, weightKg: 36,
   }]);
   assert.equal(full.weightKg, 36);
 
-  const door = resolvePart(STARTER_WALL, { variant: 'tuer' }, STARTER_CONTEXT);
+  const door = resolvePart(STARTER_WALL, { variant: 'doorLeft' }, STARTER_CONTEXT);
   // 1200 × 2400 minus 800 × 2000 = 1,28 m² at 12,5 kg/m².
   assert.deepEqual(door.cutList.sheets, [{
     material: 'tischlerplatte-28', thicknessMm: 28, widthMm: 1200, heightMm: 2400, count: 1,
     areaMm2: 1_280_000, grossAreaMm2: 2_880_000, weightKg: 16,
   }]);
-  assert.equal(door.weightKg, 16);
-  assert.deepEqual(door.cutList.beams, []);
+  assert.equal(door.weightKg, 17.19);
+  assert.equal(door.cutList.beams.find(item => item.material === 'tuerrahmen-25x50')?.count, 2);
 
   const faces = Object.fromEntries(door.faces.map(face => [face.key, face.areaMm2]));
   assert.equal(faces.front, 1_280_000);
@@ -126,7 +126,7 @@ test('door wall and chair: mixed materials', () => {
   const door = resolvePart(DOOR_WALL, { state: { offen: 70 } }, FIXTURE_CONTEXT);
   assert.deepEqual(beamRows(door), [['zarge-60x28', 2000, 2], ['zarge-60x28', 744, 1]]);
   assert.deepEqual(door.cutList.sheets.map(row => [row.material, row.widthMm, row.heightMm, row.areaMm2]), [
-    ['tischlerplatte-28', 1200, 2400, 1_280_000], ['tuerblatt-40', 744, 1972, 744 * 1972],
+    ['fixture-tuerblatt-40', 744, 1972, 744 * 1972], ['tischlerplatte-28', 1200, 2400, 1_280_000],
   ]);
   // Wall 1,28 m² at 12,5; frame 4,744 m at 1,2; leaf 0,744 × 1,972 m² at 20. The swing changes nothing.
   assertClose(door.weightKg, 16 + 5.6928 + 29.34336, 'door wall weight');

@@ -1,7 +1,6 @@
 import type { Layout, VenueGeometry } from '../../shared/layout.js';
-import { wallCorners } from '../../shared/layout.js';
 import { planReportExtent, type PlanReportScope } from '../../shared/planReportExtent.js';
-import { resolveWall } from '../../shared/wall-types.js';
+import type { ResolvedLayoutObject } from '../../shared/layoutObjects.js';
 
 export type PlanPreviewData = {
   width: number;
@@ -16,15 +15,15 @@ export type PlanPreviewData = {
 };
 
 /** Whole hall and scenery, so a rubber band can pick any part of the drawing. */
-export function fullPlanPreview(venue: VenueGeometry, layout: Layout): PlanPreviewData {
-  const hall = planReportExtent(venue, layout, 'venue', 0);
-  const scenery = planReportExtent(venue, layout, 'scenery', 0);
+export function fullPlanPreview(venue: VenueGeometry, layout: Layout, objects: readonly ResolvedLayoutObject[] = []): PlanPreviewData {
+  const hall = planReportExtent(venue, layout, 'venue', 0, objects);
+  const scenery = planReportExtent(venue, layout, 'scenery', 0, objects);
   const minX = Math.min(hall.minX, scenery.minX);
   const minY = Math.min(hall.minY, scenery.minY);
   const maxX = Math.max(hall.maxX, scenery.maxX);
   const maxY = Math.max(hall.maxY, scenery.maxY);
   return {
-    ...planPreviewFromScene(venue, layout, 'venue'),
+    ...planPreviewFromScene(venue, layout, 'venue', objects),
     width: Math.max(1, maxX - minX),
     depth: Math.max(1, maxY - minY),
     originX: minX,
@@ -36,17 +35,16 @@ export function planPreviewFromScene(
   venue: VenueGeometry,
   layout: Layout,
   scope: PlanReportScope = 'venue',
+  objects: readonly ResolvedLayoutObject[] = [],
 ): PlanPreviewData {
-  const extent = planReportExtent(venue, layout, scope, scope === 'scenery' ? 400 : 0);
+  const extent = planReportExtent(venue, layout, scope, scope === 'scenery' ? 400 : 0, objects);
   return {
     width: Math.max(1, extent.maxX - extent.minX),
     depth: Math.max(1, extent.maxY - extent.minY),
     originX: extent.minX,
     originY: extent.minY,
-    walls: (layout.walls ?? []).map(wall => ({
-      corners: wallCorners(resolveWall(wall, layout.wallTypes ?? [])),
-    })),
-    platforms: [...(venue.platforms ?? []), ...(layout.platforms ?? [])].map(platform => ({ outline: platform.outline })),
+    walls: objects.map(object => ({ corners: object.footprint })),
+    platforms: (venue.platforms ?? []).map(platform => ({ outline: platform.outline })),
   };
 }
 

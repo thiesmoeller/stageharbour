@@ -5,6 +5,7 @@ import { Vector2, Vector3, type Object3D } from 'three';
 import type { Asset } from '../../shared/assets.js';
 import { focusTowardPoint, patchFixtureFocus, type HangPlan } from '../../shared/hangPlan.js';
 import type { Layout, VenueGeometry } from '../../shared/layout.js';
+import type { ResolvedLayoutObject } from '../../shared/layoutObjects.js';
 import { defaultLighting, type StageLightingSettings } from '../../shared/lighting.js';
 import type { PlanDisplayOptions } from '../../shared/planDisplay.js';
 import { defaultPlanDisplay } from '../../shared/planDisplay.js';
@@ -31,6 +32,7 @@ import { StageTransformControls } from './StageTransformControls.js';
 import { ToolIcon } from './ToolIcon.js';
 import { VenueFloor } from './VenueFloor.js';
 import { useBlockBrowserZoom } from './viewportWheel.js';
+import { StageParts } from './StageParts.js';
 
 /**
  * Clears the selection on a click that hits nothing but the floor. A press that moves more than
@@ -200,8 +202,8 @@ class WebGlBoundary extends Component<{ children: ReactNode }, { failed: boolean
 const SOLID_DISPLAY: SurfaceDisplay = { shading: 'solid', textures: false };
 const RENDERED_DISPLAY: SurfaceDisplay = { shading: 'rendered', textures: true };
 
-export default function RaumsichtCanvas({ model, layout, venue, audience, view = audience ? 'audience' : 'orbit', assets, workspaceId, lighting = defaultLighting, planDisplay = defaultPlanDisplay, onCaptureReady, aimOnly = false, enhanced = true, selectedFixtureId, onFixtureSelect, focusAimMode, onHangPlanChange, lightBoardLive, showFixturePools = false, toolbarHost = null, ...editing }: {
-  model: StageModel; layout: Layout; venue: VenueGeometry; audience: boolean; view?: StageViewPreset; assets: Asset[]; workspaceId: string; lighting?: StageLightingSettings;
+export default function RaumsichtCanvas({ model, layout, venue, resolvedObjects, audience, view = audience ? 'audience' : 'orbit', assets, workspaceId, lighting = defaultLighting, planDisplay = defaultPlanDisplay, onCaptureReady, aimOnly = false, enhanced = true, selectedFixtureId, onFixtureSelect, focusAimMode, onHangPlanChange, lightBoardLive, showFixturePools = false, toolbarHost = null, ...editing }: {
+  model: StageModel; layout: Layout; venue: VenueGeometry; resolvedObjects: readonly ResolvedLayoutObject[]; audience: boolean; view?: StageViewPreset; assets: Asset[]; workspaceId: string; lighting?: StageLightingSettings;
   planDisplay?: PlanDisplayOptions;
   onCaptureReady?: (handle: StageCaptureHandle | null) => void;
   aimOnly?: boolean;
@@ -302,6 +304,7 @@ export default function RaumsichtCanvas({ model, layout, venue, audience, view =
               <group position={[mirrorWidth / 1000, 0, 0]} scale={[-1, 1, 1]}>
                 <group scale={0.001}>
                   <VenueFloor venue={venue} />
+                  <StageParts objects={resolvedObjects} />
                   <StageInstanceBatches />
                 </group>
               </group>

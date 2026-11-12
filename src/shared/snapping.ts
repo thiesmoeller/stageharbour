@@ -1,6 +1,8 @@
 import { groupOf, groupPivot, membersPivot, transformGroup, transformMembers, type Group, type GroupPose } from './groups.js';
 import { polygonsInteriorOverlap } from './overlap.js';
 import { type StageCentreline } from './centreline.js';
+import { connectorsMate } from './parts/definition.js';
+import type { ResolvedLayoutObject } from './layoutObjects.js';
 
 export { stageCentrelineSchema, centrelineSchema, defaultCentreline, type StageCentreline } from './centreline.js';
 
@@ -24,15 +26,13 @@ type BracePose = {
 };
 
 export type SnapGuide = {
-  kind: 'wall-edge' | 'centreline' | 'wall-anchor';
+  kind: 'wall-edge' | 'centreline' | 'wall-anchor' | 'connector';
   a: { x: number; y: number }; b: { x: number; y: number };
 };
 export type SnapOptions = { bypass?: boolean; snapAngles?: boolean; fixedWalls?: SnapWall[] };
 export type SnapWall = { id: string; x: number; y: number; rotation: number; width: number; thickness: number };
 type SnapLayout = {
-  walls: SnapWall[];
-  braces?: { id: string; x: number; y: number; rotation: number }[];
-  stairs?: { id: string; x: number; y: number; rotation: number }[];
+  objects: SnapWall[];
   groups?: Group[];
 };
 type PlanPoint = { x: number; y: number };
@@ -128,6 +128,7 @@ export function snapStatusText(input: {
   const kinds = new Set((input.guides ?? []).map(guide => guide.kind));
   if (kinds.has('wall-edge')) parts.push('Wandkante');
   if (kinds.has('wall-anchor')) parts.push('Teilung ⅓·½·⅔');
+  if (kinds.has('connector')) parts.push('Verbinder');
   if (kinds.has('centreline')) parts.push('Mittellinie');
   if (!parts.length) return undefined;
   return `Eingerastet · ${parts.join(' · ')}`;
@@ -250,16 +251,16 @@ export function snapGroupPose(layout: SnapLayout, groupId: string, pose: GroupPo
 }
 
 export function snapMembersPose(
-  layout: SnapLayout, members: { kind: 'wall' | 'brace' | 'stair' | 'placeholder'; id: string }[],
+  layout: SnapLayout, members: { kind: 'object'; id: string }[],
   pose: GroupPose, baseRotation: number, centreline: StageCentreline | undefined, options?: SnapOptions,
 ) {
   if (options?.bypass || members.length === 0) return { pose, guides: [] as SnapGuide[] };
   const rotation = options?.snapAngles ? snapRotation(pose.rotation) : pose.rotation;
   const proposed = { ...pose, rotation };
   const moved = transformMembers(layout, members, proposed, baseRotation);
-  const memberIds = new Set(members.filter(member => member.kind === 'wall').map(member => member.id));
-  const moving = moved.walls.filter(wall => memberIds.has(wall.id));
-  const others = [...layout.walls.filter(wall => !memberIds.has(wall.id)), ...options?.fixedWalls ?? []];
+  const memberIds = new Set(members.map(member => member.id));
+  const moving = moved.objects.filter(object => memberIds.has(object.id));
+  const others = [...layout.objects.filter(object => !memberIds.has(object.id)), ...options?.fixedWalls ?? []];
   const { dx, dy, guides } = translationFor(moving, others, centreline, membersPivot(moved, members));
   return { pose: { x: clean(proposed.x + dx), y: clean(proposed.y + dy), rotation }, guides };
 }
@@ -267,7 +268,9 @@ export function snapMembersPose(
 function clean(value: number) {
   if (Math.abs(value) < 1e-9) return 0;
   const rounded = Math.round(value);
-  return Math.abs(value - rounded) < 1e-9 ? rounded : value;
+  // Pointer coordinates pass through the browser's SVG matrix and routinely pick up
+  // sub-micron noise. Do not persist that noise after a connector/edge snap.
+  return Math.abs(value - rounded) < 1e-3 ? rounded : value;
 }
 
 function wrapDelta(value: number) {
@@ -525,4 +528,50 @@ function poseOverlapsOthers(moving: SnapWall[], others: SnapWall[], dx: number, 
     }
   }
   return false;
+}
+
+/**
+ * Snap a v2 object by mating the nearest compatible connector. Connector geometry comes from the
+ * resolved part, so group-defined connector kinds participate without editor-specific code.
+ */
+export function snapObjectConnectors(
+  moving: ResolvedLayoutObject,
+  others: readonly ResolvedLayoutObject[],
+  options?: { bypass?: boolean; maxDistance?: number },
+) {
+  if (options?.bypass) return { x: moving.object.x, y: moving.object.y, guides: [] as SnapGuide[] };
+  const maxDistance = options?.maxDistance ?? SNAP_DISTANCE_MM;
+  let best: {
+    dx: number; dy: number; distance: number;
+    moving: ResolvedLayoutObject['connectors'][number];
+    target: ResolvedLayoutObject['connectors'][number];
+  } | undefined;
+  for (const connector of moving.connectors) {
+    for (const other of others) {
+      if (other.object.id === moving.object.id) continue;
+      for (const target of other.connectors) {
+        if (!connectorsMate(connector, target)) continue;
+        const dx = target.position.x - connector.position.x;
+        const dy = target.position.z - connector.position.z;
+        const distance = Math.hypot(dx, dy);
+        if (distance > maxDistance || best && best.distance <= distance) continue;
+        best = { dx, dy, distance, moving: connector, target };
+      }
+    }
+  }
+  if (!best) return { x: moving.object.x, y: moving.object.y, guides: [] as SnapGuide[] };
+  return {
+    x: clean(moving.object.x + best.dx),
+    y: clean(moving.object.y + best.dy),
+    guides: [{
+      kind: 'connector' as const,
+      a: { x: best.moving.position.x, y: best.moving.position.z },
+      b: { x: best.target.position.x, y: best.target.position.z },
+    }],
+    connection: {
+      moving: best.moving.id,
+      targetObject: others.find(object => object.connectors.includes(best!.target))?.object.id,
+      target: best.target.id,
+    },
+  };
 }

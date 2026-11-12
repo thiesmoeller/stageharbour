@@ -19,8 +19,8 @@ test('technical recipient PDF uses the deterministic server renderer and named s
   await createProduction(page, { productionName: 'Serverdokument', venueName: 'Saal', sceneName: 'Aufbau' });
   await placeWallAt(page, 2500, 3000);
   await expect(page.locator('.save-status')).toHaveText('Gespeichert');
-  await revealEditorCommand(page, 'PDF gestalten');
-  await page.getByRole('button', { name: 'PDF gestalten' }).click();
+  await revealEditorCommand(page, 'Ausgabe erstellen');
+  await page.getByRole('button', { name: 'Ausgabe erstellen' }).click();
   const workspace = page.getByRole('dialog', { name: 'Dokument erstellen' });
   await workspace.getByLabel('Bezeichnung der Fassung').fill('Technikfassung');
   await workspace.getByText('Einleitung und Kontakt', { exact: true }).click();
@@ -45,8 +45,8 @@ test('performer PDF omits construction schedules', async ({ page }) => {
   await signInToPlans(page);
   await createProduction(page, { productionName: 'Spielplan', venueName: 'Saal', sceneName: 'Abend' });
   await expect(page.locator('.save-status')).toHaveText('Gespeichert');
-  await revealEditorCommand(page, 'PDF gestalten');
-  await page.getByRole('button', { name: 'PDF gestalten' }).click();
+  await revealEditorCommand(page, 'Ausgabe erstellen');
+  await page.getByRole('button', { name: 'Ausgabe erstellen' }).click();
   const workspace = page.getByRole('dialog', { name: 'Dokument erstellen' });
   await workspace.getByRole('button', { name: /Darstellende/ }).click();
   await workspace.getByRole('button', { name: 'Inhalt', exact: true }).click();

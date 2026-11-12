@@ -124,25 +124,3 @@ export function rotateReportFrame(frame: ReportFrame): ReportFrame {
   const next = frame.rotation === 0 ? 90 : 0;
   return { ...frame, rotation: next as 0 | 90, width: frame.height, height: frame.width };
 }
-
-/** Drop deprecated scene-layout templates (they belong on the venue). */
-export function stripLayoutReportTemplates<T extends { reportTemplates?: ReportTemplate[] }>(layout: T): T {
-  const { reportTemplates: _removed, ...rest } = layout;
-  return rest as T;
-}
-
-/**
- * Move report templates from an old scene layout onto the venue when the venue has none yet.
- * Templates are venue constraints shared by every play.
- */
-export function liftReportTemplatesToVenue<L extends { reportTemplates?: ReportTemplate[] }, V>(
-  layout: L,
-  venue: V & { reportTemplates?: ReportTemplate[] },
-): { layout: L; venue: V & { reportTemplates?: ReportTemplate[] } } {
-  const lifted = layout.reportTemplates;
-  const nextLayout = stripLayoutReportTemplates(layout);
-  if (!lifted?.length || (venue.reportTemplates?.length ?? 0) > 0) {
-    return { layout: nextLayout, venue };
-  }
-  return { layout: nextLayout, venue: { ...venue, reportTemplates: lifted } };
-}

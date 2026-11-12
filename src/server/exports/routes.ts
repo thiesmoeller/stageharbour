@@ -6,8 +6,11 @@ import { z } from 'zod';
 import { errorSchema, workspaceParamsSchema } from '../../shared/contracts.js';
 import { constructionSnapshotSchema, exportListSchema, exportPreviewResultSchema, exportPreviewSchema, exportRevisionSchema, freezeExportSchema, freezeSnapshot, type ConstructionSnapshot, type ExportRevision } from '../../shared/export.js';
 import { sceneSchema } from '../../shared/layout.js';
+import { migrateLayout } from '../../shared/layoutMigrate.js';
+import { createLayoutPartIndex, resolveLayoutObjects } from '../../shared/layoutObjects.js';
 import type { Database } from '../db/connection.js';
-import { adaptation, constructionPlanRevision, inventoryPanel, production, scene, venue, venueVersion } from '../db/schema.js';
+import { adaptation, constructionPlanRevision, production, scene, stockItem, venue, venueVersion } from '../db/schema.js';
+import { loadAllRevisions, loadMaterials } from '../parts/data.js';
 import { AccessError, type createAccess } from '../identity/access.js';
 import type { FileStorage } from './storage.js';
 import { pdfForStoredSnapshot } from './documentRoutes.js';
@@ -41,13 +44,25 @@ export function registerExportRoutes(
       .innerJoin(venue, eq(venueVersion.venueId, venue.id))
       .where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, sceneId)));
     if (!record) throw new AccessError(404, 'Bühnenbild nicht verfügbar.');
+    if ((record.layout as { schemaVersion?: unknown }).schemaVersion === 1) {
+      const index = await layoutIndex(workspaceId);
+      record.layout = migrateLayout(record.layout, index);
+      await db.update(scene).set({ layout: record.layout }).where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, sceneId)));
+    }
     return sceneSchema.parse({ ...record, lease: null });
   }
-  async function panelLabels(workspaceId: string, panelIds: string[]) {
-    const ids = [...new Set(panelIds)];
+  async function layoutIndex(workspaceId: string) {
+    const [revisions, materials] = await Promise.all([loadAllRevisions(db, workspaceId), loadMaterials(db, workspaceId)]);
+    return createLayoutPartIndex({
+      parts: [...revisions.values()].flatMap(items => [...items.values()]),
+      materials: [...materials.values()],
+    });
+  }
+  async function stockLabels(workspaceId: string, itemIds: string[]) {
+    const ids = [...new Set(itemIds)];
     if (!ids.length) return {};
-    const rows = await db.select({ id: inventoryPanel.id, label: inventoryPanel.label })
-      .from(inventoryPanel).where(and(eq(inventoryPanel.workspaceId, workspaceId), inArray(inventoryPanel.id, ids)));
+    const rows = await db.select({ id: stockItem.id, label: stockItem.label })
+      .from(stockItem).where(and(eq(stockItem.workspaceId, workspaceId), inArray(stockItem.id, ids)));
     return Object.fromEntries(rows.map(row => [row.id, row.label]));
   }
   async function loadRevision(workspaceId: string, sceneId: string, exportId: string) {
@@ -82,12 +97,14 @@ export function registerExportRoutes(
     const loaded = await loadScene(request.params.workspaceId, request.params.sceneId);
     const id = randomUUID();
     const issuedAt = new Date();
+    const index = await layoutIndex(request.params.workspaceId);
+    const objects = resolveLayoutObjects(loaded.layout, index);
     const snapshot = freezeSnapshot(loaded, {
       id, name: request.body.name, issuedAt, paper: request.body.paper, scale: request.body.scale,
       elevationGroupIds: request.body.elevationGroupIds, layers: request.body.layers,
-    }, await panelLabels(
-      request.params.workspaceId, loaded.layout.walls.flatMap(wall => wall.panelId ? [wall.panelId] : []),
-    ));
+    }, await stockLabels(
+      request.params.workspaceId, loaded.layout.objects.flatMap(object => object.stockItemId ? [object.stockItemId] : []),
+    ), objects);
     await db.insert(constructionPlanRevision).values({
       id, workspaceId: request.params.workspaceId, sceneId: request.params.sceneId, name: request.body.name,
       scale: snapshot.scale, status: 'pending', snapshot, createdAt: issuedAt,
@@ -99,13 +116,15 @@ export function registerExportRoutes(
   api.post(`${path}/preview`, { schema: { params, body: exportPreviewSchema, response: { 200: exportPreviewResultSchema, ...errors } } }, async request => {
     await access(request, request.params.workspaceId);
     const loaded = await loadScene(request.params.workspaceId, request.params.sceneId);
+    const index = await layoutIndex(request.params.workspaceId);
+    const objects = resolveLayoutObjects(loaded.layout, index);
     const snapshot = freezeSnapshot(loaded, {
       id: randomUUID(), name: 'Vorschau', issuedAt: new Date(),
       paper: request.body.paper, scale: request.body.scale,
       elevationGroupIds: request.body.elevationGroupIds, layers: request.body.layers,
-    }, await panelLabels(
-      request.params.workspaceId, loaded.layout.walls.flatMap(wall => wall.panelId ? [wall.panelId] : []),
-    ));
+    }, await stockLabels(
+      request.params.workspaceId, loaded.layout.objects.flatMap(object => object.stockItemId ? [object.stockItemId] : []),
+    ), objects);
     return constructionPageBreakdown(snapshot);
   });
   api.post(`${path}/:exportId/retry`, { schema: { params: item, response: { 200: exportRevisionSchema, ...errors } } }, async (request, reply) => {

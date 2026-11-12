@@ -7,9 +7,9 @@ for (const kind of ['stage', 'venue'] as const) {
     const file = editorMenu(page, 'Datei');
     const edit = editorMenu(page, 'Bearbeiten');
     const view = editorMenu(page, 'Ansicht');
-    const fileCommand = page.getByRole('button', { name: kind === 'stage' ? 'PDF gestalten' : 'Entwurf herunterladen', exact: true });
+    const fileCommand = page.getByRole('button', { name: kind === 'stage' ? 'Ausgabe erstellen' : 'Entwurf herunterladen', exact: true });
     const backCommand = page.getByRole('navigation', { name: 'Editor-Menüs' }).getByRole('button', {
-      name: kind === 'stage' ? 'Zur Übersicht' : 'Spielstätte schließen', exact: true,
+      name: kind === 'stage' ? 'Bühnenbild schließen' : 'Zur Spielstättenübersicht', exact: true,
     });
 
     await file.focus();
@@ -34,18 +34,22 @@ for (const kind of ['stage', 'venue'] as const) {
     await page.getByRole('heading', { name: `${kind} keyboard menus ${kind === 'stage' ? 'Bild' : 'Saal'}`, exact: true }).click();
     await expect(fileCommand).toBeHidden();
 
-    await view.click();
-    await page.getByRole('button', { name: 'Anzeige einstellen', exact: true }).click();
+    if (kind === 'venue') {
+      await view.click();
+      await page.getByRole('button', { name: 'Anzeige einstellen', exact: true }).click();
+    } else await page.getByRole('button', { name: 'Anzeige', exact: true }).click();
     await expectActiveDock(page, 'Anzeige');
-    await expect(view).toBeFocused();
-    await expect(page.getByRole('button', { name: 'Anzeige einstellen', exact: true })).toBeHidden();
+    if (kind === 'venue') {
+      await expect(view).toBeFocused();
+      await expect(page.getByRole('button', { name: 'Anzeige einstellen', exact: true })).toBeHidden();
+    }
     await file.click();
     await page.keyboard.press('Escape');
     await expect(file).toBeFocused();
     await expectActiveDock(page, 'Anzeige');
   });
 
-  test(`${kind} fullscreen repeatedly moves one functioning menu bar without resetting the dock`, async ({ page }) => {
+  if (kind === 'venue') test(`${kind} fullscreen repeatedly moves one functioning menu bar without resetting the dock`, async ({ page }) => {
     await openEditorShell(page, kind, `${kind} fullscreen menus`);
     await page.getByRole('button', { name: 'Anzeige', exact: true }).click();
     await page.getByRole('checkbox', { name: 'Namen', exact: true }).uncheck();

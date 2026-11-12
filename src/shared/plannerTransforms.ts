@@ -1,7 +1,7 @@
 import { normalizeRotation, selectionPivot, transformSelection, type PlanTransform } from './editing.js';
 import type { Layout, VenueGeometry } from './layout.js';
 import type { SelectableMember } from './selection.js';
-import { braceAsSnapWall, snapRotation, translationFor, type SnapGuide, type SnapWall, type StageCentreline } from './snapping.js';
+import { snapRotation, translationFor, type SnapGuide, type SnapWall, type StageCentreline } from './snapping.js';
 import { transformVenue, venueObjectFootprint, venueObjects, venueSelectionPivot, type VenueObject } from './venueEditing.js';
 import { resolveWall } from './wall-types.js';
 
@@ -48,7 +48,7 @@ function adjust(delta: PlanTransform, operation: TransformOperation, baseRotatio
 export function layoutSelectionRotation(layout: Layout, members: readonly SelectableMember[]) {
   if (members.length === 1) {
     const id = members[0]!.id;
-    return objectRotation([...layout.walls, ...layout.braces, ...layout.stairs ?? [], ...layout.placeholders ?? [], ...layout.platforms ?? []].find(item => item.id === id) ?? {});
+    return layout.objects.find(item => item.id === id)?.rotation ?? 0;
   }
   const group = layout.groups?.find(item => item.members.length === members.length && item.members.every(m => members.some(p => p.id === m.id)));
   return group?.rotation ?? 0;
@@ -58,11 +58,9 @@ export function layoutSelectionRotation(layout: Layout, members: readonly Select
 export function transformLayoutGesture(layout: Layout, venue: VenueGeometry, members: readonly SelectableMember[], delta: PlanTransform, operation: TransformOperation, bypass: boolean) {
   const ids = new Set(members.map(item => item.id));
   const candidate = transformSelection(layout, members, { ...delta, rotation: 0 });
-  const geometry: VenueGeometry = { ...candidate, width: venue.width, depth: venue.depth };
-  const moving = [...venueObjects(geometry).filter(item => ids.has(item.id)).flatMap(item => shapes(item, geometry)),
-    ...candidate.braces.filter(item => ids.has(item.id)).map(braceAsSnapWall)];
-  const others = [...layout.walls.filter(item => !ids.has(item.id)).map(item => resolveWall(item, layout.wallTypes ?? [])),
-    ...(venue.walls ?? []).map(item => resolveWall(item, venue.wallTypes ?? []))];
+  const moving = candidate.objects.filter(item => ids.has(item.id))
+    .map(item => ({ id: item.id, x: item.x, y: item.y, rotation: item.rotation, width: 0, thickness: 0 }));
+  const others = (venue.walls ?? []).map(item => resolveWall(item, venue.wallTypes ?? []));
   const snapped = adjust(delta, operation, layoutSelectionRotation(layout, members), bypass, moving, others, venue.stageCentreline, selectionPivot(candidate, members));
   return { layout: transformSelection(layout, members, snapped.delta), guides: snapped.guides };
 }

@@ -51,7 +51,7 @@ test('light look and active id round-trip on layout', () => {
   const look = newLightLook(randomUUID(), 'Kneipe warm');
   look.fixtures[randomUUID()] = { intensity: 80, color: '#ffcc88', beam: 45, barnDoors: openBarnDoors };
   const layout = layoutSchema.parse({
-    schemaVersion: 1, walls: [], braces: [],
+    schemaVersion: 2, objects: [], joints: [],
     lightLooks: [look], activeLightLookId: look.id,
   });
   assert.equal(layout.lightLooks?.[0]!.name, 'Kneipe warm');

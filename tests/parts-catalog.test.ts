@@ -72,7 +72,7 @@ test('materials stay while a part uses them and keep their kind while it does', 
   assert.equal(fail(planMaterialDelete('gibt-es-nicht', undefined, users)).status, 404);
   const used = fail(planMaterialDelete('latte-40x40', material('latte-40x40'), users));
   assert.equal(used.status, 409);
-  assert.match(used.message, /„Stützdreieck“, „Kiste 1“/);
+  assert.match(used.message, /„Kiste 1“, „Stützdreieck“/);
   const many = Array.from({ length: 8 }, (_, index) => crate(index + 1, `Kiste ${index + 1}`));
   assert.match(fail(planMaterialDelete('latte-40x40', material('latte-40x40'), many)).message, /und 3 weitere/);
   assert.deepEqual(value(planMaterialDelete('betonplatte-400', material('betonplatte-400'), [crate(1)])), null);

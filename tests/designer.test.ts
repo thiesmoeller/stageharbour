@@ -82,17 +82,17 @@ test('views of the Stützdreieck show its footprint, elevation and side', () => 
 });
 
 test('a sheet facing the viewer is drawn with its cut-outs; edge connectors become lines', () => {
-  const wall = resolvePart(STARTER_WALL, { variant: 'tuer' }, STARTER_CONTEXT);
+  const wall = resolvePart(STARTER_WALL, { variant: 'doorLeft' }, STARTER_CONTEXT);
   const front = buildPartView('front', wall);
   const sheet = front.shapes.find(shape => shape.solid === 'platte')!;
   assert.equal((sheet.d.match(/M/g) ?? []).length, 1);
   assert.equal((sheet.d.match(/[ML]/g) ?? []).length, 8);
-  assert.deepEqual(front.size, { width: 1200, height: 2400 });
+  assert.deepEqual(front.size, { width: 1200, height: 2425 });
   const hinge = front.connectors.find(connector => connector.id === 'links')!;
   assert.deepEqual(hinge.at, { x: -600, y: -0 });
   assert.deepEqual(hinge.end, { x: -600, y: -2400 });
   const top = buildPartView('top', wall);
-  assert.deepEqual(top.size, { width: 1200, height: 28 });
+  assert.deepEqual(top.size, { width: 1200, height: 78 });
 });
 
 test('solids of child parts select the child; views paint back to front', () => {
@@ -120,26 +120,26 @@ test('a new part is a valid definition and new bodies get free keys', () => {
   const body = newBody('sheet', definition, STARTER_MATERIALS);
   assert.equal(body.key, 'platte-2');
   assert.equal(body.material, 'sperrholz-12');
-  assert.equal(newBody('box', definition, STARTER_MATERIALS).material, 'gummifuss-50');
+  assert.equal(newBody('box', definition, STARTER_MATERIALS).material, 'aluminium-koerper');
   assert.equal(uniqueKey('bein', ['bein', 'bein-2']), 'bein-3');
 });
 
 test('list helpers move, and parameter edits keep variants consistent', () => {
   assert.deepEqual(moveItem(['a', 'b', 'c'], 0, 1), ['b', 'a', 'c']);
   assert.deepEqual(moveItem(['a', 'b', 'c'], 2, 1), ['a', 'b', 'c']);
-  const renamed = updateParameter(STARTER_BRACE, 0, { ...STARTER_BRACE.parameters[0]!, key: 'tiefe' });
+  const renamed = updateParameter(STARTER_BRACE, 1, { ...STARTER_BRACE.parameters[1]!, key: 'tiefe' });
   assert.deepEqual(renamed.variants![0]!.values, { H: 1200, tiefe: 500 });
-  const placement = updateParameter(STARTER_BRACE, 1, { ...STARTER_BRACE.parameters[1]!, scope: 'placement' });
+  const placement = updateParameter(STARTER_BRACE, 2, { ...STARTER_BRACE.parameters[2]!, scope: 'placement' });
   assert.deepEqual(placement.variants![1]!.values, { T: 400 });
-  const toVariant = updateParameter(STARTER_BRACE, 2, { ...STARTER_BRACE.parameters[2]!, scope: 'variant' });
+  const toVariant = updateParameter(STARTER_BRACE, 5, { ...STARTER_BRACE.parameters[5]!, scope: 'variant' });
   assert.equal(toVariant.variants![0]!.values.ballast, 0);
-  assert.deepEqual(removeParameter(STARTER_BRACE, 0).variants![2]!.values, { H: 2400 });
+  assert.deepEqual(removeParameter(STARTER_BRACE, 1).variants![2]!.values, { H: 2400 });
   assert.deepEqual(newVariant(STARTER_BRACE).values, { T: 500, H: 1200 });
   assert.equal(newVariant(STARTER_BRACE).key, 'variante');
-  const toggle = withParameterType(STARTER_BRACE.parameters[0]!, 'toggle');
+  const toggle = withParameterType(STARTER_BRACE.parameters[1]!, 'toggle');
   assert.equal(toggle.range, undefined);
   assert.equal(toggle.default, 1);
-  assert.deepEqual(withParameterDomain(STARTER_BRACE.parameters[0]!, 'values').values, [500]);
+  assert.deepEqual(withParameterDomain(STARTER_BRACE.parameters[1]!, 'values').values, [500]);
   assert.deepEqual(withParameterDomain(STARTER_DECK.parameters[0]!, 'range').range, { min: 1000, max: 2000 });
 });
 
