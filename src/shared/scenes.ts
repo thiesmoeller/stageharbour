@@ -1,7 +1,9 @@
 import { AUDIENCE_FLOOR_ID, type PlacementDiagnostic } from './levels.js';
 import type { KeepClearWarning } from './keepClear.js';
+import type { DimensionAnchor } from './dimensionSchema.js';
 import type { Layout, VenueGeometry } from './layout.js';
 import type { OverheadWarning } from './overhead.js';
+import { measuredOutline } from './venue.js';
 import { pruneVenueFixtureState } from './venueFixtures.js';
 
 function remapDimensionAnchor<T extends Record<string, unknown>>(anchor: T, ids: ReadonlyMap<string, string>): T {
@@ -83,9 +85,26 @@ function adaptationDiagnostics(layout: Layout, destination: VenueGeometry): Plac
   return diagnostics;
 }
 
+/** A venue-owned dimension anchor in the destination venue, or undefined when it has no counterpart there. */
+function venueAnchor(anchor: DimensionAnchor, destination: VenueGeometry, surfaceMap: Readonly<Record<string, string>>): DimensionAnchor | undefined {
+  switch (anchor.kind) {
+    case 'outline': return anchor.index < measuredOutline(destination).length ? anchor : undefined;
+    case 'outlineEdge': return anchor.edge < measuredOutline(destination).length ? anchor : undefined;
+    case 'wall': case 'wallEdge':
+      return anchor.scope === 'scene' || (destination.walls ?? []).some(wall => wall.id === anchor.wallId) ? anchor : undefined;
+    case 'platform': case 'platformEdge': {
+      if (anchor.scope === 'scene') return anchor;
+      const platformId = surfaceMap[anchor.platformId];
+      return platformId && (destination.platforms ?? []).some(platform => platform.id === platformId) ? { ...anchor, platformId } : undefined;
+    }
+    case 'brace': return anchor;
+  }
+}
+
 /**
- * Copy to another venue. Object-owned support chains survive; venue-owned support ids are mapped
- * explicitly. Physical stock assignments are deliberately cleared.
+ * Copy to another venue. Object-owned support chains survive; venue-owned support ids and
+ * dimension anchors are mapped explicitly, and dimensions to venue parts without a counterpart
+ * are dropped. Physical stock assignments are deliberately cleared.
  */
 export function copyLayoutIntoVenue(
   layout: Layout,
@@ -103,9 +122,15 @@ export function copyLayoutIntoVenue(
       : object.support === AUDIENCE_FLOOR_ID ? AUDIENCE_FLOOR_ID : undefined;
     return { ...withoutStock, support };
   });
+  const dimensions = transferred.dimensions?.flatMap(dimension => {
+    const a = venueAnchor(dimension.a, destination, surfaceMap);
+    const b = venueAnchor(dimension.b, destination, surfaceMap);
+    return a && b ? [{ ...dimension, a, b }] : [];
+  });
   const adapted = pruneVenueFixtureState({
     ...transferred,
     objects,
+    ...(dimensions ? { dimensions } : {}),
     riggingSetupId: nextId(),
   }, destination);
   return {
