@@ -31,3 +31,15 @@ test('workspaceHash round-trips document locations', () => {
     section: 'plans', sceneId: 'a/b',
   });
 });
+
+test('designer routes open the page and a part by id', () => {
+  const partId = '5a17e9a0-0000-4000-8000-000000000005';
+  assert.deepEqual(parseWorkspaceLocation('/designer'), { section: 'designer' });
+  assert.deepEqual(parseWorkspaceLocation('#/designer'), { section: 'designer' });
+  assert.deepEqual(parseWorkspaceLocation(`/designer/${partId}`), { section: 'designer', partId });
+  assert.equal(parseWorkspaceLocation('/designer/a/b'), undefined);
+  assert.equal(parseWorkspaceLocation('/designer/'), undefined);
+  assert.equal(workspaceHash({ section: 'designer' }), '#/designer');
+  assert.equal(workspaceHash({ section: 'designer', partId }), `#/designer/${partId}`);
+  assert.deepEqual(parseWorkspaceLocation(workspaceHash({ section: 'designer', partId: 'x y' })), { section: 'designer', partId: 'x y' });
+});

@@ -355,6 +355,7 @@ function Workspace({ me, branding, onBranding, onDirty, location }: {
       <button className="quiet" aria-current={section === 'plans' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'plans' })}>Produktionen & Bühnenbilder<span>Bühnenbilder entwerfen und planen</span></button>
       <button className="quiet" aria-current={section === 'venues' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'venues' })}>Spielstätten & Bühnen<span>Räume, Grundrisse und feste Einrichtungen</span></button>
       <button className="quiet" aria-current={section === 'bestand' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'bestand' })}>Bestand<span>Platten und Wandtypen</span></button>
+      <button className="quiet" aria-current={section === 'designer' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'designer' })}>Bühnentechnik<span>Parametrische Bauteile entwerfen</span></button>
       <button className="quiet" aria-current={section === 'help' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'help' })}>Hilfe<span>Werkzeuge, Kürzel und Oberflächen</span></button>
       {showAccount && <button className="quiet" aria-current={section === 'account' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'account' })}>Mein Konto<span>Anmeldung und Konto</span></button>}
       {showAdmin && <button className="quiet" aria-current={section === 'admin' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'admin' })}>Verwaltung<span>Mitglieder, Darstellung und Aktivität</span></button>}
@@ -362,6 +363,9 @@ function Workspace({ me, branding, onBranding, onDirty, location }: {
     {section === 'plans' && <Plans me={me} onDirty={onDirty} sceneId={'sceneId' in location ? location.sceneId : undefined} />}
     {section === 'venues' && <Venues me={me} onDirty={onDirty} venueId={'venueId' in location ? location.venueId : undefined} />}
     {section === 'bestand' && <Bestand me={me} />}
+    {section === 'designer' && <Suspense fallback={<p className="loading" role="status">Bühnentechnik wird geladen …</p>}>
+      <Designer me={me} onDirty={onDirty} partId={'partId' in location ? location.partId : undefined} />
+    </Suspense>}
     {section === 'help' && <Help topic={'topic' in location ? location.topic : undefined} />}
     {section === 'account' && showAccount && <div className="workspace-management"><LinkedAccounts me={me} /></div>}
     {section === 'admin' && showAdmin && <div className="workspace-management">
@@ -574,6 +578,7 @@ function Members({ me }: { me: Me }) {
   </section>;
 }
 
+const Designer = lazy(() => import('./designer/Designer.js').then(module => ({ default: module.Designer })));
 const StageCanvasHarness = lazy(() => import('./stage/StageCanvasHarness.js').then(module => ({ default: module.StageCanvasHarness })));
 
 createRoot(document.getElementById('root')!).render(<StrictMode>

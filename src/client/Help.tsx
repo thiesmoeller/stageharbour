@@ -8,6 +8,7 @@ const HELP_TOPICS = [
   { topic: 'oberflaechen', label: 'Wandoberflächen' },
   { topic: 'raumsicht', label: 'Raumsicht' },
   { topic: 'bestand', label: 'Bestand' },
+  { topic: 'designer', label: 'Bühnentechnik' },
 ] as const;
 
 function sectionId(topic: string) {
@@ -145,6 +146,28 @@ export function Help({ topic }: { topic?: string }) {
         <li><strong>Oberflächen</strong> bleiben am Wand-Inspektor (Materialbibliothek/RAL), nicht im Bestand.</li>
       </ul>
       <p className="muted">Einmalige Wandtypen dürfen weiter nur im Bühnenbild existieren; Bestand speichert die Katalogtypen für Platten.</p>
+    </section>
+
+    <section id="hilfe-designer">
+      <h2>Bühnentechnik</h2>
+      <p>Unter <strong>Bühnentechnik</strong> entwerfen Sie parametrische Bauteile wie Stützdreiecke, Bühnenelemente oder Tische.
+        Maße stehen als <strong>Parameter</strong> bereit; Körper, Verbinder und Zubehör beschreiben Sie mit Formeln wie <code>H - 28</code>.</p>
+      <ul>
+        <li><strong>Bibliothek</strong> — links öffnen, suchen, als Favorit markieren, archivieren, duplizieren. Die <strong>Beispielbibliothek</strong>
+          liefert fertige Bauteile; mit <strong>Als Kopie anlegen</strong> entsteht eine eigene Fassung.</li>
+        <li><strong>Aufbau</strong> — Körper (Platte, Profil, Quader), Unterbauteile, Verbinder und Zubehör links hinzufügen, ordnen und wählen.
+          Ein Klick auf einen Körper in einer Ansicht wählt ihn ebenfalls.</li>
+        <li><strong>Formeln</strong> — neben jedem Feld steht der aktuelle Wert oder die Fehlermeldung mit der Stelle des Fehlers.
+          Wiederholte Körper verwenden die Zähler <code>i</code>, <code>j</code>, <code>k</code>.</li>
+        <li><strong>Vorschau</strong> — 3D-Ansicht sowie Draufsicht (Publikum unten), Vorderansicht (aus dem Publikum) und Seitenansicht.
+          Die Varianten- und Vorschauwerte ändern nur die Anzeige, nicht das Bauteil.</li>
+        <li><strong>Zuschnittliste und Gewicht</strong> — werden mit jeder Änderung neu berechnet. Fehler in der Prüfung verhindern das Speichern.</li>
+        <li><strong>Revisionen</strong> — jedes Speichern legt eine neue Revision an; Bühnenbilder behalten die Revision, die sie verwenden.
+          Hat jemand anderes inzwischen gespeichert, laden Sie die neueste Revision neu.</li>
+        <li><strong>Austausch</strong> — Exportieren lädt eine <code>.stageharbour-parts.json</code>-Datei herunter; Importieren legt neue Bauteile an
+          oder ergänzt bekannte um eine Revision und zeigt einen Bericht.</li>
+      </ul>
+      <p className="muted">Mit der Rolle Ansicht lassen sich Bauteile ansehen und exportieren, aber nicht ändern.</p>
     </section>
 
     <p className="help-footer muted">Kurzhilfe im Editor: Schaltfläche <strong>Bedienung</strong> in der Statusleiste · diese Seite jederzeit unter Hilfe im Arbeitsbereich.</p>
