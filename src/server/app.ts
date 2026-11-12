@@ -27,6 +27,7 @@ import { ensureStarterLibrary } from './parts/starter.js';
 import { registerDocumentRoutes } from './exports/documentRoutes.js';
 import { registerExportRoutes } from './exports/routes.js';
 import { registerPackageRoutes } from './exports/packageRoutes.js';
+import { registerExchangeRoutes } from './exchange/routes.js';
 import { registerVenueRoutes, VenueError } from './venues/routes.js';
 import { renderOffThread } from './exports/render.js';
 import { renderPackage } from './exports/packagePdf.js';
@@ -68,6 +69,7 @@ export async function createApp(db: Database, config: Config, options: {
   registerVenueRoutes(app, db, access, config.APP_ORIGIN, storage, leases);
   registerExportRoutes(app, db, access, config.APP_ORIGIN, storage, options.renderPdf ?? renderOffThread);
   registerDocumentRoutes(app, db, access, config.APP_ORIGIN, storage);
+  registerExchangeRoutes(app, db, access, config.APP_VERSION);
   // Packages render in-process: the worker path was marking revisions failed without a useful client error.
   registerPackageRoutes(app, db, access, config.APP_ORIGIN, storage, snapshot => renderPackage(snapshot));
   registerAssetRoutes(app, db, access, config.APP_ORIGIN, storage, leases);
