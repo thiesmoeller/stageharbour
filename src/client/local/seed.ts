@@ -2,6 +2,7 @@ import { DEFAULT_BRANDING } from '../../shared/contracts.js';
 import { EMPTY_BALLAST_STOCK } from '../../shared/ballast.js';
 import { groupWallType } from '../../shared/inventory.js';
 import { newWall } from '../../shared/layout.js';
+import { emptyCatalog, ensureStarterCatalog } from './catalog.js';
 import { SNAPSHOT_SCHEMA_VERSION, type LocalSnapshot } from './snapshot.js';
 
 /** Stable demo IDs so local mode and tests can address the same rows. */
@@ -29,9 +30,10 @@ export function createSeedSnapshot(): LocalSnapshot {
     width: 8000,
     depth: 6000,
   };
+  const now = new Date();
   return {
     schemaVersion: SNAPSHOT_SCHEMA_VERSION,
-    savedAt: new Date().toISOString(),
+    savedAt: now.toISOString(),
     user: {
       id: 'local-user',
       name: 'Demo-Nutzer',
@@ -93,5 +95,6 @@ export function createSeedSnapshot(): LocalSnapshot {
     },
     documentDrafts: {},
     sceneTemplates: [],
+    catalog: ensureStarterCatalog(emptyCatalog(), now),
   };
 }

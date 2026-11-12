@@ -4,8 +4,10 @@ import { documentDraftSchema, type DocumentDraft } from '../../shared/exportDocu
 import { inventorySchema, type Inventory } from '../../shared/inventory.js';
 import { layoutSchema, sceneTemplateSchema, venueGeometrySchema, type Layout, type SceneTemplate, type VenueGeometry } from '../../shared/layout.js';
 import { leaseHolderSchema, type LeaseHolder } from '../../shared/leases.js';
+import { ensureStarterCatalog, emptyCatalog, localCatalogSchema, type LocalCatalog } from './catalog.js';
 
-export const SNAPSHOT_SCHEMA_VERSION = 1 as const;
+/** 2 added the part catalog; version 1 files are upgraded on read. */
+export const SNAPSHOT_SCHEMA_VERSION = 2 as const;
 
 export type LocalUser = { id: string; name: string; email: string };
 export type LocalWorkspace = { id: string; name: string; role: z.infer<typeof roleSchema> };
@@ -41,6 +43,7 @@ export type LocalSnapshot = {
   inventory: LocalInventory;
   documentDrafts: Record<string, DocumentDraft>;
   sceneTemplates: SceneTemplate[];
+  catalog: LocalCatalog;
 };
 
 const localUserSchema = z.strictObject({
@@ -95,10 +98,19 @@ export const localSnapshotSchema = z.strictObject({
   inventory: inventorySchema,
   documentDrafts: z.record(z.uuid(), documentDraftSchema),
   sceneTemplates: z.array(sceneTemplateSchema),
+  catalog: localCatalogSchema,
 });
 
+/** Files and stored snapshots of version 1 have no catalog; they get the starter library. */
+function upgradeSnapshot(data: unknown): unknown {
+  if (typeof data !== 'object' || data === null || (data as { schemaVersion?: unknown }).schemaVersion !== 1) return data;
+  const old = data as Record<string, unknown>;
+  const savedAt = typeof old.savedAt === 'string' && !Number.isNaN(Date.parse(old.savedAt)) ? new Date(old.savedAt) : new Date();
+  return { ...old, schemaVersion: SNAPSHOT_SCHEMA_VERSION, catalog: ensureStarterCatalog(emptyCatalog(), savedAt) };
+}
+
 export function parseSnapshot(data: unknown): LocalSnapshot {
-  return localSnapshotSchema.parse(data);
+  return localSnapshotSchema.parse(upgradeSnapshot(data));
 }
 
 export function serializeSnapshot(store: LocalSnapshot): LocalSnapshot {

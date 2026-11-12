@@ -108,12 +108,12 @@ function assertCompatibleSchemaVersion(data: unknown): void {
     throw new Error(NEWER_VERSION_MESSAGE);
   }
   const version = (data as { schemaVersion: unknown }).schemaVersion;
-  if (version !== SNAPSHOT_SCHEMA_VERSION) {
+  if (typeof version !== 'number' || !Number.isInteger(version) || version < 1 || version > SNAPSHOT_SCHEMA_VERSION) {
     throw new Error(NEWER_VERSION_MESSAGE);
   }
 }
 
-function parseWorkspaceFileText(text: string): LocalSnapshot {
+export function parseWorkspaceFileText(text: string): LocalSnapshot {
   let data: unknown;
   try {
     data = JSON.parse(text);

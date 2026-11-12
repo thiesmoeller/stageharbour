@@ -36,7 +36,7 @@ test('seed snapshot parses and survives serialize roundtrip', () => {
   assert.equal(parsed.workspace.id, LOCAL_SEED_IDS.workspace);
   assert.equal(parsed.inventory.panels.length, 2);
   const again = serializeSnapshot(parsed);
-  assert.equal(again.schemaVersion, 1);
+  assert.equal(again.schemaVersion, 2);
   assert.equal(again.inventory.types.length, 2);
 });
 

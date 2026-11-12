@@ -40,6 +40,8 @@ import { resolveWall, wallTypeSchema, type WallElementType } from '../../shared/
 import { createVenueSchema, publishVenueSchema, renameVenueSchema, venuePlanPreview } from '../../shared/venueLibrary.js';
 import { boundsFromOutline } from '../../shared/venue.js';
 import { z } from 'zod';
+import { createPartsHandler, type PartsHandlerOptions } from './partsTransport.js';
+import { match, pathOnly, queryOf } from './route.js';
 import type { LocalScene, LocalSnapshot, LocalVenueVersion } from './snapshot.js';
 import type { LocalStore } from './store.js';
 
@@ -49,25 +51,6 @@ function fail(status: number, message: string): never {
 
 function nextId(): string {
   return crypto.randomUUID();
-}
-
-function pathOnly(path: string): string {
-  const q = path.indexOf('?');
-  return q >= 0 ? path.slice(0, q) : path;
-}
-
-function match(path: string, pattern: string): Record<string, string> | undefined {
-  const pathParts = path.split('/').filter(Boolean);
-  const patternParts = pattern.split('/').filter(Boolean);
-  if (pathParts.length !== patternParts.length) return undefined;
-  const params: Record<string, string> = {};
-  for (let i = 0; i < patternParts.length; i++) {
-    const expected = patternParts[i]!;
-    const actual = pathParts[i]!;
-    if (expected.startsWith(':')) params[expected.slice(1)] = actual;
-    else if (expected !== actual) return undefined;
-  }
-  return params;
 }
 
 function requireWorkspace(snapshot: LocalSnapshot, workspaceId: string): void {
@@ -212,8 +195,9 @@ function emptyLayout(): Layout {
   return { schemaVersion: 1, walls: [], braces: [] };
 }
 
-export function createLocalTransport(store: LocalStore): ApiTransport {
+export function createLocalTransport(store: LocalStore, options: PartsHandlerOptions = {}): ApiTransport {
   let signedIn = true;
+  const handleParts = createPartsHandler(store, options);
 
   async function handle(pathRaw: string, body?: unknown, methodRaw?: string): Promise<unknown> {
     const path = pathOnly(pathRaw);
@@ -238,6 +222,9 @@ export function createLocalTransport(store: LocalStore): ApiTransport {
       signedIn = false;
       return {};
     }
+
+    const parts = await handleParts({ path, method, query: queryOf(pathRaw), body });
+    if (parts) return parts.value;
 
     let params = match(path, '/api/workspaces/:workspaceId/scenes');
     if (params && method === 'GET') {
