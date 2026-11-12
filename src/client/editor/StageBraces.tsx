@@ -1,34 +1,32 @@
+import { useMemo } from 'react';
 import type { BraceSolid } from '../../shared/braceTransforms.js';
+import { UNIT_BOX } from '../stage/geometryCache.js';
+import { placeMatrix, primitiveInstance } from '../stage/instancing.js';
+import type { FlatMaterialSpec } from '../stage/surfaceMaterials.js';
+import { useElementInstances, useFlatMaterials } from './stageMaterialHooks.js';
 
-function BraceMesh({ brace, lit }: { brace: BraceSolid; lit?: boolean }) {
-  const elevation = brace.footprint[0]?.y ?? 0;
-  return <group position={[brace.center.x, elevation, brace.center.z]} rotation={[0, brace.rotationY, 0]}>
-    {brace.ballast.map((part, index) => <mesh key={`ballast-${index}`} castShadow={lit} receiveShadow={lit}
-      position={[part.center.x, part.center.y, part.center.z]} rotation={[part.rotation.x, part.rotation.y, part.rotation.z]}>
-      <boxGeometry args={[part.size.x, part.size.y, part.size.z]} />
-      {lit ? <meshStandardMaterial color={part.kind === 'slab' ? '#999b96' : part.kind === 'strap' ? '#de862a' : '#666666'} roughness={0.95} />
-        : <meshBasicMaterial color={part.kind === 'slab' ? '#999b96' : part.kind === 'strap' ? '#de862a' : '#666666'} />}
-    </mesh>)}
-    {brace.members.map(member => <mesh key={member.kind} castShadow={lit} receiveShadow={lit}
-      position={[member.center.x, member.center.y, member.center.z]}
-      rotation={[member.rotation.x, member.rotation.y, member.rotation.z]}>
-      <boxGeometry args={[member.size.x, member.size.y, member.size.z]} />
-      {lit
-        ? <meshStandardMaterial color="#c4a574" roughness={0.85} />
-        : <meshBasicMaterial color="#c4a574" />}
-    </mesh>)}
-  </group>;
-}
+const MATERIALS = {
+  slab: { color: '#999b96', roughness: 0.95 }, strap: { color: '#de862a', roughness: 0.95 }, fitting: { color: '#666666', roughness: 0.95 },
+  member: { color: '#c4a574', roughness: 0.85 },
+} as const satisfies Record<string, FlatMaterialSpec>;
 
-export function StageBraces({ braces, lit }: { braces: BraceSolid[]; lit?: boolean }) {
-  return braces.map(brace => <BraceMesh key={brace.id} brace={brace} lit={lit} />);
-}
+const SOLID = { cast: true, receive: true };
 
-export function StageBraceList({ braces }: { braces: BraceSolid[] }) {
-  if (!braces.length) return null;
-  return <ul aria-label="Stützen in der Raumsicht">{braces.map(brace => <li key={brace.id} data-testid={`stage-brace-${brace.id}`}
-    data-x={brace.center.x} data-y={brace.center.y} data-z={brace.center.z}
-    data-slabs={brace.ballast.filter(part => part.kind === 'slab').length} data-straps={brace.ballast.some(part => part.kind === 'buckle') ? 1 : 0}
-    data-height={brace.size.y} data-footprint-width={brace.size.x} data-footprint-depth={brace.size.z}>
-    {brace.label}: Stützdreieck {brace.size.x} × {brace.size.z} mm, {brace.size.y} mm hoch</li>)}</ul>;
+/** One Stützdreieck in millimetres: timber members and ballast, drawn with the shared batches. */
+export function StageBrace({ brace }: { brace: BraceSolid }) {
+  const materials = useFlatMaterials(MATERIALS);
+  const instances = useMemo(() => {
+    const elevation = brace.footprint[0]?.y ?? 0;
+    const base = placeMatrix(undefined, [brace.center.x, elevation, brace.center.z], [1, 1, 1], [0, brace.rotationY, 0]);
+    return [
+      ...brace.ballast.map(part => primitiveInstance(UNIT_BOX,
+        placeMatrix(base, [part.center.x, part.center.y, part.center.z], [part.size.x, part.size.y, part.size.z], [part.rotation.x, part.rotation.y, part.rotation.z]),
+        part.kind === 'slab' ? materials.slab : part.kind === 'strap' ? materials.strap : materials.fitting, SOLID)),
+      ...brace.members.map(member => primitiveInstance(UNIT_BOX,
+        placeMatrix(base, [member.center.x, member.center.y, member.center.z], [member.size.x, member.size.y, member.size.z], [member.rotation.x, member.rotation.y, member.rotation.z]),
+        materials.member, SOLID)),
+    ];
+  }, [brace, materials]);
+  useElementInstances(instances);
+  return null;
 }

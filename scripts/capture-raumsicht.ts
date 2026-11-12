@@ -444,8 +444,8 @@ async function main() {
       await page.getByRole('button', { name: 'Bibliothek', exact: true }).click();
       const library = page.getByRole('region', { name: 'Objektbibliothek' });
       await library.waitFor({ timeout: 15_000 });
-      await library.getByRole('button', { name: /Katalog$/ }).click();
-      await library.getByLabel(/Katalog durchsuchen$/).fill('sofa');
+      await library.getByRole('button', { name: /katalog$/i }).click();
+      await library.getByLabel(/katalog durchsuchen$/i).fill('sofa');
       await page.waitForFunction(() => [...document.querySelectorAll<HTMLImageElement>('.asset-grid img')].slice(0, 4).every(image => image.complete), undefined, { timeout: 30_000 }).catch(() => {});
       await shoot(page, out, '19-model-catalogue.png', 'Bibliothek · Modellkatalog mit Vorschaubildern (Suche „sofa“)', library.locator('.asset-grid'));
       await library.getByRole('button', { name: 'Plattenbestand', exact: true }).click();

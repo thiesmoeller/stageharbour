@@ -1,12 +1,12 @@
 import { useEffect, useMemo } from 'react';
 import { BufferGeometry, DoubleSide, Line, LineBasicMaterial, Shape, ShapeGeometry, Vector3 } from 'three';
-import type { StageNode } from './pascalScene.js';
+import type { StageElementContent } from './stageElements.js';
 import { StageCurtains } from './StageCurtains.js';
 import { LightingFixtureMesh, fixtureHangPose } from './StageOverhead.js';
 import type { HangPlan } from '../../shared/hangPlan.js';
 import type { FixtureBoardOutput } from '../../shared/lightBoard.js';
 
-/** Native line — drei Line2/LineMaterial breaks Pascal’s WebGPU→WebGL fallback. */
+/** A thin guide line on the floor. */
 function FloorPolyline({ path, y, color }: { path: readonly { x: number; y: number }[]; y: number; color: string }) {
   const object = useMemo(() => {
     const geometry = new BufferGeometry().setFromPoints(path.map(point => new Vector3(point.x, y, point.y)));
@@ -20,7 +20,7 @@ function FloorPolyline({ path, y, color }: { path: readonly { x: number; y: numb
 }
 
 export function StageConstraint({ element, elevation = 0, hangPlan, fixtureLevel, showTrusses = true, showLightingFixtures = true, stageWidth = 0, stageDepth = 0, selectedFixtureId, onFixtureSelect }: {
-  element: StageNode['element'];
+  element: StageElementContent;
   elevation?: number;
   hangPlan?: HangPlan;
   fixtureLevel?: (fixtureId: string) => FixtureBoardOutput;

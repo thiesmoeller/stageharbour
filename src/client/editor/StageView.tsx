@@ -12,19 +12,15 @@ import { lazy, Suspense, useContext, useEffect, useMemo, useState } from 'react'
 import type { Layout, VenueGeometry } from '../../shared/layout.js';
 import { stageModel } from '../../shared/transforms.js';
 import { effectiveCurtains } from '../../shared/venueFixtures.js';
-import { StageBraceList } from './StageBraces.js';
-import { StageLevelList } from './StageLevels.js';
-import { StageOverheadList } from './StageOverhead.js';
-import { StageCurtainList } from './StageCurtains.js';
-import { StagePlaceholderList } from './StagePlaceholders.js';
+import { StageBraceList, StageCurtainList, StageLevelList, StageOverheadList, StagePlaceholderList } from './StageLists.js';
 import type { PlanDisplayOptions } from '../../shared/planDisplay.js';
 import { defaultPlanDisplay } from '../../shared/planDisplay.js';
 import type { HangPlan } from '../../shared/hangPlan.js';
 
 import type { Asset } from '../../shared/assets.js';
-import type { StageCameraView } from './StageCamera.js';
+import type { StageViewPreset as StageCameraView } from '../stage/cameraFraming.js';
 import type { StageEditing } from './StageEditing.js';
-const PascalStageCanvas = lazy(() => import('./PascalStageCanvas.js'));
+const RaumsichtCanvas = lazy(() => import('./RaumsichtCanvas.js'));
 
 import type { StageCaptureHandle } from './StageCapture.js';
 export type { StageCaptureHandle } from './StageCapture.js';
@@ -63,7 +59,7 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
   /** Lichtpult under the canvas — session faders; open + Bühnenlicht → Scheinwerfer lit. */
   const [boardOpen, setBoardOpen] = useState(false);
   useEffect(() => { if (dock && dock.active !== 'lighting') setFocusAimMode(false); }, [dock?.active]);
-  /** Stable live store: fader UI writes here; SpotLights read in useFrame (no Pascal remount). */
+  /** Stable live store: fader UI writes here; SpotLights read in useFrame (no remount). */
   const lightBoardLive = useMemo(() => createLightBoardLive(), []);
   useEffect(() => {
     if (captureLightLook) lightBoardLive.set({ ...defaultLightBoardState(hangPlan?.fixtures.map(item => item.id) ?? [], activeLook), houseMaster: captureHouseMaster });
@@ -109,7 +105,7 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
   const [glBroken, setGlBroken] = useState(false);
   useEffect(() => {
     const canvas = document.createElement('canvas');
-    const gl = canvas.getContext('webgl2') ?? canvas.getContext('webgl');
+    const gl = canvas.getContext('webgl2');
     if (!gl) { setGlBroken(true); return; }
     const lost = () => setGlBroken(true);
     canvas.addEventListener('webglcontextlost', lost);
@@ -169,7 +165,7 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
       onClose={() => selectFixture(null)}
     />}
     </DockPortal>
-    <Suspense fallback={<p role="status">Raumsicht wird geladen …</p>}><PascalStageCanvas model={model} layout={layout} venue={venue} audience={audience} view={view} assets={assets} workspaceId={workspaceId} lighting={lighting} planDisplay={planDisplay} onCaptureReady={onCaptureReady ?? onFeedbackCaptureReady} aimOnly={exportAim}
+    <Suspense fallback={<p role="status">Raumsicht wird geladen …</p>}><RaumsichtCanvas model={model} layout={layout} venue={venue} audience={audience} view={view} assets={assets} workspaceId={workspaceId} lighting={lighting} planDisplay={planDisplay} onCaptureReady={onCaptureReady ?? onFeedbackCaptureReady} aimOnly={exportAim}
       enhanced={!simple}
       selectedFixtureId={boardOpen ? selectedFixtureId : null}
       onFixtureSelect={boardOpen ? id => selectFixture(id) : undefined}

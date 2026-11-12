@@ -1,33 +1,41 @@
-import { DockPortal } from './EditorDock.js';
-import { defaultLighting, type StageLightingSettings } from '../../shared/lighting.js';
-import { ToolIcon } from './ToolIcon.js';
-import { StageLighting } from './StageLighting.js';
-import { FixtureSpotLights } from './FixtureSpotLights.js';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Component, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { OrbitControls } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
-import { Viewer, useViewer } from '@pascal-app/viewer';
-import { Vector2, Vector3, MOUSE, type Object3D } from 'three';
-import type { StageModel } from '../../shared/transforms.js';
-import type { Layout, VenueGeometry } from '../../shared/layout.js';
+import { Vector2, Vector3, type Object3D } from 'three';
 import type { Asset } from '../../shared/assets.js';
-import { StageCamera, type StageCameraView } from './StageCamera.js';
-import { StageTransformControls } from './StageTransformControls.js';
-import { PushPullControls } from './PushPullControls.js';
-import type { StageEditing } from './StageEditing.js';
-import { VenueFloor } from './VenueFloor.js';
-import { PascalSceneBridge, StageInteraction } from './PascalStageNodes.js';
-import { useBlockBrowserZoom } from './viewportWheel.js';
-import type { StageCaptureHandle } from './StageCapture.js';
-import { captureViewportPng } from './StageCapture.js';
+import { focusTowardPoint, patchFixtureFocus, type HangPlan } from '../../shared/hangPlan.js';
+import type { Layout, VenueGeometry } from '../../shared/layout.js';
+import { defaultLighting, type StageLightingSettings } from '../../shared/lighting.js';
 import type { PlanDisplayOptions } from '../../shared/planDisplay.js';
 import { defaultPlanDisplay } from '../../shared/planDisplay.js';
-import { focusTowardPoint, patchFixtureFocus, type HangPlan } from '../../shared/hangPlan.js';
-import type { LightBoardLive } from './lightBoardLive.js';
+import type { StageModel } from '../../shared/transforms.js';
 import { trussHangWorld } from '../../shared/truss.js';
+import { stageViewCamera, stageViewEye, type StageBounds, type StageViewPreset, type Vec3, type Viewport } from '../stage/cameraFraming.js';
+import { LIGHT_THEME_IDS, lightTheme, type LightThemeId } from '../stage/lightThemes.js';
+import type { StageQuality } from '../stage/renderer.js';
+import { StageCanvas, type StageCameraInput } from '../stage/StageCanvas.js';
+import { StageInstanceBatches, StageInstances } from '../stage/StageInstances.js';
+import type { SurfaceDisplay } from '../stage/surfaceMaterials.js';
+import { readStoredTheme, storeTheme } from '../stage/themePreference.js';
+import { DockPortal } from './EditorDock.js';
+import { FixtureSpotLights } from './FixtureSpotLights.js';
+import type { LightBoardLive } from './lightBoardLive.js';
+import { PushPullControls } from './PushPullControls.js';
+import { captureViewportPng, type StageCaptureHandle } from './StageCapture.js';
+import type { StageEditing } from './StageEditing.js';
+import { StageElementView, StageInteraction } from './StageElements.js';
+import { stageElements } from './stageElements.js';
+import { StageLighting } from './StageLighting.js';
+import { StageDisplay } from './stageMaterialHooks.js';
+import { StageTransformControls } from './StageTransformControls.js';
+import { ToolIcon } from './ToolIcon.js';
+import { VenueFloor } from './VenueFloor.js';
+import { useBlockBrowserZoom } from './viewportWheel.js';
 
-/** Viewer owns the R3F Canvas, so pointer-miss must be detected via raycast. */
+/**
+ * Clears the selection on a click that hits nothing but the floor. A press that moves more than
+ * 6 px is a camera drag, and a click on a Scheinwerfer belongs to the fixture selection.
+ */
 function ClearSelectionOnMiss({ onClear, onFixtureClear, focusAimMode }: {
   onClear?: () => void;
   onFixtureClear?: () => void;
@@ -144,25 +152,7 @@ function FocusAimOnSurface({ enabled, mirrorWidth, selectedFixtureId, hangPlan, 
   return null;
 }
 
-type OrbitLike = Object3D & {
-  enabled: boolean;
-  enableRotate: boolean;
-  mouseButtons: { LEFT?: number; MIDDLE?: number; RIGHT?: number };
-};
-
-function EditOrbitBinding({ allowOrbit }: { allowOrbit: boolean }) {
-  const controls = useThree(state => state.controls) as OrbitLike | null;
-  useLayoutEffect(() => {
-    if (!controls?.mouseButtons) return;
-    controls.enableRotate = allowOrbit;
-    controls.mouseButtons.LEFT = -1;
-    controls.mouseButtons.MIDDLE = MOUSE.ROTATE;
-    controls.mouseButtons.RIGHT = MOUSE.PAN;
-  }, [allowOrbit, controls]);
-  return null;
-}
-
-function PascalCaptureBridge({ onCaptureReady, mirrorWidth }: { onCaptureReady?: (handle: StageCaptureHandle | null) => void; mirrorWidth: number }) {
+function CaptureBridge({ onCaptureReady, mirrorWidth }: { onCaptureReady?: (handle: StageCaptureHandle | null) => void; mirrorWidth: number }) {
   const gl = useThree(state => state.gl);
   const scene = useThree(state => state.scene);
   const camera = useThree(state => state.camera);
@@ -177,8 +167,9 @@ function PascalCaptureBridge({ onCaptureReady, mirrorWidth }: { onCaptureReady?:
         return { projection: camera.type === 'OrthographicCamera' ? 'orthographic' : 'perspective', position: toModel(camera.position), target: toModel(target) };
       },
       async capturePng(options) {
+        // One frame later, so state changes made just before the capture are in the scene.
         await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
-        return captureViewportPng(gl as never, scene, camera, options);
+        return captureViewportPng(gl, scene, camera, options);
       },
     };
     onCaptureReady(handle);
@@ -187,11 +178,34 @@ function PascalCaptureBridge({ onCaptureReady, mirrorWidth }: { onCaptureReady?:
   return null;
 }
 
-export default function PascalStageCanvas({ model, layout, venue, audience, view = audience ? 'audience' : 'orbit', assets, workspaceId, lighting = defaultLighting, planDisplay = defaultPlanDisplay, onCaptureReady, aimOnly = false, enhanced = true, selectedFixtureId, onFixtureSelect, focusAimMode, onHangPlanChange, lightBoardLive, showFixturePools = false, toolbarHost = null, ...editing }: {
-  model: StageModel; layout: Layout; venue: VenueGeometry; audience: boolean; view?: StageCameraView; assets: Asset[]; workspaceId: string; lighting?: StageLightingSettings;
+/** A browser without a usable WebGL context throws while the canvas mounts; the editor stays up. */
+class WebGlBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch(error: unknown) {
+    console.warn('Raumsicht could not start', error);
+  }
+
+  render() {
+    return this.state.failed
+      ? <p className="error" role="alert">Die 3D-Ansicht konnte nicht gestartet werden: Dieser Browser stellt kein WebGL bereit.</p>
+      : this.props.children;
+  }
+}
+
+const SOLID_DISPLAY: SurfaceDisplay = { shading: 'solid', textures: false };
+const RENDERED_DISPLAY: SurfaceDisplay = { shading: 'rendered', textures: true };
+
+export default function RaumsichtCanvas({ model, layout, venue, audience, view = audience ? 'audience' : 'orbit', assets, workspaceId, lighting = defaultLighting, planDisplay = defaultPlanDisplay, onCaptureReady, aimOnly = false, enhanced = true, selectedFixtureId, onFixtureSelect, focusAimMode, onHangPlanChange, lightBoardLive, showFixturePools = false, toolbarHost = null, ...editing }: {
+  model: StageModel; layout: Layout; venue: VenueGeometry; audience: boolean; view?: StageViewPreset; assets: Asset[]; workspaceId: string; lighting?: StageLightingSettings;
   planDisplay?: PlanDisplayOptions;
   onCaptureReady?: (handle: StageCaptureHandle | null) => void;
   aimOnly?: boolean;
+  /** Erweiterte Darstellung: textures and physically based shading. Off is the plain, fast view. */
   enhanced?: boolean;
   selectedFixtureId?: string | null;
   onFixtureSelect?: (id: string | null) => void;
@@ -207,26 +221,17 @@ export default function PascalStageCanvas({ model, layout, venue, audience, view
   function frame(selection: boolean) { setFocusSelection(selection); setFrameRevision(value => value + 1); }
   const [mode, setMode] = useState<'select' | 'translate' | 'rotate' | 'pushPull'>('select');
   const [detailed, setDetailed] = useState(false);
-  const theme = useViewer(state => state.sceneTheme);
-  const setTheme = useViewer(state => state.setSceneTheme);
+  const [theme, setThemeState] = useState<LightThemeId>(readStoredTheme);
+  function setTheme(next: LightThemeId) { setThemeState(next); storeTheme(next); }
   const span = Math.max(model.floor.width, model.floor.depth) / 1000;
-  const target = focusSelection && editing.pivot ? { x: editing.pivot.x, y: 0, z: editing.pivot.y } : audience ? model.audience.target : model.orbitTarget;
-  const camera = audience ? model.audience.position : {
+  const focus = focusSelection && !!editing.pivot;
+  const target = focus && editing.pivot ? { x: editing.pivot.x, y: 0, z: editing.pivot.y } : audience ? model.audience.target : model.orbitTarget;
+  const eye = audience ? model.audience.position : {
     x: model.orbitTarget.x + span * 350, y: span * 750, z: -span * 550,
   };
-  useLayoutEffect(() => {
-    useViewer.getState().setCameraMode('perspective');
-    useViewer.getState().setRenderPaused(false);
-  }, []);
-  useLayoutEffect(() => {
-    useViewer.getState().setShading(enhanced ? 'rendered' : 'solid');
-    useViewer.getState().setTextures(enhanced);
-  }, [enhanced]);
   /** Bühnenlicht + Lichtpult open → Scheinwerfer preview. */
   const hangLit = !!showFixturePools && lighting.enabled;
-  useLayoutEffect(() => {
-    useViewer.getState().setShadows(hangLit);
-  }, [hangLit]);
+  const quality: StageQuality = !enhanced ? 'simple' : detailed && !aimOnly ? 'high' : 'enhanced';
   const canvas = useRef<HTMLDivElement>(null);
   useBlockBrowserZoom(canvas);
   useEffect(() => {
@@ -239,10 +244,28 @@ export default function PascalStageCanvas({ model, layout, venue, audience, view
     window.addEventListener('keydown', exitTool, true);
     return () => window.removeEventListener('keydown', exitTool, true);
   }, [aimOnly, mode]);
+  // The stage is drawn mirrored in X, so audience-left is on the left of the picture.
   const mirrorWidth = model.floor.width;
-  const mirroredCameraX = mirrorWidth - camera.x;
-  const mirroredTargetX = mirrorWidth - target.x;
+  const viewTarget: Vec3 = [(mirrorWidth - target.x) / 1000, target.y / 1000, target.z / 1000];
+  const viewEye: Vec3 = [(mirrorWidth - eye.x) / 1000, eye.y / 1000, eye.z / 1000];
+  const camera: StageCameraInput = (viewport: Viewport) => ({
+    mode: 'look',
+    ...stageViewCamera(view, {
+      target: viewTarget, position: stageViewEye(view, { target: viewTarget, eye: viewEye, span, focus }), span: focus ? 3 : span, viewport,
+    }),
+  });
   const hangPlan = venue.hangPlan;
+  const elements = useMemo(() => stageElements(layout, venue), [layout, venue]);
+  const stageTop = Math.max(3000, venue.ceilingHeight ?? 0, ...model.walls.map(wall => wall.center.y + wall.size.y / 2));
+  const bounds: StageBounds = { min: [0, 0, 0], max: [model.floor.width / 1000, stageTop / 1000, model.floor.depth / 1000] };
+  const interaction = useMemo(() => ({
+    assets, workspaceId, mirrorWidth, model, venueEditable: editing.venueEditable,
+    selectedIds: editing.selectedIds ?? [], onSelect: editing.onSelect,
+    hangPlan, planDisplay, stageWidth: venue.width, stageDepth: venue.depth,
+    selectedFixtureId, onFixtureSelect: onFixtureSelect ? (id: string) => onFixtureSelect(id) : undefined,
+    lightBoardLive: hangLit ? lightBoardLive : undefined,
+  }), [assets, workspaceId, mirrorWidth, model, editing.venueEditable, editing.selectedIds, editing.onSelect, hangPlan, planDisplay,
+    venue.width, venue.depth, selectedFixtureId, onFixtureSelect, hangLit, lightBoardLive]);
   const tools = !aimOnly ? <>
     <button type="button" className="quiet" aria-pressed={mode === 'select'} onClick={() => setMode('select')} title="3D auswählen" aria-label="3D auswählen"><ToolIcon name="select" /></button>
     <button type="button" className="quiet" disabled={!editing.pivot} onClick={() => frame(true)} title="Auswahl einpassen" aria-label="Auswahl einpassen"><ToolIcon name="expand" /></button>
@@ -252,46 +275,43 @@ export default function PascalStageCanvas({ model, layout, venue, audience, view
       <button type="button" className="quiet" aria-pressed={mode === 'rotate'} onClick={() => setMode('rotate')} title="3D drehen" aria-label="3D drehen"><ToolIcon name="rotate" /></button>
     </>}
     {editing.onPushPull && <button type="button" className="quiet" aria-pressed={mode === 'pushPull'} onClick={() => setMode('pushPull')} title="Größe ziehen" aria-label="Größe ziehen"><ToolIcon name="pushPull" /></button>}
-    <DockPortal panel="display"><details className="render-settings" open><summary>Darstellung</summary><div className="render-settings-body"><label>Umgebung <select value={theme} onChange={event => setTheme(event.target.value)}>
-      <option value="studio">Studio</option><option value="paper">Warm</option>
-      <option value="sunset">Abend</option>
+    <DockPortal panel="display"><details className="render-settings" open><summary>Darstellung</summary><div className="render-settings-body"><label>Umgebung <select value={theme} onChange={event => setTheme(lightTheme(event.target.value).id)}>
+      {LIGHT_THEME_IDS.map(id => <option key={id} value={id}>{lightTheme(id).label}</option>)}
     </select></label>
-    <label><input type="checkbox" checked={detailed} onChange={event => setDetailed(event.target.checked)} /> Hohe Renderqualität</label></div></details></DockPortal>
+    <label title="Weiche Schatten des Hauptlichts und höhere Auflösung auf hochauflösenden Bildschirmen. Nur in der erweiterten Darstellung.">
+      <input type="checkbox" checked={detailed && enhanced} disabled={!enhanced} onChange={event => setDetailed(event.target.checked)} /> Hohe Renderqualität</label></div></details></DockPortal>
   </> : null;
-  return <StageInteraction.Provider value={{
-    assets, workspaceId, mirrorWidth, model, venueEditable: editing.venueEditable,
-    selectedIds: editing.selectedIds ?? [], onSelect: editing.onSelect, onClearSelection: editing.onClearSelection,
-    hangPlan, planDisplay, stageWidth: venue.width, stageDepth: venue.depth,
-    selectedFixtureId, onFixtureSelect: onFixtureSelect ? (id, _additive) => onFixtureSelect(id) : undefined,
-    lightBoardLive: hangLit ? lightBoardLive : undefined, showFixturePools,
-  }}>
-    <PascalSceneBridge layout={layout} venue={venue} />
+  return <StageInteraction.Provider value={interaction}>
     {tools && (toolbarHost ? createPortal(tools, toolbarHost) : <div className="render-toolbar">{tools}</div>)}
-    <div ref={canvas} className="stage-canvas" role="img" aria-label="Raumsicht der Spielstätte" data-renderer="pascal" data-lighting={lighting.enabled ? 'theatre' : 'studio'}
-      data-focus-aim={focusAimMode || undefined}>
-      <Viewer defaultRender={{ shading: 'rendered' }} selectionManager="custom" useBvh={false} renderContext="viewer"
-        disablePostFx={aimOnly || !detailed}>
-        {onCaptureReady && <PascalCaptureBridge onCaptureReady={onCaptureReady} mirrorWidth={mirrorWidth} />}
-        {!aimOnly && <ClearSelectionOnMiss onClear={editing.onClearSelection} onFixtureClear={() => onFixtureSelect?.(null)} focusAimMode={focusAimMode} />}
-        {!aimOnly && <FocusAimOnSurface enabled={!!focusAimMode} mirrorWidth={mirrorWidth} selectedFixtureId={selectedFixtureId}
-          hangPlan={hangPlan} trusses={venue.trusses} onHangPlanChange={onHangPlanChange} />}
-        <StageLighting settings={lighting} width={venue.width} depth={venue.depth} environmentKey={theme}
-          lightBoardLive={hangLit ? lightBoardLive : undefined} />
-        <FixtureSpotLights hangPlan={hangPlan} trusses={venue.trusses ?? []} stageWidth={venue.width} stageDepth={venue.depth}
-          lightBoardLive={lightBoardLive} enabled={hangLit} />
-        <StageCamera key={frameRevision} view={view} span={focusSelection && editing.pivot ? 3 : span} target={[mirroredTargetX / 1000, target.y / 1000, target.z / 1000]}
-          position={view === 'top' ? [mirroredTargetX / 1000, span * 2, target.z / 1000] : view === 'side' ? [-span * 2, 2, target.z / 1000] : view === 'front' ? [mirroredTargetX / 1000, 2, -span] : focusSelection && editing.pivot ? [mirroredTargetX / 1000 + 2, 4, target.z / 1000 - 5] : [mirroredCameraX / 1000, camera.y / 1000, camera.z / 1000]} />
-        <group position={[mirrorWidth / 1000, 0, 0]} scale={[-1, 1, 1]}>
-          <group scale={0.001}>
-          <VenueFloor venue={venue} lit />
-          </group>
-        </group>
-        {!aimOnly && (mode === 'translate' || mode === 'rotate') && <StageTransformControls {...editing} width={mirrorWidth} mode={mode} />}
-        {!aimOnly && <PushPullControls venue={editing.resizeDocument ?? venue} scope={editing.resizeScope ?? 'venue'} enabled={mode === 'pushPull'} snapEnabled={editing.snapEnabled} onPushPull={editing.onPushPull} />}
-        <OrbitControls makeDefault
-          target={[mirroredTargetX / 1000, target.y / 1000, target.z / 1000]} maxPolarAngle={Math.PI / 2 - 0.01} minDistance={0.1} maxDistance={500} />
-        <EditOrbitBinding allowOrbit={view === 'orbit' || view === 'audience' || aimOnly} />
-      </Viewer>
+    <div ref={canvas} className="stage-canvas" role="img" aria-label="Raumsicht der Spielstätte" data-renderer="stage" data-lighting={lighting.enabled ? 'theatre' : 'studio'}
+      data-quality={quality} data-focus-aim={focusAimMode || undefined}>
+      <WebGlBoundary>
+        <StageCanvas theme={theme} quality={quality} lights={false} camera={camera} cameraRevision={frameRevision}
+          controls={{ buttons: 'editor', enableRotate: view === 'orbit' || view === 'audience' || aimOnly }}>
+          <StageDisplay.Provider value={enhanced ? RENDERED_DISPLAY : SOLID_DISPLAY}>
+            <StageInstances>
+              {onCaptureReady && <CaptureBridge onCaptureReady={onCaptureReady} mirrorWidth={mirrorWidth} />}
+              {!aimOnly && <ClearSelectionOnMiss onClear={editing.onClearSelection} onFixtureClear={() => onFixtureSelect?.(null)} focusAimMode={focusAimMode} />}
+              {!aimOnly && <FocusAimOnSurface enabled={!!focusAimMode} mirrorWidth={mirrorWidth} selectedFixtureId={selectedFixtureId}
+                hangPlan={hangPlan} trusses={venue.trusses} onHangPlanChange={onHangPlanChange} />}
+              <StageLighting settings={lighting} width={venue.width} depth={venue.depth}
+                lightBoardLive={hangLit ? lightBoardLive : undefined} keyShadows={quality === 'high'} bounds={bounds}
+                backdrop={lightTheme(theme).background} />
+              <FixtureSpotLights hangPlan={hangPlan} trusses={venue.trusses ?? []} stageWidth={venue.width} stageDepth={venue.depth}
+                lightBoardLive={lightBoardLive} enabled={hangLit} />
+              <group position={[mirrorWidth / 1000, 0, 0]} scale={[-1, 1, 1]}>
+                <group scale={0.001}>
+                  <VenueFloor venue={venue} />
+                  <StageInstanceBatches />
+                </group>
+              </group>
+              {elements.map(item => <StageElementView key={item.id} item={item} />)}
+              {!aimOnly && (mode === 'translate' || mode === 'rotate') && <StageTransformControls {...editing} width={mirrorWidth} mode={mode} />}
+              {!aimOnly && <PushPullControls venue={editing.resizeDocument ?? venue} scope={editing.resizeScope ?? 'venue'} enabled={mode === 'pushPull'} snapEnabled={editing.snapEnabled} onPushPull={editing.onPushPull} />}
+            </StageInstances>
+          </StageDisplay.Provider>
+        </StageCanvas>
+      </WebGlBoundary>
     </div>
   </StageInteraction.Provider>;
 }
