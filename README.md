@@ -8,20 +8,25 @@ Scenery planning for touring theatre — keep the set, the stock, and each venue
   <img src="assets/branding/stageharbour/hamburg-daylight-stage-hero.png" alt="StageHarbour — scenic flats framing a harbour skyline" width="100%" />
 </p>
 
-## Try it now
+## Preview
 
-**[Open the live demo →](https://thiesmoeller.github.io/stageharbour/)**
+| | |
+| --- | --- |
+| **Browser preview** | https://thiesmoeller.github.io/stageharbour/ |
+| **Source branch** | [`dev`](https://github.com/thiesmoeller/stageharbour/tree/dev) (pre-release; Pages rebuilds from this branch) |
+| **Production install** | CapRover still ships from `main` — see [Self-hosted workspace](#self-hosted-workspace) |
 
-No account. No Docker. No install. The demo runs entirely in your browser with a seeded Beispiel-Theatergruppe workspace. The site is built from the [`dev`](https://github.com/thiesmoeller/stageharbour/tree/dev) branch (pre-release). Self-hosted CapRover production still ships from `main`.
+No account. No Docker. No install. The preview runs entirely in your browser with a seeded Beispiel-Theatergruppe workspace.
 
 | You can | How |
 | --- | --- |
 | Explore a production and open a Bühnenbild | Start from **Produktionen & Bühnenbilder** |
 | Edit the millimetre plan and linked 3D view | Open **Bühnenbild 1** |
+| Open the Bühnentechnik-Designer | Workspace navigation → **Bühnentechnik** |
 | Walk a Spielstätte, Bestand, and Hilfe | Use the workspace navigation |
 | Keep your edits | **Arbeitsbereich speichern…** writes a file on your device |
 
-The UI is German. Clearing site data loses the browser copy unless you saved a file. The demo skips PDF export, uploads, and cloud sync — those belong to a self-hosted group install.
+The UI is German. Clearing site data loses the browser copy unless you saved a file. The preview skips PDF export, uploads, and cloud sync — those belong to a self-hosted group install.
 
 Prefer running locally without Postgres? `npm run dev:local` builds the same browser-local mode.
 
