@@ -1,0 +1,79 @@
+/**
+ * The one seam for renderer creation and renderer-wide settings of every StageCanvas.
+ *
+ * Contract:
+ * - Nothing else under src/client constructs a three.js renderer for the stage; StageCanvas hands
+ *   `createStageRenderer` to R3F and reads the settings below.
+ * - Output colour space, tone mapping, shadow-map type and the pixel-ratio caps per quality are
+ *   decided here and nowhere else. Per-theme exposure and clear colour go through
+ *   `applyStageAppearance`.
+ * - Callers may rely only on `StageRenderer` members that WebGLRenderer and WebGPURenderer share:
+ *   render, setRenderTarget, getRenderTarget, setClearColor, readRenderTargetPixelsAsync,
+ *   domElement, shadowMap.enabled, toneMappingExposure, dispose.
+ * - Materials come from the surface material factory and must compile on this renderer, so a
+ *   later renderer switch changes this file and that factory only.
+ */
+import { ACESFilmicToneMapping, PCFShadowMap, SRGBColorSpace, WebGLRenderer, type ShadowMapType } from 'three';
+
+export type StageRenderer = WebGLRenderer;
+export type StageQuality = 'simple' | 'enhanced';
+
+export type StageQualitySettings = {
+  shadows: boolean;
+  shadowMapType: ShadowMapType;
+  /** Upper device-pixel-ratio bound for fine pointers (desktop). */
+  maxPixelRatio: number;
+  /** Upper bound on touch devices, where fragment cost matters more. */
+  coarsePointerMaxPixelRatio: number;
+};
+
+/** Enhanced matches Pascal's Viewer caps (1.5 desktop, 1.25 touch); simple renders at CSS pixels. */
+export const STAGE_QUALITY: Readonly<Record<StageQuality, Readonly<StageQualitySettings>>> = {
+  simple: { shadows: false, shadowMapType: PCFShadowMap, maxPixelRatio: 1, coarsePointerMaxPixelRatio: 1 },
+  enhanced: { shadows: true, shadowMapType: PCFShadowMap, maxPixelRatio: 1.5, coarsePointerMaxPixelRatio: 1.25 },
+};
+
+export const STAGE_OUTPUT_COLOR_SPACE = SRGBColorSpace;
+export const STAGE_TONE_MAPPING = ACESFilmicToneMapping;
+
+const SHADOWS_ON = { enabled: true, type: PCFShadowMap } as const;
+
+/** Value for R3F's `shadows` prop. PCFShadowMap with a radius is three r186's soft shadow. */
+export function shadowMapConfig(quality: StageQuality): false | { enabled: true; type: ShadowMapType } {
+  return STAGE_QUALITY[quality].shadows ? SHADOWS_ON : false;
+}
+
+/** Value for R3F's `dpr` prop. */
+export function pixelRatioRange(quality: StageQuality, coarsePointer = prefersCoarsePointer()): [number, number] {
+  const settings = STAGE_QUALITY[quality];
+  return [1, coarsePointer ? settings.coarsePointerMaxPixelRatio : settings.maxPixelRatio];
+}
+
+export function prefersCoarsePointer() {
+  return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+}
+
+export type StageRendererOptions = {
+  canvas: HTMLCanvasElement;
+  /** Creation-time only: keeps the last frame readable after compositing, for captures. */
+  preserveDrawingBuffer?: boolean;
+  powerPreference?: WebGLPowerPreference;
+};
+
+export function createStageRenderer({ canvas, preserveDrawingBuffer = false, powerPreference = 'high-performance' }: StageRendererOptions): StageRenderer {
+  const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: false, preserveDrawingBuffer, powerPreference });
+  applyStageRendererSettings(renderer);
+  return renderer;
+}
+
+export function applyStageRendererSettings(renderer: StageRenderer) {
+  renderer.outputColorSpace = STAGE_OUTPUT_COLOR_SPACE;
+  renderer.toneMapping = STAGE_TONE_MAPPING;
+  renderer.shadowMap.type = PCFShadowMap;
+}
+
+/** Theme-dependent renderer state. The clear colour is the flat theme background, not tone mapped. */
+export function applyStageAppearance(renderer: StageRenderer, appearance: { background: string; exposure: number }) {
+  renderer.setClearColor(appearance.background, 1);
+  renderer.toneMappingExposure = appearance.exposure;
+}
