@@ -111,7 +111,7 @@ export function Help({ topic }: { topic?: string }) {
         <li><strong>Alle Seiten gleich</strong> (Standard) — ein Material für Vorderseite, Rückseite und Kante.</li>
         <li><strong>Pro Seite</strong> — Vorderseite / Rückseite / Kante getrennt; optional <strong>Zwei Streifen</strong> (Teilungshöhe von unten, Standard 1200&nbsp;mm).</li>
         <li><strong>RAL-Wandfarbe</strong> — matte Theaterfarbe aus den Swatches.</li>
-        <li><strong>Bibliothek</strong> — Holz, Stoff, Stein, … aus dem Pascal-Katalog (ohne flache Farb-Presets).</li>
+        <li><strong>Bibliothek</strong> — Holz, Stoff, Stein, … aus der Materialbibliothek (ohne flache Farb-Presets). Die Texturen stammen aus der öffentlichen Bibliothek von Pascal und werden von deren Servern geladen.</li>
         <li><strong>Mustermaß</strong> — ungefähre Kachelbreite auf der Fläche in mm.</li>
         <li><strong>Faserrichtung</strong> — 0° / 90° / 180° / 270° für Maserung und Muster.</li>
       </ul>
@@ -124,10 +124,11 @@ export function Help({ topic }: { topic?: string }) {
       <p>Unter <strong>Licht</strong> rechts finden Sie Grundlicht und Lichtlooks.
         Das <strong>Lichtpult</strong> öffnen Sie in der Raumsicht-Toolbar — es erscheint unter der 3D-Ansicht
         (Master, Grundlicht, Blackout, Fader je Scheinwerfer; Look laden/speichern).
-        Unter <strong>Anzeige</strong> schalten Sie Beschriftungen, Traversen und Scheinwerfer ein oder aus und stellen die Renderqualität ein.</p>
+        Unter <strong>Anzeige</strong> schalten Sie Beschriftungen, Traversen und Scheinwerfer ein oder aus, wählen die Umgebung und schalten die hohe Renderqualität zu.</p>
       <ul>
         <li>Ansichten: Von oben, vorne, Seite, Publikum, Umlauf — und Bühne einpassen.</li>
-        <li><strong>Erweiterte Darstellung</strong> nutzt Pascal-Beleuchtung und Texturen; dort wirken Oberflächen.</li>
+        <li><strong>Erweiterte Darstellung</strong> zeigt Texturen und Materialeigenschaften; dort wirken Oberflächen. Die <strong>einfache Darstellung</strong> zeichnet nur Farbflächen ohne Texturen und Schatten und ist am schnellsten.</li>
+        <li><strong>Hohe Renderqualität</strong> (nur in der erweiterten Darstellung) ergänzt weiche Schatten des Hauptlichts und rechnet auf hochauflösenden Bildschirmen schärfer. Das kostet Rechenleistung.</li>
         <li>Klick in freien Raum hebt die Auswahl auf (wie im Grundriss).</li>
       </ul>
     </section>
@@ -141,7 +142,7 @@ export function Help({ topic }: { topic?: string }) {
         <li><strong>Zuweisung später</strong> — physische Platten weisen Sie im Bühnenbild an Wände zu, nicht im Bestand.</li>
         <li><strong>Kopie gehört dem Bühnenbild</strong> — beim Kopieren/Übernehmen in eine andere Spielstätte werden Platten-IDs gelöscht
           (clone-and-own). Es gibt keine Live-Synchronisation mit einem Master-Layout.</li>
-        <li><strong>Oberflächen</strong> bleiben am Wand-Inspektor (Pascal/RAL), nicht im Bestand.</li>
+        <li><strong>Oberflächen</strong> bleiben am Wand-Inspektor (Materialbibliothek/RAL), nicht im Bestand.</li>
       </ul>
       <p className="muted">Einmalige Wandtypen dürfen weiter nur im Bühnenbild existieren; Bestand speichert die Katalogtypen für Platten.</p>
     </section>

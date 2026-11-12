@@ -64,7 +64,7 @@ test('lighting and display settings never reduce 3D canvas height', async ({ pag
   await createProduction(page, { productionName: 'Dock lighting', venueName: 'Lighting venue', sceneName: 'Lighting stage' });
   await page.getByRole('button', { name: 'Licht', exact: true }).click();
   await page.getByRole('button', { name: 'Raumansicht öffnen', exact: true }).click();
-  const stage = page.locator('[data-renderer="pascal"]');
+  const stage = page.locator('[data-renderer="stage"]');
   await expect(stage.locator('canvas')).toBeVisible({ timeout: 30_000 });
   const height = (await stage.boundingBox())!.height;
   expect(height).toBeGreaterThan(768 * .84);

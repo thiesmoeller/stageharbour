@@ -8,6 +8,11 @@ test('inventory, GLB models and Pascal catalogue items participate in placement,
   test.setTimeout(process.env.CI ? 120_000 : 60_000);
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
+  const foreignHosts = new Set<string>();
+  page.on('request', request => {
+    const url = new URL(request.url());
+    if (/^https?:$/.test(url.protocol) && !['127.0.0.1', 'localhost'].includes(url.hostname)) foreignHosts.add(url.hostname);
+  });
   await page.route('https://byrpxoiotywskoojsrzd.supabase.co/**', route => route.request().url().endsWith('.glb')
     ? route.fulfill({ contentType: 'model/gltf-binary', body: cubeGlb() }) : route.fulfill({ status: 204 }));
   await signInToPlans(page);
@@ -64,9 +69,9 @@ test('inventory, GLB models and Pascal catalogue items participate in placement,
   await expect(page.getByLabel('Drehung (°)')).toHaveValue('90');
 
   await page.getByRole('button', { name: 'Bibliothek', exact: true }).click();
-  await library.getByRole('button', { name: 'Pascal-Katalog', exact: true }).click();
-  await expect(library.getByLabel('Pascal-Katalog durchsuchen')).toBeVisible({ timeout: 15_000 });
-  await library.getByLabel('Pascal-Katalog durchsuchen').fill('Cactus');
+  await library.getByRole('button', { name: 'Modellkatalog', exact: true }).click();
+  await expect(library.getByLabel('Modellkatalog durchsuchen')).toBeVisible({ timeout: 15_000 });
+  await library.getByLabel('Modellkatalog durchsuchen').fill('Cactus');
   await library.getByRole('button', { name: 'In Objektvorlagen übernehmen' }).first().click();
   await library.locator('article').filter({ hasText: 'Cactus' }).getByRole('button', { name: 'Platzieren' }).click();
   await commitObjectPlacement(page, 5000, 3000);
@@ -101,4 +106,7 @@ test('inventory, GLB models and Pascal catalogue items participate in placement,
   await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
   await expect(page.locator('[data-testid^="placeholder-"]')).toHaveCount(2);
   expect(errors).toEqual([]);
+  // Decoders and everything else come from the app; only the two asset hosts are contacted.
+  expect([...foreignHosts].filter(host => host !== 'byrpxoiotywskoojsrzd.supabase.co' && host !== 'editor.pascal.app')).toEqual([]);
+  expect([...foreignHosts]).toContain('byrpxoiotywskoojsrzd.supabase.co');
 });

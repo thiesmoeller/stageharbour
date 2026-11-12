@@ -59,7 +59,7 @@ test('Traversen hang points, Scheinwerfer assign, and display toggles', async ({
   });
   await page.getByRole('button', { name: 'Raumansicht', exact: true }).click();
   await expect(page.getByTestId('stage-view')).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator('[data-renderer="pascal"]')).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('[data-renderer="stage"]')).toBeVisible({ timeout: 30_000 });
   await page.getByRole('button', { name: 'Licht', exact: true }).click();
   const theatre = page.getByLabel('Bühnenlicht aktivieren');
   const grund = page.locator('details.lighting-panel').first();

@@ -84,7 +84,7 @@ test('feedback works in fullscreen with 3D capture and on mobile with keyboard d
   await signInToPlans(page);
   await createProduction(page, { productionName: 'Feedback Vollbild', venueName: 'Vollbild Bühne' });
   await page.getByRole('button', { name: 'Raumansicht', exact: true }).click();
-  const canvas = page.locator('[data-renderer="pascal"] canvas');
+  const canvas = page.locator('[data-renderer="stage"] canvas');
   await expect(canvas).toBeVisible({ timeout: 30_000 });
   await page.locator('.editor').evaluate(element => element.requestFullscreen());
   await page.waitForFunction(() => !!document.fullscreenElement);
@@ -138,7 +138,7 @@ test('venue feedback captures the draft and both visible panes without publishin
   await page.getByLabel('Name der Spielstätte').fill('Feedback Spielstätte');
   await page.getByRole('button', { name: 'Spielstätte anlegen', exact: true }).click();
   await page.getByRole('button', { name: '2D + 3D', exact: true }).click();
-  await expect(page.locator('[data-renderer="pascal"] canvas')).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('[data-renderer="stage"] canvas')).toBeVisible({ timeout: 30_000 });
   // Existing editing controls must remain available when feedback capture is registered.
   await expect(page.getByRole('button', { name: 'Einfache Darstellung', exact: true })).toBeVisible();
   await entry(page).click();

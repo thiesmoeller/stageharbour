@@ -45,7 +45,7 @@ test('editor keeps the canvas in view, preserves tray drafts, and adapts to smal
   await page.getByRole('button', { name: 'Raumansicht', exact: true }).click();
   await expect(page.locator('.plan-canvas')).toBeHidden();
   await expect(page.getByTestId('stage-view')).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator('[data-renderer="pascal"] canvas')).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('[data-renderer="stage"] canvas')).toBeVisible({ timeout: 30_000 });
   for (const [label, view] of [['Von oben', 'top'], ['Von vorne', 'front'], ['Von der Seite', 'side'], ['Publikumssicht', 'audience'], ['Umlaufansicht', 'orbit']] as const) {
     // Software WebGL on CI keeps the canvas dirty, so actionability "stable" never settles.
     await page.getByRole('button', { name: label, exact: true }).click({ force: true });
@@ -56,7 +56,7 @@ test('editor keeps the canvas in view, preserves tray drafts, and adapts to smal
   await page.getByRole('button', { name: 'Einfache Darstellung', exact: true }).click();
   await expect(page.getByTestId('stage-view')).toHaveAttribute('data-view', 'orbit');
   await page.getByRole('button', { name: 'Erweiterte Darstellung', exact: true }).click();
-  await expect(page.locator('[data-renderer="pascal"] canvas')).toBeVisible();
+  await expect(page.locator('[data-renderer="stage"] canvas')).toBeVisible();
   await page.getByRole('button', { name: 'Bühne einpassen', exact: true }).click();
   await page.getByRole('button', { name: 'Bühne einpassen', exact: true }).click();
   await expect(page.getByLabel('Ansichten aufteilen')).toBeHidden();
@@ -64,7 +64,7 @@ test('editor keeps the canvas in view, preserves tray drafts, and adapts to smal
   await expect(page.getByTestId('stage-view')).toHaveCount(0);
   await expect(page.locator('#wall-x')).toHaveValue('1400');
   await page.getByRole('button', { name: '2D + 3D', exact: true }).click();
-  await expect(page.locator('[data-renderer="pascal"] canvas')).toBeVisible();
+  await expect(page.locator('[data-renderer="stage"] canvas')).toBeVisible();
   await page.getByRole('button', { name: 'Bedienung', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Arbeiten im Grundriss' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Zur vollständigen Hilfe' })).toHaveAttribute('href', '#/hilfe');
