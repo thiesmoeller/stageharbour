@@ -1,10 +1,42 @@
-# Stage canvas baseline (Pascal Viewer)
+# Stage canvas measurements
 
-Baseline for the parametric-parts and canvas plan, slice B1. It records the Raumsicht as it ships
-today, rendered by `@pascal-app/viewer` 1.0.6 on `WebGPURenderer({ forceWebGL: true })`, so slice B4
-can print a before/after table from the same script.
+Measurements for the parametric-parts and canvas plan (B1 baseline, B3 port, B4 Pascal removal),
+all from `scripts/measure-stage.ts` on the same VM.
 
-Raw numbers: [`stage-canvas-baseline.json`](stage-canvas-baseline.json).
+Raw JSON:
+
+- Baseline (Pascal Viewer): [`stage-canvas-baseline.json`](stage-canvas-baseline.json)
+- After Raumsicht port (owned canvas, Pascal packages still installed): [`stage-canvas-after-port.json`](stage-canvas-after-port.json)
+- After Pascal removal (B4, `three@0.187.0`, no `@pascal-app/*`): [`stage-canvas-after-removal.json`](stage-canvas-after-removal.json)
+
+## Before / after-port / after-removal
+
+| Metric | Baseline (B1) | After port (B3) | After removal (B4) |
+|---|---|---|---|
+| JS total (minified / gzip) | 4966.7 KiB / 1436 KiB | 3477.9 KiB / 916.8 KiB | 3657.5 KiB / 969.2 KiB |
+| Initial load (entry + preloads, gzip) | 1290.9 KiB | 410.7 KiB | 441.4 KiB |
+| Largest JS chunk (minified / gzip) | index.js: 3199.1 KiB / 911.5 KiB | index.js: 1221.1 KiB / 339.7 KiB | index.js: 987.9 KiB / 282.8 KiB |
+| JS attributable to `@pascal-app/*` and Pascal-only deps | 1583.1 KiB (33.7 %) | 0 KiB (bundle; packages still in lockfile) | 0 KiB |
+| Raumsicht open → first WebGL draw (median) | 790.7 ms | 405.8 ms | 407.6 ms |
+| Raumsicht open → scene drawn (median) | 1306.4 ms | 540.3 ms | 540.7 ms |
+| Dense layout orbit frame time median / p95 | 149.9 ms / 150.1 ms | 66.6 ms / 83.3 ms | 66.6 ms / 66.7 ms |
+| Dense layout draw calls per frame (median) | 2072 | 58 | 58 |
+| Lockfile packages (all / production / installed) | 541 / 481 / 380 | 541 / 481 / 380 | 375 / 314 / 246 |
+| Lockfile packages only through `@pascal-app/*` | 166 / 134 | 166 / 134 | 0 / 0 |
+
+Most runtime gains came from porting Raumsicht to the owned `StageCanvas` (instancing, WebGL renderer,
+no `three/webgpu`). B4 drops 166 lockfile entries and about 134 installed packages; the JS bundle
+grows slightly versus the port-only build because `three` moves from 0.186.1 to 0.187.0 and the chunk
+graph shifted, but remains far below the Pascal baseline.
+
+**three.js version:** The app pinned `0.186.1` to satisfy Pascal's `^0.186` peers. After removal it
+uses `0.187.0`, the latest r187 release on npm and the first line after that pin; `@react-three/fiber`
+and `@react-three/drei` accept any `>=0.156`.
+
+## Baseline detail (B1, Pascal Viewer)
+
+The Raumsicht on the baseline build used `@pascal-app/viewer` 1.0.6 on
+`WebGPURenderer({ forceWebGL: true })`.
 
 ## Environment
 
@@ -20,7 +52,7 @@ user hardware.
 | Node | v24.22.2 |
 | App source | Identical to `main` at `af71a40`. The JSON records commit `80c2bc6`, which only added `scripts/measure-stage.ts`; `dirty: true` refers to the uncommitted script and the new `src/client/stage/` files, which nothing imported at the time. |
 
-## Summary
+## Baseline summary
 
 | Metric | Baseline |
 |---|---|
