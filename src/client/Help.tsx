@@ -43,6 +43,7 @@ export function Help({ topic }: { topic?: string }) {
         <li><strong>Produktion / Bühnenbild</strong> öffnen: bewegliche Wände und Requisiten auf dem Grundriss platzieren.</li>
         <li>In den <strong>Eigenschaften</strong> Maße übernehmen (Übernehmen), in der <strong>Raumsicht</strong> prüfen.</li>
         <li>Unter <strong>Datei → PDF gestalten</strong> öffnet sich das Dokumentstudio mit fertig zusammengestellten Seiten. Zweck und Inhalt anpassen, Seiten ordnen oder ein Layout ergänzen. In der Druckvorschau prüfen und das PDF exportieren; der Entwurf wird automatisch gespeichert.</li>
+        <li>Für Lichtplanung und Visualisierung: <strong>Datei → Export als glTF</strong> (.glb, ein 3D-Modell in Metern) oder <strong>Export als MVR</strong> (My Virtual Rig nach DIN SPEC 15801, Millimeter) lädt das gespeicherte Bühnenbild samt Spielstätte herunter; Leuchten (GDTF) und Oberflächenbilder sind nicht enthalten.</li>
       </ol>
       <p className="muted">Der Status neben dem Bühnenbildnamen zeigt „Gespeichert“ oder Konflikte. Entwürfe mit offenen Änderungen blockieren das Verlassen des Bühnenbilds.</p>
     </section>
