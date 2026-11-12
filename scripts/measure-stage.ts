@@ -3,7 +3,7 @@
  *
  *   flock /tmp/stageharbour-e2e.lock node --import tsx scripts/measure-stage.ts measure --out docs/measurements/x.json [--label name]
  *     [--skip-build] [--runs 5] [--orbit-seconds 6] [--only bundle,attribution,packages,first-frame,orbit]
- *   node --import tsx scripts/measure-stage.ts compare before.json after.json
+ *   node --import tsx scripts/measure-stage.ts compare before.json [after.json …]
  *
  * The browser part starts tests/helpers/browser-server.ts on port 4173 (shared with the e2e suite,
  * hence the lock) and instruments WebGL draw calls inside the element marked
@@ -55,7 +55,7 @@ type FirstFrameResult = { scene: string; objects: number; runs: FirstFrameRun[];
 type OrbitResult = {
   scene: string; objects: Record<string, number>;
   firstDrawMs: number; settledMs: number;
-  seconds: number; frames: number;
+  seconds: number; frames: number; viewChanged?: boolean;
   frameTimeMs: { median: number; p95: number; mean: number; max: number };
   drawCallsPerFrame: { median: number; max: number };
 };
@@ -65,6 +65,8 @@ type Measurement = {
   environment: Record<string, string | number | boolean>;
   bundle?: BundleResult; attribution?: AttributionResult; packages?: PackagesResult;
   firstFrame?: FirstFrameResult; orbit?: OrbitResult;
+  /** Wall-clock duration of `npm run test:e2e`, measured outside this script and added by hand. */
+  e2eSuiteDuration?: string;
 };
 
 function git(args: string[]) {
@@ -430,7 +432,7 @@ async function createScene(page: Page, names: { production: string; venue: strin
 }
 
 function emptyLayout(): Layout {
-  return layoutSchema.parse({ walls: [], braces: [] });
+  return layoutSchema.parse({ schemaVersion: 1, walls: [], braces: [] });
 }
 
 function smallLayout(): Layout {
@@ -512,6 +514,7 @@ async function orbit(page: Page, seconds: number) {
   const box = await canvas.boundingBox();
   if (!box) throw new Error('stage canvas has no box');
   const cx = box.x + box.width / 2, cy = box.y + box.height / 2, radius = Math.min(box.width, box.height) * 0.3;
+  const before = await canvas.screenshot();
   await page.mouse.move(cx + radius, cy);
   await page.mouse.down({ button: 'middle' });
   const start = await page.evaluate(() => { window.__stageProbe.frames.length = 0; return performance.now(); });
@@ -524,11 +527,13 @@ async function orbit(page: Page, seconds: number) {
   }
   const end = await page.evaluate(() => performance.now());
   await page.mouse.up({ button: 'middle' });
+  const viewChanged = !before.equals(await canvas.screenshot());
+  if (!viewChanged) throw new Error('orbit drag did not change the view; frame times would not reflect orbiting');
   const frames = await page.evaluate(({ start, end }) => window.__stageProbe.frames.filter(frame => frame[0] >= start && frame[0] <= end), { start, end });
   const deltas = frames.slice(1).map((frame, index) => frame[0] - frames[index]![0]);
   const draws = frames.map(frame => frame[1]);
   return {
-    seconds: round((end - start) / 1000, 2), frames: frames.length,
+    seconds: round((end - start) / 1000, 2), frames: frames.length, viewChanged,
     frameTimeMs: {
       median: round(median(deltas)), p95: round(percentile(deltas, 95)),
       mean: round(deltas.reduce((a, b) => a + b, 0) / Math.max(1, deltas.length)), max: round(Math.max(...deltas)),
@@ -662,6 +667,7 @@ function summaryRows(item: Measurement): [string, string][] {
     ['Installed packages (npm ls --all --parseable, unique paths; without dev)', item.packages ? `${count(item.packages.npmLsAll)}; ${count(item.packages.npmLsProduction)}` : '–'],
     ['Lockfile packages (all / non-dev / installed on this machine)', item.packages ? `${item.packages.lockfile.entries} / ${item.packages.lockfile.production} / ${item.packages.lockfile.installed}` : '–'],
     ['Lockfile packages only reachable through @pascal-app/* (all / installed)', item.packages ? `${item.packages.pascalOnly.all} / ${item.packages.pascalOnly.installed}` : '–'],
+    ['Full e2e suite duration', item.e2eSuiteDuration ?? '–'],
   ];
 }
 
@@ -689,7 +695,7 @@ const { values, positionals } = parseArgs({
 });
 const [command = 'measure', ...rest] = positionals;
 if (command === 'compare') {
-  if (rest.length < 2) throw new Error('compare needs at least two measurement files');
+  if (rest.length < 1) throw new Error('compare needs at least one measurement file');
   await compare(rest);
 } else if (command === 'measure') {
   if (!values.out) throw new Error('--out <file.json> is required');
