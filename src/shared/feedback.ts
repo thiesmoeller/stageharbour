@@ -3,13 +3,13 @@ import { z } from 'zod';
 export const FEEDBACK_ATTACHMENT_BYTES = 2 * 1024 * 1024;
 const short = z.string().max(200);
 export const feedbackPageSchema = z.object({
-  section: z.enum(['plans', 'venues', 'bestand', 'account', 'admin', 'help']),
-  sceneId: z.uuid().optional(), venueId: z.uuid().optional(),
+  section: z.enum(['plans', 'venues', 'bestand', 'designer', 'account', 'admin', 'help']),
+  sceneId: z.uuid().optional(), venueId: z.uuid().optional(), partId: z.uuid().optional(),
 }).strict();
 export const feedbackActivitySchema = z.object({
   at: z.iso.datetime(),
   action: z.enum(['navigation', 'editor.change', 'editor.undo', 'editor.redo', 'editor.save', 'api.failure', 'save.saved', 'save.pending', 'save.saving', 'save.failed', 'save.conflict']),
-  area: z.enum(['plans', 'venues', 'bestand', 'account', 'admin', 'help', 'api']).optional(),
+  area: z.enum(['plans', 'venues', 'bestand', 'designer', 'account', 'admin', 'help', 'api']).optional(),
   status: z.number().int().min(0).max(599).optional(),
   operation: z.enum(['scenes', 'venues', 'inventory', 'exports', 'assets', 'account', 'feedback', 'workspace', 'other']).optional(),
 }).strict();
@@ -43,9 +43,10 @@ export const feedbackOptionsSchema = z.object({ enabled: z.boolean(), version: z
 export function feedbackHash(page: z.infer<typeof feedbackPageSchema>): string {
   if (page.section === 'plans') return page.sceneId ? `#/szenen/${page.sceneId}` : '#/produktionen';
   if (page.section === 'venues') return page.venueId ? `#/spielstaetten/${page.venueId}` : '#/spielstaetten';
+  if (page.section === 'designer') return page.partId ? `#/designer/${page.partId}` : '#/designer';
   return `#/${{ bestand: 'bestand', account: 'konto', admin: 'verwaltung', help: 'hilfe' }[page.section]}`;
 }
 
 export function feedbackPageLabel(page: z.infer<typeof feedbackPageSchema>): string {
-  return { plans: 'Bühnenbilder', venues: 'Spielstätten', bestand: 'Bestand', account: 'Konto', admin: 'Verwaltung', help: 'Hilfe' }[page.section];
+  return { plans: 'Bühnenbilder', venues: 'Spielstätten', bestand: 'Bestand', designer: 'Bühnentechnik', account: 'Konto', admin: 'Verwaltung', help: 'Hilfe' }[page.section];
 }
