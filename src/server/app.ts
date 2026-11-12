@@ -20,6 +20,10 @@ import { createFakeMailTransport, createMailTransport, type MailTransport } from
 import { LeaseError, createLeases } from './productions/leases.js';
 import { registerProductionRoutes } from './productions/routes.js';
 import { InventoryError, registerInventoryRoutes } from './inventory/routes.js';
+import { PartsError } from './parts/errors.js';
+import { registerPartRoutes } from './parts/routes.js';
+import { registerStockRoutes } from './parts/stockRoutes.js';
+import { ensureStarterLibrary } from './parts/starter.js';
 import { registerDocumentRoutes } from './exports/documentRoutes.js';
 import { registerExportRoutes } from './exports/routes.js';
 import { registerPackageRoutes } from './exports/packageRoutes.js';
@@ -57,6 +61,10 @@ export async function createApp(db: Database, config: Config, options: {
   registerIdentityRoutes(app, access, createMembership(db, mail, config.APP_ORIGIN), config.APP_ORIGIN);
   registerProductionRoutes(app, db, access, config.APP_ORIGIN, leases);
   registerInventoryRoutes(app, db, access, config.APP_ORIGIN, leases);
+  const clock = options.clock ?? (() => new Date());
+  registerPartRoutes(app, db, access, config.APP_ORIGIN, clock);
+  registerStockRoutes(app, db, access, config.APP_ORIGIN, clock);
+  await ensureStarterLibrary(db, config.WORKSPACE_ID, clock());
   registerVenueRoutes(app, db, access, config.APP_ORIGIN, storage, leases);
   registerExportRoutes(app, db, access, config.APP_ORIGIN, storage, options.renderPdf ?? renderOffThread);
   registerDocumentRoutes(app, db, access, config.APP_ORIGIN, storage);
@@ -67,6 +75,7 @@ export async function createApp(db: Database, config: Config, options: {
   registerBrandingRoutes(app, db, access, config.APP_ORIGIN, config.WORKSPACE_ID, storage);
   app.addHook('onResponse', async (request, reply) => {
     if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method) || reply.statusCode >= 400) return;
+    if (request.routeOptions.config?.audit === false) return;
     const route = request.routeOptions.url ?? '';
     if (!route.startsWith('/api/workspaces/') || route.includes('/lease') || route.endsWith('/feedback')) return;
     const params = request.params as { workspaceId: string };
@@ -85,6 +94,9 @@ export async function createApp(db: Database, config: Config, options: {
     if (request.url.startsWith('/api/')) reply.header('Cache-Control', 'no-store');
   });
   app.setErrorHandler<FastifyError>((error, request, reply) => {
+    if (error instanceof PartsError) {
+      return reply.code(error.statusCode).send({ message: error.message, ...(error.issues ? { issues: error.issues } : {}) });
+    }
     if (error instanceof AccessError || error instanceof LeaseError || error instanceof VenueError || error instanceof InventoryError) return reply.code(error.statusCode).send({ message: error.message });
     if (error.validation) return reply.code(400).send({ message: 'Ungültige Anfrage.' });
     if (error.statusCode && error.statusCode >= 400 && error.statusCode < 500) {
