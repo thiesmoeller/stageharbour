@@ -12,7 +12,7 @@ Scenery planning for touring theatre — keep the set, the stock, and each venue
 
 **[Open the live demo →](https://thiesmoeller.github.io/stageharbour/)**
 
-No account. No Docker. No install. The demo runs entirely in your browser with a seeded Beispiel-Theatergruppe workspace.
+No account. No Docker. No install. The demo runs entirely in your browser with a seeded Beispiel-Theatergruppe workspace. GitHub Pages rebuilds from this [`dev`](https://github.com/thiesmoeller/stageharbour/tree/dev) branch on every push. Self-hosted CapRover production still ships from `main`.
 
 | You can | How |
 | --- | --- |
