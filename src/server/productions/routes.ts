@@ -12,6 +12,9 @@ import { supportingSurfaces } from '../../shared/levels.js';
 import { STARTER_PART_IDS } from '../../shared/parts/starter/index.js';
 import { captureTemplateLayout, copiedSceneName, copyLayoutIntoVenue, duplicateLayout } from '../../shared/scenes.js';
 import { overheadWarningSchema, resolvedOverheadClearance } from '../../shared/overhead.js';
+import { buildListsSchema } from '../../shared/partLists.js';
+import { productionStockDemand, productionStockDemandSchema, stockDemand, type DemandScene } from '../../shared/stockDemand.js';
+import { freezeSource } from '../exports/freezeSource.js';
 import { keepClearWarningSchema, resolvedKeepClearWarnings } from '../../shared/keepClear.js';
 import { leaseHolderSchema } from '../../shared/leases.js';
 import { requireRegistrySurfaces } from '../surfaces/validate.js';
@@ -61,6 +64,45 @@ export function registerProductionRoutes(app: FastifyInstance, db: Database, acc
     }));
     const [stock] = await db.select({ slabs: inventoryBallast.slabs, straps: inventoryBallast.straps }).from(inventoryBallast).where(eq(inventoryBallast.workspaceId, workspaceId));
     return materialRequirements(layouts, stock ?? EMPTY_BALLAST_STOCK);
+  });
+  async function demandScenes(workspaceId: string, sceneId?: string): Promise<DemandScene[]> {
+    const records = await loadScenes(workspaceId, sceneId);
+    return records.map(record => ({
+      id: record.id, name: record.name, productionId: record.productionId, venueId: record.venueId, venueName: record.venueName,
+      layout: layoutSchema.parse(record.layout), venue: venueGeometrySchema.parse(record.venue),
+    }));
+  }
+  api.get(`${path}/:sceneId/stock-demand`, { schema: {
+    params, response: { 200: buildListsSchema, ...errors },
+  } }, async request => {
+    const { workspaceId, sceneId } = request.params;
+    await access(request, workspaceId);
+    const scenes = await demandScenes(workspaceId, sceneId);
+    if (!scenes.length) throw new AccessError(404, 'Bühnenbild nicht verfügbar.');
+    const { index, stock } = await freezeSource(db, workspaceId);
+    return stockDemand(scenes, index, stock);
+  });
+  api.get('/api/workspaces/:workspaceId/productions/:productionId/venues/:venueId/stock-demand', { schema: {
+    params: workspaceParamsSchema.extend({ productionId: z.uuid(), venueId: z.uuid() }),
+    response: { 200: buildListsSchema, ...errors },
+  } }, async request => {
+    const { workspaceId, productionId, venueId } = request.params;
+    await access(request, workspaceId);
+    const scenes = (await demandScenes(workspaceId)).filter(item => item.productionId === productionId && item.venueId === venueId);
+    if (!scenes.length) throw new AccessError(404, 'Produktion an dieser Spielstätte nicht verfügbar.');
+    const { index, stock } = await freezeSource(db, workspaceId);
+    return stockDemand(scenes, index, stock);
+  });
+  api.get('/api/workspaces/:workspaceId/productions/:productionId/stock-demand', { schema: {
+    params: workspaceParamsSchema.extend({ productionId: z.uuid() }),
+    response: { 200: productionStockDemandSchema, ...errors },
+  } }, async request => {
+    const { workspaceId, productionId } = request.params;
+    await access(request, workspaceId);
+    const scenes = (await demandScenes(workspaceId)).filter(item => item.productionId === productionId);
+    if (!scenes.length) throw new AccessError(404, 'Produktion nicht verfügbar.');
+    const { index, stock } = await freezeSource(db, workspaceId);
+    return productionStockDemand(scenes, index, stock);
   });
   api.post(`${path}/:sceneId/recover`, { bodyLimit: 128 * 1024, schema: {
     params, body: z.object({ name: z.string().trim().min(1).max(120), layout: layoutSchema,

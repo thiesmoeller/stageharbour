@@ -1,18 +1,18 @@
-import { ballastLabel } from '../../shared/ballast.js';
 import PDFDocument from 'pdfkit';
 import { PDFDocument as PdfLib } from 'pdf-lib';
 import { germanDate } from '../../shared/export.js';
-import type { ConstructionPackage } from '../../shared/package.js';
+import { listTables } from '../../shared/exportDocument.js';
+import { packageLists, type ConstructionPackage } from '../../shared/package.js';
+import type { BuildLists } from '../../shared/partLists.js';
 import { PAGE_FOOTER_MM, PAGE_HEADER_MM, PAGE_MARGIN_MM, PAPER_SIZE_MM } from '../../shared/tiling.js';
 import { constructionPageBreakdown, renderConstructionPlan } from './pdf.js';
 
 const mm = (value: number) => value * 72 / 25.4;
 
-function countLabel(count: number, singular: string, plural: string) {
-  return `${count} ${count === 1 ? singular : plural}`;
-}
+type Column = { title: string; width: number };
 
 function renderPartsList(pkg: ConstructionPackage) {
+  const lists = packageLists(pkg.scenes.map((snapshot, index) => ({ sceneId: pkg.sceneIds[index] ?? snapshot.revisionId, snapshot })));
   return new Promise<Buffer>((resolve, reject) => {
     const paper = pkg.paper ?? 'A4';
     const issuedAt = new Date(pkg.issuedAt);
@@ -25,12 +25,6 @@ function renderPartsList(pkg: ConstructionPackage) {
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
     const pageHeight = PAPER_SIZE_MM[paper].height;
-    const col = {
-      label: PAGE_MARGIN_MM,
-      apps: PAGE_MARGIN_MM + 55,
-      scenes: PAGE_MARGIN_MM + 80,
-      status: PAGE_MARGIN_MM + (paper === 'A3' ? 200 : 145),
-    };
     let page = 1;
     let y = PAGE_HEADER_MM + 2;
     const contentWidth = PAPER_SIZE_MM[paper].width - 2 * PAGE_MARGIN_MM;
@@ -45,9 +39,11 @@ function renderPartsList(pkg: ConstructionPackage) {
       doc.fontSize(7).fillColor('#758170')
         .text(`Blatt ${page} · ${paper}`, mm(PAGE_MARGIN_MM), mm(30), { lineBreak: false });
       doc.fontSize(6).fillColor('#9aa396')
-        .text(pkg.revisionId, mm(PAGE_MARGIN_MM), mm(34), {
-          width: mm(contentWidth), lineBreak: false,
-        });
+        .text(pkg.revisionId, mm(PAGE_MARGIN_MM), mm(34), { width: mm(contentWidth), lineBreak: false });
+    }
+    function footer() {
+      doc.fontSize(7).fillColor('#203c36')
+        .text(`Blatt ${page} · 100 % drucken`, mm(PAGE_MARGIN_MM), mm(pageHeight - PAGE_FOOTER_MM + 4), { lineBreak: false });
     }
     function ensure(gap = 6) {
       if (y + gap <= pageHeight - PAGE_FOOTER_MM) return;
@@ -57,145 +53,70 @@ function renderPartsList(pkg: ConstructionPackage) {
       header();
       y = PAGE_HEADER_MM + 2;
     }
-    function footer() {
-      doc.fontSize(7).fillColor('#203c36')
-        .text(`Blatt ${page} · 100 % drucken`, mm(PAGE_MARGIN_MM), mm(pageHeight - PAGE_FOOTER_MM + 4), { lineBreak: false });
-    }
     function section(title: string) {
-      ensure(10);
+      ensure(12);
+      y += 2;
       doc.font('Helvetica-Bold').fontSize(9).fillColor('#203c36')
-        .text(title, mm(PAGE_MARGIN_MM), mm(y), { lineBreak: false });
+        .text(title, mm(PAGE_MARGIN_MM), mm(y), { width: mm(contentWidth), lineBreak: false });
       y += 6;
       doc.font('Helvetica');
     }
-    function tableHeader() {
+    function line(text: string, color = '#203c36', size = 8) {
+      ensure(5);
+      doc.fontSize(size).fillColor(color).text(text, mm(PAGE_MARGIN_MM), mm(y), { width: mm(contentWidth), lineBreak: false });
+      y += size < 8 ? 4.5 : 5;
+    }
+    function table(columns: Column[], rows: string[][]) {
+      const total = columns.reduce((sum, column) => sum + column.width, 0);
+      const widths = columns.map(column => column.width / total * contentWidth);
+      const x = (index: number) => PAGE_MARGIN_MM + widths.slice(0, index).reduce((sum, width) => sum + width, 0);
       ensure(8);
       doc.fontSize(7).fillColor('#536950');
-      doc.text('Platte', mm(col.label), mm(y), { lineBreak: false });
-      doc.text('Einsätze', mm(col.apps), mm(y), { lineBreak: false });
-      doc.text('Bühnenbilder', mm(col.scenes), mm(y), { lineBreak: false });
-      doc.text('Status', mm(col.status), mm(y), { lineBreak: false });
+      columns.forEach((column, index) => doc.text(column.title, mm(x(index)), mm(y), { width: mm(widths[index]! - 2), lineBreak: false }));
       y += 4.5;
-      doc.moveTo(mm(PAGE_MARGIN_MM), mm(y)).lineTo(mm(PAGE_MARGIN_MM + contentWidth), mm(y))
-        .lineWidth(0.4).stroke('#c5cbbd');
+      doc.moveTo(mm(PAGE_MARGIN_MM), mm(y)).lineTo(mm(PAGE_MARGIN_MM + contentWidth), mm(y)).lineWidth(0.4).stroke('#c5cbbd');
       y += 2;
-      doc.fillColor('#203c36');
+      for (const row of rows) {
+        ensure(5);
+        doc.fontSize(8).fillColor('#203c36');
+        row.forEach((cell, index) => doc.text(cell, mm(x(index)), mm(y), { width: mm(widths[index]! - 2), lineBreak: false }));
+        y += 5;
+      }
+    }
+    function listSection(built: BuildLists) {
+      for (const item of listTables(built)) {
+        line(item.title, '#536950', 7);
+        table(item.headers.map((title, index) => ({ title, width: index === 0 ? 3 : 1.2 })), item.rows);
+        y += 2;
+      }
     }
     header();
     section('Inhaltsverzeichnis');
-    doc.fontSize(8).fillColor('#203c36');
-    ensure(5);
-    doc.text('1. Stückliste (dieses Blatt)', mm(PAGE_MARGIN_MM), mm(y), { lineBreak: false });
-    y += 5;
-    let sceneIndex = 2;
-    for (const list of pkg.sceneLists) {
-      ensure(5);
-      doc.text(`${sceneIndex}. ${list.sceneName}`, mm(PAGE_MARGIN_MM), mm(y), { lineBreak: false });
-      y += 5;
-      sceneIndex += 1;
-    }
-    y += 3;
-    section('Stückliste');
-    doc.fontSize(8).fillColor('#536950')
-      .text(`${countLabel(pkg.stock.physicalPanels, 'physische Platte', 'physische Platten')} · ${countLabel(pkg.stock.appearances, 'Einsatz', 'Einsätze')}`,
-        mm(PAGE_MARGIN_MM), mm(y), { lineBreak: false });
-    y += 6;
-    tableHeader();
-    for (const panel of pkg.stock.panels) {
-      ensure(5);
-      doc.fontSize(8).fillColor('#203c36');
-      doc.text(panel.label, mm(col.label), mm(y), { width: mm(50), lineBreak: false });
-      doc.text(`${panel.appearances} ${panel.appearances === 1 ? 'Einsatz' : 'Einsätze'}`, mm(col.apps), mm(y), { lineBreak: false });
-      doc.text(panel.sceneNames.join(', '), mm(col.scenes), mm(y), { width: mm(col.status - col.scenes - 4), lineBreak: false });
-      doc.text(panel.available ? 'verfügbar' : 'nicht verfügbar', mm(col.status), mm(y), { lineBreak: false });
-      y += 5;
-    }
-    section('Nicht zugewiesen');
-    if (!pkg.stock.unassigned.length) {
-      ensure(5);
-      doc.fontSize(8).text('Keine.', mm(PAGE_MARGIN_MM), mm(y), { lineBreak: false });
-      y += 5;
-    }
-    for (const item of pkg.stock.unassigned) {
-      ensure(5);
-      doc.fontSize(8).text(`„${item.wallLabel}“ in ${item.sceneName}`, mm(PAGE_MARGIN_MM), mm(y), {
-        width: mm(contentWidth), lineBreak: false,
-      });
-      y += 5;
-    }
-    section('Nicht verfügbar');
-    if (!pkg.stock.unavailable.length) {
-      ensure(5);
-      doc.fontSize(8).text('Keine.', mm(PAGE_MARGIN_MM), mm(y), { lineBreak: false });
-      y += 5;
-    }
-    for (const item of pkg.stock.unavailable) {
-      ensure(5);
-      doc.fontSize(8).text(`Platte ${item.panelLabel} · „${item.wallLabel}“ in ${item.sceneName}`,
-        mm(PAGE_MARGIN_MM), mm(y), { width: mm(contentWidth), lineBreak: false });
-      y += 5;
-    }
-    if (pkg.stock.conflicts.length) {
-      section('Konflikte');
-      for (const item of pkg.stock.conflicts) {
-        ensure(5);
-        doc.fontSize(8).fillColor('#6a4e16')
-          .text(`${item.sceneName}: ${item.message}`, mm(PAGE_MARGIN_MM), mm(y), {
-            width: mm(contentWidth), lineBreak: false,
-          });
-        y += 5;
+    line('1. Stückliste und Bestandsbedarf (dieses Blatt)');
+    lists.scenes.forEach((scene, index) => line(`${index + 2}. ${scene.sceneName}`));
+    for (const visit of lists.visits) {
+      section(`Materialbedarf · ${visit.venueName} · ${visit.sceneNames.join(', ')}`);
+      listSection(visit.lists);
+      for (const warning of visit.lists.stock.warnings) {
+        if (warning.kind !== 'unassigned') line(warning.message, '#6a4e16', 7);
       }
     }
-    for (const venue of pkg.stock.venueMaterials ?? []) {
-      section(`Materialbedarf · ${venue.venueName} · enthaltene Bühnenbilder`);
-      for (const line of [
-        `Stützen: ${venue.required.braces}`,
-        `Gehwegplatten 400 × 400 × 50 mm: ${venue.required.slabs} · verfügbar ${venue.available.slabs} · fehlend ${venue.shortage.slabs}`,
-        `Spanngurte: ${venue.required.straps} · verfügbar ${venue.available.straps} · fehlend ${venue.shortage.straps}`,
-      ]) { ensure(5); doc.fontSize(8).text(line, mm(PAGE_MARGIN_MM), mm(y), { width: mm(contentWidth), lineBreak: false }); y += 5; }
+    if (lists.visits.length > 1) {
+      section('Materialbedarf · Gesamtpaket');
+      listSection(lists.total);
     }
-    for (const list of pkg.sceneLists) {
-      section(list.sceneName);
-      ensure(5);
-      doc.fontSize(7).fillColor('#536950');
-      doc.text('Wand', mm(PAGE_MARGIN_MM), mm(y), { lineBreak: false });
-      doc.text('Pos.', mm(PAGE_MARGIN_MM + 50), mm(y), { lineBreak: false });
-      doc.text('Platte', mm(PAGE_MARGIN_MM + 68), mm(y), { lineBreak: false });
-      doc.text('Maße (mm)', mm(PAGE_MARGIN_MM + 105), mm(y), { lineBreak: false });
-      y += 4.5;
-      for (const wall of list.walls) {
-        ensure(5);
-        doc.fontSize(8).fillColor('#203c36');
-        doc.text(wall.label, mm(PAGE_MARGIN_MM), mm(y), { width: mm(48), lineBreak: false });
-        doc.text(wall.assemblyNumber ? String(wall.assemblyNumber) : '—', mm(PAGE_MARGIN_MM + 50), mm(y), { lineBreak: false });
-        doc.text(wall.panelLabel ?? '—', mm(PAGE_MARGIN_MM + 68), mm(y), { width: mm(34), lineBreak: false });
-        doc.text(`${wall.width}×${wall.height}×${wall.thickness}`, mm(PAGE_MARGIN_MM + 105), mm(y), { lineBreak: false });
-        y += 5;
-      }
-      for (const brace of list.braces) {
-        ensure(5);
-        doc.fontSize(8).text(`${brace.label} · ${brace.footprintWidth}×${brace.footprintDepth} · ${brace.height} mm · ${ballastLabel(brace.ballast)}`,
-          mm(PAGE_MARGIN_MM), mm(y), { width: mm(contentWidth), lineBreak: false });
-        y += 5;
-      }
-      if (list.materials) {
-        ensure(5);
-        doc.fontSize(8).text(`Gehwegplatten: ${list.materials.slabs} · Spanngurte: ${list.materials.straps}`, mm(PAGE_MARGIN_MM), mm(y));
-        y += 5;
-      }
-      if (list.riggingNotes) {
-        ensure(5);
-        doc.fontSize(8).fillColor('#536950').text(list.riggingNotes, mm(PAGE_MARGIN_MM), mm(y), {
-          width: mm(contentWidth), lineBreak: false,
-        });
-        y += 5;
-      }
-      for (const warning of [...list.inventoryWarnings, ...list.overheadWarnings, ...list.keepClearWarnings]) {
-        ensure(5);
-        doc.fontSize(7).fillColor('#6a4e16').text(warning.message, mm(PAGE_MARGIN_MM), mm(y), {
-          width: mm(contentWidth), lineBreak: false,
-        });
-        y += 4.5;
+    for (const [index, scene] of lists.scenes.entries()) {
+      section(scene.sceneName);
+      table([{ title: 'Pos.', width: 0.6 }, { title: 'Bezeichnung', width: 2.4 }, { title: 'Bauteil', width: 2.4 },
+        { title: 'Bestandsstück', width: 1.4 }, { title: 'Maße (mm)', width: 2 }], scene.lists.objects.map(object => [
+        object.assemblyNumber === null ? '—' : String(object.assemblyNumber), object.label,
+        [object.partName, object.variantLabel].filter(Boolean).join(' · '), object.stockItemLabel ?? '—',
+        `${object.widthMm}×${object.depthMm}×${object.heightMm}`,
+      ]));
+      const snapshot = pkg.scenes[index]!;
+      if (snapshot.layout.riggingNotes) line(snapshot.layout.riggingNotes, '#536950');
+      for (const warning of [...scene.lists.stock.warnings, ...snapshot.warnings, ...snapshot.unresolvedWarnings]) {
+        line(warning.message, '#6a4e16', 7);
       }
     }
     footer();

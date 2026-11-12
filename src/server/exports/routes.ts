@@ -1,19 +1,18 @@
 import { randomUUID } from 'node:crypto';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { errorSchema, workspaceParamsSchema } from '../../shared/contracts.js';
-import { constructionSnapshotSchema, exportListSchema, exportPreviewResultSchema, exportPreviewSchema, exportRevisionSchema, freezeExportSchema, freezeSnapshot, type ConstructionSnapshot, type ExportRevision } from '../../shared/export.js';
+import { drawingScaleSchema, exportListSchema, paperSizeSchema, exportPreviewResultSchema, exportPreviewSchema, exportRevisionSchema, freezeExportSchema, freezeSnapshot, type ConstructionSnapshot, type ExportRevision } from '../../shared/export.js';
 import { sceneSchema } from '../../shared/layout.js';
 import { migrateLayout } from '../../shared/layoutMigrate.js';
-import { createLayoutPartIndex, resolveLayoutObjects } from '../../shared/layoutObjects.js';
 import type { Database } from '../db/connection.js';
-import { adaptation, constructionPlanRevision, production, scene, stockItem, venue, venueVersion } from '../db/schema.js';
-import { loadAllRevisions, loadMaterials } from '../parts/data.js';
+import { adaptation, constructionPlanRevision, production, scene, venue, venueVersion } from '../db/schema.js';
 import { AccessError, type createAccess } from '../identity/access.js';
 import type { FileStorage } from './storage.js';
 import { pdfForStoredSnapshot } from './documentRoutes.js';
+import { freezeSource, workspacePartIndex } from './freezeSource.js';
 import { constructionPageBreakdown } from './pdf.js';
 
 export function registerExportRoutes(
@@ -26,12 +25,9 @@ export function registerExportRoutes(
   const item = params.extend({ exportId: z.uuid() });
   const errors = { 400: errorSchema, 401: errorSchema, 403: errorSchema, 404: errorSchema, 409: errorSchema };
   function asRevision(row: typeof constructionPlanRevision.$inferSelect): ExportRevision {
-    const stored = row.snapshot as { schemaVersion?: number; paper?: 'A4' | 'A3'; scale?: 25 | 50 | 100 };
-    if (stored?.schemaVersion === 2 && stored.paper && stored.scale) {
-      return { id: row.id, name: row.name, paper: stored.paper, scale: stored.scale, status: row.status, createdAt: row.createdAt.toISOString() };
-    }
-    const snapshot = constructionSnapshotSchema.parse(row.snapshot);
-    return { id: row.id, name: row.name, paper: snapshot.paper, scale: snapshot.scale, status: row.status, createdAt: row.createdAt.toISOString() };
+    const stored = z.object({ paper: paperSizeSchema.catch('A4'), scale: drawingScaleSchema.catch(row.scale as 50) }).catch({ paper: 'A4', scale: 50 })
+      .parse(row.snapshot);
+    return { id: row.id, name: row.name, paper: stored.paper, scale: stored.scale, status: row.status, createdAt: row.createdAt.toISOString() };
   }
   async function loadScene(workspaceId: string, sceneId: string) {
     const [record] = await db.select({
@@ -51,20 +47,7 @@ export function registerExportRoutes(
     }
     return sceneSchema.parse({ ...record, lease: null });
   }
-  async function layoutIndex(workspaceId: string) {
-    const [revisions, materials] = await Promise.all([loadAllRevisions(db, workspaceId), loadMaterials(db, workspaceId)]);
-    return createLayoutPartIndex({
-      parts: [...revisions.values()].flatMap(items => [...items.values()]),
-      materials: [...materials.values()],
-    });
-  }
-  async function stockLabels(workspaceId: string, itemIds: string[]) {
-    const ids = [...new Set(itemIds)];
-    if (!ids.length) return {};
-    const rows = await db.select({ id: stockItem.id, label: stockItem.label })
-      .from(stockItem).where(and(eq(stockItem.workspaceId, workspaceId), inArray(stockItem.id, ids)));
-    return Object.fromEntries(rows.map(row => [row.id, row.label]));
-  }
+  const layoutIndex = (workspaceId: string) => workspacePartIndex(db, workspaceId);
   async function loadRevision(workspaceId: string, sceneId: string, exportId: string) {
     const [row] = await db.select().from(constructionPlanRevision)
       .where(and(eq(constructionPlanRevision.workspaceId, workspaceId), eq(constructionPlanRevision.sceneId, sceneId), eq(constructionPlanRevision.id, exportId)));
@@ -97,14 +80,10 @@ export function registerExportRoutes(
     const loaded = await loadScene(request.params.workspaceId, request.params.sceneId);
     const id = randomUUID();
     const issuedAt = new Date();
-    const index = await layoutIndex(request.params.workspaceId);
-    const objects = resolveLayoutObjects(loaded.layout, index);
     const snapshot = freezeSnapshot(loaded, {
       id, name: request.body.name, issuedAt, paper: request.body.paper, scale: request.body.scale,
       elevationGroupIds: request.body.elevationGroupIds, layers: request.body.layers,
-    }, await stockLabels(
-      request.params.workspaceId, loaded.layout.objects.flatMap(object => object.stockItemId ? [object.stockItemId] : []),
-    ), objects);
+    }, await freezeSource(db, request.params.workspaceId));
     await db.insert(constructionPlanRevision).values({
       id, workspaceId: request.params.workspaceId, sceneId: request.params.sceneId, name: request.body.name,
       scale: snapshot.scale, status: 'pending', snapshot, createdAt: issuedAt,
@@ -116,15 +95,11 @@ export function registerExportRoutes(
   api.post(`${path}/preview`, { schema: { params, body: exportPreviewSchema, response: { 200: exportPreviewResultSchema, ...errors } } }, async request => {
     await access(request, request.params.workspaceId);
     const loaded = await loadScene(request.params.workspaceId, request.params.sceneId);
-    const index = await layoutIndex(request.params.workspaceId);
-    const objects = resolveLayoutObjects(loaded.layout, index);
     const snapshot = freezeSnapshot(loaded, {
       id: randomUUID(), name: 'Vorschau', issuedAt: new Date(),
       paper: request.body.paper, scale: request.body.scale,
       elevationGroupIds: request.body.elevationGroupIds, layers: request.body.layers,
-    }, await stockLabels(
-      request.params.workspaceId, loaded.layout.objects.flatMap(object => object.stockItemId ? [object.stockItemId] : []),
-    ), objects);
+    }, await freezeSource(db, request.params.workspaceId));
     return constructionPageBreakdown(snapshot);
   });
   api.post(`${path}/:exportId/retry`, { schema: { params: item, response: { 200: exportRevisionSchema, ...errors } } }, async (request, reply) => {

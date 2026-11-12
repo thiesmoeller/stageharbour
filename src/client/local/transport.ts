@@ -37,6 +37,8 @@ import { resolvedOverheadClearance } from '../../shared/overhead.js';
 import { resolvedKeepClearWarnings } from '../../shared/keepClear.js';
 import { wallTypeSchema, type WallElementType } from '../../shared/wall-types.js';
 import { createLayoutPartIndex, resolveLayoutObjects } from '../../shared/layoutObjects.js';
+import type { StockInventory } from '../../shared/partLists.js';
+import { productionStockDemand, stockDemand, type DemandScene } from '../../shared/stockDemand.js';
 import { STARTER_PART_IDS } from '../../shared/parts/starter/index.js';
 import { createVenueSchema, publishVenueSchema, renameVenueSchema, venuePlanPreview } from '../../shared/venueLibrary.js';
 import { boundsFromOutline } from '../../shared/venue.js';
@@ -143,6 +145,33 @@ function toSceneRecord(snapshot: LocalSnapshot, scene: LocalScene): Scene {
     revision: scene.revision,
     venue: geometry,
     layout: scene.layout,
+  };
+}
+
+function localPartIndex(snapshot: LocalSnapshot) {
+  return createLayoutPartIndex({
+    parts: snapshot.catalog.revisions.map(item => item.definition),
+    materials: snapshot.catalog.materials,
+  });
+}
+
+function localInventory(snapshot: LocalSnapshot): StockInventory {
+  return {
+    items: snapshot.catalog.stockItems.map(item => ({
+      id: item.id, label: item.label, partId: item.partId, variantKey: item.variantKey,
+      values: item.values, usable: item.usable, archived: item.archivedAt !== null,
+    })),
+    counts: snapshot.catalog.stockCounts.map(count => ({
+      materialKey: count.materialKey, partId: count.partId, variantKey: count.variantKey, quantity: count.quantity,
+    })),
+  };
+}
+
+function demandScene(snapshot: LocalSnapshot, scene: LocalScene): DemandScene {
+  const record = toSceneRecord(snapshot, scene);
+  return {
+    id: record.id, name: record.name, productionId: record.productionId, venueId: record.venueId,
+    venueName: record.venueName, layout: record.layout, venue: record.venue,
   };
 }
 
@@ -744,6 +773,36 @@ export function createLocalTransport(store: LocalStore, options: PartsHandlerOpt
         .map(scene => scene.layout);
       if (!layouts.length) fail(404, 'Produktion an dieser Spielstätte nicht verfügbar.');
       return materialRequirements(layouts, snapshot.inventory.ballast);
+    }
+
+    params = match(path, '/api/workspaces/:workspaceId/scenes/:sceneId/stock-demand');
+    if (params && method === 'GET') {
+      const snapshot = store.getSnapshot();
+      requireWorkspace(snapshot, params.workspaceId!);
+      const scene = snapshot.scenes.find(row => row.id === params!.sceneId) ?? fail(404, 'Bühnenbild nicht verfügbar.');
+      return stockDemand([demandScene(snapshot, scene)], localPartIndex(snapshot), localInventory(snapshot));
+    }
+
+    params = match(path, '/api/workspaces/:workspaceId/productions/:productionId/venues/:venueId/stock-demand');
+    if (params && method === 'GET') {
+      const snapshot = store.getSnapshot();
+      requireWorkspace(snapshot, params.workspaceId!);
+      findProduction(snapshot, params.productionId!);
+      findVenue(snapshot, params.venueId!);
+      const scenes = snapshot.scenes.filter(row => row.productionId === params!.productionId)
+        .map(row => demandScene(snapshot, row)).filter(row => row.venueId === params!.venueId);
+      if (!scenes.length) fail(404, 'Produktion an dieser Spielstätte nicht verfügbar.');
+      return stockDemand(scenes, localPartIndex(snapshot), localInventory(snapshot));
+    }
+
+    params = match(path, '/api/workspaces/:workspaceId/productions/:productionId/stock-demand');
+    if (params && method === 'GET') {
+      const snapshot = store.getSnapshot();
+      requireWorkspace(snapshot, params.workspaceId!);
+      findProduction(snapshot, params.productionId!);
+      const scenes = snapshot.scenes.filter(row => row.productionId === params!.productionId).map(row => demandScene(snapshot, row));
+      if (!scenes.length) fail(404, 'Produktion nicht verfügbar.');
+      return productionStockDemand(scenes, localPartIndex(snapshot), localInventory(snapshot));
     }
 
     params = match(path, '/api/workspaces/:workspaceId/venues/:venueId/versions/:venueVersionId');

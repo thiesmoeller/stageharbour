@@ -1,16 +1,15 @@
-import { ballastLabel, sceneMaterials } from './ballast.js';
 import { z } from 'zod';
 import { CONNECTION_COMPATIBILITY_NOTICE } from './assembly.js';
 import { dimensionFigure, resolveDimension } from './dimensions.js';
 import { elevationFaces, type ElevationFace } from './elevations.js';
-import { openingOutlinePoints } from './wall-types.js';
 import {
   DRAWING_SCALE, drawingScaleSchema, paperSizeSchema, type ConstructionSnapshot,
 } from './export.js';
 import { exportLayersSchema, resolveExportLayers, type ExportLayers } from './exportLayers.js';
-import type { ConstructionPackage } from './package.js';
-
-type PackageStock = ConstructionPackage['stock'];
+import { frozenLists, resolveFrozen } from './frozenParts.js';
+import { packageLists } from './package.js';
+import type { BuildLists } from './partLists.js';
+import { polygonCentre } from './partDrawings.js';
 import {
   PAGE_OVERLAP_MM, PAPER_SIZE_MM, type DrawingScale, type PaperSize,
 } from './tiling.js';
@@ -20,7 +19,6 @@ import { layoutStageDeckModules, stageDeckLegPositions } from './stageDeck.js';
 import { orientedPlatformBox, stairSteps } from './levels.js';
 import { trussHangWorld } from './truss.js';
 import { centrelineSpan } from './snapping.js';
-import { doorOpenAngleDegrees } from './wall-types.js';
 import { CABLE_PURPOSE_LABELS, requiredCableLengthMm, type CableRun } from './infrastructure.js';
 
 const name = z.string().trim().min(1).max(120);
@@ -338,8 +336,6 @@ export function contentBounds(snapshot: ConstructionSnapshot, partial: Partial<E
   const points: { x: number; y: number }[] = [];
   if (scope === 'venue') points.push(...measuredOutline(snapshot.venue));
   if (layers.scenery) {
-    for (const wall of snapshot.resolvedWalls) points.push(...wall.corners);
-    for (const brace of snapshot.resolvedBraces ?? []) points.push(...brace.corners);
     for (const item of snapshot.resolvedPlaceholders ?? []) {
       if (item.kind === 'chair' && !layers.audience) continue;
       points.push(...item.corners);
@@ -604,58 +600,17 @@ function planPaint(
     }
   }
 
-  // 5. Scenery Walls with Doors, Swings & Assembly Badges
+  // 5. Assembly numbers and stock labels of the scenery parts
   if (layers.scenery) {
-    for (const wall of snapshot.resolvedWalls) {
-      paint.push(poly([...wall.corners], frame, view, '#315d49', '#243f34', 0.5));
-      for (const opening of wall.openings ?? []) {
-        paint.push(poly([...opening.corners], frame, view, '#ffffff', '#315d49', 0.4));
-        const [oa, ob] = opening.corners;
-        if (!oa || !ob) continue;
-        const openingWidth = Math.hypot(ob.x - oa.x, ob.y - oa.y);
-        if (openingWidth < 1) continue;
-        if (opening.height > 1800 || openingWidth >= 600) {
-          const ux = (ob.x - oa.x) / openingWidth;
-          const uy = (ob.y - oa.y) / openingWidth;
-          const nx = uy, ny = -ux;
-          const norm = ny < 0 ? { x: nx, y: ny } : { x: -nx, y: -ny };
-          const hinge = oa;
-          const openRad = doorOpenAngleDegrees(100) * Math.PI / 180;
-          if (openRad > 0.01) {
-            const leafEnd = {
-              x: hinge.x + openingWidth * (Math.cos(openRad) * ux + Math.sin(openRad) * norm.x),
-              y: hinge.y + openingWidth * (Math.cos(openRad) * uy + Math.sin(openRad) * norm.y),
-            };
-            const hP = toPage(hinge.x, hinge.y, frame, view);
-            const lP = toPage(leafEnd.x, leafEnd.y, frame, view);
-            paint.push({ op: 'line', x1: hP.x, y1: hP.y, x2: lP.x, y2: lP.y, stroke: '#243f34', line: 0.6 });
-            paint.push({ op: 'circle', cx: hP.x, cy: hP.y, r: 0.7, fill: '#986122' });
-            const arcPts: { x: number; y: number }[] = [];
-            for (let step = 0; step <= 8; step++) {
-              const t = (step / 8) * openRad;
-              arcPts.push({
-                x: hinge.x + openingWidth * (Math.cos(t) * ux + Math.sin(t) * norm.x),
-                y: hinge.y + openingWidth * (Math.cos(t) * uy + Math.sin(t) * norm.y),
-              });
-            }
-            paint.push({ op: 'poly', points: arcPts.map(p => toPage(p.x, p.y, frame, view)), stroke: '#718469', line: 0.25, dash: [1, 1] });
-          }
-        }
-      }
-      const box = boxOf(wall.corners);
-      if (box && layers.labels) identityMarks(wallIdentityLines(wall.assemblyNumber, wall.panelLabel), (box.minX + box.maxX) / 2, (box.minY + box.maxY) / 2, frame, view, measure, paint);
-    }
-    for (const brace of snapshot.resolvedBraces ?? []) {
-      for (const slab of brace.slabs ?? []) paint.push(poly([...slab], frame, view, '#999b96', '#666666', 0.4));
-      paint.push(poly([...(brace.timberCorners ?? brace.corners)], frame, view, undefined, '#5c6b52', 0.5));
-      if (brace.slabs?.length && layers.labels) {
-        const slabCount = brace.slabs.length;
-        const label = `${slabCount}× Platte (${slabCount * 25} kg)`;
-        const cx = (brace.corners[0]!.x + brace.corners[2]!.x) / 2;
-        const cy = (brace.corners[0]!.y + brace.corners[2]!.y) / 2;
-        const at = toPage(cx, cy, frame, view);
-        const lw = measure(label, 6);
-        paint.push({ op: 'text', x: at.x - lw / 2, y: at.y - 1.5, text: label, size: 6, color: '#444444', bold: true, height: 3, width: lw });
+    if (layers.labels) {
+      const resolved = resolveFrozen(snapshot);
+      const stockLabels = new Map(snapshot.stock.items.map(item => [item.id, item.label]));
+      for (const item of resolved.objects) {
+        const lines = wallIdentityLines(resolved.assembly.numbers.get(item.object.id),
+          item.object.stockItemId ? stockLabels.get(item.object.stockItemId) : undefined);
+        if (!lines.length) continue;
+        const centre = polygonCentre(item.footprint);
+        identityMarks(lines, centre.x, centre.y, frame, view, measure, paint);
       }
     }
     for (const item of snapshot.resolvedPlaceholders ?? []) {
@@ -797,22 +752,15 @@ function elevationPaint(face: ElevationFace, frame: Rect, view: Box, measure: Te
   const occupied: Rect[] = [];
   const overflow: string[] = [];
   for (const panel of face.panels) {
-    const corners = [
-      { x: panel.left, y: 0 }, { x: panel.left + panel.width, y: 0 },
-      { x: panel.left + panel.width, y: panel.height }, { x: panel.left, y: panel.height },
-    ];
-    paint.push(poly(corners, frame, view, '#e7efe4', '#315d49', 0.5));
-    for (const opening of panel.openings) {
-      paint.push(poly(
-        openingOutlinePoints(opening).map(point => ({ x: panel.left + point.x, y: point.y })),
-        frame, view, '#ffffff', '#315d49', 0.4,
-      ));
+    for (const polygon of panel.polygons) {
+      paint.push(poly(polygon.outline, frame, view, '#e7efe4', '#315d49', 0.5));
+      for (const hole of polygon.holes) paint.push(poly(hole, frame, view, '#ffffff', '#315d49', 0.4));
     }
     const anchor = toPage(panel.left + panel.width, panel.height, frame, view);
     const placed = placeLabel(String(Math.round(panel.width)), { x: anchor.x + 1, y: anchor.y }, 7, '#395640', frame, occupied, measure);
     if (placed) paint.push(...texts([placed]));
     else overflow.push(panel.label);
-    identityMarks(wallIdentityLines(panel.assemblyNumber, panel.panelLabel), panel.left + panel.width / 2, panel.height / 2, frame, view, measure, paint);
+    identityMarks(wallIdentityLines(panel.assemblyNumber, panel.panelLabel), panel.left + panel.width / 2, (panel.bottom + panel.height) / 2, frame, view, measure, paint);
   }
   return { paint, overflow };
 }
@@ -891,18 +839,54 @@ function keysFor(snapshot: ConstructionSnapshot): { map: Map<string, string>; ro
   const map = new Map<string, string>();
   const rows: Keyed[] = [];
   let n = 1;
-  for (const object of snapshot.resolvedObjects) {
-    const key = String(n++);
-    map.set(object.id, key);
+  for (const object of frozenLists(snapshot).objects) {
+    const key = object.assemblyNumber !== null ? String(object.assemblyNumber) : `–${n++}`;
+    map.set(object.objectId, key);
+    const part = [object.partName, object.variantLabel].filter(Boolean).join(' · ');
     rows.push({
-      key, label: object.stockItemLabel ?? object.label,
-      detail: `${Math.round(object.width)} × ${Math.round(object.height)} mm${object.assemblyNumber ? ` · Position ${object.assemblyNumber}` : ''}`,
+      key, label: object.stockItemLabel ? `${object.label} · ${object.stockItemLabel}` : object.label,
+      detail: `${part} · ${object.widthMm} × ${object.depthMm} × ${object.heightMm} mm${object.weightKg > 0 ? ` · ${formatKg(object.weightKg)}` : ''}`,
     });
   }
-  const materials = sceneMaterials(snapshot.layout);
-  if (materials.slabs) rows.push({ key: '—', label: 'Gehwegplatten', detail: `${materials.slabs} Stück · 400 × 400 × 50 mm` });
-  if (materials.straps) rows.push({ key: '—', label: 'Spanngurte', detail: `${materials.straps} Stück` });
   return { map, rows };
+}
+
+const formatKg = (value: number) => `${value.toLocaleString('de-DE', { maximumFractionDigits: 1 })} kg`;
+const formatMm = (value: number) => `${Math.round(value).toLocaleString('de-DE')} mm`;
+const formatM2 = (valueMm2: number) => `${(valueMm2 / 1e6).toLocaleString('de-DE', { maximumFractionDigits: 2 })} m²`;
+const withVariant = (name: string, variant: string | null) => variant ? `${name} · ${variant}` : name;
+const STOCK_LABELS = { item: 'Bestandsstück', count: 'Zählbestand', none: '—' } as const;
+
+/** Tables of a parts list: Bauteilliste, Zuschnittliste with hardware and weight, Bestandsbedarf. */
+export function listTables(lists: BuildLists): { title: string; headers: string[]; rows: string[][] }[] {
+  const tables: { title: string; headers: string[]; rows: string[][] }[] = [];
+  if (lists.parts.length) {
+    tables.push({
+      title: 'Bauteilliste', headers: ['Bauteil', 'Bestand', 'Platziert', 'Eingebaut', 'Gesamt'],
+      rows: lists.parts.map(row => [withVariant(row.name, row.variantLabel), STOCK_LABELS[row.stock],
+        String(row.placed), String(row.nested), String(row.count)]),
+    });
+  }
+  const cutRows = [
+    ...lists.cutList.beams.map(row => [row.materialName, `${row.section.width} × ${row.section.height} mm`, formatMm(row.lengthMm),
+      String(row.count), formatKg(row.weightKg)]),
+    ...lists.cutList.sheets.map(row => [row.materialName, `${row.widthMm} × ${row.heightMm} × ${row.thicknessMm} mm`, formatM2(row.areaMm2),
+      String(row.count), formatKg(row.weightKg)]),
+    ...lists.hardware.map(row => [row.materialName, 'Beschlag / Zubehör', '—', String(row.quantity), row.weightKg > 0 ? formatKg(row.weightKg) : '—']),
+  ];
+  if (cutRows.length) {
+    cutRows.push(['Gesamtgewicht', '', '', '', formatKg(lists.weightKg)]);
+    tables.push({ title: 'Zuschnittliste', headers: ['Material', 'Maß', 'Länge / Fläche', 'Stück', 'Gewicht'], rows: cutRows });
+  }
+  if (lists.stock.rows.length) {
+    tables.push({
+      title: 'Bestandsbedarf', headers: ['Artikel', 'Benötigt', 'Zugeordnet', 'Verfügbar', 'Fehlend'],
+      rows: lists.stock.rows.map(row => [withVariant(row.name, row.variantLabel), String(row.required),
+        row.assigned === null ? '—' : String(row.assigned), row.available === null ? 'nicht erfasst' : String(row.available),
+        row.shortage ? String(row.shortage) : '—']),
+    });
+  }
+  return tables;
 }
 
 function tableSheets(
@@ -1002,6 +986,15 @@ function collectNotes(snapshot: ConstructionSnapshot, layers: ExportLayers) {
   if (!layers.warnings) return [];
   const notes = [...(snapshot.warnings ?? []).map(warning => warning.message), ...(snapshot.unresolvedWarnings ?? []).map(warning => warning.message)];
   if (snapshot.layout.riggingNotes?.trim()) notes.unshift(snapshot.layout.riggingNotes.trim());
+  const resolved = resolveFrozen(snapshot);
+  const numbers = resolved.assembly.numbers;
+  resolved.assembly.chains.forEach((chain, index) => {
+    const members = chain.map(id => `${numbers.get(id) ?? '?'} ${resolved.byId.get(id)?.object.label ?? ''}`.trim());
+    notes.push(`Montagefolge Verbund ${index + 1}: ${members.join(' → ')}`);
+  });
+  for (const warning of frozenLists(snapshot).stock.warnings) {
+    if (warning.kind !== 'unassigned') notes.push(warning.message);
+  }
   notes.push(CONNECTION_COMPATIBILITY_NOTICE);
   return notes;
 }
@@ -1011,7 +1004,6 @@ export function composeDocument(input: {
   scenes: FrozenScene[];
   productionName: string;
   issuedAtLabel: string;
-  stock?: PackageStock;
   measure?: TextMeasure;
 }): DocumentLayout {
   const measure = input.measure ?? approximateMeasure;
@@ -1031,7 +1023,7 @@ export function composeDocument(input: {
       ? composeDocument({ ...input, spec: { ...spec, customPages: undefined } }) : undefined;
     composeCustom(spec, ordered, input, layers, measure, sheets, diagnostics, automatic);
   } else {
-    if (sections?.has('cover') || (!sections && (spec.kind === 'package' || ordered.length > 1 || input.stock))) {
+    if (sections?.has('cover') || (!sections && (spec.kind === 'package' || ordered.length > 1))) {
       composeIndex(spec, ordered, input, measure, sheets);
     }
     for (const { entry, scene } of ordered) {
@@ -1039,7 +1031,7 @@ export function composeDocument(input: {
       composeScene(spec, entry.elevationGroupIds, scene, input, layers, measure, sheets, diagnostics);
       for (const sheet of sheets.slice(start)) sheet.sourceKey = `${scene.sceneId}:${sheet.frames[0]?.id}`;
     }
-    if (spec.kind === 'package' && input.stock && (!sections || sections.has('materialSchedule'))) composeStock(input.stock, spec, input, measure, sheets);
+    if (spec.kind === 'package' && (!sections || sections.has('materialSchedule'))) composeStock(ordered, spec, input, measure, sheets);
     const cameras = spec.viewCameras ?? [];
     if ((!sections || sections.has('roomViews')) && cameras.length) {
       for (const { scene } of ordered) {
@@ -1178,6 +1170,11 @@ function composeScene(
   if (rows.length && (!sections || sections.has('wallSchedule'))) {
     tableSheets('Stückliste', ['Nr.', 'Bezeichnung', 'Maß'], rows.map(row => [row.key, row.label, row.detail]), body, paper, orientation, measure, scene.sceneName, metaFor(input, scene, 'Stückliste', '—'), sheets);
   }
+  if (!sections || sections.has('materialSchedule')) {
+    for (const table of listTables(frozenLists(snapshot, { id: scene.sceneId, name: scene.sceneName }))) {
+      tableSheets(table.title, table.headers, table.rows, body, paper, orientation, measure, scene.sceneName, metaFor(input, scene, table.title, '—'), sheets);
+    }
+  }
   if (sections?.has('cableSchedule') && (snapshot.layout.cableRuns?.length ?? 0) > 0) {
     tableSheets('Kabelliste', ['Zweck / Typ', 'Von → Nach', 'Anzahl', 'Länge je Kabel'], cableScheduleRows(snapshot.layout.cableRuns ?? []),
       body, paper, orientation, measure, scene.sceneName, metaFor(input, scene, 'Kabelliste', '—'), sheets);
@@ -1245,21 +1242,19 @@ function composeIndex(
   });
 }
 
-function composeStock(stock: PackageStock, spec: ExportDocumentSpec, input: { productionName: string; issuedAtLabel: string; spec: ExportDocumentSpec }, measure: TextMeasure, sheets: DrawnSheet[]) {
+/** Lists of every venue visit of the document and, across visits, of the whole package. */
+function composeStock(ordered: { scene: FrozenScene }[], spec: ExportDocumentSpec, input: { productionName: string; issuedAtLabel: string; spec: ExportDocumentSpec }, measure: TextMeasure, sheets: DrawnSheet[]) {
   const orientation: SheetOrientation = spec.orientation === 'landscape' ? 'landscape' : 'portrait';
   const body = bodyRect(spec.paper, orientation);
-  const rows = [
-    ['Physische Platten', String(stock.physicalPanels), 'Bestand'],
-    ['Einsätze in Bühnenbildern', String(stock.appearances), 'Auftritte'],
-    ...stock.panels.map(panel => [panel.label, String(panel.appearances), panel.sceneNames.join(', ')]),
-  ];
-  tableSheets('Bestand', ['Platte', 'Anzahl', 'Bühnenbilder'], rows, body, spec.paper, orientation, measure, undefined, metaFor(input, undefined, 'Bestand', '—'), sheets);
-  for (const venue of stock.venueMaterials ?? []) {
-    tableSheets('Materialbedarf · enthaltene Bühnenbilder', ['Artikel', 'Benötigt', 'Verfügbar / Fehlend'], [
-      ['Stützen', String(venue.required.braces), '—'],
-      ['Gehwegplatten · 400 × 400 × 50 mm', String(venue.required.slabs), `${venue.available.slabs} / ${venue.shortage.slabs}`],
-      ['Spanngurte', String(venue.required.straps), `${venue.available.straps} / ${venue.shortage.straps}`],
-    ], body, spec.paper, orientation, measure, venue.venueName, metaFor(input, undefined, `Materialbedarf · ${venue.venueName}`, '—'), sheets);
+  const lists = packageLists(ordered.map(({ scene }) => ({ sceneId: scene.sceneId, snapshot: scene.snapshot })));
+  const groups = lists.visits.map(visit => ({ title: `Gastspiel ${visit.venueName}`, lists: visit.lists }));
+  if (groups.length > 1) groups.push({ title: 'Gesamtpaket', lists: lists.total });
+  for (const group of groups) {
+    for (const table of listTables(group.lists)) {
+      if (table.title === 'Bauteilliste') continue;
+      const title = `${table.title === 'Bestandsbedarf' ? 'Bestand' : 'Materialbedarf'} · ${group.title}`;
+      tableSheets(title, table.headers, table.rows, body, spec.paper, orientation, measure, undefined, metaFor(input, undefined, title, '—'), sheets);
+    }
   }
 }
 

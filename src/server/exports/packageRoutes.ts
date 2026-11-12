@@ -1,4 +1,3 @@
-import { EMPTY_BALLAST_STOCK } from '../../shared/ballast.js';
 import { randomUUID } from 'node:crypto';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
@@ -8,13 +7,13 @@ import { errorSchema, workspaceParamsSchema } from '../../shared/contracts.js';
 import { exportListSchema, exportRevisionSchema, type ExportRevision } from '../../shared/export.js';
 import { sceneSchema } from '../../shared/layout.js';
 import { migrateLayout } from '../../shared/layoutMigrate.js';
-import { createLayoutPartIndex } from '../../shared/layoutObjects.js';
-import { constructionPackageSchema, freezePackage, freezePackageSchema, type ConstructionPackage } from '../../shared/package.js';
+import { drawingScaleSchema, paperSizeSchema } from '../../shared/export.js';
+import { freezePackage, freezePackageSchema, type ConstructionPackage } from '../../shared/package.js';
 import type { Database } from '../db/connection.js';
-import { inventoryBallast, adaptation, constructionPackage, inventoryPanel, inventoryWallType, production, scene, venue, venueVersion } from '../db/schema.js';
+import { adaptation, constructionPackage, production, scene, venue, venueVersion } from '../db/schema.js';
 import { AccessError, type createAccess } from '../identity/access.js';
-import { loadAllRevisions, loadMaterials } from '../parts/data.js';
 import { pdfForStoredSnapshot } from './documentRoutes.js';
+import { freezeSource, workspacePartIndex } from './freezeSource.js';
 import type { FileStorage } from './storage.js';
 
 export function registerPackageRoutes(
@@ -27,12 +26,9 @@ export function registerPackageRoutes(
   const item = params.extend({ packageId: z.uuid() });
   const errors = { 400: errorSchema, 401: errorSchema, 403: errorSchema, 404: errorSchema, 409: errorSchema };
   function asRevision(row: typeof constructionPackage.$inferSelect): ExportRevision {
-    const stored = row.snapshot as { schemaVersion?: number; paper?: 'A4' | 'A3'; scale?: 25 | 50 | 100 };
-    if (stored?.schemaVersion === 2 && stored.paper && stored.scale) {
-      return { id: row.id, name: row.name, paper: stored.paper, scale: stored.scale, status: row.status, createdAt: row.createdAt.toISOString() };
-    }
-    const snapshot = constructionPackageSchema.parse(row.snapshot);
-    return { id: row.id, name: row.name, paper: snapshot.paper, scale: snapshot.scale, status: row.status, createdAt: row.createdAt.toISOString() };
+    const stored = z.object({ paper: paperSizeSchema.catch('A4'), scale: drawingScaleSchema.catch(row.scale as 50) }).catch({ paper: 'A4', scale: 50 })
+      .parse(row.snapshot);
+    return { id: row.id, name: row.name, paper: stored.paper, scale: stored.scale, status: row.status, createdAt: row.createdAt.toISOString() };
   }
   async function loadProduction(workspaceId: string, productionId: string) {
     const [row] = await db.select().from(production)
@@ -63,23 +59,7 @@ export function registerPackageRoutes(
     if (loaded.some(item => !item)) throw new AccessError(404, 'Bühnenbild nicht verfügbar.');
     return loaded as ReturnType<typeof sceneSchema.parse>[];
   }
-  async function layoutIndex(workspaceId: string) {
-    const [revisions, materials] = await Promise.all([loadAllRevisions(db, workspaceId), loadMaterials(db, workspaceId)]);
-    return createLayoutPartIndex({
-      parts: [...revisions.values()].flatMap(items => [...items.values()]),
-      materials: [...materials.values()],
-    });
-  }
-  async function loadInventory(workspaceId: string) {
-    const types = await db.select().from(inventoryWallType).where(eq(inventoryWallType.workspaceId, workspaceId));
-    const typeMap = new Map(types.map(row => [row.id, row.definition]));
-    const rows = await db.select().from(inventoryPanel).where(eq(inventoryPanel.workspaceId, workspaceId));
-    return rows.map(row => {
-      const type = typeMap.get(row.typeId);
-      if (!type) throw new AccessError(404, 'Bestand nicht verfügbar.');
-      return { id: row.id, label: row.label, typeId: row.typeId, available: row.available, note: row.note, type };
-    });
-  }
+  const layoutIndex = (workspaceId: string) => workspacePartIndex(db, workspaceId);
   async function loadRevision(workspaceId: string, productionId: string, packageId: string) {
     const [row] = await db.select().from(constructionPackage)
       .where(and(eq(constructionPackage.workspaceId, workspaceId), eq(constructionPackage.productionId, productionId), eq(constructionPackage.id, packageId)));
@@ -114,11 +94,10 @@ export function registerPackageRoutes(
     const scenes = await loadScenes(request.params.workspaceId, request.params.productionId, request.body.sceneIds);
     const id = randomUUID();
     const issuedAt = new Date();
-    const [ballastStock] = await db.select({ slabs: inventoryBallast.slabs, straps: inventoryBallast.straps }).from(inventoryBallast).where(eq(inventoryBallast.workspaceId, request.params.workspaceId));
     const snapshot = freezePackage(scenes, {
       id, name: request.body.name, issuedAt, paper: request.body.paper, scale: request.body.scale,
       elevationGroupIds: request.body.elevationGroupIds, layers: request.body.layers,
-    }, await loadInventory(request.params.workspaceId), ballastStock ?? EMPTY_BALLAST_STOCK);
+    }, await freezeSource(db, request.params.workspaceId));
     await db.insert(constructionPackage).values({
       id, workspaceId: request.params.workspaceId, productionId: request.params.productionId, name: request.body.name,
       scale: snapshot.scale, status: 'pending', snapshot, createdAt: issuedAt,

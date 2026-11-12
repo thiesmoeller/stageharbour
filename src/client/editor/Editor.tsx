@@ -69,6 +69,15 @@ type MarqueeState = {
   additive: boolean;
 };
 
+function stockAssignments(objects: Layout['objects'], exceptId: string) {
+  const labels = new Map<string, string[]>();
+  for (const object of objects) {
+    if (object.id === exceptId || !object.stockItemId) continue;
+    labels.set(object.stockItemId, [...labels.get(object.stockItemId) ?? [], object.label]);
+  }
+  return labels;
+}
+
 function uniqueRefs(layout: Layout) {
   return [...new Map(layout.objects.map(object => [`${object.part.id}@${object.part.revision}`, object.part])).values()];
 }
@@ -615,6 +624,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
               : selected
               ? <PartInspector item={selected} summary={summaryById.get(selected.object.part.id)}
                 latestRevision={latestById.get(selected.object.part.id)} stockItems={stockItems}
+                assignedElsewhere={stockAssignments(shown.objects, selected.object.id)}
                 supports={supportOptions} readOnly={readOnly}
                 onApply={commitObject} onRemove={removeSelected}
                 onPendingChange={pending => setPendingForms(count => adjustPendingCount(count, pending))}

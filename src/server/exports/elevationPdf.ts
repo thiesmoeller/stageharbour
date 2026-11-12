@@ -58,22 +58,31 @@ export function strokeElevations(
       x: mm(originX + along / drawScale), y: mm(originY - up / drawScale),
     });
     for (const panel of face.panels) {
-      const a = toPage(panel.left, 0), b = toPage(panel.left + panel.width, 0);
-      const c = toPage(panel.left + panel.width, panel.height), d = toPage(panel.left, panel.height);
-      doc.moveTo(a.x, a.y).lineTo(b.x, b.y).lineTo(c.x, c.y).lineTo(d.x, d.y).closePath().fillAndStroke('#e7efe4', '#315d49');
+      const path = (points: readonly { x: number; y: number }[]) => {
+        const [first, ...rest] = points.map(point => toPage(point.x, point.y));
+        if (!first) return false;
+        doc.moveTo(first.x, first.y);
+        for (const point of rest) doc.lineTo(point.x, point.y);
+        doc.closePath();
+        return true;
+      };
+      for (const polygon of panel.polygons) {
+        if (path(polygon.outline)) doc.fillAndStroke('#e7efe4', '#315d49');
+        for (const hole of polygon.holes) if (path(hole)) doc.fillAndStroke('#ffffff', '#315d49');
+      }
       for (const opening of panel.openings) {
         const oa = toPage(panel.left + opening.left, opening.sill);
         const ob = toPage(panel.left + opening.left + opening.width, opening.sill);
         const oc = toPage(panel.left + opening.left + opening.width, opening.sill + opening.height);
-        const od = toPage(panel.left + opening.left, opening.sill + opening.height);
-        doc.moveTo(oa.x, oa.y).lineTo(ob.x, ob.y).lineTo(oc.x, oc.y).lineTo(od.x, od.y).closePath().fillAndStroke('#ffffff', '#315d49');
         doc.fontSize(7).fillColor('#395640')
           .text(`${Math.round(opening.width)} mm`, (oa.x + ob.x) / 2 - mm(6), oa.y + mm(1), { lineBreak: false });
         doc.text(`${Math.round(opening.height)} mm`, oc.x + mm(1), (ob.y + oc.y) / 2 - mm(1.5), { lineBreak: false });
       }
+      const a = toPage(panel.left, panel.bottom), b = toPage(panel.left + panel.width, panel.bottom);
+      const d = toPage(panel.left, panel.height);
       doc.fontSize(8).fillColor('#395640')
         .text(`${Math.round(panel.width)} mm`, (a.x + b.x) / 2 - mm(8), a.y + mm(2), { lineBreak: false });
-      doc.text(`${Math.round(panel.height)} mm`, d.x - mm(16), (a.y + d.y) / 2 - mm(1.5), { lineBreak: false });
+      doc.text(`${Math.round(panel.height - panel.bottom)} mm`, d.x - mm(16), (a.y + d.y) / 2 - mm(1.5), { lineBreak: false });
     }
     top = originY + 14;
   }

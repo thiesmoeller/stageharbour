@@ -152,6 +152,25 @@ material group per stock material, plus one per finishable face (`slot.face` is 
 (`BOX_SIDE_SLOTS`, `SHEET_SIDE_SLOTS`). Geometry is in the frame of its input: pass a resolved
 part and set the mesh matrix to `placementMatrix(placement)`, or pass a placed part.
 
+## Documents and stock
+
+Construction documents freeze a Bühnenbild as a `ConstructionSnapshot` (version 2,
+`src/shared/export.ts`): the layout, the venue, `library` (the exact revisions the objects use,
+their child parts and every material they name, see `frozenParts.ts`) and the `stock` pieces and
+counts it was checked against. Drawings and lists are derived again from the snapshot alone, so
+editing the library later cannot change an issued document.
+
+- `partDrawings.ts`: `planSymbol` (footprint, solids or stair steps from `traits.planSymbol`,
+  floor gaps and door swings from openings and child hinge edges) and `elevationOutline`
+  (projected faces with cut-outs).
+- `assembly.ts`: `assemblyOrder` numbers chains of `hinge-edge` joints from left to right.
+- `partLists.ts`: parts list, cut list, hardware, weight and stock demand of resolved objects
+  (`sceneLists`); several Bühnenbilder of one venue visit or package share stock, so
+  `combineLists` takes the maximum per row.
+- `stockDemand.ts`: the same lists for saved Bühnenbilder against the live library, served at
+  `…/scenes/:id/stock-demand`, `…/productions/:id/venues/:venueId/stock-demand` and
+  `…/productions/:id/stock-demand`.
+
 ## Rules worth knowing
 
 - A cut-out within 0.5 mm of the sheet edge is cut through it (door to the floor). An error is

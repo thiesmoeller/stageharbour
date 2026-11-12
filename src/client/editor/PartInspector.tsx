@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { LayoutObject, PartFaceFinish } from '../../shared/layout.js';
 import type { ResolvedLayoutObject } from '../../shared/layoutObjects.js';
+import { fittingStockItems, stockItemFits } from '../../shared/partLists.js';
 import type { PartSummary, StockItem } from '../../shared/parts/catalog.js';
 import type { PartParameter } from '../../shared/parts/definition.js';
 import type { FaceSurfacing, SurfaceFinish } from '../../shared/surfaces.js';
@@ -66,11 +67,13 @@ function ParameterField({ parameter, value }: { parameter: PartParameter; value:
     defaultValue={value} required /></div>;
 }
 
-export function PartInspector({ item, summary, latestRevision, stockItems, supports, readOnly, onApply, onRemove, onUpdateRevision, onPendingChange }: {
+export function PartInspector({ item, summary, latestRevision, stockItems, assignedElsewhere = new Map(), supports, readOnly, onApply, onRemove, onUpdateRevision, onPendingChange }: {
   item: ResolvedLayoutObject;
   summary?: PartSummary;
   latestRevision?: number;
   stockItems: readonly StockItem[];
+  /** Labels of the other objects in this Bühnenbild per assigned stock piece. */
+  assignedElsewhere?: ReadonlyMap<string, readonly string[]>;
   supports: readonly SupportOption[];
   readOnly: boolean;
   onApply: (object: LayoutObject) => void;
@@ -83,11 +86,17 @@ export function PartInspector({ item, summary, latestRevision, stockItems, suppo
   const parameters = definition.parameters.filter(parameter => parameter.scope !== 'variant');
   const faces = [...new Map(resolved.faces.map(face => [face.key, face])).values()];
   const [finishes, setFinishes] = useState<NonNullable<LayoutObject['finishes']>>(() => object.finishes ?? {});
-  const compatibleStock = stockItems.filter(stock =>
-    stock.partId === object.part.id
-    && stock.variantKey === (object.variant ?? null)
-    && !stock.archived
-  );
+  const compatibleStock = fittingStockItems(stockItems, item);
+  const assigned = object.stockItemId ? stockItems.find(stock => stock.id === object.stockItemId) : undefined;
+  const stockOptions = assigned && !compatibleStock.includes(assigned) ? [assigned, ...compatibleStock] : compatibleStock;
+  const stockWarnings = object.stockItemId ? [
+    ...!assigned ? ['Das zugeordnete Bestandsstück ist nicht mehr im Bestand.'] : [],
+    ...assigned && !assigned.usable ? [`${assigned.label} ist als nicht verwendbar markiert.`] : [],
+    ...assigned && (assigned.archived || !stockItemFits(assigned, item))
+      ? [`${assigned.label} passt nicht zu diesem Bauteil (anderes Bauteil, andere Variante oder andere Maße).`] : [],
+    ...assignedElsewhere.get(object.stockItemId)?.length
+      ? [`${assigned?.label ?? 'Das Bestandsstück'} ist auch „${assignedElsewhere.get(object.stockItemId)!.join('“, „')}“ zugeordnet.`] : [],
+  ] : [];
   useEffect(() => { setFinishes(object.finishes ?? {}); }, [object.id, object.finishes]);
   function discardAll() {
     setFinishes(object.finishes ?? {});
@@ -160,8 +169,14 @@ export function PartInspector({ item, summary, latestRevision, stockItems, suppo
       <label htmlFor="part-stock">Bestandsstück</label>
       <select id="part-stock" name="stockItemId" defaultValue={object.stockItemId ?? ''}>
         <option value="">Kein Bestandsstück</option>
-        {compatibleStock.map(stock => <option key={stock.id} value={stock.id} disabled={!stock.usable}>{stock.label}{stock.usable ? '' : ' · nicht verwendbar'}</option>)}
+        {stockOptions.map(stock => <option key={stock.id} value={stock.id} disabled={stock.id !== object.stockItemId
+          && (!stock.usable || assignedElsewhere.has(stock.id))}>
+          {stock.label}{stock.usable ? '' : ' · nicht verwendbar'}{assignedElsewhere.has(stock.id) ? ' · schon zugeordnet' : ''}
+        </option>)}
       </select>
+      {stockWarnings.length > 0 && <ul className="warning" data-testid="part-stock-warnings">
+        {stockWarnings.map(message => <li key={message}>{message}</li>)}
+      </ul>}
       <label htmlFor="part-assembly">Montagenummer</label>
       <input id="part-assembly" name="assemblyNumber" type="number" min={1} max={250} defaultValue={object.assemblyNumber ?? ''} />
       {faces.length > 0 && <details><summary>Oberflächen</summary>
