@@ -1,4 +1,5 @@
-import { pgTable, text, timestamp, boolean, uuid, pgEnum, primaryKey, index, uniqueIndex, integer, jsonb, foreignKey } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import { pgTable, text, timestamp, boolean, uuid, pgEnum, primaryKey, index, uniqueIndex, integer, jsonb, foreignKey, check } from 'drizzle-orm/pg-core';
 import type { ConstructionSnapshot } from '../../shared/export.js';
 import type { ConstructionPackage } from '../../shared/package.js';
 import type { Layout, VenueGeometry } from '../../shared/layout.js';
@@ -9,6 +10,7 @@ import type { WallElementType } from '../../shared/wall-types.js';
 import type { AssetDefinition } from '../../shared/assets.js';
 import type { SurfaceDefinition } from '../../shared/surfaceRegistry.js';
 import type { DocumentDraft } from '../../shared/exportDocument.js';
+import type { PartDefinition, PartMaterial } from '../../shared/parts/definition.js';
 
 const dates = () => ({
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -271,3 +273,80 @@ export const inventoryBallast = pgTable('inventory_ballast', {
   slabs: integer('slabs').notNull().default(0),
   straps: integer('straps').notNull().default(0),
 });
+
+/**
+ * Part catalog. A part id is only unique inside its workspace: every workspace holds the starter
+ * library under the same fixed ids, and library files carry ids from other installations.
+ */
+export const partDefinition = pgTable('part_definition', {
+  id: uuid('id').notNull(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspace.id),
+  name: text('name').notNull(),
+  category: text('category').notNull(),
+  latestRevision: integer('latest_revision').notNull(),
+  favourite: boolean('favourite').notNull().default(false),
+  archivedAt: timestamp('archived_at', { withTimezone: true }),
+  createdBy: text('created_by').references(() => user.id, { onDelete: 'set null' }),
+  ...dates(),
+}, t => [
+  primaryKey({ columns: [t.workspaceId, t.id] }),
+  index('part_definition_workspace_idx').on(t.workspaceId, t.archivedAt),
+  check('part_definition_latest_revision_positive', sql`${t.latestRevision} > 0`),
+]);
+/** Immutable: a trigger rejects every UPDATE. Saving a part inserts the next revision. */
+export const partRevision = pgTable('part_revision', {
+  workspaceId: uuid('workspace_id').notNull(),
+  partId: uuid('part_id').notNull(),
+  revision: integer('revision').notNull(),
+  definition: jsonb('definition').notNull().$type<PartDefinition>(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  createdBy: text('created_by').references(() => user.id, { onDelete: 'set null' }),
+}, t => [
+  primaryKey({ columns: [t.workspaceId, t.partId, t.revision] }),
+  foreignKey({ columns: [t.workspaceId, t.partId], foreignColumns: [partDefinition.workspaceId, partDefinition.id], name: 'part_revision_part_fk' }).onDelete('cascade'),
+  check('part_revision_revision_positive', sql`${t.revision} > 0`),
+]);
+export const material = pgTable('material', {
+  workspaceId: uuid('workspace_id').notNull().references(() => workspace.id),
+  key: text('key').notNull(),
+  definition: jsonb('definition').notNull().$type<PartMaterial>(),
+  ...dates(),
+}, t => [primaryKey({ columns: [t.workspaceId, t.key] })]);
+/** One labelled piece of one part variant. `variant_key` is '' for a part without variants. */
+export const stockItem = pgTable('stock_item', {
+  id: uuid('id').primaryKey(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspace.id),
+  label: text('label').notNull(),
+  partId: uuid('part_id').notNull(),
+  variantKey: text('variant_key').notNull().default(''),
+  values: jsonb('values').notNull().default({}).$type<Record<string, number>>(),
+  usable: boolean('usable').notNull().default(true),
+  notes: text('notes'),
+  cutouts: jsonb('cutouts').notNull().default([]).$type<Opening[]>(),
+  finish: jsonb('finish').$type<PhysicalFinish>(),
+  archivedAt: timestamp('archived_at', { withTimezone: true }),
+  createdBy: text('created_by').references(() => user.id, { onDelete: 'set null' }),
+  ...dates(),
+}, t => [
+  uniqueIndex('stock_item_workspace_id').on(t.workspaceId, t.id),
+  uniqueIndex('stock_item_workspace_label').on(t.workspaceId, t.label).where(sql`${t.archivedAt} is null`),
+  index('stock_item_part_idx').on(t.workspaceId, t.partId),
+  foreignKey({ columns: [t.workspaceId, t.partId], foreignColumns: [partDefinition.workspaceId, partDefinition.id], name: 'stock_item_part_fk' }),
+]);
+/** Counted stock of either a hardware material or a count-stocked part variant. */
+export const stockCount = pgTable('stock_count', {
+  id: uuid('id').primaryKey(),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspace.id),
+  materialKey: text('material_key'),
+  partId: uuid('part_id'),
+  variantKey: text('variant_key').notNull().default(''),
+  quantity: integer('quantity').notNull().default(0),
+  ...dates(),
+}, t => [
+  uniqueIndex('stock_count_material').on(t.workspaceId, t.materialKey).where(sql`${t.materialKey} is not null`),
+  uniqueIndex('stock_count_part_variant').on(t.workspaceId, t.partId, t.variantKey).where(sql`${t.partId} is not null`),
+  foreignKey({ columns: [t.workspaceId, t.materialKey], foreignColumns: [material.workspaceId, material.key], name: 'stock_count_material_fk' }).onDelete('cascade'),
+  foreignKey({ columns: [t.workspaceId, t.partId], foreignColumns: [partDefinition.workspaceId, partDefinition.id], name: 'stock_count_part_fk' }),
+  check('stock_count_one_target', sql`(${t.materialKey} is not null) <> (${t.partId} is not null)`),
+  check('stock_count_quantity_range', sql`${t.quantity} >= 0`),
+]);
