@@ -123,8 +123,9 @@ export function buildStockItem(record: StockItemRecord, part: { name: string; de
 
 const compareText = (a: string, b: string): number => a < b ? -1 : a > b ? 1 : 0;
 
+/** By label; an archived item may share its label with an active one and then comes after it. */
 export const sortStockItems = (items: readonly StockItem[]): StockItem[] =>
-  [...items].sort((a, b) => compareNames(a.label, b.label) || compareText(a.id, b.id));
+  [...items].sort((a, b) => compareNames(a.label, b.label) || Number(a.archived) - Number(b.archived) || compareText(a.id, b.id));
 
 export type StockCountRecord = {
   id: string; materialKey: string | null; partId: string | null; variantKey: string | null; quantity: number; updatedAt: string;

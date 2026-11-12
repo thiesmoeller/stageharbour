@@ -1,6 +1,6 @@
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import type { PartDetail, PartRevisionInfo, PartSummary } from '../../shared/parts/catalog.js';
-import { buildPartDetail, buildPartSummary, sortPartSummaries } from '../../shared/parts/catalogPlans.js';
+import { buildPartDetail, buildPartSummary, rawChildRefs, sortPartSummaries } from '../../shared/parts/catalogPlans.js';
 import {
   createPartContext, partRefKey, type PartContext, type PartDefinition, type PartMaterial, type PartRef,
 } from '../../shared/parts/definition.js';
@@ -62,17 +62,6 @@ export async function loadParts(store: Store, workspaceId: string, seeds: readon
     frontier = [...next.values()];
   }
   return [...found.values()];
-}
-
-/** Child references of a definition that has not been validated yet. */
-export function rawChildRefs(input: unknown): PartRef[] {
-  const children = (input as { children?: unknown } | null)?.children;
-  if (!Array.isArray(children)) return [];
-  return children.flatMap((child: unknown) => {
-    const part = (child as { part?: { id?: unknown; revision?: unknown } } | null)?.part;
-    return typeof part?.id === 'string' && typeof part.revision === 'number' && Number.isInteger(part.revision)
-      ? [{ id: part.id, revision: part.revision }] : [];
-  }).slice(0, 200);
 }
 
 /** Materials and child parts a definition is validated against. */

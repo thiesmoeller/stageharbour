@@ -70,6 +70,32 @@ export function childRefs(definition: PartDefinition): PartRef[] {
   return [...seen.values()];
 }
 
+/** Child references of a definition that has not been validated yet. */
+export function rawChildRefs(input: unknown): PartRef[] {
+  const children = (input as { children?: unknown } | null)?.children;
+  if (!Array.isArray(children)) return [];
+  return children.flatMap((child: unknown) => {
+    const part = (child as { part?: { id?: unknown; revision?: unknown } } | null)?.part;
+    return typeof part?.id === 'string' && typeof part.revision === 'number' && Number.isInteger(part.revision)
+      ? [{ id: part.id, revision: part.revision }] : [];
+  }).slice(0, 200);
+}
+
+/** Exact revisions and, transitively, the exact revisions their child parts reference, as far as `lookup` knows them. */
+export function closureOf(seeds: readonly PartRef[], lookup: (ref: PartRef) => PartDefinition | undefined): PartDefinition[] {
+  const found = new Map<string, PartDefinition>();
+  const pending = [...seeds];
+  for (let ref = pending.pop(); ref; ref = pending.pop()) {
+    const key = partRefKey(ref);
+    if (found.has(key)) continue;
+    const definition = lookup(ref);
+    if (!definition) continue;
+    found.set(key, definition);
+    pending.push(...childRefs(definition));
+  }
+  return [...found.values()];
+}
+
 export function referencedMaterialKeys(definition: PartDefinition): Set<string> {
   return new Set([...definition.bodies.map(body => body.material), ...(definition.hardware ?? []).map(item => item.material)]);
 }
