@@ -1,0 +1,99 @@
+{
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "capturedAt": "2026-11-12T12:35:23.890Z",
+  "chromium": "156.0.8078.4",
+  "shots": [
+    {
+      "file": "01-walls-orbit-studio.png",
+      "title": "Wände: Sperrholz, RAL, Holz, Holz quer 500 mm, Streifen, Ziegel, Tür offen, Bogen · Umlaufansicht · Studio"
+    },
+    {
+      "file": "02-walls-front.png",
+      "title": "Dieselben Wände von vorne (Parallelprojektion): Kachelmaß und Faserrichtung"
+    },
+    {
+      "file": "03-walls-top.png",
+      "title": "Dieselben Wände von oben"
+    },
+    {
+      "file": "04-walls-orbit-paper.png",
+      "title": "Wände · Umgebung Warm"
+    },
+    {
+      "file": "05-walls-orbit-sunset.png",
+      "title": "Wände · Umgebung Abend"
+    },
+    {
+      "file": "06-walls-orbit-high-quality.png",
+      "title": "Wände · Hohe Renderqualität an"
+    },
+    {
+      "file": "07-walls-orbit-simple.png",
+      "title": "Wände · Einfache Darstellung"
+    },
+    {
+      "file": "08-walls-orbit-selected.png",
+      "title": "Wand „Holz“ durch Klick in der Raumsicht ausgewählt (Auswahlrahmen)"
+    },
+    {
+      "file": "08b-wall-selected-close.png",
+      "title": "Auswahl eingepasst: Holzwand aus der Nähe"
+    },
+    {
+      "file": "09-platforms-orbit.png",
+      "title": "Podeste schwebend, massiv (Holz/RAL), Bühnenelement, Winkel; Treppe; Platzhalter; Katalogmodell Cactus; hochgeladener Würfel"
+    },
+    {
+      "file": "10-platforms-top.png",
+      "title": "Podeste und Platzhalter von oben"
+    },
+    {
+      "file": "11-platforms-side.png",
+      "title": "Podeste und Platzhalter von der Seite"
+    },
+    {
+      "file": "12-theatre-orbit.png",
+      "title": "Spielstätte mit Traversen, Scheinwerfern, Vorhängen, Lüftungskanal, Seitenwand mit Tür, Bestuhlung, Holzboden · Konstruktionslicht"
+    },
+    {
+      "file": "13-theatre-audience.png",
+      "title": "Publikumssicht · Konstruktionslicht"
+    },
+    {
+      "file": "14-theatre-orbit-lit.png",
+      "title": "Lichtpult offen: Scheinwerfer mit Look „Warm und kalt“, Schatten"
+    },
+    {
+      "file": "15-theatre-audience-lit.png",
+      "title": "Publikumssicht mit Scheinwerferlicht"
+    },
+    {
+      "file": "16-theatre-top-lit.png",
+      "title": "Von oben mit Scheinwerferlicht"
+    },
+    {
+      "file": "17-venue-editor-orbit.png",
+      "title": "Spielstätten-Editor · Raumansicht"
+    },
+    {
+      "file": "18-venue-editor-split.png",
+      "title": "Spielstätten-Editor · 2D + 3D"
+    },
+    {
+      "file": "19-model-catalogue.png",
+      "title": "Bibliothek · Modellkatalog mit Vorschaubildern (Suche „sofa“)"
+    },
+    {
+      "file": "20-wall-type-preview.png",
+      "title": "Bibliothek · Plattenbestand: Wandtyp-Vorschau mit Oberflächen (Holz unten quer, RAL 9010 oben)"
+    },
+    {
+      "file": "21-surface-editor.png",
+      "title": "Eigenschaften · Oberflächen der Streifenwand (Materialauswahl)"
+    }
+  ],
+  "problems": []
+}
