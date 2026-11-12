@@ -11,6 +11,7 @@ import {
 } from '../../shared/documentStudio.js';
 import { EXPORT_LAYER_OPTIONS, resolveExportLayers } from '../../shared/exportLayers.js';
 import { sceneListSchema, sceneSchema, type Layout, type Scene } from '../../shared/layout.js';
+import type { LayoutPartIndex } from '../../shared/layoutObjects.js';
 import { inventoryOf, type StockInventory } from '../../shared/partLists.js';
 import { listStockCounts, listStockItems } from '../partsApi.js';
 import { useLayoutParts } from './useLayoutParts.js';
@@ -74,16 +75,22 @@ export function RecipientDocumentWorkspace(props: Props) {
     })();
     return () => { stopped = true; };
   }, [workspaceId, productionId, seedSceneId, seedVenueId, defaultScope, attempt]);
-  if (!loaded) return <section className="recipient-document-workspace document-studio studio-loading" aria-label="Dokument erstellen">
+  const partsLayout = useMemo<Layout>(() => ({
+    schemaVersion: 2, joints: [],
+    objects: [...loaded?.scenes ?? [], ...props.liveScene ? [props.liveScene] : []].flatMap(scene => scene.layout.objects),
+  }), [loaded?.scenes, props.liveScene]);
+  const parts = useLayoutParts(workspaceId, partsLayout);
+  const partsReady = !parts.loading || parts.definitions.length > 0;
+  if (!loaded || !partsReady) return <section className="recipient-document-workspace document-studio studio-loading" aria-label="Dokument erstellen">
     <button type="button" className="quiet" onClick={props.onClose}>Zurück zum Editor</button>
     <div><ToolIcon name="library" /><h2>Dokumentstudio</h2>{error
       ? <><p role="alert">{error}</p><button type="button" onClick={() => setAttempt(value => value + 1)}>Erneut versuchen</button></>
       : <p role="status">Bühnenbilder und Dokument werden geladen …</p>}</div>
   </section>;
-  return <DocumentStudio {...props} loaded={loaded} />;
+  return <DocumentStudio {...props} loaded={loaded} partIndex={parts.index} />;
 }
 
-function DocumentStudio({ loaded, workspaceId, productionId, seedSceneId, seedVenueId, liveScene, freezeDisabled = false, onClose }: Props & { loaded: Loaded }) {
+function DocumentStudio({ loaded, partIndex, workspaceId, productionId, seedSceneId, seedVenueId, liveScene, freezeDisabled = false, onClose }: Props & { loaded: Loaded; partIndex: LayoutPartIndex }) {
   const draft = useDocumentDraft(loaded.draft);
   const value = draft.value;
   const spec = value.spec;
@@ -135,16 +142,14 @@ function DocumentStudio({ loaded, workspaceId, productionId, seedSceneId, seedVe
       return context.measureText(text).width * 25.4 / 96;
     };
   }, [fontReady]);
-  const partsLayout = useMemo<Layout>(() => ({ schemaVersion: 2, objects: scenes.flatMap(scene => scene.layout.objects), joints: [] }), [scenes]);
-  const parts = useLayoutParts(workspaceId, partsLayout);
   const layoutResult = useMemo(() => {
     try {
       return {
-        layout: studioLayout({ ...spec, revisionName: spec.revisionName.trim() || 'Entwurf' }, scenes, issuedAt, measure, { index: parts.index, stock: loaded.stock }),
+        layout: studioLayout({ ...spec, revisionName: spec.revisionName.trim() || 'Entwurf' }, scenes, issuedAt, measure, { index: partIndex, stock: loaded.stock }),
         error: '',
       };
     } catch (caught) { return { layout: undefined, error: caught instanceof Error ? caught.message : 'Das Layout konnte nicht erstellt werden.' }; }
-  }, [spec, scenes, issuedAt, measure, parts.index, loaded.stock]);
+  }, [spec, scenes, issuedAt, measure, partIndex, loaded.stock]);
   const layout = layoutResult.layout;
   const pages = useMemo(() => spec.customPages?.length ? spec.customPages : layout ? arrangedPages(layout) : [], [spec.customPages, layout]);
   const pageIndex = Math.min(activePage, Math.max(0, pages.length - 1));
