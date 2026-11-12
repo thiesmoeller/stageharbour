@@ -18,7 +18,7 @@
 import { ACESFilmicToneMapping, PCFShadowMap, SRGBColorSpace, WebGLRenderer, type Color, type ShadowMapType } from 'three';
 
 export type StageRenderer = WebGLRenderer;
-export type StageQuality = 'simple' | 'enhanced' | 'high';
+export type StageQuality = 'simple' | 'enhanced';
 
 export type StageQualitySettings = {
   shadows: boolean;
@@ -30,13 +30,12 @@ export type StageQualitySettings = {
 };
 
 /**
- * Simple renders at CSS pixels without shadows. Enhanced keeps the caps the Raumsicht always had
- * (1.5 desktop, 1.25 touch). High is the opt-in "Hohe Renderqualität": sharper on dense displays.
+ * Simple renders at CSS pixels without shadows. Enhanced is the opt-in "Hohe Renderqualität":
+ * PCF shadows and sharper rendering on dense displays, capped at 1.5 desktop / 1.25 touch.
  */
 export const STAGE_QUALITY: Readonly<Record<StageQuality, Readonly<StageQualitySettings>>> = {
   simple: { shadows: false, shadowMapType: PCFShadowMap, maxPixelRatio: 1, coarsePointerMaxPixelRatio: 1 },
   enhanced: { shadows: true, shadowMapType: PCFShadowMap, maxPixelRatio: 1.5, coarsePointerMaxPixelRatio: 1.25 },
-  high: { shadows: true, shadowMapType: PCFShadowMap, maxPixelRatio: 2, coarsePointerMaxPixelRatio: 1.5 },
 };
 
 export const STAGE_OUTPUT_COLOR_SPACE = SRGBColorSpace;

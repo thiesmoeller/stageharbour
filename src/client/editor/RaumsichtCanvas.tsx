@@ -231,7 +231,7 @@ export default function RaumsichtCanvas({ model, layout, venue, audience, view =
   };
   /** Bühnenlicht + Lichtpult open → Scheinwerfer preview. */
   const hangLit = !!showFixturePools && lighting.enabled;
-  const quality: StageQuality = !enhanced ? 'simple' : detailed && !aimOnly ? 'high' : 'enhanced';
+  const quality: StageQuality = enhanced && detailed && !aimOnly ? 'enhanced' : 'simple';
   const canvas = useRef<HTMLDivElement>(null);
   useBlockBrowserZoom(canvas);
   useEffect(() => {
@@ -295,7 +295,7 @@ export default function RaumsichtCanvas({ model, layout, venue, audience, view =
               {!aimOnly && <FocusAimOnSurface enabled={!!focusAimMode} mirrorWidth={mirrorWidth} selectedFixtureId={selectedFixtureId}
                 hangPlan={hangPlan} trusses={venue.trusses} onHangPlanChange={onHangPlanChange} />}
               <StageLighting settings={lighting} width={venue.width} depth={venue.depth}
-                lightBoardLive={hangLit ? lightBoardLive : undefined} keyShadows={quality === 'high'} bounds={bounds}
+                lightBoardLive={hangLit ? lightBoardLive : undefined} keyShadows={quality === 'enhanced'} bounds={bounds}
                 backdrop={lightTheme(theme).background} />
               <FixtureSpotLights hangPlan={hangPlan} trusses={venue.trusses ?? []} stageWidth={venue.width} stageDepth={venue.depth}
                 lightBoardLive={lightBoardLive} enabled={hangLit} />

@@ -1,8 +1,8 @@
 {
   "label": "after-port",
-  "measuredAt": "2026-11-12T17:38:42.922Z",
+  "measuredAt": "2026-11-12T17:48:17.600Z",
   "git": {
-    "commit": "1fa5ec30d2f3076b7368163b40ce1ae47678baa5",
+    "commit": "277c2cfeb66dd1ef28e4d7a1845c6efcc7042aae",
     "branch": "cursor/wt-b23-raumsicht-e051",
     "dirty": true
   },
@@ -30,11 +30,11 @@
         "initial": false
       },
       {
-        "file": "assets/index-CrweK8W5.js",
+        "file": "assets/index-C-PoSstl.js",
         "name": "index.js",
         "kind": "js",
         "bytes": 1250464,
-        "gzipBytes": 347890,
+        "gzipBytes": 347892,
         "initial": true
       },
       {
@@ -46,11 +46,11 @@
         "initial": false
       },
       {
-        "file": "assets/StageCanvas-DLKndMm9.js",
+        "file": "assets/StageCanvas-D1oc_efN.js",
         "name": "StageCanvas.js",
         "kind": "js",
-        "bytes": 668678,
-        "gzipBytes": 189115,
+        "bytes": 668597,
+        "gzipBytes": 189104,
         "initial": false
       },
       {
@@ -110,11 +110,11 @@
         "initial": true
       },
       {
-        "file": "assets/RaumsichtCanvas-CnC0njG_.js",
+        "file": "assets/RaumsichtCanvas-DJRMluTD.js",
         "name": "RaumsichtCanvas.js",
         "kind": "js",
-        "bytes": 98360,
-        "gzipBytes": 29978,
+        "bytes": 98358,
+        "gzipBytes": 29971,
         "initial": false
       },
       {
@@ -158,19 +158,19 @@
         "initial": false
       },
       {
-        "file": "assets/StageCanvasHarness-DXwABs78.js",
+        "file": "assets/StageCanvasHarness-DZ-BUnic.js",
         "name": "StageCanvasHarness.js",
         "kind": "js",
         "bytes": 3736,
-        "gzipBytes": 1655,
+        "gzipBytes": 1652,
         "initial": false
       },
       {
-        "file": "assets/MaterialPicker-DnPMibl4.js",
+        "file": "assets/MaterialPicker-CzU5vW1Q.js",
         "name": "MaterialPicker.js",
         "kind": "js",
         "bytes": 750,
-        "gzipBytes": 458,
+        "gzipBytes": 456,
         "initial": false
       },
       {
@@ -184,22 +184,22 @@
     ],
     "totals": {
       "files": 20,
-      "bytes": 6785210,
-      "gzipBytes": 2142590,
-      "jsBytes": 3561493,
-      "jsGzipBytes": 938825,
+      "bytes": 6785127,
+      "gzipBytes": 2142569,
+      "jsBytes": 3561410,
+      "jsGzipBytes": 938804,
       "cssBytes": 94503,
       "cssGzipBytes": 18827
     },
     "initial": {
       "files": [
-        "assets/index-CrweK8W5.js",
+        "assets/index-C-PoSstl.js",
         "assets/materialLibrary-COqbZ5zr.js",
         "assets/index-dUK9PUMz.css",
         "assets/layout-DcYPRrm0.js"
       ],
       "bytes": 1560087,
-      "gzipBytes": 420600
+      "gzipBytes": 420602
     }
   },
   "packages": {
@@ -555,7 +555,7 @@
   },
   "attribution": {
     "method": "vite build --sourcemap hidden; minified characters per generated source-map segment, grouped by the installed package path of the original source; gzip share estimated proportionally",
-    "jsBytes": 2506119,
+    "jsBytes": 2506036,
     "pascal": {
       "bytes": 0,
       "share": 0,
@@ -584,7 +584,7 @@
       ]
     },
     "app": {
-      "bytes": 796993,
+      "bytes": 796910,
       "share": 0.318
     },
     "topPackages": [
@@ -595,8 +595,8 @@
       },
       {
         "name": "app:src/client",
-        "bytes": 627958,
-        "share": 0.2506
+        "bytes": 627875,
+        "share": 0.2505
       },
       {
         "name": "pdfjs-dist",
@@ -611,7 +611,7 @@
       {
         "name": "app:src/shared",
         "bytes": 169035,
-        "share": 0.0674
+        "share": 0.0675
       },
       {
         "name": "@react-three/fiber",
@@ -681,7 +681,7 @@
     ],
     "chunks": [
       {
-        "file": "assets/index-CrweK8W5.js",
+        "file": "assets/index-C-PoSstl.js",
         "bytes": 1245341,
         "pascalShare": 0,
         "topSources": [
@@ -713,8 +713,8 @@
         ]
       },
       {
-        "file": "assets/StageCanvas-DLKndMm9.js",
-        "bytes": 516273,
+        "file": "assets/StageCanvas-D1oc_efN.js",
+        "bytes": 516192,
         "pascalShare": 0,
         "topSources": [
           {
@@ -729,7 +729,7 @@
           },
           {
             "name": "app:src/client",
-            "bytes": 15905,
+            "bytes": 15824,
             "share": 0.031
           },
           {
@@ -794,13 +794,13 @@
         ]
       },
       {
-        "file": "assets/RaumsichtCanvas-CnC0njG_.js",
-        "bytes": 96813,
+        "file": "assets/RaumsichtCanvas-DJRMluTD.js",
+        "bytes": 96811,
         "pascalShare": 0,
         "topSources": [
           {
             "name": "app:src/client",
-            "bytes": 47932,
+            "bytes": 47930,
             "share": 0.495
           },
           {
@@ -848,7 +848,7 @@
         ]
       },
       {
-        "file": "assets/StageCanvasHarness-DXwABs78.js",
+        "file": "assets/StageCanvasHarness-DZ-BUnic.js",
         "bytes": 3734,
         "pascalShare": 0,
         "topSources": [
@@ -865,7 +865,7 @@
         ]
       },
       {
-        "file": "assets/MaterialPicker-DnPMibl4.js",
+        "file": "assets/MaterialPicker-CzU5vW1Q.js",
         "bytes": 741,
         "pascalShare": 0,
         "topSources": [
@@ -905,63 +905,63 @@
     "objects": 6,
     "runs": [
       {
-        "firstDrawMs": 430.8,
-        "settledMs": 621.8,
+        "firstDrawMs": 457.1,
+        "settledMs": 713,
         "steadyDrawCalls": 18,
         "chunkFiles": [
-          "RaumsichtCanvas-CnC0njG_.js",
-          "StageCanvas-DLKndMm9.js"
+          "RaumsichtCanvas-DJRMluTD.js",
+          "StageCanvas-D1oc_efN.js"
         ],
-        "chunkTransferBytes": 767038,
-        "chunkDecodedBytes": 767038
+        "chunkTransferBytes": 766955,
+        "chunkDecodedBytes": 766955
       },
       {
-        "firstDrawMs": 446.8,
-        "settledMs": 706.2,
+        "firstDrawMs": 407.9,
+        "settledMs": 540.3,
         "steadyDrawCalls": 18,
         "chunkFiles": [
-          "RaumsichtCanvas-CnC0njG_.js",
-          "StageCanvas-DLKndMm9.js"
+          "RaumsichtCanvas-DJRMluTD.js",
+          "StageCanvas-D1oc_efN.js"
         ],
-        "chunkTransferBytes": 767038,
-        "chunkDecodedBytes": 767038
+        "chunkTransferBytes": 766955,
+        "chunkDecodedBytes": 766955
+      },
+      {
+        "firstDrawMs": 405.1,
+        "settledMs": 540.4,
+        "steadyDrawCalls": 18,
+        "chunkFiles": [
+          "RaumsichtCanvas-DJRMluTD.js",
+          "StageCanvas-D1oc_efN.js"
+        ],
+        "chunkTransferBytes": 766955,
+        "chunkDecodedBytes": 766955
+      },
+      {
+        "firstDrawMs": 404,
+        "settledMs": 539.5,
+        "steadyDrawCalls": 18,
+        "chunkFiles": [
+          "RaumsichtCanvas-DJRMluTD.js",
+          "StageCanvas-D1oc_efN.js"
+        ],
+        "chunkTransferBytes": 766955,
+        "chunkDecodedBytes": 766955
       },
       {
         "firstDrawMs": 405.8,
         "settledMs": 540.3,
         "steadyDrawCalls": 18,
         "chunkFiles": [
-          "RaumsichtCanvas-CnC0njG_.js",
-          "StageCanvas-DLKndMm9.js"
+          "RaumsichtCanvas-DJRMluTD.js",
+          "StageCanvas-D1oc_efN.js"
         ],
-        "chunkTransferBytes": 767038,
-        "chunkDecodedBytes": 767038
-      },
-      {
-        "firstDrawMs": 406.8,
-        "settledMs": 541.1,
-        "steadyDrawCalls": 18,
-        "chunkFiles": [
-          "RaumsichtCanvas-CnC0njG_.js",
-          "StageCanvas-DLKndMm9.js"
-        ],
-        "chunkTransferBytes": 767038,
-        "chunkDecodedBytes": 767038
-      },
-      {
-        "firstDrawMs": 477.5,
-        "settledMs": 656.3,
-        "steadyDrawCalls": 18,
-        "chunkFiles": [
-          "RaumsichtCanvas-CnC0njG_.js",
-          "StageCanvas-DLKndMm9.js"
-        ],
-        "chunkTransferBytes": 767038,
-        "chunkDecodedBytes": 767038
+        "chunkTransferBytes": 766955,
+        "chunkDecodedBytes": 766955
       }
     ],
-    "medianFirstDrawMs": 430.8,
-    "medianSettledMs": 621.8
+    "medianFirstDrawMs": 405.8,
+    "medianSettledMs": 540.3
   },
   "orbit": {
     "scene": "Dichteprobe: 20 × 16 m venue, 250 chairs (schema maximum per Bühnenbild), 40 stage-deck platforms 2 × 1 m at 400 mm with legs, 10 walls",
@@ -970,16 +970,16 @@
       "stageDeckPlatforms": 40,
       "walls": 10
     },
-    "firstDrawMs": 487.9,
-    "settledMs": 706.2,
-    "seconds": 6.1,
-    "frames": 97,
+    "firstDrawMs": 467.1,
+    "settledMs": 655.3,
+    "seconds": 6.04,
+    "frames": 100,
     "viewChanged": true,
     "frameTimeMs": {
       "median": 66.6,
       "p95": 83.3,
-      "mean": 62.7,
-      "max": 116.7
+      "mean": 60.3,
+      "max": 83.4
     },
     "drawCallsPerFrame": {
       "median": 58,

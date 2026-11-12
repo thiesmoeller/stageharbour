@@ -15,20 +15,20 @@ scene now batches equal chairs, deck modules and legs: draw calls fell from 2,07
 software-rendered orbit median fell from 149.9 ms to 66.6 ms.
 
 The measurements were taken on the same Cloud VM and are comparative, not hardware benchmarks.
-The after JSON records `1fa5ec3` with `dirty: true` because the port was measured before its
-logical commits; the measured working tree is the tree documented here.
+The after JSON records `277c2cf` with `dirty: true` because the final quality-contract adjustment
+was measured before its follow-up commit; the measured working tree is the tree documented here.
 
 | Metric | Pascal baseline | Owned canvas |
 |---|---:|---:|
-| JS total, minified / gzip | 4,966.7 / 1,436.0 KiB | 3,478.0 / 916.8 KiB |
+| JS total, minified / gzip | 4,966.7 / 1,436.0 KiB | 3,477.9 / 916.8 KiB |
 | Initial JS/CSS load, gzip | 1,290.9 KiB | 410.7 KiB |
 | Largest JS chunk, minified / gzip | 3,199.1 / 911.5 KiB | 1,221.2 / 339.7 KiB |
 | Pascal and Pascal-only JS | 1,583.1 KiB | 0 KiB |
 | `three.webgpu` + `three.tsl` JS | 674.4 KiB | 0 KiB |
-| JS fetched when opening Raumsicht | 71.8 KiB | 749.1 KiB |
-| Open → first WebGL draw, median of 5 | 790.7 ms | 430.8 ms |
-| Open → scene drawn, median of 5 | 1,306.4 ms | 621.8 ms |
-| Dense open → first draw / scene drawn | 830.5 / 1,691.9 ms | 487.9 / 706.2 ms |
+| JS fetched when opening Raumsicht | 71.8 KiB | 749.0 KiB |
+| Open → first WebGL draw, median of 5 | 790.7 ms | 405.8 ms |
+| Open → scene drawn, median of 5 | 1,306.4 ms | 540.3 ms |
+| Dense open → first draw / scene drawn | 830.5 / 1,691.9 ms | 467.1 / 655.3 ms |
 | Dense orbit frame time, median / p95 | 149.9 / 150.1 ms | 66.6 / 83.3 ms |
 | Dense draw calls per frame, median | 2,072 | 58 |
 
@@ -51,7 +51,7 @@ although no application source imports them.
   placeholder silhouettes, curtains, trusses and catalogue/uploaded models retain their position
   and orientation.
 - Pascal's high-quality post-processing edge/ambient treatment was deliberately not reproduced.
-  **Hohe Renderqualität** now selects the owned `high` quality: soft key-light shadows and a higher
+  **Hohe Renderqualität** now selects the owned `enhanced` quality: soft key-light shadows and a higher
   device-pixel-ratio cap. At the capture device pixel ratio of 1 its extra sharpness is not visible,
   and the wall-only scene makes the shadow change subtle.
 - The stage-light views retain warm/cold pools and shadows. Their falloff and the ambient brightness

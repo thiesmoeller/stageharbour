@@ -35,13 +35,8 @@ test('the renderer outputs sRGB with ACES filmic tone mapping', () => {
   assert.equal(prefersCoarsePointer(), false);
 });
 
-test('high quality raises the pixel-ratio cap above enhanced and keeps shadows', () => {
-  assert.equal(STAGE_QUALITY.high.shadows, true);
-  assert.deepEqual(shadowMapConfig('high'), { enabled: true, type: PCFShadowMap });
-  assert.deepEqual(pixelRatioRange('high', false), [1, 2]);
-  assert.deepEqual(pixelRatioRange('high', true), [1, 1.5]);
-  assert.ok(STAGE_QUALITY.high.maxPixelRatio > STAGE_QUALITY.enhanced.maxPixelRatio);
-  assert.ok(STAGE_QUALITY.high.coarsePointerMaxPixelRatio > STAGE_QUALITY.enhanced.coarsePointerMaxPixelRatio);
+test('the public quality seam stays limited to simple and enhanced', () => {
+  assert.deepEqual(Object.keys(STAGE_QUALITY).sort(), ['enhanced', 'simple']);
 });
 
 test('loaders learn about every renderer, and about the latest one when they subscribe late', () => {
