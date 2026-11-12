@@ -4,7 +4,7 @@ Each group builds different set elements, and a developer cannot add a coded kin
 
 ## Decisions
 
-- **Formulas, not scripts.** Parameter values and derived values are formulas: numbers, parameter names, `+ - * /`, brackets, and the functions `min max abs round floor ceil sqrt if`. A hand-written parser evaluates them; there is no `eval`. This overrides the exclusion of calculation expressions in the [elements spec](../travelling-group-elements-spec.md).
+- **Formulas, not scripts.** Parameter values and derived values are formulas: numbers, parameter names, `+ - * /`, brackets, the comparisons `< <= > >= == !=` (1 or 0, so that `if` can test a size), and the functions `min max abs round floor ceil sqrt if`. A hand-written parser evaluates them; there is no `eval`. This overrides the exclusion of calculation expressions in the [elements spec](../travelling-group-elements-spec.md).
 - **Parameter scopes.** Each parameter is set by the variant, by the placement, or by the Bühnenbild state (door open, curtain open). A part also carries a table of named variants, so a group owns 2 × 1 m and 1 × 1 m decks instead of free-range 1.37 m ones.
 - **Bodies name a stock material.** A part is built from simple bodies (beam, sheet, box). Each body names a stock material (for example Latte 40 × 40, Sperrholz 12 mm), so the cut list and weight derive from the geometry and cannot drift from the shape. Only hardware and ballast are listed by hand.
 - **Child parts.** A part can contain other parts. A Podest is deck modules plus Steckfüße, each counted and stocked.

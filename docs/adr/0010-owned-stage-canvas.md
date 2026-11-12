@@ -8,14 +8,15 @@ What Pascal still does for the app: it creates the canvas and renderer, supplies
 
 What it costs:
 
-- 131 of the 368 required packages in the lockfile exist only for Pascal, including Next.js, sharp, manifold-3d, web-ifc and esbuild-wasm.
+- 134 of the 380 installed packages (166 of 541 lockfile entries) exist only for Pascal, including Next.js, sharp, manifold-3d, web-ifc and esbuild-wasm.
+- About a third of the shipped JavaScript (1583 KiB of 4967 KiB minified) is Pascal and its Pascal-only dependencies, most of it in the initial bundle.
 - A postinstall script patches Pascal's dist to force WebGL.
 - three.js is pinned at 0.186 while Pascal 1.1.1 needs 0.187.
 - Workarounds for its WebGPU renderer sit in six components.
 - Its global stores allow only one canvas.
 - Textures and models load from Pascal's servers at runtime.
 
-Bundle size and frame times have not been measured; the first slice records them before the canvas is built.
+The baseline on the Pascal build is recorded in [docs/measurements/stage-canvas-baseline.md](../measurements/stage-canvas-baseline.md); the same script is re-run after the removal.
 
 ## Renderer choice
 

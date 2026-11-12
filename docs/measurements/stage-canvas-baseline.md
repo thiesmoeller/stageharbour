@@ -40,7 +40,7 @@ user hardware.
 | Installed packages (`npm ls --all --parseable`, unique paths; without dev) | 380; 366 |
 | Lockfile packages (all / non-dev / installed on this machine) | 541 / 481 / 380 |
 | Lockfile packages only reachable through `@pascal-app/*` (all / installed) | 166 / 134 |
-| Full e2e suite duration | TO BE FILLED BY ORCHESTRATOR |
+| Full e2e suite duration | 76 tests in 6.7 min (Playwright); 6 min 49 s wall time including `npm run build` |
 
 ### Bundle detail
 

@@ -959,5 +959,5 @@
       "max": 2072
     }
   },
-  "e2eSuiteDuration": "TO BE FILLED BY ORCHESTRATOR"
+  "e2eSuiteDuration": "76 tests in 6.7 min (Playwright); 6 min 49 s wall time including npm run build"
 }
