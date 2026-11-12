@@ -6,6 +6,8 @@ export type WorkspaceLocation =
   | { section: 'venues' }
   | { section: 'venues'; venueId: string }
   | { section: 'bestand' }
+  | { section: 'designer' }
+  | { section: 'designer'; partId: string }
   | { section: 'account' }
   | { section: 'admin' }
   | { section: 'help' }
@@ -20,6 +22,9 @@ export function parseWorkspaceLocation(raw: string): WorkspaceLocation | undefin
   const venue = /^\/spielstaetten\/([^/]+)$/.exec(path);
   if (venue) return { section: 'venues', venueId: decodeURIComponent(venue[1]!) };
   if (path === '/bestand') return { section: 'bestand' };
+  if (path === '/designer') return { section: 'designer' };
+  const part = /^\/designer\/([^/]+)$/.exec(path);
+  if (part) return { section: 'designer', partId: decodeURIComponent(part[1]!) };
   if (path === '/konto') return { section: 'account' };
   if (path === '/verwaltung') return { section: 'admin' };
   if (path === '/hilfe') return { section: 'help' };
@@ -33,6 +38,9 @@ export function workspaceHash(location: WorkspaceLocation): string {
     return 'venueId' in location ? `#/spielstaetten/${encodeURIComponent(location.venueId)}` : '#/spielstaetten';
   }
   if (location.section === 'bestand') return '#/bestand';
+  if (location.section === 'designer') {
+    return 'partId' in location ? `#/designer/${encodeURIComponent(location.partId)}` : '#/designer';
+  }
   if (location.section === 'account') return '#/konto';
   if (location.section === 'admin') return '#/verwaltung';
   if (location.section === 'help') {
