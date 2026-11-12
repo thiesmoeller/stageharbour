@@ -90,7 +90,7 @@ test('freeze copies venue pins so later edits cannot change the snapshot', () =>
     id: randomUUID(), name: 'Erste Szene', productionName: 'Beispielproduktion', venueName: 'Beispielsaal',
     revision: 1, productionId: randomUUID(), venueId: randomUUID(), venueVersionId: randomUUID(),
     venue: { schemaVersion: 1 as const, width: 8000, depth: 6000, connectionPoints: [pin], cableRoutingCorridors: [corridor] },
-    lease: null, layout: { schemaVersion: 1 as const, walls: [], braces: [] },
+    lease: null, layout: { schemaVersion: 2 as const, objects: [], joints: [] },
   };
   const snapshot = freezeSnapshot(scene, { id: randomUUID(), name: 'Fassung Probe', issuedAt: new Date('2026-09-07T12:00:00.000Z') });
   scene.venue.connectionPoints[0]!.x = 1;

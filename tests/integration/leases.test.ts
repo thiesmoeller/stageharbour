@@ -8,7 +8,8 @@ import { bootstrapAdministrator } from '../../src/server/identity/bootstrap.js';
 import { LeaseError, createLeases } from '../../src/server/productions/leases.js';
 import { account, membership, user } from '../../src/server/db/schema.js';
 import { LEASE_TTL_MS } from '../../src/shared/leases.js';
-import { newWall, type Scene } from '../../src/shared/layout.js';
+import type { Scene } from '../../src/shared/layout.js';
+import { STARTER_PART_IDS } from '../../src/shared/parts/starter/index.js';
 import { testAdministrator, testDatabase } from '../helpers/database.js';
 
 let fixture: Awaited<ReturnType<typeof testDatabase>>;
@@ -140,8 +141,12 @@ test('a viewer never acquires; the second editor is read-only until expiry, then
   const viewed = (await app.inject({ url: `${base}/${created.id}`, headers: bertHeaders })).json<Scene>();
   assert.equal(viewed.lease?.holderName, anna.name);
 
-  const wall = newWall(randomUUID(), 1200, 1800);
-  const layout = { schemaVersion: 1 as const, walls: [wall] };
+  const wall = {
+    id: randomUUID(), label: 'Wand',
+    part: { id: STARTER_PART_IDS.wall, revision: 1 },
+    variant: 'plain', x: 1200, y: 1800, rotation: 0,
+  };
+  const layout = { schemaVersion: 2 as const, objects: [wall], joints: [] };
   const saved = await app.inject({ method: 'PUT', url: `${base}/${created.id}/layout`, headers: annaHeaders, payload: { revision: 0, layout } });
   assert.equal(saved.statusCode, 200, saved.body);
   assert.equal((await app.inject({ method: 'PUT', url: `${base}/${created.id}/layout`, headers: bertHeaders, payload: { revision: 1, layout } })).statusCode, 423);
@@ -153,18 +158,18 @@ test('a viewer never acquires; the second editor is read-only until expiry, then
   const bertWall = { ...wall, x: 3000 };
   const bertSave = await app.inject({
     method: 'PUT', url: `${base}/${created.id}/layout`, headers: bertHeaders,
-    payload: { revision: 1, layout: { schemaVersion: 1, walls: [bertWall] } },
+    payload: { revision: 1, layout: { schemaVersion: 2, objects: [bertWall], joints: [] } },
   });
   assert.equal(bertSave.statusCode, 200, bertSave.body);
 
   const stale = await app.inject({
     method: 'PUT', url: `${base}/${created.id}/layout`, headers: annaHeaders,
-    payload: { revision: 1, layout: { schemaVersion: 1, walls: [{ ...wall, x: 9999 }] } },
+    payload: { revision: 1, layout: { schemaVersion: 2, objects: [{ ...wall, x: 9999 }], joints: [] } },
   });
   assert.equal(stale.statusCode, 423);
   const loaded = (await app.inject({ url: `${base}/${created.id}`, headers: annaHeaders })).json<Scene>();
   assert.equal(loaded.revision, 2);
-  assert.equal(loaded.layout.walls[0]?.x, 3000);
+  assert.equal(loaded.layout.objects[0]?.x, 3000);
   assert.equal(loaded.lease?.holderName, bert.name);
 
   await app.close();

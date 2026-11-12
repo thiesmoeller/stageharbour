@@ -1,4 +1,4 @@
-import { resolveWall, type Opening } from './wall-types.js';
+import type { Opening } from './wall-types.js';
 import type { ConstructionSnapshot } from './export.js';
 
 /**
@@ -40,33 +40,23 @@ function alongAxis(x: number, y: number, facing: number) {
 export function elevationFaces(snapshot: ConstructionSnapshot): ElevationFace[] {
   const selected = snapshot.elevationGroupIds ?? [];
   const groups = snapshot.layout.groups ?? [];
-  const types = snapshot.layout.wallTypes ?? [];
   const faces: ElevationFace[] = [];
   for (const groupId of selected) {
     const group = groups.find(item => item.id === groupId);
     if (!group) continue;
     const clusters = new Map<number, ElevationPanel[]>();
     for (const member of group.members) {
-      if (member.kind !== 'wall') continue;
-      const wall = snapshot.layout.walls.find(item => item.id === member.id);
-      if (!wall) continue;
-      const resolved = resolveWall(wall, types);
-      const frozen = snapshot.resolvedWalls.find(item => item.id === wall.id);
-      const facing = wrapFacing(resolved.rotation);
-      const origin = alongAxis(resolved.x, resolved.y, facing) - resolved.width / 2;
-      const openings = (frozen?.openings ?? resolved.openings).map(opening => {
-        const fromType = resolved.openings.find(item => item.id === opening.id);
-        const profile = ('profile' in opening ? opening.profile : undefined) ?? fromType?.profile;
-        return {
-          id: opening.id, left: opening.left, sill: opening.sill, width: opening.width, height: opening.height,
-          ...(profile ? { profile } : {}),
-        };
-      });
+      if (member.kind !== 'object') continue;
+      const object = snapshot.resolvedObjects.find(item => item.id === member.id);
+      if (!object) continue;
+      const centre = object.footprint.reduce((sum, point) => ({ x: sum.x + point.x / object.footprint.length, y: sum.y + point.y / object.footprint.length }), { x: 0, y: 0 });
+      const facing = wrapFacing(object.rotation);
+      const origin = alongAxis(centre.x, centre.y, facing) - object.width / 2;
       const panels = clusters.get(facing) ?? [];
       panels.push({
-        wallId: resolved.id, label: resolved.label, left: origin,
-        width: resolved.width, height: resolved.height, openings,
-        assemblyNumber: wall.assemblyNumber, panelLabel: frozen?.panelLabel,
+        wallId: object.id, label: object.label, left: origin,
+        width: object.width, height: object.height, openings: [],
+        assemblyNumber: object.assemblyNumber, panelLabel: object.stockItemLabel,
       });
       clusters.set(facing, panels);
     }

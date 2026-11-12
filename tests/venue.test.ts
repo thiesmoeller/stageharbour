@@ -133,10 +133,10 @@ test('audienceViewpoint serializes on venue geometry and defaults in front of ch
   const auto = defaultAudienceViewpoint(venue);
   assert.ok(auto.y < chair.y - 200, 'viewpoint sits downstage of the front chair row');
   assert.ok(Math.abs(auto.x - chair.x) < 1);
-  const model = stageModel({ schemaVersion: 1, walls: [], braces: [] }, venue);
+  const model = stageModel({ schemaVersion: 2, objects: [], joints: [] }, venue);
   assert.equal(model.audience.position.z, venue.audienceViewpoint!.y);
   assert.equal(model.audience.position.y, venue.audienceViewpoint!.heightMm);
-  const behind = stageModel({ schemaVersion: 1, walls: [], braces: [] }, {
+  const behind = stageModel({ schemaVersion: 2, objects: [], joints: [] }, {
     width: 8000, depth: 6000, placeholders: [chair],
   });
   assert.ok(behind.audience.position.z < chair.y - (chair.depth ?? 450) / 2);

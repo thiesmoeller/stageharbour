@@ -51,14 +51,7 @@ export function stageElements(layout: Layout, venue?: VenueGeometry): StageEleme
     ...(venue.connectionPoints ?? []).map(value => ({ kind: 'pin' as const, value })),
     ...(venue.cableRoutingCorridors ?? []).map(value => ({ kind: 'corridor' as const, value })),
   ] : [];
-  const scene: StageElementContent[] = [
-    ...layout.walls.map(value => ({ kind: 'wall' as const, value })),
-    ...layout.braces.map(value => ({ kind: 'brace' as const, value })),
-    ...(layout.placeholders ?? []).map(value => ({ kind: 'placeholder' as const, value })),
-    ...(layout.platforms ?? []).map(value => ({ kind: 'platform' as const, value })),
-    ...(layout.stairs ?? []).map(value => ({ kind: 'stair' as const, value })),
-    ...(layout.cableRuns ?? []).map(value => ({ kind: 'cableRun' as const, value })),
-  ];
+  const scene: StageElementContent[] = (layout.cableRuns ?? []).map(value => ({ kind: 'cableRun' as const, value }));
   const permanentIds = new Set(permanent.map(item => item.value.id));
   // An id present in both documents is drawn once, as the Bühnenbild's element with venue scope.
   const byId = new Map<string, StageElement>();

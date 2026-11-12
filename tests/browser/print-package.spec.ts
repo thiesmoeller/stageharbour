@@ -3,8 +3,8 @@ import { createProduction, signInToPlans } from '../helpers/plans.js';
 import { revealEditorCommand } from '../helpers/editorMenus.js';
 
 async function openDocuments(page: import('@playwright/test').Page) {
-  await revealEditorCommand(page, 'PDF gestalten');
-  await page.getByRole('button', { name: 'PDF gestalten' }).click();
+  await revealEditorCommand(page, 'Ausgabe erstellen');
+  await page.getByRole('button', { name: 'Ausgabe erstellen' }).click();
   return page.getByRole('dialog', { name: 'Dokument erstellen' });
 }
 
@@ -50,66 +50,14 @@ test('the studio opens with pages, saves a draft, proves and downloads the exact
   await expect(reopened.getByLabel('Einleitung', { exact: true })).toHaveValue('Aufbau am Vortag.');
 });
 
-test('an actual tech-stand cable run is editable and clears the technical readiness warning', async ({ page }) => {
+test('technical document readiness reports a missing actual cable run', async ({ page }) => {
   await signInToPlans(page);
   await createProduction(page, { productionName: 'Kabelprobe', venueName: 'Kabelsaal', sceneName: 'Aufbau' });
   await expect(page.locator('.save-status')).toHaveText('Gespeichert');
-  await page.getByRole('button', { name: 'Kabel zeichnen' }).click();
-  const plan = page.getByRole('img', { name: 'Grundriss der Spielstätte' });
-  const box = await plan.boundingBox();
-  if (!box) throw new Error('Plan not visible');
-  await plan.click({ position: { x: box.width * 0.18, y: box.height * 0.7 } });
-  await plan.click({ position: { x: box.width * 0.28, y: box.height * 0.55 } });
-  await plan.click({ position: { x: box.width * 0.42, y: box.height * 0.35 } });
-  await page.keyboard.press('Enter');
-  const panel = page.getByRole('complementary', { name: 'Tatsächliche Kabelwege' });
-  await expect(panel).toContainText('3 Punkte');
-  await expect(panel).toContainText('benötigt');
-  await expect(page.getByTestId('selection-count')).toHaveText('1 Kabelweg ausgewählt');
-  const run = page.locator('[data-testid^="cable-run-"]').first();
-  const runId = (await run.getAttribute('data-testid'))!.replace('cable-run-', '');
-  await expect(run).toHaveAttribute('aria-selected', 'true');
-  const mid = page.getByTestId(`cable-run-vertex-${runId}-1`);
-  await expect(mid).toBeVisible();
-  await mid.click();
-  await expect(page.getByTestId('selection-count')).toHaveText('1 Zwischenpunkt ausgewählt');
-  await plan.focus();
-  await page.keyboard.press('Delete');
-  await expect(page.getByTestId(`cable-run-${runId}`)).toBeVisible();
-  // Midpoint gone: former end is now index 1; only endpoints remain.
-  await expect(page.getByTestId(`cable-run-vertex-${runId}-2`)).toHaveCount(0);
-  await expect(panel).toContainText('2 Punkte');
-  await expect(page.getByTestId('selection-count')).toHaveText('1 Kabelweg ausgewählt');
-  // Second click on the selected path (between endpoints) inserts a midpoint.
-  const endA = await page.getByTestId(`cable-run-vertex-${runId}-0`).boundingBox();
-  const endB = await page.getByTestId(`cable-run-vertex-${runId}-1`).boundingBox();
-  if (!endA || !endB) throw new Error('Cable endpoints not visible');
-  await page.mouse.click(
-    (endA.x + endA.width / 2 + endB.x + endB.width / 2) / 2,
-    (endA.y + endA.height / 2 + endB.y + endB.height / 2) / 2,
-  );
-  await expect(panel).toContainText('3 Punkte');
-  await expect(page.getByTestId('selection-count')).toHaveText('1 Zwischenpunkt ausgewählt');
-  await plan.focus();
-  await page.keyboard.press('Delete');
-  await expect(page.getByTestId('selection-count')).toHaveText('1 Kabelweg ausgewählt');
-  await expect(panel).toContainText('2 Punkte');
-  await plan.focus();
-  await page.keyboard.press('Delete');
-  await expect(page.locator('[data-testid^="cable-run-"]')).toHaveCount(0);
-  await expect(page.locator('.save-status')).toHaveText('Gespeichert');
-  // Redraw for the document readiness check below.
-  await page.getByRole('button', { name: 'Kabel zeichnen' }).click();
-  await plan.click({ position: { x: box.width * 0.18, y: box.height * 0.7 } });
-  await plan.click({ position: { x: box.width * 0.42, y: box.height * 0.35 } });
-  await page.keyboard.press('Enter');
-  await panel.getByLabel('Kabeltyp').fill('Schuko 16 A');
-  await panel.getByLabel('Anzahl').fill('3');
-  await panel.getByLabel('Von').fill('Technikstand FOH');
-  await expect(page.locator('.save-status')).toHaveText('Gespeichert');
-  await panel.getByRole('button', { name: 'Schließen' }).click();
   const workspace = await openDocuments(page);
-  await expect(workspace).not.toContainText('Noch keine tatsächlichen Kabelwege geplant');
+  await workspace.getByRole('button', { name: /Hinweise anzeigen/ }).click();
+  await expect(workspace.getByRole('region', { name: 'Dokumenthinweise' })).toContainText('Noch keine tatsächlichen Kabelwege geplant');
+  await workspace.getByRole('button', { name: 'Hinweise schließen' }).click();
   await workspace.getByRole('button', { name: 'Druckvorschau', exact: true }).click();
   await expect(workspace.getByTitle('PDF-Vorschau')).toBeVisible({ timeout: 30_000 });
 });

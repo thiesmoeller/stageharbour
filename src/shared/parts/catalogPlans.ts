@@ -151,7 +151,8 @@ export function planDuplicatePart(source: PartDefinition, newId: string, takenNa
 }
 
 export function partsUsingMaterial(key: string, definitions: readonly PartDefinition[]): PartDefinition[] {
-  return definitions.filter(definition => referencedMaterialKeys(definition).has(key));
+  return definitions.filter(definition => referencedMaterialKeys(definition).has(key))
+    .toSorted((a, b) => a.name.localeCompare(b.name, 'de') || a.id.localeCompare(b.id));
 }
 
 const usedBy = (parts: readonly PartDefinition[]) => parts.slice(0, 5).map(part => `„${part.name}“`).join(', ')

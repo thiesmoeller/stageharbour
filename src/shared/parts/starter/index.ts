@@ -3,9 +3,13 @@ import { STARTER_MATERIALS } from './materials.js';
 import { STARTER_PARTS } from './parts.js';
 
 export { STARTER_MATERIALS } from './materials.js';
-export { STARTER_BRACE, STARTER_DECK, STARTER_DECK_LEG, STARTER_PARTS, STARTER_TABLE, STARTER_WALL } from './parts.js';
+export {
+  STARTER_BOX, STARTER_BRACE, STARTER_CHAIR, STARTER_DECK, STARTER_DECK_LEG, STARTER_DOOR,
+  STARTER_FLOATING_PLATFORM, STARTER_PART_IDS, STARTER_PARTS, STARTER_PERSON, STARTER_SOLID_PLATFORM,
+  STARTER_SPEAKER, STARTER_STAIR, STARTER_TABLE, STARTER_WALL,
+} from './parts.js';
 
-/** Example definitions that prove the model. The built-in library of the product comes later. */
+/** Stable built-in library used for new workspaces and v1 layout conversion. */
 export const STARTER_LIBRARY: PartLibrary = {
   schemaVersion: PART_SCHEMA_VERSION,
   materials: STARTER_MATERIALS,

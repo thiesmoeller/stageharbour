@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import type { Layout } from './layout.js';
+import { STARTER_PART_IDS } from './parts/starter/index.js';
 
 export const ballastSchema = z.discriminatedUnion('mode', [
   z.strictObject({ mode: z.literal('none') }),
@@ -17,15 +19,23 @@ export type MaterialCounts = z.infer<typeof materialCountsSchema>;
 export const materialRequirementsSchema = z.strictObject({
   required: materialCountsSchema, available: ballastStockSchema, shortage: ballastStockSchema,
 });
-export function sceneMaterials(layout: { braces: readonly { ballast?: Ballast }[] }): MaterialCounts {
-  return layout.braces.reduce((count, brace) => ({
+export function sceneMaterials(layout: Layout): MaterialCounts {
+  const braces: readonly { ballast?: Ballast }[] = layout.objects
+    .filter(object => object.part.id === STARTER_PART_IDS.brace)
+    .map(object => {
+      const value = object.values?.ballast ?? 0;
+      return { ballast: value >= 2 ? { mode: 'heavy' as const }
+        : value === 1 ? { mode: 'single' as const, side: 'left' as const }
+          : { mode: 'none' as const } };
+    });
+  return braces.reduce((count, brace) => ({
     braces: count.braces + 1,
     slabs: count.slabs + (brace.ballast?.mode === 'heavy' ? 2 : brace.ballast?.mode === 'single' ? 1 : 0),
     straps: count.straps + (brace.ballast?.mode === 'heavy' ? 1 : 0),
   }), { braces: 0, slabs: 0, straps: 0 });
 }
 /** Independent maxima: fixed setup requirements for one play at one venue. */
-export function materialRequirements(layouts: readonly { braces: readonly { ballast?: Ballast }[] }[], available: BallastStock) {
+export function materialRequirements(layouts: readonly Layout[], available: BallastStock) {
   const required = layouts.map(sceneMaterials).reduce((max, count) => ({
     braces: Math.max(max.braces, count.braces), slabs: Math.max(max.slabs, count.slabs), straps: Math.max(max.straps, count.straps),
   }), { braces: 0, slabs: 0, straps: 0 });

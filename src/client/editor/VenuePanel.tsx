@@ -676,7 +676,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
   });
   const previewVenue = candidate.success ? reassignVenueSupports(candidate.data) : venue;
   // Placeholders stay on the venue only; putting them on the layout too duplicates chairs in 3D.
-  const liveLayout: Layout = { schemaVersion: 1, walls: [], braces: [] };
+  const liveLayout: Layout = { schemaVersion: 2, objects: [], joints: [] };
   const pivot = venueSelectionPivot(previewVenue, selectedIds);
   const objectOverlaps = objectOverlapWarnings({
     schemaVersion: 1, walls: previewVenue.walls ?? [], braces: [],

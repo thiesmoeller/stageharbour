@@ -19,7 +19,7 @@ import { buildPartGeometry, placementMatrix } from '../shared/parts/geometry.js'
 | `place.ts` | A resolved part at a plan position: `placeResolvedPart`, `placeFootprint`, `placePoint`. |
 | `validate.ts` | `validateDefinition`, `validateLibrary`: everything to check before a definition is saved. |
 | `geometry.ts` | three.js `BufferGeometry` for a solid or a whole part. |
-| `starter/` | Five definitions and their materials: Stützdreieck, Steckfuß, Bühnenelement, Wandelement, Tisch. |
+| `starter/` | Built-in definitions and materials: wall/door, brace, deck/leg, floating and solid platforms, stair, table, chair, person, speaker and box. |
 
 ## Frame
 
@@ -105,7 +105,7 @@ because `ballast >= 2`, one `spanngurt-25`. Footprint: 40 × 500 around the orig
 ### 2. Wandelement with a door, placed in the plan
 
 ```ts
-const wall = resolvePart(STARTER_WALL, { variant: 'tuer' }, STARTER_CONTEXT);
+const wall = resolvePart(STARTER_WALL, { variant: 'doorLeft', state: { open: 0 } }, STARTER_CONTEXT);
 const placed = placeResolvedPart(wall, { x: 3000, y: 2000, rotation: 30 });
 ```
 

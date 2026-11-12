@@ -7,10 +7,13 @@ import { z } from 'zod';
 import { errorSchema, workspaceParamsSchema } from '../../shared/contracts.js';
 import { exportListSchema, exportRevisionSchema, type ExportRevision } from '../../shared/export.js';
 import { sceneSchema } from '../../shared/layout.js';
+import { migrateLayout } from '../../shared/layoutMigrate.js';
+import { createLayoutPartIndex } from '../../shared/layoutObjects.js';
 import { constructionPackageSchema, freezePackage, freezePackageSchema, type ConstructionPackage } from '../../shared/package.js';
 import type { Database } from '../db/connection.js';
 import { inventoryBallast, adaptation, constructionPackage, inventoryPanel, inventoryWallType, production, scene, venue, venueVersion } from '../db/schema.js';
 import { AccessError, type createAccess } from '../identity/access.js';
+import { loadAllRevisions, loadMaterials } from '../parts/data.js';
 import { pdfForStoredSnapshot } from './documentRoutes.js';
 import type { FileStorage } from './storage.js';
 
@@ -47,10 +50,25 @@ export function registerPackageRoutes(
       .innerJoin(venueVersion, eq(adaptation.venueVersionId, venueVersion.id))
       .innerJoin(venue, eq(venueVersion.venueId, venue.id))
       .where(and(eq(scene.workspaceId, workspaceId), eq(production.id, productionId), inArray(scene.id, sceneIds)));
+    if (rows.some(row => (row.layout as { schemaVersion?: unknown }).schemaVersion === 1)) {
+      const index = await layoutIndex(workspaceId);
+      await Promise.all(rows.map(async row => {
+        if ((row.layout as { schemaVersion?: unknown }).schemaVersion !== 1) return;
+        row.layout = migrateLayout(row.layout, index);
+        await db.update(scene).set({ layout: row.layout }).where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, row.id)));
+      }));
+    }
     const byId = new Map(rows.map(row => [row.id, sceneSchema.parse({ ...row, lease: null })]));
     const loaded = sceneIds.map(id => byId.get(id));
     if (loaded.some(item => !item)) throw new AccessError(404, 'Bühnenbild nicht verfügbar.');
     return loaded as ReturnType<typeof sceneSchema.parse>[];
+  }
+  async function layoutIndex(workspaceId: string) {
+    const [revisions, materials] = await Promise.all([loadAllRevisions(db, workspaceId), loadMaterials(db, workspaceId)]);
+    return createLayoutPartIndex({
+      parts: [...revisions.values()].flatMap(items => [...items.values()]),
+      materials: [...materials.values()],
+    });
   }
   async function loadInventory(workspaceId: string) {
     const types = await db.select().from(inventoryWallType).where(eq(inventoryWallType.workspaceId, workspaceId));

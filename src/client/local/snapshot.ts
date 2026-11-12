@@ -3,6 +3,8 @@ import { brandingSchema, roleSchema, type Branding } from '../../shared/contract
 import { documentDraftSchema, type DocumentDraft } from '../../shared/exportDocument.js';
 import { inventorySchema, type Inventory } from '../../shared/inventory.js';
 import { layoutSchema, sceneTemplateSchema, venueGeometrySchema, type Layout, type SceneTemplate, type VenueGeometry } from '../../shared/layout.js';
+import { migrateLayout } from '../../shared/layoutMigrate.js';
+import { createLayoutPartIndex } from '../../shared/layoutObjects.js';
 import { leaseHolderSchema, type LeaseHolder } from '../../shared/leases.js';
 import { ensureStarterCatalog, emptyCatalog, localCatalogSchema, type LocalCatalog } from './catalog.js';
 
@@ -101,12 +103,34 @@ export const localSnapshotSchema = z.strictObject({
   catalog: localCatalogSchema,
 });
 
-/** Files and stored snapshots of version 1 have no catalog; they get the starter library. */
+/** Files and stored snapshots get the catalog first, then every persisted play layout is upgraded once. */
 function upgradeSnapshot(data: unknown): unknown {
-  if (typeof data !== 'object' || data === null || (data as { schemaVersion?: unknown }).schemaVersion !== 1) return data;
+  if (typeof data !== 'object' || data === null) return data;
   const old = data as Record<string, unknown>;
   const savedAt = typeof old.savedAt === 'string' && !Number.isNaN(Date.parse(old.savedAt)) ? new Date(old.savedAt) : new Date();
-  return { ...old, schemaVersion: SNAPSHOT_SCHEMA_VERSION, catalog: ensureStarterCatalog(emptyCatalog(), savedAt) };
+  const catalog = ensureStarterCatalog(
+    old.schemaVersion === 1 ? emptyCatalog() : localCatalogSchema.parse(old.catalog),
+    savedAt,
+  );
+  const index = createLayoutPartIndex({
+    parts: catalog.revisions.map(item => item.definition),
+    materials: catalog.materials,
+  });
+  const scenes = Array.isArray(old.scenes)
+    ? old.scenes.map(item => {
+      if (typeof item !== 'object' || item === null) return item;
+      const scene = item as Record<string, unknown>;
+      return { ...scene, layout: migrateLayout(scene.layout, index) };
+    })
+    : old.scenes;
+  const sceneTemplates = Array.isArray(old.sceneTemplates)
+    ? old.sceneTemplates.map(item => {
+      if (typeof item !== 'object' || item === null) return item;
+      const template = item as Record<string, unknown>;
+      return { ...template, layout: migrateLayout(template.layout, index) };
+    })
+    : old.sceneTemplates;
+  return { ...old, schemaVersion: SNAPSHOT_SCHEMA_VERSION, catalog, scenes, sceneTemplates };
 }
 
 export function parseSnapshot(data: unknown): LocalSnapshot {

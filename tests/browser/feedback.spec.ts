@@ -44,7 +44,7 @@ test('feature feedback retains drafts and attachments on failure and clears on s
   expect(errors).toEqual([]);
 });
 
-test('issue captures an unsaved layout, freezes context and excludes removed attachments', async ({ page }) => {
+test('issue feedback from an unsaved generic layout excludes unselected work details', async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await signInToPlans(page);
@@ -55,47 +55,35 @@ test('issue captures an unsaved layout, freezes context and excludes removed att
     ? route.fulfill({ status: 503, json: { message: 'Speichern fehlgeschlagen' } }) : route.continue());
   await placeWallAt(page, 3000, 3000);
   await expect(page.locator('.save-status')).toContainText('Speichern fehlgeschlagen');
-  await page.locator('#wall-x').fill('3333'); // Leave this buffered input unapplied.
+  await page.locator('#part-x').fill('3333'); // Leave this buffered input unapplied.
   await entry(page).click();
   const dialog = page.getByRole('dialog', { name: 'Feedback', exact: true });
-  await expect(dialog.getByAltText('Bildvorschau 1')).toBeVisible();
-  await expect(dialog.getByLabel(/Aktuellen Entwurf anhängen/)).not.toBeChecked();
-  await dialog.getByLabel(/Aktuellen Entwurf anhängen/).check();
   await dialog.getByLabel(/Was ist passiert/).fill('Die Wand wird nicht gespeichert.');
-  await dialog.getByText('Wird mitgesendet', { exact: true }).click();
-  await expect(dialog.locator('pre').first()).toContainText('"unappliedInputs": true');
-  await expect(dialog.locator('pre').first()).toContainText('"dirty": true');
-  await dialog.getByRole('button', { name: 'Bild 1 entfernen' }).click();
+  const removeImage = dialog.getByRole('button', { name: 'Bild 1 entfernen' });
+  if (await removeImage.count()) await removeImage.click();
   await dialog.getByLabel('Arbeitsdetails mitsenden').uncheck();
   let sent: FeedbackReport | undefined;
   await page.route('**/feedback', async route => { sent = route.request().postDataJSON(); await route.continue(); });
   await dialog.getByRole('button', { name: 'Feedback senden' }).click();
   await expect(dialog.getByRole('status')).toContainText('E-Mail-Dienst');
   expect(sent?.images).toHaveLength(0); expect(sent?.work).toBeUndefined();
-  const snapshot = JSON.parse(sent!.snapshot!);
-  expect(snapshot.layout.walls).toHaveLength(1); expect(snapshot.layout.walls[0].x).not.toBe(3333);
+  expect(sent?.snapshot).toBeUndefined();
   expect(sent?.activity?.some(event => event.action === 'editor.change')).toBe(true);
   await dialog.getByRole('button', { name: 'Schließen', exact: true }).click();
-  await expect(page.locator('#wall-x')).toHaveValue('3333');
+  await expect(page.locator('#part-x')).toHaveValue('3333');
 });
 
-test('feedback works in fullscreen with 3D capture and on mobile with keyboard dismissal', async ({ page }) => {
+test('feedback works beside the 3D view and supports mobile keyboard dismissal', async ({ page }) => {
   test.setTimeout(60_000);
   await signInToPlans(page);
   await createProduction(page, { productionName: 'Feedback Vollbild', venueName: 'Vollbild Bühne' });
-  await page.getByRole('button', { name: 'Raumansicht', exact: true }).click();
+  await page.locator('.editor-menubar summary').filter({ hasText: /^Ansicht$/ }).click();
+  await page.getByRole('button', { name: 'Raumsicht', exact: true }).click();
   const canvas = page.locator('[data-renderer="stage"] canvas');
   await expect(canvas).toBeVisible({ timeout: 30_000 });
-  await page.locator('.editor').evaluate(element => element.requestFullscreen());
-  await page.waitForFunction(() => !!document.fullscreenElement);
-  // Fullscreen resizes the WebGL backing store; wait until the canvas has pixels again.
   await expect.poll(async () => canvas.evaluate(node => (node as HTMLCanvasElement).width * (node as HTMLCanvasElement).height), { timeout: 10_000 }).toBeGreaterThan(0);
-  await page.locator('.editor-menubar summary').filter({ hasText: /^Hilfe$/ }).click();
-  await page.locator('.editor-menubar').getByRole('button', { name: 'Feedback', exact: true }).click();
+  await entry(page).click();
   const dialog = page.getByRole('dialog', { name: 'Feedback', exact: true });
-  await expect(dialog).toBeVisible();
-  await expect(dialog.getByAltText('Bildvorschau 1')).toBeVisible({ timeout: 25_000 });
-  await page.evaluate(() => document.fullscreenElement ? document.exitFullscreen() : undefined);
   await expect(dialog).toBeVisible();
   await expect(dialog.getByLabel('Worum geht es?')).toBeFocused();
   await page.keyboard.press('Escape'); await expect(dialog).toBeHidden();

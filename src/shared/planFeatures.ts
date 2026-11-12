@@ -16,10 +16,14 @@ export function planFeatures(snapshot: ConstructionSnapshot, partial: Partial<Ex
   const features: PlanFeature[] = [];
   const add = (points: Point[], stroke: string, label?: string, fill?: string, closed = true) =>
     features.push({ points, stroke, label: layers.labels ? label : undefined, fill, closed });
-  for (const source of [layers.venueContext ? snapshot.venue : undefined, layers.scenery ? snapshot.layout : undefined]) {
-    if (!source) continue;
-    for (const platform of source.platforms ?? []) add(platform.outline, '#5a6e52', `${platform.label}${layers.dimensions ? ` · ${platform.elevation} mm` : ''}`, '#e8efe3');
-    for (const stair of source.stairs ?? []) add(stairCorners(stair), '#718469', stair.label, '#f1f4ed');
+  if (layers.venueContext) {
+    for (const platform of snapshot.venue.platforms ?? []) add(platform.outline, '#5a6e52', `${platform.label}${layers.dimensions ? ` · ${platform.elevation} mm` : ''}`, '#e8efe3');
+    for (const stair of snapshot.venue.stairs ?? []) add(stairCorners(stair), '#718469', stair.label, '#f1f4ed');
+  }
+  if (layers.scenery) {
+    for (const object of snapshot.resolvedObjects) {
+      add(object.footprint, '#4b5d42', object.label, '#dfe7d8');
+    }
   }
   if (layers.venueContext) {
     for (const wall of snapshot.venue.walls ?? []) add(wallCorners(resolveWall(wall, snapshot.venue.wallTypes ?? [])), '#625b50', wall.label, '#aaa397');

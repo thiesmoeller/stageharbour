@@ -3,6 +3,7 @@ import type { Ballast } from './ballast.js';
 import { z } from 'zod';
 import { venueOutlineSchema, OUTLINE_VERTEX_INSERT_MM, type PlanPoint } from './venue.js';
 import { AUDIENCE_FLOOR_ID } from './levels.js';
+import type { ResolvedLayoutObject } from './layoutObjects.js';
 
 const name = z.string().trim().min(1).max(120);
 // Example-only millimetre placeholders for a keep-clear zone. Not a measured venue constraint.
@@ -40,7 +41,7 @@ export function nearFirstVertex(points: PlanPoint[], point: PlanPoint, maxDistan
   return Math.hypot(point.x - first.x, point.y - first.y) <= maxDistanceMm;
 }
 
-export const keepClearObjectKindSchema = z.enum(['wall', 'brace', 'platform', 'stair', 'placeholder']);
+export const keepClearObjectKindSchema = z.enum(['object', 'wall', 'brace', 'platform', 'stair', 'placeholder']);
 export type KeepClearObjectKind = z.infer<typeof keepClearObjectKindSchema>;
 export const keepClearWarningSchema = z.strictObject({
   kind: z.literal('keep-clear-overlap'),
@@ -59,7 +60,7 @@ type LayoutObjects = {
 type VenueZones = { keepClearZones?: KeepClearZone[] };
 
 const kindLabel: Record<KeepClearObjectKind, string> = {
-  wall: 'Wand', brace: 'Stütze', platform: 'Podest', stair: 'Treppe', placeholder: 'Platzhalter',
+  object: 'Bauteil', wall: 'Wand', brace: 'Stütze', platform: 'Podest', stair: 'Treppe', placeholder: 'Platzhalter',
 };
 
 function footprint(object: { x: number; y: number; rotation: number; width: number; depth: number }): PlanPoint[] {
@@ -159,6 +160,29 @@ export function keepClearWarnings(venue: VenueZones, layout: LayoutObjects): Kee
     for (const object of objects) {
       if (!object.surfaces.includes(zone.supportingSurfaceId)) continue;
       if (polygonsOverlap(zone.polygon, object.polygon)) found.push(warning(zone, object));
+    }
+  }
+  return found;
+}
+
+export function resolvedKeepClearWarnings(
+  venue: VenueZones,
+  objects: readonly ResolvedLayoutObject[],
+): KeepClearWarning[] {
+  const found: KeepClearWarning[] = [];
+  for (const zone of venue.keepClearZones ?? []) {
+    for (const item of objects) {
+      const support = item.object.support ?? AUDIENCE_FLOOR_ID;
+      if (support !== zone.supportingSurfaceId || !polygonsOverlap(zone.polygon, item.footprint)) continue;
+      found.push({
+        kind: 'keep-clear-overlap',
+        zoneId: zone.id,
+        zoneLabel: zone.label,
+        objectId: item.object.id,
+        objectLabel: item.object.label,
+        objectKind: 'object',
+        message: `Freihaltezone „${zone.label}“ überschneidet Bauteil „${item.object.label}“.`,
+      });
     }
   }
   return found;

@@ -29,7 +29,10 @@ test('the starter library and the test fixtures are valid', () => {
   const parsed = partLibrarySchema.safeParse(STARTER_LIBRARY);
   assert.equal(parsed.success, true, parsed.success ? '' : JSON.stringify(parsed.error.issues));
   assert.equal(STARTER_LIBRARY.schemaVersion, PART_SCHEMA_VERSION);
-  assert.deepEqual(STARTER_LIBRARY.parts.map(part => part.name), ['Stützdreieck', 'Steckfuß', 'Bühnenelement', 'Wandelement', 'Tisch']);
+  assert.deepEqual(STARTER_LIBRARY.parts.map(part => part.name), [
+    'Stützdreieck', 'Steckfuß', 'Bühnenelement', 'Wandelement', 'Tisch', 'Tür',
+    'Stuhl', 'Person', 'Lautsprecher', 'Kiste', 'Treppe', 'Schwebendes Podest', 'Massives Podest',
+  ]);
   for (const key of ['latte-40x40', 'sperrholz-12', 'steckfuss-rohr-50', 'gummifuss-50', 'betonplatte-400', 'spanngurt-25']) {
     assert.ok(STARTER_MATERIALS.some(material => material.key === key), key);
   }
@@ -225,10 +228,10 @@ test('formula sites and dependencies cover every element', () => {
   assert.ok(sites.some(site => site.location.join('.') === 'children.0.values.H'));
   assert.ok(sites.some(site => site.location.join('.') === 'bodies.1.repeat.step.2'));
   const dependencies = definitionDependencies(STARTER_DECK);
-  assert.deepEqual([...(dependencies.get('body:platte') ?? [])].sort(), ['B', 'H', 'T']);
-  assert.deepEqual([...(dependencies.get('child:fuss') ?? [])].sort(), ['B', 'H', 'T']);
-  assert.deepEqual(dependencies.get('derived:fussX'), ['B']);
-  assert.deepEqual(dependencies.get('connector:kante-vorn')?.slice().sort(), ['B', 'H', 'T']);
+  assert.deepEqual([...(dependencies.get('body:platte') ?? [])].sort(), ['B', 'BO', 'H', 'HO', 'T', 'TO']);
+  assert.deepEqual([...(dependencies.get('child:fuss') ?? [])].sort(), ['B', 'BO', 'H', 'HO', 'T', 'TO']);
+  assert.deepEqual(dependencies.get('derived:fussX'), ['BO', 'B']);
+  assert.deepEqual(dependencies.get('connector:kante-vorn')?.slice().sort(), ['B', 'BO', 'H', 'HO', 'T', 'TO']);
   assert.deepEqual(definitionDependencies(STARTER_BRACE).get('hardware:betonplatte-400'), ['ballast']);
 });
 

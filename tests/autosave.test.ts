@@ -2,10 +2,18 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { Autosave, SaveConflict, type SaveState } from '../src/client/editor/autosave.js';
-import { newWall, type Layout } from '../src/shared/layout.js';
+import { emptyLayout, type Layout } from '../src/shared/layout.js';
+import { STARTER_PART_IDS } from '../src/shared/parts/starter/index.js';
 
-const empty: Layout = { schemaVersion: 1, walls: [], braces: [] };
-const placed: Layout = { schemaVersion: 1, walls: [newWall(randomUUID(), 1000, 2000)], braces: [] };
+const empty: Layout = emptyLayout();
+const placed: Layout = {
+  ...empty,
+  objects: [{
+    id: randomUUID(), label: 'Wand',
+    part: { id: STARTER_PART_IDS.wall, revision: 1 },
+    variant: 'plain', x: 1000, y: 2000, rotation: 0,
+  }],
+};
 test('a late save response cannot clear lease loss or restart saving', async () => {
   let finish!: (revision: number) => void;
   let calls = 0;

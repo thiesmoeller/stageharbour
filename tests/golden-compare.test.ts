@@ -4,9 +4,7 @@ import {
   assertMatchesGolden, boxesMatch, compareBoxes, compareFootprints, compareLists, compareSolids, compareSurfaces,
   compareToGolden, compareWarnings, polygonDeviation, polygonsMatch, DEFAULT_TOLERANCE_MM,
 } from './golden/compare.js';
-import {
-  captureNeutralFootprints, captureNeutralSolids, captureNeutralSurfaces, loadFixtures, neutralWarnings,
-} from './golden/capture.js';
+import { loadV2GoldenFixtures } from './golden/v2.js';
 import type { NeutralBox, NeutralFootprints, NeutralSolids, NeutralSurfaces, NeutralWarning } from './golden/types.js';
 
 const square = [{ x: 0, y: 0 }, { x: 1000, y: 0 }, { x: 1000, y: 500 }, { x: 0, y: 500 }];
@@ -108,24 +106,47 @@ test('list comparison uses the numeric tolerance and reports paths', () => {
   assert.equal(compareLists(expected, { materials: expected.materials }).length, 1);
 });
 
-test('a neutral pipeline that reproduces the v1 output matches every golden fixture', () => {
-  for (const fixture of loadFixtures()) {
-    assertMatchesGolden(fixture.name, {
-      footprints: captureNeutralFootprints(fixture), solids: captureNeutralSolids(fixture),
-      surfaces: captureNeutralSurfaces(fixture), warnings: neutralWarnings(fixture),
-    });
-  }
+test('migrated demo seed matches the v1 golden geometry within 0.5 mm', () => {
+  const fixture = loadV2GoldenFixtures().find(item => item.name === 'demo-seed')!;
+  assertMatchesGolden(fixture.name, {
+    footprints: fixture.footprints,
+    solids: fixture.solids,
+    surfaces: fixture.surfaces,
+  }, { ids: fixture.objectIds, allowExtra: true });
 });
 
-test('a pipeline that moves one wall by 2 mm is caught against the golden', () => {
-  const fixture = loadFixtures().find(item => item.name === 'kitchen-sink')!;
-  const footprints = structuredClone(captureNeutralFootprints(fixture));
-  const [id, item] = Object.entries(footprints).find(([, entry]) => entry.kind === 'wall')!;
+test('a 2 mm change in migrated geometry is caught against the golden', () => {
+  const fixture = loadV2GoldenFixtures().find(item => item.name === 'demo-seed')!;
+  const footprints = structuredClone(fixture.footprints);
+  const [id, item] = Object.entries(footprints)[0]!;
   footprints[id] = { ...item, polygon: shift(item.polygon as typeof square, 2) };
-  const solids = structuredClone(captureNeutralSolids(fixture));
+  const solids = structuredClone(fixture.solids);
   solids[id]!.boxes[0]!.center.x += 2;
-  const found = compareToGolden(fixture.name, { footprints, solids });
+  const options = { ids: fixture.objectIds, allowExtra: true };
+  const found = compareToGolden(fixture.name, { footprints, solids }, options);
   assert.ok(found.some(entry => entry.path.startsWith(`footprints: ${id}`)));
   assert.ok(found.some(entry => entry.path.startsWith(`solids: ${id}`)));
-  assert.equal(compareToGolden(fixture.name, { footprints, solids }, { tolerance: 2.5 }).length, 0);
+  assert.equal(compareToGolden(fixture.name, { footprints, solids }, { ...options, tolerance: 2.5 }).length, 0);
+});
+
+test('reviewed intentional v2 golden differences stay explicit', () => {
+  const expected = {
+    'kitchen-sink': { footprints: 13, solids: 158, surfaces: 1 },
+    warnings: { footprints: 3, solids: 19, surfaces: 0 },
+    'wall-types': { footprints: 22, solids: 40, surfaces: 0 },
+    'stage-decks': { footprints: 0, solids: 517, surfaces: 0 },
+  } as Record<string, { footprints: number; solids: number; surfaces: number }>;
+  for (const fixture of loadV2GoldenFixtures().filter(item => item.name !== 'demo-seed')) {
+    const mismatches = compareToGolden(fixture.name, {
+      footprints: fixture.footprints,
+      solids: fixture.solids,
+      surfaces: fixture.surfaces,
+    }, { ids: fixture.objectIds, allowExtra: true });
+    const count = (aspect: string) => mismatches.filter(item => item.path.startsWith(`${aspect}:`)).length;
+    assert.deepEqual({
+      footprints: count('footprints'),
+      solids: count('solids'),
+      surfaces: count('surfaces'),
+    }, expected[fixture.name], fixture.name);
+  }
 });

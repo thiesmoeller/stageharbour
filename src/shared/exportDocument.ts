@@ -552,7 +552,7 @@ function planPaint(
   }
 
   // 4. Bühnenelemente & Platform Deck Modules + Steckfüße
-  for (const source of [layers.venueContext ? snapshot.venue : undefined, layers.scenery ? snapshot.layout : undefined]) {
+  for (const source of [layers.venueContext ? snapshot.venue : undefined]) {
     if (!source) continue;
     for (const platform of source.platforms ?? []) {
       const box = orientedPlatformBox(platform.outline);
@@ -891,19 +891,13 @@ function keysFor(snapshot: ConstructionSnapshot): { map: Map<string, string>; ro
   const map = new Map<string, string>();
   const rows: Keyed[] = [];
   let n = 1;
-  for (const wall of snapshot.resolvedWalls) {
+  for (const object of snapshot.resolvedObjects) {
     const key = String(n++);
-    map.set(wall.id, key);
-    const width = Math.hypot(wall.corners[1]!.x - wall.corners[0]!.x, wall.corners[1]!.y - wall.corners[0]!.y);
+    map.set(object.id, key);
     rows.push({
-      key, label: wall.panelLabel ?? wall.label,
-      detail: `${Math.round(width)} mm${wall.assemblyNumber ? ` · Position ${wall.assemblyNumber}` : ''}`,
+      key, label: object.stockItemLabel ?? object.label,
+      detail: `${Math.round(object.width)} × ${Math.round(object.height)} mm${object.assemblyNumber ? ` · Position ${object.assemblyNumber}` : ''}`,
     });
-  }
-  for (const brace of snapshot.layout.braces) {
-    const key = String(n++);
-    map.set(brace.id, key);
-    rows.push({ key, label: brace.label, detail: `${brace.footprintWidth} × ${brace.footprintDepth} × ${brace.height} mm · ${ballastLabel(brace.ballast)}` });
   }
   const materials = sceneMaterials(snapshot.layout);
   if (materials.slabs) rows.push({ key: '—', label: 'Gehwegplatten', detail: `${materials.slabs} Stück · 400 × 400 × 50 mm` });

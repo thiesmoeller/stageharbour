@@ -20,8 +20,10 @@ import { chromium, type Locator, type Page } from '@playwright/test';
 import { testAdministrator } from '../tests/helpers/database.js';
 import { cubeGlb } from '../tests/helpers/model.js';
 import { layoutSchema, newBrace, newWall, venueGeometrySchema, type Layout, type VenueGeometry } from '../src/shared/layout.js';
+import { layoutV1ToV2, type LayoutV1 } from '../src/shared/layoutMigrate.js';
 import { AUDIENCE_FLOOR_ID, newPlatform, newStair } from '../src/shared/levels.js';
 import { newPlaceholder } from '../src/shared/placeholders.js';
+import { STARTER_CONTEXT } from '../src/shared/parts/starter/index.js';
 import { newTruss } from '../src/shared/truss.js';
 import { newCurtain } from '../src/shared/curtains.js';
 import { newLightingFixture } from '../src/shared/hangPlan.js';
@@ -168,8 +170,12 @@ async function createScene(
   return { sceneId, name: names.scene };
 }
 
-function emptyLayout(): Layout {
-  return layoutSchema.parse({ schemaVersion: 1, walls: [], braces: [] });
+function emptyLayout(): LayoutV1 {
+  return { schemaVersion: 1, walls: [], braces: [] };
+}
+
+function migratedLayout(layout: LayoutV1): Layout {
+  return layoutV1ToV2(layout, { part: STARTER_CONTEXT.part });
 }
 
 /** Walls only, seen face-on: paint, library finishes at several tile sizes and grain directions, bands, door, arch. */
@@ -177,7 +183,7 @@ function wallLayout(): Layout {
   const door = { id: randomUUID(), name: 'Türelement', width: 1200, height: 2400, thickness: 28, openings: [{ id: randomUUID(), left: 200, sill: 0, width: 800, height: 2000, hinge: 'left' as const }] };
   const arch = { id: randomUUID(), name: 'Bogenelement', width: 1200, height: 2400, thickness: 28, openings: [{ id: randomUUID(), left: 200, sill: 0, width: 800, height: 2000, profile: 'arch' as const }] };
   const at = (index: number) => 1000 + index * 1400;
-  return {
+  return migratedLayout({
     ...emptyLayout(),
     wallTypes: [door, arch],
     walls: [
@@ -194,7 +200,7 @@ function wallLayout(): Layout {
       { ...newBrace(randomUUID(), at(0), 3300), ballast: { mode: 'heavy' } },
       { ...newBrace(randomUUID(), at(4), 3300), ballast: { mode: 'single', side: 'left' } },
     ],
-  };
+  });
 }
 
 function rectangle(x: number, y: number, width: number, depth: number) {
@@ -207,7 +213,7 @@ function platformLayout(assets: { cactus: string; cube: string }): Layout {
   const solid = { ...newPlatform(randomUUID(), 0, 0), label: 'Massiv', outline: rectangle(3400, 3000, 2400, 1800), elevation: 600, style: 'solid' as const, surfaces: { top: wood, sides: { kind: 'paint' as const, ral: '7016' } } };
   const deck = { ...newPlatform(randomUUID(), 0, 0), label: 'Bühnenelement', outline: rectangle(6200, 3000, 3000, 2000), elevation: 800, style: 'stageDeck' as const };
   const corner = { ...newPlatform(randomUUID(), 0, 0), label: 'Winkel', outline: [{ x: 600, y: 5400 }, { x: 3000, y: 5400 }, { x: 3000, y: 6200 }, { x: 1600, y: 6200 }, { x: 1600, y: 7200 }, { x: 600, y: 7200 }], elevation: 300 };
-  return {
+  return migratedLayout({
     ...emptyLayout(),
     platforms: [floating, solid, deck, corner],
     stairs: [{ ...newStair(randomUUID(), AUDIENCE_FLOOR_ID, deck.id, 7700, 2000), rotation: 0 }],
@@ -222,7 +228,7 @@ function platformLayout(assets: { cactus: string; cube: string }): Layout {
       { ...newPlaceholder('box', randomUUID(), 5200, 6300), label: 'Cactus', width: 1020, height: 1170, depth: 810, assetId: assets.cactus },
       { ...newPlaceholder('box', randomUUID(), 7000, 6300), label: 'Würfel', width: 700, height: 700, depth: 700, assetId: assets.cube },
     ],
-  };
+  });
 }
 
 /** A furnished venue: trusses with hung fixtures and a light look, curtains, overhead box, permanent wall with door, chairs. */
@@ -272,7 +278,7 @@ function theatreScene(base: VenueGeometry): { venue: VenueGeometry; layout: Layo
       color: ['#ffd19a', '#ffe0b3', '#c1d8ff', '#ffd19a', '#957bff', '#6e8cff'][index]!,
     }])),
   };
-  const layout: Layout = {
+  const layout = migratedLayout({
     ...emptyLayout(),
     walls: [
       { ...newWall(randomUUID(), 4400, 6600), label: 'Holzwand', width: 2400, surfaces: { front: { full: wood } } },
@@ -289,7 +295,7 @@ function theatreScene(base: VenueGeometry): { venue: VenueGeometry; layout: Layo
     ],
     lightLooks: [look],
     activeLightLookId: look.id,
-  };
+  });
   return { venue, layout };
 }
 

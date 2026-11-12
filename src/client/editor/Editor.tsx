@@ -1,1558 +1,637 @@
-import { PlanVenue, PlanWalls } from './PlanDrawingLayers.js';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type PointerEvent, type WheelEvent } from 'react';
+import { z } from 'zod';
+import { ApiError, request } from '../api.js';
+import { askPrompt } from '../ConfirmDialog.js';
+import { listStockItems } from '../partsApi.js';
+import type { StockItem } from '../../shared/parts/catalog.js';
+import { STARTER_PART_IDS } from '../../shared/parts/starter/index.js';
+import { AUDIENCE_FLOOR_ID, supportingSurfaces } from '../../shared/levels.js';
+import { execute, history, redo, undo, type History } from '../../shared/history.js';
+import type { Layout, LayoutObject, Scene, VenueGeometry } from '../../shared/layout.js';
+import { resolveLayoutObjectDetails } from '../../shared/layoutObjects.js';
+import { resolvedObjectOverlapWarnings, overlappingResolvedObjectIds } from '../../shared/overlap.js';
+import { resolvedKeepClearWarnings } from '../../shared/keepClear.js';
+import { resolvedOverheadClearance } from '../../shared/overhead.js';
+import { snapObjectConnectors } from '../../shared/snapping.js';
+import { copySelection, cutSelection, pasteClipboard, removeSelection, type ClipboardMember, type LayoutClipboard } from '../../shared/clipboard.js';
+import { canFormGroup, formGroup, groupContaining, ungroup } from '../../shared/groups.js';
+import { membersInBounds, normalizeBounds } from '../../shared/selection.js';
+import { defaultPlanDisplay, type PlanDisplayOptions } from '../../shared/planDisplay.js';
+import { Autosave, SaveConflict } from './autosave.js';
+import { EditorDock, EditorDockContext, useEditorDock } from './EditorDock.js';
+import { EditorMenu } from './EditorMenu.js';
+import { EditorMenuBar } from './EditorMenuBar.js';
+import { PlanDisplayToggles } from './PlanDisplayToggles.js';
+import { PlanObjects, PlanVenue } from './PlanDrawingLayers.js';
+import { GroupInspector } from './GroupInspector.js';
+import { PartInspector } from './PartInspector.js';
+import { StageView } from './StageView.js';
+import { InfrastructureMarks, VenuePanel } from './VenuePanel.js';
+import { PlatformLayer } from './PlatformLayer.js';
+import { CableRunMarks } from './CableRuns.js';
+import { CurtainMarks, OverheadMarks, TrussMarks } from './VenueOverhead.js';
+import { KeepClearMarks } from './KeepClearZones.js';
+import { CentrelineMark } from './SnapGuides.js';
+import { MeasureLayer } from './MeasureLayer.js';
+import { DimensionLayer } from './DimensionLayer.js';
 import { RecipientDocumentWorkspace } from './RecipientDocumentWorkspace.js';
-import { FeedbackButton, useFeedbackAdapter } from '../feedback/Feedback.js';
+import { SurfaceRegistryPanel } from './SurfaceRegistryPanel.js';
+import { SurfaceRegistryProvider } from './SurfaceRegistryContext.js';
+import { ToolIcon } from './ToolIcon.js';
+import { useEditingLease } from './useEditingLease.js';
+import { useLayoutParts } from './useLayoutParts.js';
+import { adjustPendingCount } from './usePendingApplyForm.js';
+import { effectiveCurtains } from '../../shared/venueFixtures.js';
+import { resolveDimension } from '../../shared/dimensions.js';
+import { useFeedbackAdapter } from '../feedback/Feedback.js';
 import { captureWorkView } from '../feedback/capture.js';
 import { recordFeedbackActivity } from '../feedback/activity.js';
 import type { StageCaptureHandle } from './StageCapture.js';
-import { EditorDock, EditorDockContext, useEditorDock } from './EditorDock.js';
-import { EditorMenuBar } from './EditorMenuBar.js';
-import { EditorMenu } from './EditorMenu.js';
-import { lazy, Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type PointerEvent } from 'react';
-import { z } from 'zod';
-import { applyPlatformSurfaces, applyWallSurfaces, memberIdsByKind, mixedPropertyValue, MIXED_PROPERTY, selectionPivot } from '../../shared/editing.js';
-import { navigatePlan } from './planNavigation.js';
-import { sceneResizeDocument, resizedScene } from '../../shared/sceneResize.js';
-import { editingText, editorCommand } from './interactionKeys.js';
-import { layoutSelectionRotation, transformLayoutGesture, type TransformOperation } from '../../shared/plannerTransforms.js';
-import type { StageEditing } from './StageEditing.js';
-import {
-  clipboardPivot, copySelection, cutSelection, pasteClipboard, removeSelection,
-  type ClipboardMember, type LayoutClipboard,
-} from '../../shared/clipboard.js';
-import { canFormGroup, formGroup, groupContaining, ungroup, type GroupMember } from '../../shared/groups.js';
-import { execute, history, redo, undo, type History } from '../../shared/history.js';
-import { layoutSchema, newBrace, newWall, renameSceneSchema, saveVenueResultSchema, sceneSchema, wallCorners, wallSchema, type Brace, type Layout, type Scene, type VenueGeometry, type Wall } from '../../shared/layout.js';
-import {
-  SNAP_NOTICE, alignBraceToNearestWall, planRotationAt,
-  snapStatusText, snapWallPose, type SnapGuide,
-} from '../../shared/snapping.js';
-import { membersInBounds, normalizeBounds, type PlanBounds } from '../../shared/selection.js';
-import {
-  AUDIENCE_FLOOR_ID, layoutDiagnostics, newPlatform, newStair, platformCentroid, reassignLayoutSupports,
-  supportingSurfaces, type Platform, type StairUnit,
-} from '../../shared/levels.js';
-import { PLACEHOLDER_KIND_LABELS, PLACEHOLDER_KINDS, newPlaceholder, placeholderCorners, type Placeholder } from '../../shared/placeholders.js';
-import { overheadBoxCorners, overheadClearance } from '../../shared/overhead.js';
-import { braceCorners } from '../../shared/braceTransforms.js';
-import { DimensionLayer } from './DimensionLayer.js';
-import { dimensionFromPlacement, dimensionSnapPoints, dimensionValue, nearestSnap, resolveDimension, type SnapAnchor } from '../../shared/dimensions.js';
-import { isDoorOpening, resolveWall, typesOf, type Opening, type WallElementType } from '../../shared/wall-types.js';
-import { sameGeometry } from '../../shared/inventory.js';
-import { measuredOutline } from '../../shared/venue.js';
-import { defaultPlanDisplay, type PlanDisplayOptions } from '../../shared/planDisplay.js';
-import { PlanDisplayToggles } from './PlanDisplayToggles.js';
-import { planningWalls } from '../../shared/planningGeometry.js';
-import { useViewportWheel } from './viewportWheel.js';
-import { LEASE_HEARTBEAT_MS } from '../../shared/leases.js';
-import { ApiError, request } from '../api.js';
-import { askConfirm, askPrompt } from '../ConfirmDialog.js';
-import { localCapabilities } from '../local/mode.js';
-import { Autosave, SaveConflict } from './autosave.js';
-import { BraceInspector } from './BraceInspector.js';
-import { BraceLayer } from './BraceLayer.js';
-import { PlatformInspector, StairInspector } from './PlatformInspector.js';
-import { WallSurfaceEditor } from './WallSurfaceEditor.js';
-import { SurfaceRegistryProvider } from './SurfaceRegistryContext.js';
-import { SurfaceRegistryPanel } from './SurfaceRegistryPanel.js';
-import { liftReportTemplatesToVenue, stripLayoutReportTemplates } from '../../shared/reportTemplate.js';
-import { MeasureLayer } from './MeasureLayer.js';
-import { PlatformLayer, SurfaceField } from './PlatformLayer.js';
-import { RotationHandle } from './RotationHandle.js';
-import { AssetLibrary } from './AssetLibrary.js';
-import { assetListSchema, type Asset } from '../../shared/assets.js';
-import { StageView } from './StageView.js';
-import { VenuePanel, InfrastructureMarks } from './VenuePanel.js';
-import { useEditingLease } from './useEditingLease.js';
-import { OverheadMarks, TrussMarks, CurtainMarks } from './VenueOverhead.js';
-import { KeepClearMarks } from './KeepClearZones.js';
-import {
-  objectOverlapWarnings, overlappingObjectIds, placementOverlaps, wallFootprint,
-} from '../../shared/overlap.js';
-import { keepClearWarnings } from '../../shared/keepClear.js';
-import { InventoryAssignment } from './InventoryPanel.js';
-import { inventorySchema, type InventoryPanel } from '../../shared/inventory.js';
-import { AssemblyPanel } from './AssemblyPanel.js';
-import { GroupInspector } from './GroupInspector.js';
-import { PlaceholderInspector, addPlaceholder } from './PlaceholderInspector.js';
-import { PlaceholderLayer } from './PlaceholderLayer.js';
-import { ToolIcon } from './ToolIcon.js';
-import { WallToolButton } from './WallToolButton.js';
-import { AlignmentGuides, CentrelineMark, SnapToggle } from './SnapGuides.js';
-import { adjustPendingCount, confirmDiscardPending, usePendingApplyForm } from './usePendingApplyForm.js';
-import { canvasModeForWidth, useNarrowEditor } from './useNarrowEditor.js';
-import {
-  effectiveCurtains, effectiveVenueDoorOpen, setCurtainOpenPercent, setVenueDoorOpenPercent, venueDooredWalls,
-} from '../../shared/venueFixtures.js';
-import { insertCableRunVertex, nearestCableRunInsert, newCableRun, removeCableRunVertex, setCableRunVertex } from '../../shared/infrastructure.js';
-import { CableRunMarks, CableRunsPanel } from './CableRuns.js';
 
-const MaterialPicker = lazy(() => import('./MaterialPicker.js'));
-type VenueFixtureSelection = { kind: 'curtain' | 'door'; id: string };
-const statusText = { saved: 'Gespeichert', pending: 'Änderungen ausstehend …', saving: 'Speichert …', failed: 'Speichern fehlgeschlagen', conflict: 'Neuere Fassung vorhanden' };
-const INSPECTOR_PENDING_STATUS = 'Nicht übernommene Eingaben';
+const statusText = {
+  saved: 'Gespeichert',
+  pending: 'Änderungen ausstehend …',
+  saving: 'Speichert …',
+  failed: 'Speichern fehlgeschlagen',
+  conflict: 'Neuere Fassung vorhanden',
+} as const;
+
+type InsertChoice = { partId: string; revision: number; label: string; variant?: string };
+type DragState = {
+  start: Layout;
+  ids: string[];
+  point: { x: number; y: number };
+  latest: Layout;
+};
+type MarqueeState = {
+  start: { x: number; y: number };
+  current: { x: number; y: number };
+  additive: boolean;
+};
+
+function uniqueRefs(layout: Layout) {
+  return [...new Map(layout.objects.map(object => [`${object.part.id}@${object.part.revision}`, object.part])).values()];
+}
+
 export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, canRename = false, onClose, onDirty, onRequestEditing }: {
-  initial: Scene; workspaceId: string; readOnly: boolean; canRename?: boolean; onClose: () => void; onDirty: (value: boolean) => void; onRequestEditing?: () => void;
+  initial: Scene;
+  workspaceId: string;
+  readOnly: boolean;
+  canRename?: boolean;
+  onClose: () => void;
+  onDirty: (value: boolean) => void;
+  onRequestEditing?: () => void;
 }) {
-  const boot = liftReportTemplatesToVenue({
-    ...initial.layout, braces: initial.layout.braces ?? [], connections: initial.layout.connections ?? [],
-    groups: initial.layout.groups ?? [], placeholders: initial.layout.placeholders ?? [],
-  }, initial.venue);
-  const [state, setState] = useState<History>(() => history<Layout>(boot.layout));
-  const [cablesOpen, setCablesOpen] = useState(false);
-  const [cableDrawing, setCableDrawing] = useState<{ points: { x: number; y: number }[]; cursor?: { x: number; y: number } } | null>(null);
-  const [selectedCableRunId, setSelectedCableRunId] = useState<string>();
-  const [selectedCableVertex, setSelectedCableVertex] = useState<number>();
-  const cableVertexDrag = useRef<{ runId: string; index: number; start: Layout } | undefined>(undefined);
-  const root = useRef<HTMLElement>(null);
-  const feedbackCapture = useRef<StageCaptureHandle | null>(null);
-  const setFeedbackCapture = useCallback((handle: StageCaptureHandle | null) => { feedbackCapture.current = handle; }, []);
-  const dock = useEditorDock('scene');
-  const [viewMode, setViewMode] = useState<'split' | 'plan' | 'stage'>(() => {
-    const saved = readEditorPreference('view');
-    return saved === 'plan' || saved === 'stage' || saved === 'split' ? saved : 'plan';
-  });
-  const [viewShare, setViewShare] = useState(55);
-  const narrowEditor = useNarrowEditor();
-  const activeView = canvasModeForWidth(viewMode, narrowEditor);
-  useEffect(() => { writeEditorPreference('view', viewMode); }, [viewMode]);
-  const current = useRef(state);
-  const stageGesture = useRef<{ layout: Layout; members: ClipboardMember[] } | undefined>(undefined);
-  const [assets, setAssets] = useState<Asset[]>([]);
-  const [assetError, setAssetError] = useState('');
-  const [sceneName, setSceneName] = useState(initial.name);
-  const [renamingScene, setRenamingScene] = useState(false);
-  const [renameBusy, setRenameBusy] = useState(false);
-  const [renameError, setRenameError] = useState('');
-  const setLibraryOpen = (value: import('react').SetStateAction<boolean>) => dock.setOpen('library', value);
-  const [helpOpen, setHelpOpen] = useState(false);
-  const persistLiftedTemplates = useRef(
-    (initial.layout.reportTemplates?.length ?? 0) > 0
-    && !(initial.venue.reportTemplates?.length)
-    && (boot.venue.reportTemplates?.length ?? 0) > 0,
-  );
-  useEffect(() => {
-    let active = true;
-    request(`/api/workspaces/${workspaceId}/assets`).then(data => { if (active) setAssets(assetListSchema.parse(data)); }).catch(() => { if (active) setAssetError('Die Objektbibliothek konnte nicht geladen werden.'); });
-    return () => { active = false; };
-  }, [workspaceId]);
-  const [selectedType, setSelectedType] = useState<string>();
-  const [picked, setPicked] = useState<ClipboardMember[]>([]);
-  const [fixtureSelection, setFixtureSelection] = useState<VenueFixtureSelection>();
-  const presentIds = new Set([...state.present.walls, ...state.present.braces, ...state.present.platforms ?? [], ...state.present.stairs ?? [], ...state.present.placeholders ?? []].map(item => item.id));
-  const primary = picked.find(item => presentIds.has(item.id));
-  const selected = primary?.kind === 'wall' ? primary.id : undefined;
-  const selectedBrace = primary?.kind === 'brace' ? primary.id : undefined;
-  const selectedPlatform = primary?.kind === 'platform' ? primary.id : undefined;
-  const selectedStair = primary?.kind === 'stair' ? primary.id : undefined;
-  const selectedPlaceholder = primary?.kind === 'placeholder' ? primary.id : undefined;
-  const pickedPlatforms = picked.filter(item => item.kind === 'platform').map(item => item.id);
-  useEffect(() => { root.current?.querySelector('.wall-inspector')?.scrollTo({ top: 0 }); }, [primary?.id]);
+  const [state, setState] = useState<History<Layout>>(() => history(initial.layout));
+  const [preview, setPreview] = useState<Layout>();
+  const shown = preview ?? state.present;
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [clipboard, setClipboard] = useState<LayoutClipboard>();
-  const [placing, setPlacing] = useState<{ wall: Wall; pendingType?: WallElementType }>();
-  const placingRef = useRef<{ wall: Wall; pendingType?: WallElementType } | undefined>(undefined);
-  const objectPlacement = useRef<{
-    start: Layout; latest: Layout; members: ClipboardMember[]; origin: { x: number; y: number }; consumed: boolean;
-  } | undefined>(undefined);
-  const [groupPreview, setGroupPreview] = useState<Layout>();
-  const [panelLabels, setPanelLabels] = useState<Record<string, string>>({});
-  const [inventoryPanels, setInventoryPanels] = useState<InventoryPanel[]>([]);
-  const inventoryGen = useRef(0);
-  function adoptPanels(items: InventoryPanel[]) {
-    inventoryGen.current += 1;
-    setInventoryPanels(items);
-    setPanelLabels(Object.fromEntries(items.map(item => [item.id, item.label])));
-  }
-  useEffect(() => {
-    let cancelled = false;
-    const gen = inventoryGen.current;
-    request(`/api/workspaces/${workspaceId}/inventory`)
-      .then(data => {
-        if (cancelled || inventoryGen.current !== gen) return;
-        const panels = inventorySchema.parse(data).panels;
-        setInventoryPanels(panels);
-        setPanelLabels(Object.fromEntries(panels.map(item => [item.id, item.label])));
-      })
-      .catch(() => { /* assignment stays empty until Bestand loads stock */ });
-    return () => { cancelled = true; };
-  }, [workspaceId]);
-  const [exportsOpen, setExportsOpen] = useState(false);
-  const [dimensioning, setDimensioning] = useState<{ a?: SnapAnchor; b?: SnapAnchor; cursor?: { x: number; y: number }; hover?: SnapAnchor } | null>(null);
-  const [selectedDimension, setSelectedDimension] = useState<string>();
-  const [venueOpen, setVenueOpen] = useState(false);
-  const [openVenueSheet, setOpenVenueSheet] = useState(false);
-  const [venueDirty, setVenueDirty] = useState(false);
-  const [inspectorPending, setInspectorPending] = useState(false);
-  const inspectorPendingRef = useRef(false);
-  inspectorPendingRef.current = inspectorPending;
-  const pendingCount = useRef(0);
-  const [inspectorEpoch, setInspectorEpoch] = useState(0);
-  const reportInspectorPending = useCallback((pending: boolean) => {
-    pendingCount.current = adjustPendingCount(pendingCount.current, pending);
-    const next = pendingCount.current > 0;
-    // Keep the ref in lockstep so Auswahl/selection guards in the same event turn
-    // (e.g. right after Übernehmen) do not still see a stale pending flag.
-    inspectorPendingRef.current = next;
-    setInspectorPending(next);
-  }, []);
-  const [venueVersionId, setVenueVersionId] = useState(initial.venueVersionId);
-  const [venue, setVenue] = useState<VenueGeometry>(boot.venue);
-  const lastPlanPoint = useRef({ x: initial.venue.width / 2, y: initial.venue.depth / 2 });
+  const [insertChoice, setInsertChoice] = useState<InsertChoice>();
+  const [stockItems, setStockItems] = useState<StockItem[]>([]);
+  const [sceneName, setSceneName] = useState(initial.name);
+  const [venue, setVenue] = useState<VenueGeometry>(initial.venue);
   const [venueName, setVenueName] = useState(initial.venueName);
-  const [updateAvailable, setUpdateAvailable] = useState(!!initial.venueUpdateAvailable);
-  const [snapEnabled, setSnapEnabled] = useState(true);
-  const [guides, setGuides] = useState<SnapGuide[]>([]);
-  const [snapStatus, setSnapStatus] = useState<string>();
-  const [marqueeBox, setMarqueeBox] = useState<PlanBounds>();
+  const [venueVersionId, setVenueVersionId] = useState(initial.venueVersionId);
+  const [venueUpdateAvailable, setVenueUpdateAvailable] = useState(!!initial.venueUpdateAvailable);
+  const [venueOpen, setVenueOpen] = useState(false);
+  const [venueDirty, setVenueDirty] = useState(false);
+  const [exportsOpen, setExportsOpen] = useState(false);
+  const [view, setView] = useState<'plan' | 'stage' | 'split'>('plan');
+  const [planDisplay, setPlanDisplay] = useState<PlanDisplayOptions>(defaultPlanDisplay);
   const [viewZoom, setViewZoom] = useState(1);
   const [viewPan, setViewPan] = useState({ x: 0, y: 0 });
-  const [planDisplay, setPlanDisplay] = useState<PlanDisplayOptions>(defaultPlanDisplay);
-  const planGesture = useRef<{
-    start: Layout; latest: Layout; members: ClipboardMember[]; previousSelection: ClipboardMember[];
-    pointer: { x: number; y: number }; pivot: { x: number; y: number }; operation: TransformOperation;
-  } | undefined>(undefined);
-  const marqueeDrag = useRef<{ x: number; y: number; endX: number; endY: number; additive: boolean; previousSelection: ClipboardMember[] } | undefined>(undefined);
-  const panDrag = useRef<{ clientX: number; clientY: number; panX: number; panY: number } | undefined>(undefined);
-  const pickedRef = useRef(picked);
-  pickedRef.current = picked;
+  const [catalogMessage, setCatalogMessage] = useState('');
+  const [pendingForms, setPendingForms] = useState(0);
+  const [recoveryMessage, setRecoveryMessage] = useState('');
+  const [recovering, setRecovering] = useState(false);
   const svg = useRef<SVGSVGElement>(null);
-  const [saver] = useState(() => new Autosave({
-    ...boot.layout, braces: boot.layout.braces ?? [], connections: boot.layout.connections ?? [],
-    groups: boot.layout.groups ?? [], placeholders: boot.layout.placeholders ?? [],
-  }, initial.revision, async (layout, revision) => {
+  const feedbackCapture = useRef<StageCaptureHandle | null>(null);
+  const setFeedbackCapture = useCallback((handle: StageCaptureHandle | null) => { feedbackCapture.current = handle; }, []);
+  const drag = useRef<DragState | undefined>(undefined);
+  const marquee = useRef<MarqueeState | undefined>(undefined);
+  const [marqueePreview, setMarqueePreview] = useState<MarqueeState>();
+  const dock = useEditorDock('scene');
+  const catalog = useLayoutParts(workspaceId, shown);
+  const supports = useMemo(() => supportingSurfaces(venue), [venue]);
+  const supportElevations = useMemo(
+    () => new Map(supports.map(surface => [surface.id, surface.elevation])),
+    [supports],
+  );
+  const resolution = useMemo(
+    () => resolveLayoutObjectDetails(shown, catalog.index, { supportElevations }),
+    [shown, catalog.index, supportElevations],
+  );
+  const objects = resolution.objects;
+  const selected = objects.find(object => object.object.id === selectedIds[0]);
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const selectedMembers = selectedIds.map(id => ({ kind: 'object' as const, id }));
+  const selectedGroup = selectedMembers[0] ? groupContaining(shown, selectedMembers[0]) : undefined;
+  const overlapWarnings = useMemo(() => resolvedObjectOverlapWarnings(objects), [objects]);
+  const overlapIds = useMemo(() => overlappingResolvedObjectIds(objects), [objects]);
+  const keepClear = useMemo(() => resolvedKeepClearWarnings(venue, objects), [venue, objects]);
+  const overhead = useMemo(() => resolvedOverheadClearance(objects, venue), [objects, venue]);
+  const sceneCurtains = useMemo(() => effectiveCurtains(venue, shown), [venue, shown]);
+  const resolvedDimensions = useMemo(() => (shown.dimensions ?? []).flatMap(dimension => {
+    const resolved = resolveDimension(dimension, venue, shown, objects);
+    return resolved ? [resolved] : [];
+  }), [shown, venue, objects]);
+  const latestById = useMemo(() => new Map(catalog.summaries.map(part => [part.id, part.latestRevision])), [catalog.summaries]);
+  const summaryById = useMemo(() => new Map(catalog.summaries.map(part => [part.id, part])), [catalog.summaries]);
+  const supportOptions = useMemo(() => [
+    ...supports.map(surface => ({ id: surface.id, label: surface.label })),
+    ...objects.filter(object => object.resolved.surfaces.length > 0).map(object => ({ id: object.object.id, label: `${object.object.label} · Bauteilfläche` })),
+  ], [supports, objects]);
+
+  const [saver] = useState(() => new Autosave(initial.layout, initial.revision, async (layout, revision) => {
     try {
       const result = await request(`/api/workspaces/${workspaceId}/scenes/${initial.id}/layout`, {
-        revision, layout: stripLayoutReportTemplates(layout),
+        revision,
+        layout,
       }, 'PUT');
       return z.object({ revision: z.number().int() }).parse(result).revision;
     } catch (error) {
-      if (error instanceof ApiError && (error.status === 409 || error.status === 423)) throw new SaveConflict(error.status === 423 ? 'lease' : 'revision');
+      if (error instanceof ApiError && (error.status === 409 || error.status === 423)) {
+        throw new SaveConflict(error.status === 423 ? 'lease' : 'revision');
+      }
       throw error;
     }
   }));
   const saveState = useSyncExternalStore(saver.subscribe, saver.getSnapshot);
+  const readOnly = permissionReadOnly || saveState.status === 'conflict';
+  const sceneLease = useEditingLease(`/api/workspaces/${workspaceId}/scenes/${initial.id}`, !permissionReadOnly);
+
   useEffect(() => { recordFeedbackActivity({ action: `save.${saveState.status}`, area: 'plans' }); }, [saveState.status]);
   useEffect(() => {
-    if (!persistLiftedTemplates.current || permissionReadOnly) return;
-    const templates = boot.venue.reportTemplates;
-    if (!templates?.length) return;
-    persistLiftedTemplates.current = false;
-    let cancelled = false;
-    void request(`/api/workspaces/${workspaceId}/scenes/${initial.id}/venue/report-templates`, { reportTemplates: templates, venueVersionId }, 'PATCH')
-      .then(data => {
-        if (cancelled) return;
-        const result = saveVenueResultSchema.parse(data);
-        saver.acknowledgeRevision(result.revision);
-        setVenue(result.venue);
-    if (result.venueVersionId) setVenueVersionId(result.venueVersionId);
-      })
-      .catch(() => { /* stay in-memory until the next venue save */ });
-    return () => { cancelled = true; };
-  }, [workspaceId, initial.id, permissionReadOnly, saver]);
-  const readOnly = permissionReadOnly || saveState.status === 'conflict';
-  const venueLease = useEditingLease(`/api/workspaces/${workspaceId}/venues/${initial.venueId}`, venueOpen && !readOnly);
-  useEffect(() => { if (venueOpen && !readOnly) void venueLease.acquire(); }, [venueOpen, readOnly]);
-  const [recoveryMessage, setRecoveryMessage] = useState('');
-  const [recovering, setRecovering] = useState(false);
+    if (!permissionReadOnly) void sceneLease.acquire();
+  }, [permissionReadOnly]);
+  useEffect(() => {
+    let active = true;
+    void listStockItems(workspaceId).then(items => { if (active) setStockItems(items); }).catch(() => {});
+    return () => { active = false; };
+  }, [workspaceId]);
+  useEffect(() => () => saver.dispose(), [saver]);
+  useEffect(() => { onDirty(saveState.dirty || venueDirty || pendingForms > 0); }, [saveState.dirty, venueDirty, pendingForms, onDirty]);
+  useEffect(() => {
+    setSelectedIds(ids => ids.filter(id => state.present.objects.some(object => object.id === id)));
+  }, [state.present.objects]);
+
+  function commit(layout: Layout) {
+    setPreview(undefined);
+    setState(current => execute(current, layout));
+    saver.queue(layout);
+    recordFeedbackActivity({ action: 'editor.change', area: 'plans' });
+  }
+  function commitObject(object: LayoutObject) {
+    commit({ ...state.present, objects: state.present.objects.map(item => item.id === object.id ? object : item) });
+  }
+  function removeSelected() {
+    if (readOnly || !selectedIds.length) return;
+    commit(removeSelection(state.present, selectedIds.map(id => ({ kind: 'object', id }))));
+    setSelectedIds([]);
+  }
+  function performUndo() {
+    const next = undo(state);
+    setState(next);
+    saver.queue(next.present);
+    setSelectedIds([]);
+    recordFeedbackActivity({ action: 'editor.undo', area: 'plans' });
+  }
+  function performRedo() {
+    const next = redo(state);
+    setState(next);
+    saver.queue(next.present);
+    setSelectedIds([]);
+    recordFeedbackActivity({ action: 'editor.redo', area: 'plans' });
+  }
+  function planPoint(event: Pick<PointerEvent<SVGSVGElement | SVGGElement>, 'clientX' | 'clientY'>) {
+    const matrix = svg.current?.getScreenCTM();
+    if (!matrix) return { x: venue.width / 2, y: venue.depth / 2 };
+    const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse());
+    return { x: point.x, y: -point.y };
+  }
+  function beginObjectDrag(event: PointerEvent<SVGGElement>, object: (typeof objects)[number]) {
+    if (event.button !== 0) return;
+    event.stopPropagation();
+    const group = groupContaining(shown, { kind: 'object', id: object.object.id });
+    const targetIds = group?.members.map(member => member.id) ?? [object.object.id];
+    const additive = event.shiftKey || event.ctrlKey || event.metaKey;
+    const allSelected = targetIds.every(id => selectedIds.includes(id));
+    const ids = additive
+      ? allSelected ? selectedIds.filter(id => !targetIds.includes(id)) : [...new Set([...selectedIds, ...targetIds])]
+      : selectedIds.includes(object.object.id) ? selectedIds : targetIds;
+    setSelectedIds(ids);
+    if (readOnly || (additive && allSelected)) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    drag.current = { start: state.present, ids, point: planPoint(event), latest: state.present };
+  }
+  function moveDrag(event: PointerEvent<SVGSVGElement>) {
+    const current = drag.current;
+    const point = planPoint(event);
+    if (!current) {
+      const box = marquee.current;
+      if (box) {
+        box.current = point;
+        setMarqueePreview({ ...box });
+      }
+      return;
+    }
+    const dx = point.x - current.point.x, dy = point.y - current.point.y;
+    const ids = new Set(current.ids);
+    const latest = {
+      ...current.start,
+      objects: current.start.objects.map(object => ids.has(object.id)
+        ? { ...object, x: object.x + dx, y: object.y + dy }
+        : object),
+    };
+    current.latest = latest;
+    setPreview(latest);
+  }
+  function endDrag(event: PointerEvent<SVGSVGElement>) {
+    const current = drag.current;
+    if (!current) {
+      const box = marquee.current;
+      if (!box) return;
+      marquee.current = undefined;
+      setMarqueePreview(undefined);
+      const point = planPoint(event);
+      const moved = Math.hypot(point.x - box.start.x, point.y - box.start.y) > 10;
+      if (!moved) {
+        if (!box.additive) setSelectedIds([]);
+        return;
+      }
+      const hits = membersInBounds(objects, normalizeBounds(box.start, point)).flatMap(member => {
+        const group = groupContaining(shown, member);
+        return group?.members.map(item => item.id) ?? [member.id];
+      });
+      setSelectedIds(currentIds => box.additive
+        ? [...new Set([...currentIds, ...hits])]
+        : [...new Set(hits)]);
+      return;
+    }
+    drag.current = undefined;
+    const point = planPoint(event);
+    if (Math.hypot(point.x - current.point.x, point.y - current.point.y) <= 1) {
+      setPreview(undefined);
+      return;
+    }
+    let latest = current.latest;
+    if (current.ids.length === 1 && !event.altKey) {
+      const details = resolveLayoutObjectDetails(latest, catalog.index, { supportElevations });
+      const moving = details.byId.get(current.ids[0]!);
+      if (moving) {
+        const snap = snapObjectConnectors(moving, details.objects);
+        if (snap.guides.length) {
+          latest = {
+            ...latest,
+            objects: latest.objects.map(object => object.id === moving.object.id ? { ...object, x: snap.x, y: snap.y } : object),
+            ...(snap.connection?.targetObject ? {
+              joints: [
+                ...latest.joints.filter(joint => !(joint.a.object === moving.object.id && joint.a.connector === snap.connection!.moving)),
+                {
+                  id: crypto.randomUUID(),
+                  a: { object: moving.object.id, connector: snap.connection.moving },
+                  b: { object: snap.connection.targetObject, connector: snap.connection.target },
+                },
+              ],
+            } : {}),
+          };
+        }
+      }
+    }
+    commit(latest);
+  }
+  function chooseInsert(choice: InsertChoice) {
+    if (readOnly) return;
+    setInsertChoice(choice);
+    dock.closeAfterPlacement();
+  }
+  function placeAt(point: { x: number; y: number }) {
+    if (!insertChoice || readOnly) return;
+    const object: LayoutObject = {
+      id: crypto.randomUUID(),
+      label: insertChoice.label,
+      part: { id: insertChoice.partId, revision: insertChoice.revision },
+      ...(insertChoice.variant ? { variant: insertChoice.variant } : {}),
+      x: Math.max(-100000, Math.min(100000, point.x)),
+      y: Math.max(-100000, Math.min(100000, point.y)),
+      rotation: 0,
+      support: AUDIENCE_FLOOR_ID,
+    };
+    commit({ ...state.present, objects: [...state.present.objects, object] });
+    setSelectedIds([object.id]);
+    setInsertChoice(undefined);
+  }
+  function backgroundPointer(event: PointerEvent<SVGSVGElement>) {
+    if (event.button !== 0) return;
+    if (insertChoice) {
+      placeAt(planPoint(event));
+      return;
+    }
+    const point = planPoint(event);
+    const box = { start: point, current: point, additive: event.shiftKey || event.ctrlKey || event.metaKey };
+    marquee.current = box;
+    setMarqueePreview(box);
+  }
+  function copy() {
+    const copied = copySelection(state.present, selectedIds.map(id => ({ kind: 'object', id })));
+    if (copied) setClipboard(copied);
+  }
+  function cut() {
+    if (readOnly) return;
+    const result = cutSelection(state.present, selectedIds.map(id => ({ kind: 'object', id })));
+    if (result.clipboard) setClipboard(result.clipboard);
+    commit(result.layout);
+    setSelectedIds([]);
+  }
+  function paste() {
+    if (readOnly || !clipboard) return;
+    const result = pasteClipboard(state.present, clipboard, () => crypto.randomUUID(), { x: 200, y: 200 });
+    commit(result.layout);
+    setSelectedIds(result.pasted.map(member => member.id));
+    if (result.consumed) setClipboard(undefined);
+  }
+  async function renameScene() {
+    const next = await askPrompt({
+      title: 'Bühnenbild umbenennen',
+      inputLabel: 'Name des Bühnenbilds',
+      defaultValue: sceneName,
+      confirmLabel: 'Umbenennen',
+    });
+    if (!next || next === sceneName) return;
+    try {
+      const result = await request(`/api/workspaces/${workspaceId}/scenes/${initial.id}`, { name: next }, 'PATCH');
+      setSceneName(z.object({ name: z.string() }).parse(result).name);
+    } catch {
+      setCatalogMessage('Der Name konnte nicht gespeichert werden.');
+    }
+  }
+  function downloadDraft() {
+    const url = URL.createObjectURL(new Blob([
+      JSON.stringify({ ...initial, name: sceneName, revision: saveState.revision, layout: state.present }, null, 2),
+    ], { type: 'application/json' }));
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `buehnenentwurf-${initial.id}.json`;
+    anchor.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
   async function recoverDraft() {
     const name = await askPrompt({
       title: 'Entwurf als Bühnenbildvorlage sichern',
       message: 'Unter diesem Namen erscheint die Vorlage in der Übersicht.',
-      defaultValue: `${initial.name} – gesicherter Entwurf`,
+      defaultValue: `${sceneName} – gesicherter Entwurf`,
       inputLabel: 'Name der Bühnenbildvorlage',
       confirmLabel: 'Sichern',
     });
     if (!name) return;
     setRecovering(true);
+    setRecoveryMessage('');
     try {
       await request(`/api/workspaces/${workspaceId}/scenes/${initial.id}/recover`, {
-        name, layout: current.current.present, sourceSurfaces: (venue.platforms ?? []).map(({ id, label }) => ({ id, label })),
+        name,
+        layout: state.present,
+        sourceSurfaces: (venue.platforms ?? []).map(({ id, label }) => ({ id, label })),
       });
       setRecoveryMessage('Entwurf als Bühnenbildvorlage gesichert. Sie finden ihn in der Übersicht.');
-    } catch (error) { setRecoveryMessage(error instanceof ApiError ? error.message : 'Entwurf konnte nicht gesichert werden. Bitte herunterladen.'); }
-    finally { setRecovering(false); }
-  }
-  async function renameScene(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const parsed = renameSceneSchema.safeParse({ name: new FormData(event.currentTarget).get('name') });
-    if (!parsed.success) { setRenameError('Bitte geben Sie einen gültigen Namen ein.'); return; }
-    setRenameBusy(true); setRenameError('');
-    try {
-      const result = sceneSchema.parse(await request(`/api/workspaces/${workspaceId}/scenes/${initial.id}`, parsed.data, 'PATCH'));
-      setSceneName(result.name);
-      setRenamingScene(false);
     } catch (error) {
-      setRenameError(error instanceof ApiError ? error.message : 'Das Bühnenbild konnte nicht umbenannt werden.');
-    } finally { setRenameBusy(false); }
+      setRecoveryMessage(error instanceof ApiError ? error.message : 'Entwurf konnte nicht gesichert werden. Bitte herunterladen.');
+    } finally {
+      setRecovering(false);
+    }
   }
-  const dirty = venueDirty || saveState.dirty || !!groupPreview || !!placing || inspectorPending;
-  const onDirtyRef = useRef(onDirty);
-  onDirtyRef.current = onDirty;
-  useEffect(() => { onDirtyRef.current(dirty); }, [dirty]);
+
   useEffect(() => {
-    if (readOnly) return;
-    const tick = window.setInterval(() => {
-      request(`/api/workspaces/${workspaceId}/scenes/${initial.id}/lease/heartbeat`, {}).catch(error => {
-        saver.markConflict('lease');
-      });
-    }, LEASE_HEARTBEAT_MS);
-    return () => clearInterval(tick);
-  }, [readOnly, saver, workspaceId, initial.id]);
-  useEffect(() => {
-    const warn = (event: BeforeUnloadEvent) => {
-      if (saver.getSnapshot().dirty || busyGesture() || inspectorPendingRef.current) { event.preventDefault(); event.returnValue = ''; }
-    };
-    window.addEventListener('beforeunload', warn);
-    // Dispose only on unmount — onDirty identity changes whenever Plans
-    // re-renders from dirty, and clearing the debounce timer left status stuck on pending.
-    return () => { window.removeEventListener('beforeunload', warn); saver.dispose(); onDirtyRef.current(false); };
-  }, [saver]);
-  function afterPending(command: () => void) {
-    if (!pendingCount.current) { command(); return; }
-    void confirmDiscardPending(true).then(ok => {
-      if (!ok) return;
-      pendingCount.current = 0;
-      inspectorPendingRef.current = false;
-      setInspectorPending(false);
-      setInspectorEpoch(value => value + 1);
-      command();
-    });
-  }
-  function pendingBlocksEdit() {
-    if (!pendingCount.current) return false;
-    setSnapStatus('Bitte Eingaben zuerst übernehmen oder verwerfen.');
-    return true;
-  }
-  function apply(next: History) {
-    if (pendingBlocksEdit()) return;
-    if (readOnly || busyGesture() || next === current.current) return;
-    current.current = next;
-    setState(next);
-    saver.queue(next.present);
-    recordFeedbackActivity({ action: 'editor.change', area: 'plans' });
-  }
-  function commit(layout: Layout) {
-    const withSupports = reassignLayoutSupports(stripLayoutReportTemplates(layout), venue);
-    const valid = layoutSchema.safeParse(withSupports);
-    if (!valid.success) { setSnapStatus('Änderung nicht übernommen: ungültige Maße oder Objektverweise.'); return; }
-    apply(execute(current.current, valid.data));
-  }
-  function adoptVenue(result: { venueVersionId?: string; venue: VenueGeometry; layout: Layout; revision: number; venueUpdateAvailable: boolean }) {
-    setVenue(result.venue);
-    if (result.venueVersionId) setVenueVersionId(result.venueVersionId);
-    const next = history({
-      ...stripLayoutReportTemplates(result.layout), braces: result.layout.braces ?? [], connections: result.layout.connections ?? [],
-      groups: result.layout.groups ?? [], placeholders: result.layout.placeholders ?? [],
-    });
-    current.current = next;
-    setState(next);
-    saver.adopt(next.present, result.revision);
-    setUpdateAvailable(!!result.venueUpdateAvailable);
-  }
-  function replace(wall: Wall) { commit({ ...current.current.present, walls: current.current.present.walls.map(item => item.id === wall.id ? wall : item) }); }
-  function applyWall(wall: Wall) {
-    const present = current.current.present;
-    const withPrimary = { ...present, walls: present.walls.map(item => item.id === wall.id ? wall : item) };
-    const wallIds = memberIdsByKind(selection(), 'wall');
-    const targets = wallIds.includes(wall.id) ? wallIds : [wall.id];
-    commit(applyWallSurfaces(withPrimary, targets, wall.surfaces));
-  }
-  function applyPlatform(platform: Platform) {
-    const present = current.current.present;
-    const withPrimary = { ...present, platforms: (present.platforms ?? []).map(item => item.id === platform.id ? platform : item) };
-    const platformIds = memberIdsByKind(selection(), 'platform');
-    const targets = platformIds.includes(platform.id) ? platformIds : [platform.id];
-    commit(applyPlatformSurfaces(withPrimary, targets, platform.surfaces));
-  }
-  function applyType(type: WallElementType) {
-    const present = current.current.present;
-    const types = typesOf(present);
-    commit({
-      ...present,
-      wallTypes: types.some(item => item.id === type.id) ? types.map(item => item.id === type.id ? type : item) : [...types, type],
-      walls: present.walls.map(wall => wall.typeId === type.id ? { ...wall, width: type.width, height: type.height, thickness: type.thickness } : wall),
-    });
-    setSelectedType(type.id);
-  }
-  function beginPlacingWall(type?: WallElementType) {
-    const present = current.current.present;
-    if (readOnly || busyGesture() || present.walls.length >= 250) return;
-    setDimensioning(null);
-    setSelectedDimension(undefined);
-    const types = typesOf(present);
-    let pendingType: WallElementType | undefined;
-    let wall: Wall;
-    if (type) {
-      const known = types.find(item => item.id === type.id)
-        ?? types.find(item => sameGeometry(item, type));
-      const resolved = known ?? type;
-      pendingType = known ? undefined : resolved;
-      wall = {
-        ...newWall(crypto.randomUUID(), venue.width / 2, venue.depth / 2),
-        typeId: resolved.id, label: resolved.name, width: resolved.width, height: resolved.height, thickness: resolved.thickness,
-      };
-      setSelectedType(resolved.id);
-    } else {
-      wall = newWall(crypto.randomUUID(), venue.width / 2, venue.depth / 2);
-    }
-    const draft = { wall, pendingType };
-    placingRef.current = draft;
-    setPlacing(draft);
-    setGuides([]);
-    setSnapStatus('Klicken zum Platzieren · Escape abbricht');
-  }
-  function cancelPlacing() {
-    objectPlacement.current = undefined; setGroupPreview(undefined);
-    placingRef.current = undefined;
-    setPlacing(undefined);
-    setGuides([]);
-    setSnapStatus(undefined);
-  }
-  function commitPlacing() {
-    const object = objectPlacement.current;
-    if (object) {
-      objectPlacement.current = undefined; setGroupPreview(undefined);
-      commit(object.latest);
-      setSelection(object.members, true);
-      if (object.consumed) setClipboard(undefined);
-      else if (object.members.length) setClipboard(copySelection(object.latest, object.members));
-      setGuides([]); setSnapStatus(undefined); return;
-    }
-    const draft = placingRef.current;
-    if (!draft) return;
-    const present = current.current.present;
-    if (present.walls.length >= 250) { cancelPlacing(); return; }
-    const types = typesOf(present);
-    placingRef.current = undefined;
-    commit({
-      ...present,
-      wallTypes: draft.pendingType ? [...types, draft.pendingType] : present.wallTypes,
-      walls: [...present.walls, draft.wall],
-    });
-    placingRef.current = undefined;
-    setPlacing(undefined);
-    setGuides([]);
-    setSnapStatus(undefined);
-    pick({ kind: 'wall', id: draft.wall.id }, false, true);
-  }
-  function placeType(type: WallElementType) {
-    beginPlacingWall(type);
-  }
-  function removeType(id: string) {
-    const present = current.current.present;
-    commit({
-      ...present,
-      wallTypes: typesOf(present).filter(type => type.id !== id),
-      walls: present.walls.map(wall => wall.typeId === id ? { ...wall, typeId: undefined } : wall),
-    });
-    setSelectedType(undefined);
-  }
-  function replaceBrace(brace: Brace) { commit({ ...current.current.present, braces: current.current.present.braces.map(item => item.id === brace.id ? brace : item) }); }
-  function replacePlaceholder(item: Placeholder) {
-    commit({ ...current.current.present, placeholders: (current.current.present.placeholders ?? []).map(entry => entry.id === item.id ? item : entry) });
-  }
-  function replacePlatform(platform: Platform) {
-    applyPlatform(platform);
-  }
-  function replaceStair(stair: StairUnit) {
-    commit({ ...current.current.present, stairs: (current.current.present.stairs ?? []).map(item => item.id === stair.id ? stair : item) });
-  }
-  function clearSelection(force = false) {
-    if (force || pendingCount.current === 0) {
-      pickedRef.current = []; setPicked([]); setFixtureSelection(undefined); setSelectedDimension(undefined); setSelectedCableRunId(undefined); setSelectedCableVertex(undefined);
-      return;
-    }
-    void confirmDiscardPending(true).then(ok => {
-      if (!ok) return;
-      pickedRef.current = []; setPicked([]); setFixtureSelection(undefined); setSelectedDimension(undefined); setSelectedCableRunId(undefined); setSelectedCableVertex(undefined);
-    });
-  }
-  function setSelection(members: ClipboardMember[], force = false) {
-    if (force || pendingCount.current === 0) {
-      pickedRef.current = members; setPicked(members); setFixtureSelection(undefined); setSelectedDimension(undefined);
-      return;
-    }
-    void confirmDiscardPending(true).then(ok => {
-      if (!ok) return;
-      pickedRef.current = members; setPicked(members); setFixtureSelection(undefined); setSelectedDimension(undefined);
-    });
-  }
-  function selectDimension(id: string) {
-    setDimensioning(null);
-    setSnapStatus(undefined);
-    const select = () => {
-      pickedRef.current = [];
-      setPicked([]);
-      setFixtureSelection(undefined);
-      setSelectedDimension(id);
-    };
-    if (pendingCount.current === 0) select();
-    else void confirmDiscardPending(true).then(ok => { if (ok) select(); });
-  }
-  function selection(): ClipboardMember[] {
-    const present = current.current.present;
-    const ids = new Set([...present.walls, ...present.braces, ...present.platforms ?? [], ...present.stairs ?? [], ...present.placeholders ?? []].map(item => item.id));
-    return pickedRef.current.filter(item => ids.has(item.id));
-  }
-  function applyHits(hit: ClipboardMember[], additive: boolean) {
-    setSelection(additive ? [...selection(), ...hit.filter(item => !selection().some(old => old.id === item.id))] : hit);
-  }
-  function pick(member: ClipboardMember, additive: boolean, force = false) {
-    if (busyGesture() && !force) return;
-    const old = selection();
-    if (additive) setSelection(old.some(item => item.id === member.id) ? old.filter(item => item.id !== member.id) : [member, ...old], force);
-    else {
-      const group = member.kind === 'platform' ? undefined : groupContaining(current.current.present, { kind: member.kind, id: member.id });
-      setSelection(group ? [member, ...group.members.filter(item => item.id !== member.id)] : [member], force);
-    }
-  }
-  function pickVenueFixture(fixture: VenueFixtureSelection) {
-    if (busyGesture()) return;
-    if (pendingCount.current === 0) {
-      pickedRef.current = [];
-      setPicked([]);
-      setFixtureSelection(fixture);
-      setSelectedDimension(undefined);
-      return;
-    }
-    void confirmDiscardPending(true).then(ok => {
-      if (!ok) return;
-      pickedRef.current = [];
-      setPicked([]);
-      setFixtureSelection(fixture);
-      setSelectedDimension(undefined);
-    });
-  }
-  function remove() {
-    if (busyGesture()) return;
-    afterPending(() => { commit(removeSelection(current.current.present, selection())); clearSelection(true); });
-  }
-  function copy() {
-    if (busyGesture()) return;
-    const taken = copySelection(current.current.present, selection());
-    if (taken) setClipboard(taken);
-  }
-  function cut() {
-    if (busyGesture()) return;
-    afterPending(() => {
-    const result = cutSelection(current.current.present, selection());
-    if (!result.clipboard) return;
-    setClipboard(result.clipboard);
-    commit(result.layout);
-    clearSelection(true);
-    });
-  }
-  function paste() {
-    if (busyGesture() || !clipboard) return;
-    if (viewMode === 'stage') setViewMode('plan');
-    const cursor = lastPlanPoint.current;
-    const pivot = clipboardPivot(clipboard) ?? cursor;
-    const result = pasteClipboard(current.current.present, clipboard, () => crypto.randomUUID(), {
-      x: cursor.x - pivot.x, y: cursor.y - pivot.y,
-    });
-    if (!result.pasted.length) return;
-    beginObjectPlacement(result.layout, result.pasted, cursor, result.consumed);
-    setSelection(result.pasted, true);
-    if (result.consumed) setClipboard(undefined);
-  }
-  function finishCableDrawing(path: { x: number; y: number }[]) {
-    if (path.length < 2 || (current.current.present.cableRuns ?? []).length >= 250) {
-      setCableDrawing(null);
-      setSnapStatus(path.length < 2 ? 'Kabelweg braucht mindestens zwei Punkte.' : undefined);
-      return;
-    }
-    const run = newCableRun(crypto.randomUUID(), path);
-    const end = path.at(-1)!;
-    const pin = (venue.connectionPoints ?? []).find(item => Math.hypot(item.x - end.x, item.y - end.y) <= 250);
-    const finished = pin
-      ? setCableRunVertex({ ...run, end: { ...run.end, label: pin.label, connectionPointId: pin.id } }, run.path.length - 1, { x: pin.x, y: pin.y })
-      : run;
-    commit({ ...current.current.present, cableRuns: [...current.current.present.cableRuns ?? [], finished] });
-    setSelectedCableRunId(finished.id);
-    setCablesOpen(true);
-    setCableDrawing(null);
-    setSnapStatus(undefined);
-  }
-  const cableDraftPath = cableDrawing ? (() => {
-    const { points, cursor } = cableDrawing;
-    if (!cursor) return points;
-    const last = points.at(-1);
-    if (last && last.x === cursor.x && last.y === cursor.y) return points;
-    return [...points, cursor];
-  })() : undefined;
-  useEffect(() => {
-    const shortcut = (event: KeyboardEvent) => {
-      if ((event as KeyboardEvent & { stageToolExitHandled?: boolean }).stageToolExitHandled) return;
-      if (venueOpen) return;
-      if (cableDrawing && (event.key === 'Enter' || event.key === 'NumpadEnter') && !editingText(event.target)) {
+    function keydown(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+      const modifier = event.ctrlKey || event.metaKey;
+      if (modifier && event.key.toLowerCase() === 'z') {
         event.preventDefault();
-        finishCableDrawing(cableDrawing.points);
-        return;
+        if (event.shiftKey) performRedo(); else performUndo();
+      } else if (modifier && event.key.toLowerCase() === 'y') {
+        event.preventDefault(); performRedo();
+      } else if (modifier && event.key.toLowerCase() === 'c') {
+        event.preventDefault(); copy();
+      } else if (modifier && event.key.toLowerCase() === 'x') {
+        event.preventDefault(); cut();
+      } else if (modifier && event.key.toLowerCase() === 'v') {
+        event.preventDefault(); paste();
+      } else if (modifier && event.key.toLowerCase() === 's') {
+        event.preventDefault(); saver.saveNow();
+      } else if (modifier && event.key.toLowerCase() === 'g') {
+        event.preventDefault();
+        const members = selectedIds.map(id => ({ kind: 'object' as const, id }));
+        const group = members[0] ? groupContaining(state.present, members[0]) : undefined;
+        if (group) commit(ungroup(state.present, group.id));
+        else if (canFormGroup(state.present, members)) commit(formGroup(state.present, members, crypto.randomUUID()));
+      } else if (event.key === 'Delete' || event.key === 'Backspace') {
+        event.preventDefault(); removeSelected();
+      } else if (event.key === 'Escape') {
+        setInsertChoice(undefined); setSelectedIds([]); setPreview(undefined); drag.current = undefined;
+        marquee.current = undefined; setMarqueePreview(undefined);
       }
-      const command = editorCommand(event);
-      if (!command) return;
-      event.preventDefault();
-      if (command === 'cancel') {
-        if (cableDrawing) { setCableDrawing(null); setSnapStatus(undefined); return; }
-        if (dimensioning) { setDimensioning(null); setSnapStatus(undefined); return; }
-        if (placingRef.current || objectPlacement.current) cancelPlacing();
-        else if (cableVertexDrag.current || planGesture.current || marqueeDrag.current || panDrag.current) finish(true);
-        else if (selectedCableVertex !== undefined) { setSelectedCableVertex(undefined); return; }
-        else if (selectedCableRunId) { setSelectedCableRunId(undefined); setSelectedCableVertex(undefined); return; }
-        else if (!stageGesture.current) clearSelection();
-        return;
-      }
-      if (readOnly || busyGesture()) return;
-      if (command === 'undo') afterPending(() => apply(undo(current.current)));
-      else if (command === 'redo') afterPending(() => apply(redo(current.current)));
-      else if (command === 'copy') copy();
-      else if (command === 'cut') cut();
-      else if (command === 'paste') paste();
-      else if (command === 'save') saver.saveNow();
-      else if (command === 'delete') {
-        if (selectedCableRunId) {
-          const run = current.current.present.cableRuns?.find(item => item.id === selectedCableRunId);
-          if (run && selectedCableVertex !== undefined && selectedCableVertex > 0 && selectedCableVertex < run.path.length - 1 && run.path.length > 2) {
-            commit({
-              ...current.current.present,
-              cableRuns: (current.current.present.cableRuns ?? []).map(item => item.id === selectedCableRunId
-                ? removeCableRunVertex(item, selectedCableVertex) : item),
-            });
-            setSelectedCableVertex(undefined);
-          } else {
-            commit({ ...current.current.present, cableRuns: (current.current.present.cableRuns ?? []).filter(item => item.id !== selectedCableRunId) });
-            setSelectedCableRunId(undefined);
-            setSelectedCableVertex(undefined);
-          }
-        } else if (selectedDimension) {
-          commit({ ...current.current.present, dimensions: (current.current.present.dimensions ?? []).filter(item => item.id !== selectedDimension) });
-          setSelectedDimension(undefined);
-        } else remove();
-      }
-    };
-    window.addEventListener('keydown', shortcut);
-    return () => window.removeEventListener('keydown', shortcut);
+    }
+    window.addEventListener('keydown', keydown);
+    return () => window.removeEventListener('keydown', keydown);
   });
-  const selectedWall = state.present.walls.find(wall => wall.id === selected);
-  const selectedWallCount = selection().filter(item => item.kind === 'wall').length;
-  const wallTypes = typesOf(state.present);
-  const selectedBraceItem = state.present.braces.find(brace => brace.id === selectedBrace);
-  const selectedPlatformItem = (state.present.platforms ?? []).find(item => item.id === selectedPlatform);
-  const selectedStairItem = (state.present.stairs ?? []).find(item => item.id === selectedStair);
-  const selectedPlaceholderItem = (state.present.placeholders ?? []).find(item => item.id === selectedPlaceholder);
-  const groupPicked = picked.filter((item): item is GroupMember => item.kind !== 'platform');
-  const activeGroup = groupPicked.map(member => groupContaining(state.present, member)).find(item => item);
-  const canGroup = canFormGroup(state.present, groupPicked);
-  const surfaces = supportingSurfaces(venue, state.present);
-  const diagnostics = layoutDiagnostics(state.present, venue);
-  const liveLayout = groupPreview ?? state.present;
-  const overheadWarnings = overheadClearance(liveLayout, venue);
-  const overlapWarnings = keepClearWarnings(venue, {
-    ...liveLayout,
-    placeholders: [...(liveLayout.placeholders ?? []), ...(venue.placeholders ?? [])],
-  });
-  const raised = surfaces.find(surface => surface.id !== AUDIENCE_FLOOR_ID);
-  function point(event: { clientX: number; clientY: number }) {
-    const matrix = svg.current?.getScreenCTM();
-    if (!matrix) return { x: 0, y: 0 };
-    const value = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse());
-    return { x: Math.round(value.x), y: Math.round(-value.y) };
+
+  const essentialIds = new Set<string>(Object.values(STARTER_PART_IDS));
+  const essentials = catalog.summaries.filter(part => !part.archived && (part.favourite || essentialIds.has(part.id)));
+  const allParts = catalog.summaries.filter(part => !part.archived);
+  const toolChoices: InsertChoice[] = essentials.flatMap(part => part.variants.length
+    ? part.variants.map(variant => ({ partId: part.id, revision: part.latestRevision, label: `${part.name} · ${variant.label}`, variant: variant.key }))
+    : [{ partId: part.id, revision: part.latestRevision, label: part.name }]);
+  const viewWidth = venue.width / viewZoom;
+  const viewHeight = venue.depth / viewZoom;
+  const viewCx = venue.width / 2 + viewPan.x;
+  const viewCy = venue.depth / 2 + viewPan.y;
+  function wheel(event: WheelEvent<SVGSVGElement>) {
+    event.preventDefault();
+    if (event.ctrlKey) setViewZoom(value => Math.max(0.25, Math.min(8, value * Math.exp(-event.deltaY * 0.002))));
+    else setViewPan(value => ({ x: value.x + event.deltaX / viewZoom, y: value.y + event.deltaY / viewZoom }));
   }
-  function busyGesture() {
-    return !!(placingRef.current || objectPlacement.current || planGesture.current || stageGesture.current || marqueeDrag.current || panDrag.current || cableVertexDrag.current);
-  }
-  function startPan(event: PointerEvent<SVGSVGElement>) {
-    if (event.button === 1) {
-      if (busyGesture()) return;
-      event.preventDefault(); event.stopPropagation();
-      panDrag.current = { clientX: event.clientX, clientY: event.clientY, panX: viewPan.x, panY: viewPan.y };
-      event.currentTarget.style.cursor = 'grabbing';
-      event.currentTarget.setPointerCapture(event.pointerId);
-      return;
-    }
-    // Letterboxed empty SVG chrome has no painted children — start rubberband anywhere in the 2D view.
-    if (event.button === 0 && event.target === event.currentTarget) startMarquee(event);
-  }
-  function startObject(event: PointerEvent<SVGGElement>, member: ClipboardMember, operation: TransformOperation = 'translate') {
-    if (event.button !== 0) return;
-    event.stopPropagation();
-    if (busyGesture()) return;
-    if (event.shiftKey) { pick(member, true); return; }
-    if (pendingBlocksEdit()) return;
-    const previousSelection = selection();
-    if (!previousSelection.some(item => item.id === member.id)) pick(member, false);
-    if (readOnly) return;
-    const members = selection();
-    const pivot = selectionPivot(current.current.present, members);
-    if (!pivot) return;
-    planGesture.current = { start: current.current.present, latest: current.current.present, members, previousSelection, pointer: point(event), pivot, operation };
-    setGroupPreview(current.current.present);
-    event.currentTarget.setPointerCapture(event.pointerId);
-  }
-  const start = (event: PointerEvent<SVGGElement>, wall: Wall) => startObject(event, { kind: 'wall', id: wall.id });
-  const startBrace = (event: PointerEvent<SVGGElement>, item: Brace) => startObject(event, { kind: 'brace', id: item.id });
-  const startPlatform = (event: PointerEvent<SVGGElement>, item: Platform) => startObject(event, { kind: 'platform', id: item.id });
-  const startStair = (event: PointerEvent<SVGGElement>, item: StairUnit) => startObject(event, { kind: 'stair', id: item.id });
-  const startPlaceholder = (event: PointerEvent<SVGGElement>, item: Placeholder) => startObject(event, { kind: 'placeholder', id: item.id });
-  const startRotate = (event: PointerEvent<SVGGElement>, item: Wall) => startObject(event, { kind: 'wall', id: item.id }, 'rotate');
-  const startRotateBrace = (event: PointerEvent<SVGGElement>, item: Brace) => startObject(event, { kind: 'brace', id: item.id }, 'rotate');
-  const startPlatformRotate = (event: PointerEvent<SVGGElement>, item: Platform) => startObject(event, { kind: 'platform', id: item.id }, 'rotate');
-  const startRotateStair = (event: PointerEvent<SVGGElement>, item: StairUnit) => startObject(event, { kind: 'stair', id: item.id }, 'rotate');
-  const startRotatePlaceholder = (event: PointerEvent<SVGGElement>, item: Placeholder) => startObject(event, { kind: 'placeholder', id: item.id }, 'rotate');
-  function startMarquee(event: PointerEvent<Element>) {
-    if (event.button !== 0 || readOnly || busyGesture()) return;
-    const position = point(event);
-    marqueeDrag.current = { ...position, additive: event.shiftKey, endX: position.x, endY: position.y, previousSelection: selection() };
-    if (!event.shiftKey) clearSelection();
-    setMarqueeBox(normalizeBounds(position, position));
-    (event.currentTarget as Element).setPointerCapture(event.pointerId);
-  }
-  function updatePlacingAt(position: { x: number; y: number }, bypass: boolean) {
-    lastPlanPoint.current = position;
-    const object = objectPlacement.current;
-    if (object) {
-      const result = transformLayoutGesture(object.start, venue, object.members, { x: position.x - object.origin.x, y: position.y - object.origin.y, rotation: 0 }, 'translate', bypass);
-      object.latest = result.layout; setGroupPreview(result.layout); setGuides(result.guides);
-      setSnapStatus(snapStatusText({ guides: result.guides })
-        ?? (overlappingObjectIds(result.layout).size
-          ? 'Überschneidung · Klicken zum Platzieren · Escape abbricht'
-          : 'Klicken zum Platzieren · Escape abbricht'));
-      return;
-    }
-    const draft = placingRef.current;
-    if (!draft) return;
-    const clamp = (value: number) => Math.max(-100000, Math.min(100000, Math.round(value)));
-    const types = draft.pendingType ? [...typesOf(current.current.present), draft.pendingType] : typesOf(current.current.present);
-    const walls = planningWalls(current.current.present, venue);
-    const next = { ...draft.wall, x: clamp(position.x), y: clamp(position.y) };
-    const snapped = snapWallPose(resolveWall(next, types), walls, venue.stageCentreline, { bypass });
-    const wall = { ...next, x: clamp(snapped.x), y: clamp(snapped.y) };
-    const updated = { ...draft, wall };
-    placingRef.current = updated;
-    setPlacing(updated);
-    setGuides(snapped.guides);
-    const colliding = placementOverlaps(current.current.present, wallFootprint(resolveWall(wall, types)));
-    setSnapStatus(snapStatusText({ guides: snapped.guides })
-      ?? (colliding
-        ? 'Überschneidung · Klicken zum Platzieren · Escape abbricht'
-        : 'Klicken zum Platzieren · Escape abbricht'));
-  }
-  function move(event: PointerEvent) {
-    const panning = panDrag.current;
-    if (panning) {
-      const rect = svg.current?.getBoundingClientRect();
-      if (rect && rect.width && rect.height) {
-        const mmPerPxX = viewW / rect.width;
-        const mmPerPxY = viewH / rect.height;
-        setViewPan({
-          x: panning.panX - (event.clientX - panning.clientX) * mmPerPxX,
-          y: panning.panY + (event.clientY - panning.clientY) * mmPerPxY,
-        });
-      }
-      return;
-    }
-    const position = point(event);
-    lastPlanPoint.current = position;
-    if (cableDrawing) {
-      setCableDrawing(current => current ? { ...current, cursor: position } : current);
-      return;
-    }
-    const cableVertex = cableVertexDrag.current;
-    if (cableVertex) {
-      const layout = {
-        ...cableVertex.start,
-        cableRuns: (cableVertex.start.cableRuns ?? []).map(run => run.id === cableVertex.runId
-          ? setCableRunVertex(run, cableVertex.index, position) : run),
-      };
-      setGroupPreview(layout);
-      return;
-    }
-    const bypass = event.altKey || !snapEnabled;
-    if (placingRef.current || objectPlacement.current) { updatePlacingAt(position, bypass); return; }
-    const marquee = marqueeDrag.current;
-    if (marquee) { marquee.endX = position.x; marquee.endY = position.y; setMarqueeBox(normalizeBounds(marquee, position)); return; }
-    const held = planGesture.current;
-    if (!held) return;
-    const delta = held.operation === 'translate'
-      ? { x: position.x - held.pointer.x, y: position.y - held.pointer.y, rotation: 0 }
-      : { x: 0, y: 0, rotation: planRotationAt(held.pivot, position) - planRotationAt(held.pivot, held.pointer) };
-    const result = transformLayoutGesture(held.start, venue, held.members, delta, held.operation, bypass);
-    held.latest = result.layout;
-    setGroupPreview(result.layout); setGuides(result.guides);
-    setSnapStatus(snapStatusText({ guides: result.guides }));
-  }
-  function finish(cancelled = false) {
-    if (panDrag.current) { panDrag.current = undefined; if (svg.current) svg.current.style.cursor = ''; return; }
-    if (cableVertexDrag.current) {
-      const preview = groupPreview;
-      cableVertexDrag.current = undefined;
-      setGroupPreview(undefined); setGuides([]); setSnapStatus(undefined);
-      if (!cancelled && preview) commit(preview);
-      return;
-    }
-    const marquee = marqueeDrag.current;
-    marqueeDrag.current = undefined; setMarqueeBox(undefined);
-    if (marquee) {
-      if (cancelled) setSelection(marquee.previousSelection);
-      else applyHits(membersInBounds(current.current.present, normalizeBounds(marquee, { x: marquee.endX, y: marquee.endY })), marquee.additive);
-      return;
-    }
-    const held = planGesture.current;
-    planGesture.current = undefined;
-    setGroupPreview(undefined); setGuides([]); setSnapStatus(undefined);
-    if (!held) return;
-    if (cancelled) setSelection(held.previousSelection);
-    else if (JSON.stringify(held.start) !== JSON.stringify(held.latest)) commit(held.latest);
-  }
-  // Bounds stay fixed during a gesture, so moving an object cannot move its coordinate system.
-  const shown = groupPreview ?? state.present;
-  const sceneCurtains = effectiveCurtains(venue, shown);
-  const selectedCurtain = fixtureSelection?.kind === 'curtain'
-    ? sceneCurtains.find(item => item.id === fixtureSelection.id) : undefined;
-  const selectedVenueDoor = fixtureSelection?.kind === 'door'
-    ? venueDooredWalls(venue).find(wall => wall.id === fixtureSelection.id) : undefined;
-  const groupedIds = new Set(selection().map(item => `${item.kind}:${item.id}`));
-  const selectionBundle = selection().length > 1 ? { members: selection(), rotation: layoutSelectionRotation(state.present, selection()) } : undefined;
-  const selectionCentre = selectionBundle ? selectionPivot(shown, selectionBundle.members) : undefined;
-  const selectionHandleWidth = 1200;
-  const corners = [
-    ...state.present.walls.flatMap(wall => wallCorners(resolveWall(wall, wallTypes))),
-    ...state.present.braces.flatMap(braceCorners),
-    ...(state.present.placeholders ?? []).flatMap(placeholderCorners),
-  ];
-  const floor = measuredOutline(venue);
-  const infra = [...(venue.connectionPoints ?? []), ...(venue.cableRoutingCorridors ?? []).flatMap(corridor => corridor.path),
-    ...(venue.overheadBoxes ?? []).flatMap(overheadBoxCorners),
-    ...(venue.keepClearZones ?? []).flatMap(zone => zone.polygon),
-    ...(venue.stageCentreline ? [venue.stageCentreline] : [])];
-  const minX = Math.min(0, ...floor.map(p => p.x), ...infra.map(p => p.x), ...corners.map(p => p.x)) - 600;
-  const maxX = Math.max(venue.width, ...floor.map(p => p.x), ...infra.map(p => p.x), ...corners.map(p => p.x)) + 600;
-  const minY = Math.min(0, ...floor.map(p => p.y), ...infra.map(p => p.y), ...corners.map(p => p.y)) - 800;
-  const maxY = Math.max(venue.depth, ...floor.map(p => p.y), ...infra.map(p => p.y), ...corners.map(p => p.y)) + 600;
-  const fitW = Math.max(1, maxX - minX), fitH = Math.max(1, maxY - minY);
-  const viewW = fitW / viewZoom, viewH = fitH / viewZoom;
-  const viewCx = (minX + maxX) / 2 + viewPan.x, viewCy = (minY + maxY) / 2 + viewPan.y;
-  const viewBox = `${viewCx - viewW / 2} ${-(viewCy + viewH / 2)} ${viewW} ${viewH}`;
-  const objectOverlaps = objectOverlapWarnings(shown);
-  const overlapIds = overlappingObjectIds(shown);
-  function onPlanWheel(event: WheelEvent) {
-    if (busyGesture()) return;
-    const next = navigatePlan(event, { zoom: viewZoom, pan: viewPan, centre: { x: (minX + maxX) / 2, y: (minY + maxY) / 2 } }, point(event));
-    if (next) { event.preventDefault(); setViewZoom(next.zoom); setViewPan(next.pan); }
-  }
-  useViewportWheel(svg, onPlanWheel, !venueOpen);
-  function stageSelect(id: string, additive: boolean) {
-    if (busyGesture()) return;
-    const member = membersInBounds(current.current.present, { minX: -Infinity, maxX: Infinity, minY: -Infinity, maxY: Infinity }).find(item => item.id === id);
-    if (member) pick(member, additive);
-  }
-  const stageTransform: StageEditing['onTransform'] = (phase, delta, bypass, operation = 'translate') => {
-    if (readOnly) return;
-    if (phase === 'begin') { if (!pendingBlocksEdit() && !busyGesture()) { stageGesture.current = { layout: current.current.present, members: selection() }; setGroupPreview(current.current.present); } return; }
-    if (phase === 'cancel') { stageGesture.current = undefined; setGroupPreview(undefined); setGuides([]); return; }
-    const held = stageGesture.current;
-    if (!held) return;
-    const result = transformLayoutGesture(held.layout, venue, held.members, delta, operation, bypass);
-    setGuides(result.guides);
-    if (phase === 'preview') setGroupPreview(result.layout);
-    else { stageGesture.current = undefined; setGroupPreview(undefined); setGuides([]); if (JSON.stringify(result.layout) !== JSON.stringify(held.layout)) commit(result.layout); }
-  };
-  const stageResize: StageEditing['onPushPull'] = (phase, next) => {
-    if (readOnly) return;
-    if (phase === 'begin') { if (!pendingBlocksEdit() && !busyGesture()) { stageGesture.current = { layout: current.current.present, members: selection() }; setGroupPreview(current.current.present); } return; }
-    if (phase === 'cancel') { stageGesture.current = undefined; setGroupPreview(undefined); return; }
-    const held = stageGesture.current;
-    if (!held) return;
-    const result = resizedScene(held.layout, next);
-    if (phase === 'preview') setGroupPreview(result);
-    else { stageGesture.current = undefined; setGroupPreview(undefined); if (JSON.stringify(result) !== JSON.stringify(held.layout)) commit(result); }
-  };
-  function beginObjectPlacement(
-    layout: Layout,
-    members: ClipboardMember | ClipboardMember[],
-    origin = { x: venue.width / 2, y: venue.depth / 2 },
-    consumed = false,
-  ) {
-    if (readOnly || busyGesture()) return;
-    setDimensioning(null);
-    setSelectedDimension(undefined);
-    const list = Array.isArray(members) ? members : [members];
-    objectPlacement.current = { start: layout, latest: layout, members: list, origin, consumed };
-    setGroupPreview(layout); setGuides([]); setSnapStatus('Klicken zum Platzieren · Escape abbricht');
-  }
-  function placeAsset(asset: Asset) {
-    if (readOnly || busyGesture()) return;
-    setDimensioning(null);
-    setSelectedDimension(undefined);
-    dock.closeAfterPlacement();
-    if (viewMode === 'stage') setViewMode('plan');
-    const definition = asset.definition, id = crypto.randomUUID(), x = venue.width / 2, y = venue.depth / 2;
-    if (definition.kind === 'wall') {
-      const { typeId: _type, panelId: _panel, finishAssignment: _finishAssignment, assemblyNumber: _assembly, ...template } = definition.template;
-      const wall = { ...template, id, label: asset.name, x, y, rotation: 0, supportingSurfaceId: AUDIENCE_FLOOR_ID };
-      const draft = { wall };
-      placingRef.current = draft;
-      setPlacing(draft);
-      setGuides([]);
-      setSnapStatus('Klicken zum Platzieren · Escape abbricht');
-    } else {
-      const brace = definition.kind === 'brace' ? { ...definition.template, id, label: asset.name, x, y, rotation: 0, supportingSurfaceId: AUDIENCE_FLOOR_ID } : undefined;
-      const item = definition.kind === 'model' ? { ...newPlaceholder('box', id, x, y), label: asset.name, assetId: asset.id, width: definition.width, height: definition.height, depth: definition.depth } : undefined;
-      const start = brace ? { ...current.current.present, braces: [...current.current.present.braces, brace] }
-        : { ...current.current.present, placeholders: [...current.current.present.placeholders ?? [], item!] };
-      beginObjectPlacement(start, { kind: brace ? 'brace' : 'placeholder', id }, { x, y });
-    }
-  }
-  function dimensionReach(pixels = 16) {
-    const rect = svg.current?.getBoundingClientRect();
-    return rect && rect.width ? (viewW / rect.width) * pixels : pixels * 20;
-  }
-  function pickDimension(event: PointerEvent<SVGRectElement>) {
-    if (event.button !== 0 || !dimensioning) return;
-    event.stopPropagation();
-    const at = point(event);
-    const hit = nearestSnap(dimensionSnapPoints(venue, current.current.present), at, dimensionReach());
-    if (!dimensioning.a) {
-      if (!hit) return;
-      setDimensioning({ a: hit, hover: hit });
-      setSnapStatus('Zweiten Punkt wählen. Es rastet an Ecken und Kantenmitten ein.');
-      return;
-    }
-    if (!dimensioning.b) {
-      if (!hit || (hit.anchor.kind === dimensioning.a.anchor.kind && hit.point.x === dimensioning.a.point.x && hit.point.y === dimensioning.a.point.y)) return;
-      setDimensioning({ ...dimensioning, b: hit, cursor: at, hover: hit });
-      setSnapStatus('Maßlinie zur Seite ziehen, dann klicken zum Ablegen.');
-      return;
-    }
-    const placed = dimensionFromPlacement(dimensioning.a.point, dimensioning.b.point, at);
-    commit({
-      ...current.current.present,
-      dimensions: [...(current.current.present.dimensions ?? []), {
-        id: crypto.randomUUID(), ...placed, a: dimensioning.a.anchor, b: dimensioning.b.anchor,
-      }],
-    });
-    setDimensioning(null);
-    setSnapStatus(undefined);
-  }
-  function hoverDimension(event: PointerEvent<SVGRectElement>) {
-    if (!dimensioning) return;
-    const at = point(event);
-    const hover = nearestSnap(dimensionSnapPoints(venue, current.current.present), at, dimensionReach());
-    setDimensioning({ ...dimensioning, cursor: at, hover });
-    if (dimensioning.a && dimensioning.b) {
-      const placed = dimensionFromPlacement(dimensioning.a.point, dimensioning.b.point, at);
-      setSnapStatus(`${Math.round(dimensionValue(placed.orientation, dimensioning.a.point, dimensioning.b.point))} mm · klicken zum Ablegen`);
-    } else if (hover) setSnapStatus(dimensioning.a ? 'Zweiten Punkt wählen.' : 'Ersten Punkt wählen.');
-  }
-  const resolvedDimensions = (state.present.dimensions ?? []).flatMap(item => {
-    const resolved = resolveDimension(item, venue, liveLayout);
-    return resolved ? [resolved] : [];
-  });
-  const dimensionPreview = dimensioning?.a && dimensioning.b && dimensioning.cursor ? (() => {
-    const placed = dimensionFromPlacement(dimensioning.a.point, dimensioning.b.point, dimensioning.cursor);
-    const valueMm = dimensionValue(placed.orientation, dimensioning.a.point, dimensioning.b.point);
-    return { id: 'preview', orientation: placed.orientation, a: dimensioning.a.point, b: dimensioning.b.point, offset: placed.offset, valueMm };
-  })() : undefined;
-  function downloadDraft() {
-    const url = URL.createObjectURL(new Blob([JSON.stringify({ ...initial, revision: saveState.revision, layout: current.current.present }, null, 2)], { type: 'application/json' }));
-    const anchor = document.createElement('a'); anchor.href = url; anchor.download = `buehnenentwurf-${initial.id}.json`; anchor.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
-  const menus = <EditorMenuBar>
-    <EditorMenu label="Datei">
-      {localCapabilities.pdf
-        ? <button className="quiet" aria-expanded={exportsOpen} onClick={() => {
-          setExportsOpen(open => !open);
-          setLibraryOpen(false);
-        }}>{exportsOpen ? 'PDF schließen' : 'PDF gestalten'}</button>
-        : <button className="quiet" disabled title="Im lokalen Demo-Modus nicht verfügbar (kein PDF, keine Cloud).">PDF gestalten</button>}
-      <button className="quiet" aria-expanded={venueOpen} disabled={venueOpen ? venueDirty : dirty} onClick={() => {
-        setVenueOpen(open => {
-          const next = !open;
-          if (!next) setOpenVenueSheet(false);
-          return next;
-        });
-        setExportsOpen(false);
-      }}>{venueOpen ? 'Spielstätte schließen' : 'Spielstätte bearbeiten'}</button>
-      <button className="quiet" disabled={dirty} onClick={onClose}>Zur Übersicht</button>
-    </EditorMenu>
-    <EditorMenu label="Bearbeiten">
-      {!readOnly && !venueOpen ? <>
-      <button className="quiet" type="button" disabled={!!groupPreview || !!placing || selection().length === 0} hidden={venueOpen} onClick={copy}>Kopieren</button>
-      <button className="quiet" type="button" disabled={!!groupPreview || !!placing || selection().length === 0} hidden={venueOpen} onClick={cut}>Ausschneiden</button>
-      <button className="quiet" type="button" disabled={!!groupPreview || !!placing || !clipboard} hidden={venueOpen} onClick={paste}>Einfügen</button>
-      <button className="quiet" type="button" disabled={!!groupPreview || !!placing || !canGroup} hidden={venueOpen}
-        onClick={() => commit(formGroup(current.current.present, groupPicked, crypto.randomUUID()))}>Gruppieren</button>
-      {activeGroup && <button className="quiet" type="button" disabled={!!groupPreview || !!placing} hidden={venueOpen}
-        onClick={() => commit(ungroup(current.current.present, activeGroup.id))}>Gruppe auflösen</button>}
-      </> : <p className="muted">{venueOpen ? 'Werkzeuge in der Spielstätte verwenden.' : 'Nur Ansicht'}</p>}
-    </EditorMenu>
-    <EditorMenu label="Ansicht">
-      <button className="quiet" onClick={() => dock.setOpen('properties', open => !open)}>{dock.active === 'properties' ? 'Eigenschaften ausblenden' : 'Eigenschaften einblenden'}</button>
-      <button className="quiet" onClick={() => dock.setActive('display')}>Anzeige einstellen</button>
-      <button className="quiet" onClick={() => dock.setActive('lighting')}>Licht einstellen</button>
-      <label className="split-control" hidden={activeView !== 'split'}>Aufteilung<input aria-label="Ansichten aufteilen" type="range" min="30" max="70" value={viewShare} onChange={event => setViewShare(Number(event.target.value))} /></label>
-      <button className="quiet" onClick={() => { if (document.fullscreenElement) void document.exitFullscreen(); else void root.current?.requestFullscreen(); }}>Vollbild umschalten</button>
-    </EditorMenu>
-    {!venueOpen && <EditorMenu label="Einfügen">
-      <button className="quiet" onClick={() => { setLibraryOpen(true); setExportsOpen(false); }}>Objektbibliothek öffnen</button>
-      {!readOnly && !venueOpen && PLACEHOLDER_KINDS.map(kind => <button key={kind} className="quiet" disabled={busyGesture() || (state.present.placeholders ?? []).length >= 250} onClick={() => {
-        const item = addPlaceholder(kind, venue.width / 2, venue.depth / 2);
-        beginObjectPlacement({ ...current.current.present, placeholders: [...current.current.present.placeholders ?? [], item] }, { kind: 'placeholder', id: item.id });
-      }}>{PLACEHOLDER_KIND_LABELS[kind]} hinzufügen</button>)}
-    </EditorMenu>}
-    <EditorMenu label="Hilfe">{!localCapabilities.local && <FeedbackButton />}<button className="quiet" onClick={() => setHelpOpen(open => !open)}>Bedienung anzeigen</button><a href="#/hilfe">Zur vollständigen Hilfe</a></EditorMenu>
-  </EditorMenuBar>;
+
   useFeedbackAdapter(() => ({
     work: {
       productionId: initial.productionId, sceneId: initial.id, venueId: initial.venueId,
-      production: initial.productionName, layout: sceneName, venue: venueName, revision: saveState.revision,
-      venueVersionId, view: activeView, tool: placing ? 'place-wall' : dimensioning ? 'dimension' : 'select',
-      saveStatus: saveState.status, dirty, unappliedInputs: inspectorPending, readOnly,
-      selection: picked.map(item => `${item.kind}:${item.id}`).slice(0, 200),
-      display: { ...planDisplay, snapEnabled, zoom: viewZoom, panX: viewPan.x, panY: viewPan.y, panel: dock.active ?? '' },
+      production: initial.productionName, layout: sceneName, venue: venueName,
+      revision: saveState.revision, venueVersionId, view,
+      tool: insertChoice ? 'place-part' : 'select', saveStatus: saveState.status,
+      dirty: saveState.dirty, unappliedInputs: pendingForms > 0, readOnly,
+      selection: selectedIds.slice(0, 200),
+      display: { ...planDisplay, zoom: viewZoom, panX: viewPan.x, panY: viewPan.y, panel: dock.active ?? '' },
     },
-    snapshot: JSON.stringify({ version: 1, kind: 'layout', layout: current.current.present, venue }),
-    capture: exportsOpen ? undefined : () => captureWorkView(activeView, svg.current, feedbackCapture.current),
-  }));
-  return <SurfaceRegistryProvider workspaceId={workspaceId} productionId={initial.productionId}>
-    <EditorDockContext value={dock}><section ref={root} className="editor scene-editor" aria-label="Bühnenbild bearbeiten">
-    {!venueOpen && menus}
-    <div className="editor-heading compact-editor-heading" hidden={venueOpen}>
-      <button className="quiet back-button" disabled={dirty} onClick={onClose} title="Zur Übersicht" aria-label="Zur Übersicht"><ToolIcon name="back" /></button>
-      <EditorMenu className="scene-menu" label={<><span className="scene-context">{initial.productionName} · {venueName}</span><h2>{sceneName}</h2><span aria-hidden="true">▾</span></>}>
-        <p>{initial.productionName} · {venueName}</p>
-        {canRename && <button className="quiet" onClick={() => { setRenamingScene(true); setRenameError(''); }}>Umbenennen</button>}
-      <button className="quiet" aria-expanded={venueOpen} disabled={venueOpen ? venueDirty : dirty} onClick={() => {
-        setVenueOpen(open => {
-          const next = !open;
-          if (!next) setOpenVenueSheet(false);
-          return next;
-        });
-        setExportsOpen(false);
-      }}>{venueOpen ? 'Spielstätte schließen' : 'Spielstätte bearbeiten'}</button>
-      </EditorMenu>
-      <div className="document-history">{!readOnly && <>
-      <button className="quiet" disabled={!!groupPreview || !!placing || !state.past.length} onClick={() => afterPending(() => apply(undo(current.current)))} hidden={venueOpen} title="Rückgängig (Strg+Z)" aria-label="Rückgängig"><ToolIcon name="undo" /></button>
-      <button className="quiet" disabled={!!groupPreview || !!placing || !state.future.length} onClick={() => afterPending(() => apply(redo(current.current)))} hidden={venueOpen} title="Wiederholen (Strg+Shift+Z)" aria-label="Wiederholen"><ToolIcon name="redo" /></button>
-      </>}</div>
-      {!readOnly && !venueOpen && <SnapToggle enabled={snapEnabled} onChange={setSnapEnabled} />}
-      <span className={`save-status ${inspectorPending ? 'pending' : saveState.status}`} role="status">{permissionReadOnly
-        ? (initial.lease ? `Nur Ansicht · Bearbeitung durch ${initial.lease.holderName}` : 'Nur Ansicht')
-        : saveState.status === 'conflict' && saveState.conflictKind === 'lease' ? 'Bearbeitung abgelaufen'
-          : inspectorPending ? INSPECTOR_PENDING_STATUS : statusText[saveState.status]}</span>
-    <div className="workspace-viewbar" hidden={venueOpen} role="toolbar" aria-label="Ansichten">
-      <div className="view-modes">{(narrowEditor ? (['plan', 'stage'] as const) : (['plan', 'stage', 'split'] as const)).map(mode => <button key={mode} type="button" className="quiet" aria-pressed={activeView === mode} onClick={() => setViewMode(mode)}>{mode === 'split' ? '2D + 3D' : mode === 'plan' ? 'Grundriss' : 'Raumansicht'}</button>)}</div>
+    snapshot: JSON.stringify({ version: 1, kind: 'layout', layout: state.present, venue }),
+    capture: exportsOpen ? undefined : () => captureWorkView(view, svg.current, feedbackCapture.current),
+  }), 2);
 
-
-      <button type="button" className="quiet" onClick={() => { if (document.fullscreenElement) void document.exitFullscreen(); else void root.current?.requestFullscreen(); }} title="Vollbild" aria-label="Vollbild"><ToolIcon name="expand" /></button>
-    </div>
-    </div>
-    {canRename && renamingScene && <div className="scene-rename-panel"><form className="create-plan" onSubmit={event => void renameScene(event)}>
-        <label htmlFor="rename-open-scene">Neuer Name</label>
-        <input id="rename-open-scene" name="name" required maxLength={120} defaultValue={sceneName} autoFocus />
-        <div className="form-actions">
-          <button type="submit" disabled={renameBusy}>Umbenennen</button>
-          <button type="button" className="quiet" disabled={renameBusy} onClick={() => { setRenamingScene(false); setRenameError(''); }}>Abbrechen</button>
-        </div>
-        {renameError && <p className="error" role="alert">{renameError}</p>}
-      </form></div>}
-    <div className="tool-rail" hidden={venueOpen || exportsOpen} role="toolbar" aria-label="Objekte hinzufügen">
-      <button className="quiet" title="Auswählen · Platzieren abbrechen" aria-pressed={!placing && !groupPreview && !dimensioning && !cableDrawing} onClick={() => { cancelPlacing(); setDimensioning(null); setCableDrawing(null); setSelectedDimension(undefined); setSelectedCableRunId(undefined); setSnapStatus(undefined); }}><ToolIcon name="select" /><span>Auswahl</span></button>
-
-      {!readOnly && <><WallToolButton
-        disabled={!!groupPreview || state.present.walls.length >= 250}
-        sceneTypes={wallTypes}
-        onAddPlain={() => beginPlacingWall()}
-        onAddType={placeType} />
-      <button disabled={!!groupPreview || !!placing || state.present.braces.length >= 250} onClick={() => {
-        const id = crypto.randomUUID(), brace = newBrace(id, venue.width / 2, venue.depth / 2);
-        beginObjectPlacement({ ...current.current.present, braces: [...current.current.present.braces, brace] }, { kind: 'brace', id });
-      }} title="Stütze hinzufügen" aria-label="Stütze hinzufügen"><ToolIcon name="brace" /><span>Stütze</span></button>
-      <button disabled={!!groupPreview || !!placing || (state.present.platforms ?? []).length >= 250} onClick={() => {
-        const id = crypto.randomUUID(), platform = newPlatform(id, venue.width / 2, venue.depth / 2);
-        beginObjectPlacement({ ...current.current.present, platforms: [...current.current.present.platforms ?? [], platform] }, { kind: 'platform', id });
-      }} title="Podest hinzufügen" aria-label="Podest hinzufügen"><ToolIcon name="platform" /><span>Podest</span></button>
-      <button disabled={!!groupPreview || !!placing || !raised || (state.present.stairs ?? []).length >= 250} onClick={() => {
-        if (!raised) return;
-        const id = crypto.randomUUID(), stair = newStair(id, AUDIENCE_FLOOR_ID, raised.id, venue.width / 2, venue.depth / 2);
-        beginObjectPlacement({ ...current.current.present, stairs: [...current.current.present.stairs ?? [], stair] }, { kind: 'stair', id });
-      }} title="Treppe hinzufügen" aria-label="Treppe hinzufügen"><ToolIcon name="stairs" /><span>Treppe</span></button>
-      <button type="button" aria-pressed={dimensioning !== null} disabled={!!groupPreview || !!placing || (state.present.dimensions ?? []).length >= 200} onClick={() => {
-        cancelPlacing();
-        setSelectedDimension(undefined);
-        setDimensioning(dimensioning ? null : {});
-        setSnapStatus(dimensioning ? undefined : 'Ersten Punkt wählen. Der rote Punkt zeigt Ecke oder Kantenmitte. Escape bricht ab.');
-      }} title="Maß zwischen zwei Punkten, dann die Maßlinie zur Seite ziehen" aria-label="Maß hinzufügen"><ToolIcon name="expand" /><span>Maß</span></button>
-      <button type="button" aria-pressed={cableDrawing !== null} disabled={!!groupPreview || !!placing || (state.present.cableRuns ?? []).length >= 250} onClick={() => {
-        cancelPlacing();
-        setDimensioning(null);
-        setSelectedCableRunId(undefined);
-        setCablesOpen(true);
-        setCableDrawing(current => current ? null : { points: [] });
-        setSnapStatus(cableDrawing ? undefined : 'Kabel-Polylinie: Punkte im Grundriss setzen · Enter oder Doppelklick beendet · Escape bricht ab.');
-      }} title="Tatsächlichen Kabelweg als Polylinie zeichnen" aria-label="Kabel zeichnen"><ToolIcon name="expand" /><span>Kabel</span></button>
-      </>}
-    </div>
-    {cablesOpen && !venueOpen && <CableRunsPanel runs={state.present.cableRuns ?? []} selectedId={selectedCableRunId}
-      onSelect={setSelectedCableRunId} onClose={() => setCablesOpen(false)}
-      onChange={cableRuns => commit({ ...current.current.present, cableRuns })} />}
-    {assetError && <p className="error" role="alert">{assetError}</p>}
-    <span className="sr-only" data-testid="inventory-panel-count">{inventoryPanels.length}</span>
-    {venueOpen && !readOnly && !venueLease.holding && <p className="lease-banner" role="status">{venueLease.message || 'Bearbeitung wird angefordert …'} <button type="button" className="quiet" onClick={() => void venueLease.acquire()}>Bearbeitung erneut anfordern</button></p>}
-    {venueOpen && <VenuePanel onClose={() => { setVenueOpen(false); setOpenVenueSheet(false); }} closeDisabled={venueDirty} closeLabel="Spielstätte schließen" workspaceId={workspaceId} sceneId={initial.id} venue={venue} venueId={initial.venueId} venueName={venueName}
-      venueUpdateAvailable={updateAvailable} readOnly={readOnly || !venueLease.holding} onDirty={setVenueDirty} onSaved={adoptVenue}
-      onVenueRenamed={({ name }) => setVenueName(name)} sceneLayout={state.present} openSheetEditor={openVenueSheet} />}
-    {exportsOpen && localCapabilities.pdf && <RecipientDocumentWorkspace workspaceId={workspaceId} productionId={initial.productionId}
-      seedSceneId={initial.id} seedVenueId={initial.venueId} defaultScope="scene"
-      liveScene={{ ...initial, name: sceneName, venueName, venue, layout: state.present }}
-      freezeDisabled={dirty || saveState.status !== 'saved'} onClose={() => setExportsOpen(false)} />}
-    {['failed', 'conflict'].includes(saveState.status) && <div className="error" role="alert">
-      <p>{saveState.status === 'conflict'
-        ? (saveState.conflictKind === 'lease'
-          ? 'Die Bearbeitungsberechtigung ist abgelaufen. Ihre Änderungen bleiben hier erhalten und werden nicht überschrieben.'
-          : 'Eine neuere Fassung ist gespeichert. Ihre Änderungen bleiben hier erhalten und werden nicht darübergeschrieben.')
-        : 'Ihre Änderungen sind noch nicht gespeichert. Prüfen Sie die Verbindung; bei abgelaufener Anmeldung sichern Sie zunächst den lokalen Entwurf.'}</p>
-      {saveState.status === 'failed' && <button onClick={() => saver.retry()}>Speichern erneut versuchen</button>}{' '}
-      <button onClick={downloadDraft}>Lokalen Entwurf herunterladen</button>{' '}
-      <button disabled={recovering} onClick={() => void recoverDraft()}>Entwurf als Bühnenbildvorlage sichern</button>
-      {recoveryMessage && <p role="status">{recoveryMessage}</p>}
-      <button className="quiet" onClick={() => {
-        void askConfirm({
-          title: 'Gespeicherte Fassung laden?',
-          message: 'Lokale Änderungen verwerfen und die gespeicherte Fassung laden?',
-          confirmLabel: 'Gespeicherte Fassung laden',
-          cancelLabel: 'Abbrechen',
-          danger: true,
-        }).then(ok => {
-          if (!ok) return;
-          saver.dispose(); onDirty(false); onClose();
-        });
-      }}>Gespeicherte Fassung laden</button>
-    </div>}
-    {permissionReadOnly && onRequestEditing && <p role="status">Eine Bearbeitung ist möglich, sobald die bisherige Freigabe endet (spätestens 45 Sekunden nach dem letzten Lebenszeichen). <button onClick={onRequestEditing}>Bearbeitung erneut anfordern</button></p>}
-    {!venueOpen && !exportsOpen && <div className="editor-grid dock-grid" data-dock-open={!!dock.active} data-narrow={narrowEditor}><div className="editor-views" data-mode={activeView} style={activeView === 'split' ? { gridTemplateColumns: `minmax(0, ${viewShare}fr) minmax(0, ${100 - viewShare}fr)` } : { gridTemplateColumns: 'minmax(0, 1fr)' }}><div className="plan-canvas" hidden={activeView === 'stage'}>
-      <div className="plan-viewbar"><h3>Grundriss <span>2D</span></h3>
-      <div className="plan-zoom">
-      <button type="button" className="quiet" onClick={() => setViewZoom(z => Math.min(8, z * 1.25))} title="Grundriss vergrößern" aria-label="Vergrößern"><ToolIcon name="plus" /></button>
-      <button type="button" className="quiet" onClick={() => setViewZoom(z => Math.max(0.4, z / 1.25))} title="Grundriss verkleinern" aria-label="Verkleinern"><ToolIcon name="minus" /></button>
-      <button type="button" className="quiet" onClick={() => { setViewZoom(1); setViewPan({ x: 0, y: 0 }); }}>Passend</button>
-      <span className="muted">{Math.round(viewZoom * 100)} %</span></div></div>
-      <svg ref={svg} role="img" aria-label="Grundriss der Spielstätte" viewBox={viewBox} tabIndex={-1}
-        className={placing || objectPlacement.current ? 'placing-cursor' : undefined}
-        onPointerDownCapture={event => {
-          if (cableDrawing !== null && event.button === 0 && !readOnly) {
-            const at = point(event);
-            const last = cableDrawing.points.at(-1);
-            if (last && last.x === at.x && last.y === at.y) {
-              event.preventDefault();
-              event.stopPropagation();
-              return;
-            }
-            const points = [...cableDrawing.points, at];
-            setCableDrawing({ points, cursor: at });
-            setSnapStatus(points.length < 2
-              ? 'Nächsten Punkt setzen · Escape bricht ab.'
-              : `${points.length} Punkte · Enter oder Doppelklick beendet · Escape bricht ab.`);
-            event.preventDefault();
-            event.stopPropagation();
-            return;
-          }
-          if ((!placingRef.current && !objectPlacement.current) || event.button !== 0 || readOnly) return;
-          updatePlacingAt(point(event), event.altKey || !snapEnabled);
-          commitPlacing();
-          event.preventDefault();
-          event.stopPropagation();
-        }}
-        onDoubleClick={event => {
-          if (cableDrawing === null || readOnly) return;
-          event.preventDefault();
-          const at = point(event);
-          const last = cableDrawing.points.at(-1);
-          const path = last && last.x === at.x && last.y === at.y
-            ? cableDrawing.points
-            : [...cableDrawing.points, at];
-          finishCableDrawing(path);
-        }}
-        onPointerDown={startPan}
-        onPointerMove={move} onPointerUp={() => finish()} onPointerCancel={() => finish(true)} onLostPointerCapture={() => finish(true)}
-        onAuxClick={event => event.preventDefault()}>
-        <defs>
-          <pattern id="half-metre-grid" width="500" height="500" patternUnits="userSpaceOnUse">
-            <path d="M 500 0 L 0 0 0 500" fill="none" stroke="#ebefe6" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-          </pattern>
-          <pattern id="metre-grid" width="1000" height="1000" patternUnits="userSpaceOnUse">
-            <rect width="1000" height="1000" fill="url(#half-metre-grid)" />
-            <path d="M 1000 0 L 0 0 0 1000" fill="none" stroke="#cfd6c6" strokeWidth="1.25" vectorEffect="non-scaling-stroke" />
-          </pattern>
-        </defs>
-        <rect data-testid="marquee-target"
-          x={viewCx - viewW / 2} y={-(viewCy + viewH / 2)} width={viewW} height={viewH}
-          fill="white" fillOpacity={0} pointerEvents="all" onPointerDown={startMarquee} />
-        <PlanVenue venue={venue} shown={shown} readOnly={readOnly} planDisplay={planDisplay} fixtureSelection={fixtureSelection} pickVenueFixture={pickVenueFixture} startMarquee={startMarquee} />
-        <PlatformLayer venuePlatforms={venue.platforms ?? []} layoutPlatforms={shown.platforms ?? []}
-          venueStairs={venue.stairs ?? []} layoutStairs={shown.stairs ?? []}
-          selectedId={selectedPlatform ?? selectedStair}
-          selectedPlatformIds={pickedPlatforms}
-          selectedMemberIds={groupedIds}
-          overlappingIds={overlapIds}
-          readOnly={readOnly} display={planDisplay}
-          onPlatformPointerDown={startPlatform}
-          onStairPointerDown={startStair}
-          onSelect={(kind, id, additive) => pick({ kind, id }, !!additive)} />
-        <PlanWalls shown={shown} wallTypes={wallTypes} selected={selected} groupedIds={groupedIds} overlapIds={overlapIds} readOnly={readOnly} planDisplay={planDisplay} panelLabels={panelLabels} start={start} />
-        {objectPlacement.current && <g data-testid="placing-object" pointerEvents="none" />}
-        {placing && (() => {
-          const types = placing.pendingType ? [...wallTypes, placing.pendingType] : wallTypes;
-          const resolved = resolveWall(placing.wall, types);
-          const colliding = placementOverlaps(current.current.present, wallFootprint(resolved));
-          return <g data-testid="placing-wall" className={['placing-wall', colliding ? 'plan-overlap' : ''].filter(Boolean).join(' ')} pointerEvents="none"
-            transform={`translate(${placing.wall.x} ${-placing.wall.y}) rotate(${-placing.wall.rotation})`}>
-            <rect x={-resolved.width / 2} y={-resolved.thickness / 2} width={resolved.width} height={resolved.thickness}
-              fill="#315d49" stroke="#986122" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-            {resolved.openings.map(opening => <rect key={opening.id}
-              x={-resolved.width / 2 + opening.left} y={-resolved.thickness / 2} width={opening.width} height={resolved.thickness}
-              fill="#f8faf5" stroke="#986122" strokeWidth="1" vectorEffect="non-scaling-stroke" />)}
-            {planDisplay.showObjectNames && <text y={-resolved.thickness / 2 - 160} textAnchor="middle" fontSize="150">{placing.wall.label}</text>}
-          </g>;
-        })()}
-        <BraceLayer braces={shown.braces} selectedId={selectedBrace} groupedIds={groupedIds} overlappingIds={overlapIds}
-          readOnly={readOnly} display={planDisplay} onPointerDown={startBrace} />
-        <PlaceholderLayer placeholders={shown.placeholders ?? []} selectedId={selectedPlaceholder}
-          overlappingIds={overlapIds}
-          readOnly={readOnly} groupedIds={groupedIds} display={planDisplay} onPointerDown={startPlaceholder} />
-        <InfrastructureMarks pins={venue.connectionPoints ?? []} corridors={venue.cableRoutingCorridors ?? []} display={planDisplay} />
-        <CableRunMarks runs={shown.cableRuns ?? []} selectedId={selectedCableRunId}
-          selectedVertexIndex={selectedCableVertex} readOnly={readOnly}
-          draftPath={cableDraftPath}
-          onPathPointerDown={(event, runId) => {
-            if (readOnly || busyGesture()) return;
-            const at = point(event);
-            if (selectedCableRunId === runId) {
-              const run = current.current.present.cableRuns?.find(item => item.id === runId);
-              const insert = run && run.path.length < 500 ? nearestCableRunInsert(run, at, Number.POSITIVE_INFINITY) : undefined;
-              if (run && insert) {
-                commit({
-                  ...current.current.present,
-                  cableRuns: (current.current.present.cableRuns ?? []).map(item => item.id === runId
-                    ? insertCableRunVertex(item, insert.afterIndex, insert.point) : item),
-                });
-                setSelectedCableVertex(insert.afterIndex + 1);
-                setCablesOpen(true);
-                if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
-                svg.current?.focus({ preventScroll: true });
-                return;
-              }
-            }
-            clearSelection(true);
-            setSelectedDimension(undefined);
-            setSelectedCableRunId(runId);
-            setSelectedCableVertex(undefined);
-            setCablesOpen(true);
-            // Keep keyboard shortcuts (Entf) on the plan, not on panel inputs.
-            if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
-            svg.current?.focus({ preventScroll: true });
-          }}
-          onVertexPointerDown={(event, runId, index) => {
-            if (event.button !== 0 || readOnly || busyGesture()) return;
-            event.stopPropagation();
-            event.preventDefault();
-            clearSelection(true);
-            setSelectedDimension(undefined);
-            setSelectedCableRunId(runId);
-            setSelectedCableVertex(index);
-            setCablesOpen(true);
-            if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
-            svg.current?.focus({ preventScroll: true });
-            cableVertexDrag.current = { runId, index, start: current.current.present };
-            setGroupPreview(current.current.present);
-            svg.current?.setPointerCapture(event.pointerId);
-          }} />
-        <OverheadMarks boxes={venue.overheadBoxes ?? []} display={planDisplay} />
-        <TrussMarks trusses={venue.trusses ?? []} display={planDisplay} hangPlan={venue.hangPlan} />
-        <CurtainMarks curtains={sceneCurtains}
-          selectedIds={fixtureSelection?.kind === 'curtain' ? [fixtureSelection.id] : []}
-          display={planDisplay}
-          onPointerDown={readOnly ? undefined : (event, id) => {
-            event.stopPropagation();
-            if (event.button !== 0 || busyGesture()) return;
-            pickVenueFixture({ kind: 'curtain', id });
-          }} />
-        <KeepClearMarks zones={venue.keepClearZones ?? []} display={planDisplay} />
-        <CentrelineMark centreline={venue.stageCentreline} showLabel={planDisplay.showTexts} />
-        <AlignmentGuides guides={guides} />
-        {marqueeBox && <rect data-testid="selection-marquee" className="selection-marquee"
-          x={marqueeBox.minX} y={-marqueeBox.maxY} width={marqueeBox.maxX - marqueeBox.minX} height={marqueeBox.maxY - marqueeBox.minY}
-          pointerEvents="none" />}
-        {selectionCentre && selectionBundle && !readOnly && (
-          <RotationHandle centre={selectionCentre} rotation={selectionBundle.rotation} width={selectionHandleWidth}
-            testId="rotate-selection" label="Auswahl drehen"
-            onPointerDown={event => {
-              if (event.button !== 0) return;
-              event.stopPropagation();
-              if (busyGesture()) return;
-              startObject(event, selectionBundle.members[0]!, 'rotate');
-            }} />
-        )}
-        {selectedWall && !readOnly && !selectionBundle && (() => {
-          const wall = shown.walls.find(item => item.id === selectedWall.id) ?? selectedWall;
-          const resolved = resolveWall(wall, wallTypes);
-          return <RotationHandle centre={wall} rotation={wall.rotation} width={resolved.width}
-            testId={`rotate-${wall.id}`} label="Wand drehen" onPointerDown={event => startRotate(event, wall)} />;
-        })()}
-        {selectedBraceItem && !readOnly && !selectionBundle && (() => {
-          const brace = shown.braces.find(item => item.id === selectedBraceItem.id) ?? selectedBraceItem;
-          return <RotationHandle centre={brace} rotation={brace.rotation} width={brace.footprintWidth}
-            testId={`rotate-brace-${brace.id}`} label="Stütze drehen" onPointerDown={event => startRotateBrace(event, brace)} />;
-        })()}
-        {selectedPlatformItem && !readOnly && !selectionBundle && (() => {
-          const platform = (shown.platforms ?? []).find(item => item.id === selectedPlatformItem.id) ?? selectedPlatformItem;
-          const centre = platformCentroid(platform.outline);
-          const box = platform.outline.reduce((acc, point) => ({
-            minX: Math.min(acc.minX, point.x), maxX: Math.max(acc.maxX, point.x),
-            minY: Math.min(acc.minY, point.y), maxY: Math.max(acc.maxY, point.y),
-          }), { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity });
-          return <RotationHandle centre={centre} rotation={0} width={Math.max(box.maxX - box.minX, 1)}
-            testId={`rotate-platform-${platform.id}`} label="Podest drehen" onPointerDown={event => startPlatformRotate(event, platform)} />;
-        })()}
-        {selectedStairItem && !readOnly && !selectionBundle && (() => {
-          const stair = (shown.stairs ?? []).find(item => item.id === selectedStairItem.id) ?? selectedStairItem;
-          return <RotationHandle centre={stair} rotation={stair.rotation} width={stair.width}
-            testId={`rotate-stair-${stair.id}`} label="Treppe drehen" onPointerDown={event => startRotateStair(event, stair)} />;
-        })()}
-        <MeasureLayer lines={state.present.measureLines ?? []} />
-        {dimensioning && <rect data-testid="dimension-target" x={viewCx - viewW / 2} y={-(viewCy + viewH / 2)} width={viewW} height={viewH}
-          fill="white" fillOpacity={0} pointerEvents="all" onPointerDown={pickDimension} onPointerMove={hoverDimension} />}
-        <DimensionLayer dimensions={resolvedDimensions} preview={dimensionPreview} selectedId={selectedDimension}
-          passPointer={dimensioning !== null} snapRadius={dimensionReach(16)}
-          snaps={dimensioning ? [dimensioning.a?.point, dimensioning.b?.point, dimensioning.hover?.point].flatMap(item => item ? [item] : []) : []}
-          onSelect={selectDimension} />
-        {selectedPlaceholderItem && !readOnly && !selectionBundle && (() => {
-          const item = (shown.placeholders ?? []).find(entry => entry.id === selectedPlaceholderItem.id) ?? selectedPlaceholderItem;
-          return <RotationHandle centre={item} rotation={item.rotation} width={item.width}
-            testId={`rotate-placeholder-${item.id}`} label="Platzhalter drehen" onPointerDown={event => startRotatePlaceholder(event, item)} />;
-        })()}
-      </svg>
-
-      <div className="plan-status" aria-live="polite">
-        {diagnostics.map(item => <p key={`${item.kind}-${item.objectId}`} className="warning" role="status">{item.message}</p>)}
-        {overheadWarnings.map(item => <p key={`${item.kind}-${item.objectId}-${item.obstructionId ?? ''}`}
-          className="warning" role="status" data-testid="overhead-warning">{item.message}</p>)}
-        {overlapWarnings.map(item => <p key={`${item.zoneId}-${item.objectId}`} className="warning" role="status">{item.message}</p>)}
-        {objectOverlaps.length === 1 && <p className="warning" role="status" data-testid="object-overlap">{objectOverlaps[0]!.message}</p>}
-        {objectOverlaps.length > 1 && <p className="warning" role="status" data-testid="object-overlap">
-          {objectOverlaps.length} Überschneidungen — betroffene Objekte sind rot markiert.
-        </p>}
-      </div>
-    </div>
-    {activeView !== 'plan' && !exportsOpen && <StageView onFeedbackCaptureReady={setFeedbackCapture} layout={placing ? {
-      ...shown,
-      wallTypes: placing.pendingType ? [...typesOf(shown), placing.pendingType] : shown.wallTypes,
-      walls: [...shown.walls, placing.wall],
-    } : shown} venue={venue} assets={assets} workspaceId={workspaceId}
-      selectedIds={selection().map(item => item.id)} pivot={selectionPivot(state.present, selection())} snapEnabled={snapEnabled}
-      onLightingChange={readOnly ? undefined : lighting => { if (!busyGesture()) commit({ ...current.current.present, lighting }); }}
-      onLightLooksChange={readOnly ? undefined : patch => { if (!busyGesture()) commit({ ...current.current.present, ...patch }); }}
-      onHangPlanChange={readOnly ? undefined : plan => {
-        if (busyGesture()) return;
-        setVenue(currentVenue => ({ ...currentVenue, hangPlan: plan }));
-        setVenueDirty(true);
-      }}
-      planDisplay={planDisplay}
-      onSelect={stageSelect} onClearSelection={() => { if (!busyGesture() && !stageGesture.current) { clearSelection(); } }}
-      onTransform={readOnly ? undefined : stageTransform} onPushPull={readOnly ? undefined : stageResize}
-      resizeScope="scene" resizeDocument={sceneResizeDocument(shown, venue)} />}
-    </div><EditorDock dock={dock} stageVisible={activeView !== 'plan' && !exportsOpen} onShowStage={() => setViewMode('stage')}
-      library={<><SurfaceRegistryPanel readOnly={readOnly} /><AssetLibrary key={inspectorEpoch} workspaceId={workspaceId} assets={assets} layout={state.present}
-      readOnly={readOnly || busyGesture()} selected={selectedWall ?? selectedBraceItem}
-      wallTypes={wallTypes} selectedTypeId={selectedType}
-      onCreated={asset => setAssets(items => [...items, asset])}
-      onArchive={id => setAssets(items => items.map(asset => asset.id === id ? { ...asset, archived: true } : asset))}
-      onRenamed={updated => setAssets(items => items.map(asset => asset.id === updated.id ? updated : asset).sort((a, b) => a.name.localeCompare(b.name, 'de')))}
-      onPlace={placeAsset}
-      onWallTypeSelect={setSelectedType} onWallTypeCreate={applyType} onWallTypeApply={applyType}
-      onWallTypePlace={type => {
-        dock.closeAfterPlacement();
-        setExportsOpen(false);
-        placeType(type);
-      }}
-      onWallTypeRemove={removeType} onPendingChange={reportInspectorPending}
-      onPanels={adoptPanels} /></>}
-      display={<PlanDisplayToggles value={planDisplay} onChange={setPlanDisplay} />}
-      properties={<aside key={inspectorEpoch} className="wall-inspector" inert={busyGesture()}>
-      <div className="selection-properties">
-      <h3>{selectedCableRunId ? 'Kabelweg' : selectedDimension ? 'Maß' : selectedCurtain ? 'Molton-Vorhang' : selectedVenueDoor ? 'Spielstättentür' : selectedPlaceholderItem ? 'Platzhalter' : selectedPlatformItem ? 'Podest' : selectedStairItem ? 'Treppe' : selectedBraceItem ? 'Gewichtete Stütze' : selectedWall ? (selectedWallCount > 1 ? `${selectedWallCount} Wandelemente` : 'Wandelement') : 'Keine Auswahl'}</h3>
-      <label htmlFor="wall-selection">Auswahl</label>
-      <select id="wall-selection" value={selectedCurtain ? `curtain:${selectedCurtain.id}` : selectedVenueDoor ? `door:${selectedVenueDoor.id}` : selectedWall ? `wall:${selectedWall.id}` : selectedBraceItem ? `brace:${selectedBraceItem.id}` : selectedPlatformItem ? `platform:${selectedPlatformItem.id}` : selectedStairItem ? `stair:${selectedStairItem.id}` : selectedPlaceholderItem ? `placeholder:${selectedPlaceholderItem.id}` : ''} onChange={event => {
-        const value = event.target.value;
-        if (value.startsWith('curtain:')) pickVenueFixture({ kind: 'curtain', id: value.slice(8) });
-        else if (value.startsWith('door:')) pickVenueFixture({ kind: 'door', id: value.slice(5) });
-        else if (value.startsWith('brace:')) pick({ kind: 'brace', id: value.slice(6) }, false);
-        else if (value.startsWith('platform:')) pick({ kind: 'platform', id: value.slice(9) }, false);
-        else if (value.startsWith('stair:')) pick({ kind: 'stair', id: value.slice(6) }, false);
-        else if (value.startsWith('placeholder:')) pick({ kind: 'placeholder', id: value.slice(12) }, false);
-        else if (value) pick({ kind: 'wall', id: value.replace(/^wall:/, '') }, false);
-        else { clearSelection(); }
-      }}>
-        <option value="">Objekt auswählen</option>
-        {sceneCurtains.map((curtain, index) => <option key={curtain.id} value={`curtain:${curtain.id}`}>V{index + 1}. {curtain.label}</option>)}
-        {venueDooredWalls(venue).map((wall, index) => <option key={wall.id} value={`door:${wall.id}`}>Tür{index + 1}. {wall.label}</option>)}
-        {state.present.walls.map((wall, index) => <option key={wall.id} value={`wall:${wall.id}`}>{index + 1}. {wall.label}</option>)}
-        {state.present.braces.map((brace, index) => <option key={brace.id} value={`brace:${brace.id}`}>{state.present.walls.length + index + 1}. {brace.label}</option>)}
-        {(state.present.platforms ?? []).map((platform, index) => <option key={platform.id} value={`platform:${platform.id}`}>P{index + 1}. {platform.label}</option>)}
-        {(state.present.stairs ?? []).map((stair, index) => <option key={stair.id} value={`stair:${stair.id}`}>T{index + 1}. {stair.label}</option>)}
-        {(state.present.placeholders ?? []).map((item, index) => <option key={item.id} value={`placeholder:${item.id}`}>M{index + 1}. {item.label}</option>)}
-      </select>
-      {selectedCurtain ? <VenueCurtainOpenForm key={selectedCurtain.id} openPercent={selectedCurtain.openPercent} readOnly={readOnly}
-          onPendingChange={reportInspectorPending}
-          onApply={openPercent => { if (!busyGesture()) commit(setCurtainOpenPercent(current.current.present, selectedCurtain.id, openPercent)); }} />
-        : selectedVenueDoor ? <VenueDoorOpenForm key={selectedVenueDoor.id}
-            openPercent={effectiveVenueDoorOpen(selectedVenueDoor, shown)} readOnly={readOnly}
-            onPendingChange={reportInspectorPending}
-            onApply={doorOpenPercent => { if (!busyGesture()) commit(setVenueDoorOpenPercent(current.current.present, selectedVenueDoor.id, doorOpenPercent)); }} />
-          : selectedWall ? <WallForm key={JSON.stringify(selectedWall)} wall={selectedWall}
-              openings={resolveWall(selectedWall, wallTypes).openings} typed={!!selectedWall.typeId} surfaces={surfaces}
-              readOnly={readOnly} bulkWallCount={selectedWallCount}
-              onPendingChange={reportInspectorPending} onApply={applyWall} onRemove={remove} />
-        : selectedBraceItem ? <BraceInspector key={JSON.stringify(selectedBraceItem)} brace={selectedBraceItem} surfaces={surfaces} readOnly={readOnly}
-            onPendingChange={reportInspectorPending} onApply={replaceBrace} onRemove={remove}
-            onAlign={() => {
-              const walls = planningWalls(current.current.present, venue);
-              const aligned = alignBraceToNearestWall(selectedBraceItem, walls, { force: true });
-              if (aligned) replaceBrace(aligned);
-            }} />
-          : selectedPlatformItem ? <PlatformInspector key={JSON.stringify(selectedPlatformItem)} platform={selectedPlatformItem}
-              readOnly={readOnly} bulkCount={pickedPlatforms.length}
-              finishMixed={mixedPropertyValue(pickedPlatforms.map(id => JSON.stringify(state.present.platforms?.find(item => item.id === id)?.surfaces ?? null))) === MIXED_PROPERTY}
-              onPendingChange={reportInspectorPending} onApply={replacePlatform} onRemove={remove} />
-            : selectedStairItem ? <StairInspector key={JSON.stringify(selectedStairItem)} stair={selectedStairItem} surfaces={surfaces} readOnly={readOnly}
-                onPendingChange={reportInspectorPending} onApply={replaceStair} onRemove={remove} />
-              : selectedPlaceholderItem ? <PlaceholderInspector key={JSON.stringify(selectedPlaceholderItem)} item={selectedPlaceholderItem} surfaces={surfaces} readOnly={readOnly}
-                  onPendingChange={reportInspectorPending} onApply={replacePlaceholder} onRemove={remove} />
-                : selectedCableRunId ? <p className="muted">Kabelweg orange. Nochmal auf die Linie klicken fügt einen Zwischenpunkt ein · Zwischenpunkt + Entf entfernt ihn · Entf ohne Punktwahl löscht den Weg · Endpunkte nur verschieben.</p>
-                : selectedDimension ? <p className="muted">Ausgewähltes Maß ist orange hervorgehoben. Entf löscht es · Escape hebt die Auswahl auf.</p>
-                  : <p className="muted">Objekt im Grundriss wählen oder links über die Werkzeugleiste und die Bibliothek hinzufügen.</p>}
-      {selectedWall && <InventoryAssignment layout={state.present} selectedWall={selectedWall}
-        panels={inventoryPanels} readOnly={readOnly}
-        onAssign={panelId => replace({ ...selectedWall, panelId, finishAssignment: { id: crypto.randomUUID(), surfaces: structuredClone(selectedWall.surfaces ?? {}) } })}
-        onUnassign={() => replace((({ panelId: _removed, finishAssignment: _finish, ...rest }) => rest)(selectedWall))} />}
-      </div>
-      {selectedWall && <details className="inspector-section"><summary>Aufbau & Verbindungen</summary><div className="inspector-section-body">
-      <AssemblyPanel layout={state.present} selectedWall={selectedWall} readOnly={readOnly} onChange={commit} />
-      </div></details>}
-      {activeGroup && <details className="inspector-section" open><summary>Gruppe</summary><div className="inspector-section-body">
-      <GroupInspector layout={state.present} picked={groupPicked} readOnly={readOnly}
-        onPendingChange={reportInspectorPending} onChange={commit} />
-      </div></details>}
-    </aside>} /></div>}
-    <div className="workspace-statusbar"><span><span className="status-dot" />{venueOpen ? 'Spielstättenentwurf' : 'Bühnenbild'} · {state.present.walls.length} Wände</span><span className="selection-count" hidden={venueOpen || (selection().length === 0 && !selectedDimension && !selectedCableRunId)} data-testid="selection-count">{selectedCableRunId && selectedCableVertex !== undefined && selectedCableVertex > 0 ? '1 Zwischenpunkt ausgewählt' : selectedCableRunId ? '1 Kabelweg ausgewählt' : selectedDimension ? '1 Maß ausgewählt' : `${selection().length} ausgewählt`}</span><span className="status-hint" role="status" title={snapStatus}>{snapStatus ?? 'Klicken zum Auswählen · Ziehen zum Verschieben · Strg+Z rückgängig'}</span><button className="quiet" aria-expanded={helpOpen} onClick={() => setHelpOpen(open => !open)}><ToolIcon name="help" /> Bedienung</button><span>Maße in mm</span></div>
-    {helpOpen && <div className="workspace-help"><h3>Arbeiten im Grundriss</h3>
-      <p className="muted viewport-hint">Raster: 1 m / 50 cm · Zwei-Finger-Scroll oder Mittelklick verschieben · Pinch / Strg+Scroll zoomen · Auf dem Boden ziehen: Mehrfachauswahl (nur vollständig umschlossene Objekte) · Orange ↻ dreht · Stützen an Wänden · {SNAP_NOTICE}</p>
-      <p>Strg/Cmd+C kopiert die Auswahl, Strg/Cmd+V hängt die Kopie an den Zeiger — Klick setzt, Escape bricht ab. Entf löscht ausgewählte Objekte. Escape bricht Platzieren und Bewegungen ab oder hebt die Auswahl auf (auch in der Raumsicht · Klick in freien Raum). Überschneidungen erscheinen rot auf dem Grundriss.</p>
-      <p><a href="#/hilfe">Zur vollständigen Hilfe</a> — Werkzeuge, Tastatur und Wandoberflächen.</p>
-    </div>}
-  </section></EditorDockContext></SurfaceRegistryProvider>;
-}
-
-function WallForm({ wall, openings, typed, surfaces, readOnly, bulkWallCount = 1, onPendingChange, onApply, onRemove }: {
-  wall: Wall; openings: Opening[]; typed: boolean; surfaces: ReturnType<typeof supportingSurfaces>; readOnly: boolean;
-  bulkWallCount?: number;
-  onPendingChange?: (pending: boolean) => void; onApply: (wall: Wall) => void; onRemove: () => void;
-}) {
-  const [error, setError] = useState('');
-  const [wallSurfaces, setWallSurfaces] = useState(wall.surfaces);
-  const { pending, resetKey, markPending, clearPending, discard, formProps } = usePendingApplyForm(onPendingChange);
-  const doors = openings.filter(isDoorOpening);
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const keys = typed ? ['x', 'y', 'rotation'] : ['x', 'y', 'rotation', 'width', 'height', 'thickness'];
-    const doorRaw = data.get('doorOpenPercent');
-    const assemblyRaw = data.get('assemblyNumber');
-    const result = wallSchema.safeParse({
-      ...wall,
-      surfaces: wallSurfaces,
-      label: data.get('label'),
-      assemblyNumber: assemblyRaw === '' || assemblyRaw == null ? undefined : Number(assemblyRaw),
-      ...Object.fromEntries(keys.map(key => [key, Number(data.get(key))])),
-      doorOpenPercent: doors.length && doorRaw !== null && doorRaw !== '' ? Number(doorRaw) : undefined,
-    });
-    if (!result.success) { setError('Bitte prüfen Sie die Maße und die Bezeichnung.'); return; }
-    setError(''); clearPending(); onApply(result.data);
+  if (venueOpen) {
+    return <section className="editor scene-editor"><VenuePanel workspaceId={workspaceId} sceneId={initial.id} venue={venue} venueId={initial.venueId}
+      venueName={venueName} venueUpdateAvailable={venueUpdateAvailable} readOnly={readOnly}
+      sceneLayout={state.present} onDirty={setVenueDirty} onClose={() => setVenueOpen(false)}
+      onVenueRenamed={update => { setVenueName(update.name); setVenueVersionId(update.venueVersionId); }}
+      onSaved={result => {
+        setVenue(result.venue);
+        setVenueVersionId(result.venueVersionId ?? venueVersionId);
+        setVenueUpdateAvailable(result.venueUpdateAvailable);
+        setState(history(result.layout));
+        saver.adopt(result.layout, result.revision);
+        setVenueDirty(false);
+      }} /></section>;
   }
-  return <form key={resetKey} onSubmit={submit} {...formProps}><fieldset disabled={readOnly}>
-    {bulkWallCount > 1 && <p className="muted bulk-selection-hint">{bulkWallCount} Wände ausgewählt. Oberflächen gelten für alle; übrige Felder nur für die hervorgehobene Wand.</p>}
-    <label htmlFor="wall-label">Bezeichnung</label><input id="wall-label" name="label" defaultValue={wall.label} maxLength={120} required />
-    <label htmlFor="wall-assembly">Position (Montagenummer)</label>
-    <input id="wall-assembly" name="assemblyNumber" type="number" min={1} max={250} step={1} defaultValue={wall.assemblyNumber ?? ''} placeholder="z. B. 3" />
-    <SurfaceField id="wall-surface" value={wall.supportingSurfaceId} surfaces={surfaces} />
-    <div className="numeric-fields">{(typed ? [
-      ['x', 'X (mm)', -100000, 100000], ['y', 'Y (mm)', -100000, 100000], ['rotation', 'Drehung (°)', -360, 360],
-    ] as const : [
-      ['width', 'Breite (mm)', 1, 100000], ['height', 'Höhe (mm)', 1, 100000], ['thickness', 'Dicke (mm)', 1, 100000],
-      ['x', 'X (mm)', -100000, 100000], ['y', 'Y (mm)', -100000, 100000], ['rotation', 'Drehung (°)', -360, 360],
-    ] as const).map(([key, label, min, max]) => <div key={key}><label htmlFor={`wall-${key}`}>{label}</label><input id={`wall-${key}`} name={key} type="number" step="any" min={min} max={max} defaultValue={wall[key]} required /></div>)}</div>
-    {doors.length > 0 && <>
-      <label htmlFor="wall-door-open">Türöffnung (%)</label>
-      <input id="wall-door-open" name="doorOpenPercent" type="number" min={0} max={100} step={1} defaultValue={wall.doorOpenPercent ?? 0} />
-      <p className="muted">Scharnier {doors.map(door => door.hinge === 'left' ? 'links' : 'rechts').join(', ')} · Blatt weiß · Zarge weiß. 0 % geschlossen, 100 % = 90° offen.</p>
-    </>}
-    <WallSurfaceEditor key={wall.id} surfaces={wallSurfaces} panelHeight={wall.height} readOnly={readOnly}
-      onChange={next => { setWallSurfaces(next); markPending(); }} />
-    <p className="muted">{typed ? 'Außenmaße und Öffnungen kommen vom Wandtyp.' : 'X/Y beziehen sich auf die Wandmitte. Ursprung: vordere linke Ecke der Spielstätte.'}</p>
-    {error && <p role="alert" className="error">{error}</p>}
-    {!readOnly && <div className="form-actions">
-      <button type="submit">Übernehmen</button>
-      {pending && <button className="quiet" type="button" onClick={() => { setWallSurfaces(wall.surfaces); discard(); }}>Verwerfen</button>}
-      <button className="quiet" type="button" onClick={onRemove}>Wand löschen</button>
-    </div>}
-  </fieldset></form>;
-}
+  if (exportsOpen) {
+    return <section className="editor scene-editor"><RecipientDocumentWorkspace workspaceId={workspaceId} productionId={initial.productionId}
+      seedSceneId={initial.id} seedVenueId={initial.venueId}
+      liveScene={{ ...initial, name: sceneName, venueName, venueVersionId, venue, layout: state.present, revision: saveState.revision }}
+      freezeDisabled={saveState.dirty} onClose={() => setExportsOpen(false)} /></section>;
+  }
 
-function VenueCurtainOpenForm({ openPercent, readOnly, onPendingChange, onApply }: {
-  openPercent: number; readOnly: boolean; onPendingChange?: (pending: boolean) => void; onApply: (openPercent: number) => void;
-}) {
-  const { pending, resetKey, clearPending, discard, formProps } = usePendingApplyForm(onPendingChange);
-  return <form key={resetKey} onSubmit={event => {
-    event.preventDefault();
-    const value = Number(new FormData(event.currentTarget).get('openPercent'));
-    if (!Number.isFinite(value) || value < 0 || value > 100) return;
-    clearPending(); onApply(value);
-  }} {...formProps}><fieldset disabled={readOnly}>
-    <p className="muted">Position und Spur kommen von der Spielstätte. Nur die Öffnung gilt für dieses Bühnenbild.</p>
-    <label htmlFor="venue-curtain-open">Öffnung (%)</label>
-    <input id="venue-curtain-open" name="openPercent" type="number" min={0} max={100} step={1} defaultValue={openPercent} data-testid="venue-curtain-open" />
-    <p className="muted">0 % geschlossen, 100 % vollständig geöffnet / gerafft.</p>
-    {!readOnly && <div className="form-actions">
-      <button type="submit">Übernehmen</button>
-      {pending && <button className="quiet" type="button" onClick={discard}>Verwerfen</button>}
-    </div>}
-  </fieldset></form>;
-}
+  const plan = <div className="plan-workspace">
+    <div className="plan-canvas"><svg ref={svg} data-testid="plan-canvas" role="img" aria-label="Grundriss der Spielstätte"
+      viewBox={`${viewCx - viewWidth / 2} ${-(viewCy + viewHeight / 2)} ${viewWidth} ${viewHeight}`}
+      onWheel={wheel} onPointerDown={backgroundPointer} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag}>
+      <defs><pattern id="metre-grid" width="1000" height="1000" patternUnits="userSpaceOnUse">
+        <path d="M 1000 0 L 0 0 0 1000" fill="none" stroke="#d8dfd2" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+      </pattern></defs>
+      <PlanVenue venue={venue} shown={shown} readOnly={readOnly} planDisplay={planDisplay} />
+      <PlatformLayer venuePlatforms={venue.platforms ?? []} layoutPlatforms={[]}
+        venueStairs={venue.stairs ?? []} layoutStairs={[]} readOnly display={planDisplay}
+        onSelect={() => {}} />
+      <PlanObjects objects={objects} selectedIds={selectedSet} overlapIds={overlapIds} readOnly={readOnly}
+        planDisplay={planDisplay} start={beginObjectDrag} />
+      <InfrastructureMarks pins={venue.connectionPoints ?? []} corridors={venue.cableRoutingCorridors ?? []} display={planDisplay} />
+      <CableRunMarks runs={shown.cableRuns ?? []} readOnly />
+      <OverheadMarks boxes={venue.overheadBoxes ?? []} display={planDisplay} />
+      <TrussMarks trusses={venue.trusses ?? []} display={planDisplay} hangPlan={venue.hangPlan} />
+      <CurtainMarks curtains={sceneCurtains} display={planDisplay} />
+      <KeepClearMarks zones={venue.keepClearZones ?? []} display={planDisplay} />
+      <CentrelineMark centreline={venue.stageCentreline} showLabel={planDisplay.showTexts} />
+      <MeasureLayer lines={shown.measureLines ?? []} />
+      <DimensionLayer dimensions={resolvedDimensions} />
+      {marqueePreview && (() => {
+        const box = normalizeBounds(marqueePreview.start, marqueePreview.current);
+        return <rect data-testid="selection-marquee" className="selection-marquee"
+          x={box.minX} y={-box.maxY} width={box.maxX - box.minX} height={box.maxY - box.minY}
+          pointerEvents="none" vectorEffect="non-scaling-stroke" />;
+      })()}
+    </svg></div>
+    {insertChoice && <p className="plan-placement-hint" role="status">„{insertChoice.label}“: Position im Grundriss anklicken · Escape bricht ab.</p>}
+    <div className="plan-status" aria-live="polite">
+      {catalog.error && <p className="warning">{catalog.error}</p>}
+      {resolution.issues.map(issue => <p key={`${issue.kind}-${issue.objectId}-${issue.message}`} className="warning">{issue.message}</p>)}
+      {overlapWarnings.map(warning => <p key={`${warning.aId}-${warning.bId}`} className="warning" data-testid="object-overlap">{warning.message}</p>)}
+      {keepClear.map(warning => <p key={`${warning.zoneId}-${warning.objectId}`} className="warning">{warning.message}</p>)}
+      {overhead.map(warning => <p key={`${warning.kind}-${warning.objectId}-${warning.obstructionId ?? ''}`} className="warning">{warning.message}</p>)}
+    </div>
+  </div>;
 
-function VenueDoorOpenForm({ openPercent, readOnly, onPendingChange, onApply }: {
-  openPercent: number; readOnly: boolean; onPendingChange?: (pending: boolean) => void; onApply: (openPercent: number) => void;
-}) {
-  const { pending, resetKey, clearPending, discard, formProps } = usePendingApplyForm(onPendingChange);
-  return <form key={resetKey} onSubmit={event => {
-    event.preventDefault();
-    const value = Number(new FormData(event.currentTarget).get('doorOpenPercent'));
-    if (!Number.isFinite(value) || value < 0 || value > 100) return;
-    clearPending(); onApply(value);
-  }} {...formProps}><fieldset disabled={readOnly}>
-    <p className="muted">Feste Spielstättenwand — nur die Türöffnung ist pro Bühnenbild änderbar.</p>
-    <label htmlFor="venue-door-open">Türöffnung (%)</label>
-    <input id="venue-door-open" name="doorOpenPercent" type="number" min={0} max={100} step={1} defaultValue={openPercent} data-testid="venue-door-open" />
-    <p className="muted">0 % geschlossen, 100 % = 90° offen.</p>
-    {!readOnly && <div className="form-actions">
-      <button type="submit">Übernehmen</button>
-      {pending && <button className="quiet" type="button" onClick={discard}>Verwerfen</button>}
-    </div>}
-  </fieldset></form>;
-}
+  const stage = <StageView layout={shown} venue={venue} workspaceId={workspaceId} selectedIds={selectedIds}
+    onFeedbackCaptureReady={setFeedbackCapture}
+    onSelect={(id, additive) => setSelectedIds(current => additive ? [...new Set([...current, id])] : [id])}
+    onClearSelection={() => setSelectedIds([])}
+    onLightingChange={readOnly ? undefined : lighting => commit({ ...state.present, lighting })}
+    onLightLooksChange={readOnly ? undefined : patch => commit({ ...state.present, ...patch })} />;
 
-function readEditorPreference(key: string): string | null {
-  try { return localStorage.getItem(`stage-planner.editor.${key}`); } catch { return null; }
-}
-function writeEditorPreference(key: string, value: string) {
-  try { localStorage.setItem(`stage-planner.editor.${key}`, value); } catch { /* Storage may be unavailable. */ }
+  return <SurfaceRegistryProvider workspaceId={workspaceId} productionId={initial.productionId}>
+    <EditorDockContext value={dock}>
+      <section className="editor editor-shell scene-editor">
+        <EditorMenuBar>
+          <EditorMenu label="Datei">
+            <button type="button" onClick={() => setExportsOpen(true)}>Ausgabe erstellen</button>
+            <button type="button" onClick={onClose}>Bühnenbild schließen</button>
+          </EditorMenu>
+          <EditorMenu label="Bearbeiten">
+            <button type="button" disabled={readOnly || !state.past.length} onClick={performUndo}>Rückgängig</button>
+            <button type="button" disabled={readOnly || !state.future.length} onClick={performRedo}>Wiederholen</button>
+            <button type="button" disabled={!selectedIds.length} onClick={copy}>Kopieren</button>
+            <button type="button" disabled={readOnly || !selectedIds.length} onClick={cut}>Ausschneiden</button>
+            <button type="button" disabled={readOnly || !clipboard} onClick={paste}>Einfügen</button>
+            <button type="button" disabled={readOnly || !selectedIds.length} onClick={removeSelected}>Löschen</button>
+            <button type="button" disabled={readOnly || !canFormGroup(state.present, selectedMembers)}
+              onClick={() => commit(formGroup(state.present, selectedMembers, crypto.randomUUID()))}>Gruppieren</button>
+            <button type="button" disabled={readOnly || !selectedGroup}
+              onClick={() => selectedGroup && commit(ungroup(state.present, selectedGroup.id))}>Gruppe auflösen</button>
+          </EditorMenu>
+          <EditorMenu label="Ansicht">
+            <button type="button" onClick={() => setView('plan')}>Grundriss</button>
+            <button type="button" onClick={() => setView('stage')}>Raumsicht</button>
+            <button type="button" onClick={() => setView('split')}>Geteilt</button>
+            <button type="button" onClick={() => setVenueOpen(true)}>Spielstätte bearbeiten</button>
+          </EditorMenu>
+        </EditorMenuBar>
+        <header className="editor-toolbar editor-heading compact-editor-heading">
+          <button type="button" className="quiet back-button" onClick={onClose} aria-label="Zur Übersicht">←</button>
+          <div><h2>{sceneName}</h2><p className="muted scene-context">{initial.productionName} · {venueName} · Layout v2</p></div>
+          {canRename && !readOnly && <button type="button" className="quiet" onClick={renameScene}>Umbenennen</button>}
+          <span className={`save-state save-status save-${saveState.status}`} role="status">
+            {pendingForms > 0
+              ? 'Nicht übernommene Eingaben'
+              : saveState.status === 'conflict' && saveState.conflictKind === 'lease'
+                ? 'Bearbeitung abgelaufen'
+                : statusText[saveState.status]}
+          </span>
+          {saveState.status === 'failed' && <button type="button" onClick={() => saver.retry()}>Erneut speichern</button>}
+          {permissionReadOnly && onRequestEditing && <button type="button" onClick={onRequestEditing}>Bearbeitung anfordern</button>}
+        </header>
+        {sceneLease.message && !permissionReadOnly && <p className="muted lease-status">{sceneLease.message}</p>}
+        {['failed', 'conflict'].includes(saveState.status) && <div className="error" role="alert">
+          <p>{saveState.status === 'conflict'
+            ? saveState.conflictKind === 'lease'
+              ? 'Die Bearbeitungsberechtigung ist abgelaufen. Ihre Änderungen bleiben hier erhalten und werden nicht überschrieben.'
+              : 'Eine neuere Fassung ist gespeichert. Ihre Änderungen bleiben hier erhalten und werden nicht darübergeschrieben.'
+            : 'Ihre Änderungen sind noch nicht gespeichert. Prüfen Sie die Verbindung.'}</p>
+          <button type="button" onClick={downloadDraft}>Lokalen Entwurf herunterladen</button>
+          <button type="button" disabled={recovering} onClick={() => void recoverDraft()}>Entwurf als Bühnenbildvorlage sichern</button>
+          {recoveryMessage && <p role="status">{recoveryMessage}</p>}
+        </div>}
+        {catalogMessage && <p role="alert" className="error">{catalogMessage}</p>}
+        <nav className="tool-rail" aria-label="Bauteile einsetzen">
+            {toolChoices.map(choice => <button key={`${choice.partId}:${choice.variant ?? ''}`} type="button"
+              className={insertChoice?.partId === choice.partId && insertChoice.variant === choice.variant ? 'active' : ''}
+              disabled={readOnly || catalog.loading} onClick={() => chooseInsert(choice)}
+              title={`${choice.label} einsetzen`} aria-label={`${choice.label} einsetzen`}>
+              <ToolIcon name={choice.partId === STARTER_PART_IDS.wall ? 'wall' : choice.partId === STARTER_PART_IDS.brace ? 'brace' : 'plus'} />
+              <span>{choice.label}</span>
+            </button>)}
+        </nav>
+        <div className="workspace-main editor-grid dock-grid" data-dock-open={!!dock.active}>
+          <div className={`editor-canvas editor-views editor-view-${view}`}>
+            {view !== 'stage' && plan}
+            {view !== 'plan' && stage}
+          </div>
+          <EditorDock dock={dock} stageVisible={view !== 'plan'} onShowStage={() => setView('stage')}
+            display={<PlanDisplayToggles value={planDisplay} onChange={setPlanDisplay} />}
+            library={<div className="part-library"><h3>Bauteile</h3>
+              <p className="muted">Favoriten und Starterteile stehen zusätzlich direkt in der Werkzeugleiste.</p>
+              {allParts.map(part => <div key={part.id} className="library-row"><div><strong>{part.name}</strong><br /><span className="muted">{part.category}</span></div>
+                <button type="button" disabled={readOnly} onClick={() => chooseInsert({ partId: part.id, revision: part.latestRevision, label: part.name })}>Einsetzen</button></div>)}
+              <SurfaceRegistryPanel readOnly={readOnly} />
+            </div>}
+            properties={selectedGroup
+              ? <GroupInspector layout={state.present} picked={selectedMembers} readOnly={readOnly}
+                onPendingChange={pending => setPendingForms(count => adjustPendingCount(count, pending))}
+                onChange={commit} />
+              : selected
+              ? <PartInspector item={selected} summary={summaryById.get(selected.object.part.id)}
+                latestRevision={latestById.get(selected.object.part.id)} stockItems={stockItems}
+                supports={supportOptions} readOnly={readOnly}
+                onApply={commitObject} onRemove={removeSelected}
+                onPendingChange={pending => setPendingForms(count => adjustPendingCount(count, pending))}
+                onUpdateRevision={() => {
+                  const revision = latestById.get(selected.object.part.id);
+                  if (revision) commitObject({ ...selected.object, part: { ...selected.object.part, revision } });
+                }} />
+              : <aside className="wall-inspector"><h3>Keine Auswahl</h3><p className="muted">Bauteil im Grundriss oder in der Raumsicht wählen.</p>
+                <p>{shown.objects.length} Bauteile · {shown.joints.length} Verbindungen</p>
+                {uniqueRefs(shown).length > 0 && <p className="muted">{uniqueRefs(shown).length} verwendete Bauteilrevisionen</p>}</aside>} />
+        </div>
+        <div className="workspace-statusbar">
+          <span><span className="status-dot" />Bühnenbild · {shown.objects.length} Bauteile</span>
+          <span className="selection-count" hidden={!selectedIds.length} data-testid="selection-count">{selectedIds.length} ausgewählt</span>
+          <span>Maße in mm</span>
+        </div>
+      </section>
+    </EditorDockContext>
+  </SurfaceRegistryProvider>;
 }

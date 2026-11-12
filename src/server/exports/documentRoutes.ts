@@ -8,12 +8,15 @@ import { errorSchema, workspaceParamsSchema } from '../../shared/contracts.js';
 import { exportRevisionSchema, freezeSnapshot } from '../../shared/export.js';
 import { documentDraftSchema, exportDocumentSpecSchema, prepareDocumentBodySchema, decodeViewImages, type ExportDocumentSpec, type FrozenScene } from '../../shared/exportDocument.js';
 import { sceneSchema, type Scene } from '../../shared/layout.js';
+import { migrateLayout } from '../../shared/layoutMigrate.js';
+import { createLayoutPartIndex, resolveLayoutObjects } from '../../shared/layoutObjects.js';
 import { freezePackage } from '../../shared/package.js';
 import type { Database } from '../db/connection.js';
 import {
   inventoryBallast, adaptation, constructionPackage, constructionPlanRevision, documentDraft, exportPreparation, inventoryPanel, inventoryWallType,
-  production, scene, venue, venueVersion,
+  production, scene, stockItem, venue, venueVersion,
 } from '../db/schema.js';
+import { loadAllRevisions, loadMaterials } from '../parts/data.js';
 import { AccessError, type createAccess } from '../identity/access.js';
 import {
   cancelPreparation, enqueuePreparation, expirePreparations, isIssuedDocument, newPreparationId,
@@ -51,17 +54,31 @@ export function registerDocumentRoutes(
       .innerJoin(venueVersion, eq(adaptation.venueVersionId, venueVersion.id))
       .innerJoin(venue, eq(venueVersion.venueId, venue.id))
       .where(and(eq(scene.workspaceId, workspaceId), inArray(scene.id, sceneIds)));
+    const index = await layoutIndex(workspaceId);
+    await Promise.all(rows.map(async row => {
+      if ((row.layout as { schemaVersion?: unknown }).schemaVersion !== 1) return;
+      row.layout = migrateLayout(row.layout, index);
+      await db.update(scene).set({ layout: row.layout }).where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, row.id)));
+    }));
     const byId = new Map(rows.map(row => [row.id, sceneSchema.parse({ ...row, lease: null })]));
     const loaded = sceneIds.map(id => byId.get(id));
     if (loaded.some(item => !item)) throw new AccessError(404, 'Bühnenbild nicht verfügbar.');
     return loaded as Scene[];
   }
 
-  async function panelLabels(workspaceId: string, panelIds: string[]) {
-    const ids = [...new Set(panelIds)];
+  async function layoutIndex(workspaceId: string) {
+    const [revisions, materials] = await Promise.all([loadAllRevisions(db, workspaceId), loadMaterials(db, workspaceId)]);
+    return createLayoutPartIndex({
+      parts: [...revisions.values()].flatMap(items => [...items.values()]),
+      materials: [...materials.values()],
+    });
+  }
+
+  async function stockLabels(workspaceId: string, itemIds: string[]) {
+    const ids = [...new Set(itemIds)];
     if (!ids.length) return {};
-    const rows = await db.select({ id: inventoryPanel.id, label: inventoryPanel.label })
-      .from(inventoryPanel).where(and(eq(inventoryPanel.workspaceId, workspaceId), inArray(inventoryPanel.id, ids)));
+    const rows = await db.select({ id: stockItem.id, label: stockItem.label })
+      .from(stockItem).where(and(eq(stockItem.workspaceId, workspaceId), inArray(stockItem.id, ids)));
     return Object.fromEntries(rows.map(row => [row.id, row.label]));
   }
 
@@ -72,17 +89,6 @@ export function registerDocumentRoutes(
     return rows.flatMap(row => {
       const type = typeMap.get(row.typeId);
       return type ? [{ id: row.id, label: row.label, typeId: row.typeId, available: row.available, note: row.note, type }] : [];
-    });
-  }
-
-  function freezeScenes(spec: ExportDocumentSpec, scenes: Scene[], labels: Record<string, string>, issuedAt: Date): FrozenScene[] {
-    return scenes.map(scene => {
-      const selected = spec.scenes.find(item => item.sceneId === scene.id);
-      const snapshot = freezeSnapshot(scene, {
-        id: randomUUID(), name: spec.revisionName, issuedAt, paper: spec.paper,
-        scale: spec.scale, elevationGroupIds: selected?.elevationGroupIds ?? [], layers: spec.layers,
-      }, labels);
-      return { sceneId: scene.id, sceneName: scene.name, venueName: scene.venueName, snapshot };
     });
   }
 
@@ -145,8 +151,16 @@ export function registerDocumentRoutes(
     const spec = exportDocumentSpecSchema.parse(specFields);
     const scenes = await loadScenes(request.params.workspaceId, spec.scenes.map(item => item.sceneId));
     const issuedAt = new Date();
-    const labels = await panelLabels(request.params.workspaceId, scenes.flatMap(scene => scene.layout.walls.flatMap(wall => wall.panelId ? [wall.panelId] : [])));
-    const frozenScenes = freezeScenes(spec, scenes, labels, issuedAt);
+    const labels = await stockLabels(request.params.workspaceId, scenes.flatMap(scene => scene.layout.objects.flatMap(object => object.stockItemId ? [object.stockItemId] : [])));
+    const index = await layoutIndex(request.params.workspaceId);
+    const frozenScenes = scenes.map(scene => {
+      const selected = spec.scenes.find(item => item.sceneId === scene.id);
+      const snapshot = freezeSnapshot(scene, {
+        id: randomUUID(), name: spec.revisionName, issuedAt, paper: spec.paper,
+        scale: spec.scale, elevationGroupIds: selected?.elevationGroupIds ?? [], layers: spec.layers,
+      }, labels, resolveLayoutObjects(scene.layout, index));
+      return { sceneId: scene.id, sceneName: scene.name, venueName: scene.venueName, snapshot };
+    });
     const [ballastStock] = await db.select({ slabs: inventoryBallast.slabs, straps: inventoryBallast.straps }).from(inventoryBallast).where(eq(inventoryBallast.workspaceId, request.params.workspaceId));
     const packageStock = spec.kind === 'package' || spec.scenes.length > 1
       ? freezePackage(scenes, {

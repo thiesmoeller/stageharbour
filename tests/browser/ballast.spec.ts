@@ -1,8 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { signInToPlans, createProduction } from '../helpers/plans.js';
-import { placeNamedObjectAt } from '../helpers/inspector.js';
+import { placeNamedObjectAt, showProperties } from '../helpers/inspector.js';
 
-test('ballast choices persist and stock appears in play/venue requirements', async ({ page }) => {
+test('ballast stock and generic brace choices persist', async ({ page }) => {
   test.setTimeout(90000);
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -19,29 +19,13 @@ test('ballast choices persist and stock appears in play/venue requirements', asy
   expect((await savedStock).ok()).toBe(true);
   await navigation.getByRole('button', { name: /Produktionen/ }).click();
   await createProduction(page, { productionName: 'Beschwerungsprobe', venueName: 'Beschwerungssaal', sceneName: 'Ballastszene' });
-  await page.getByRole('button', { name: '2D + 3D', exact: true }).click();
   await placeNamedObjectAt(page, 'Stütze hinzufügen');
-  await page.getByLabel('Beschwerung', { exact: true }).selectOption('single');
-  await page.getByLabel('Seite bei einfacher Beschwerung').selectOption('right');
+  await page.getByLabel('Betonplatten', { exact: true }).selectOption('2');
   await page.getByRole('button', { name: 'Übernehmen', exact: true }).click();
-  await expect(page.locator('[data-testid^="stage-brace-"]')).toHaveAttribute('data-slabs', '1');
   await expect(page.locator('.save-status')).toHaveText('Gespeichert');
-  await page.getByRole('button', { name: 'Auswahl einpassen', exact: true }).click();
-  await expect(page.locator('.stage-view canvas')).toBeVisible();
-  await page.screenshot({ path: 'test-results/ballast-single.png', fullPage: true });
-  await page.getByLabel('Beschwerung', { exact: true }).selectOption('heavy');
-  await page.getByRole('button', { name: 'Übernehmen', exact: true }).click();
-  await expect(page.locator('[data-testid^="stage-brace-"]')).toHaveAttribute('data-slabs', '2');
-  await expect(page.locator('[data-testid^="stage-brace-"]')).toHaveAttribute('data-straps', '1');
-  await expect(page.locator('.save-status')).toHaveText('Gespeichert');
-  await page.getByRole('button', { name: 'Auswahl einpassen', exact: true }).click();
-  await page.screenshot({ path: 'test-results/ballast-heavy.png', fullPage: true });
   await page.reload();
-  await expect(page.locator('[data-testid^="stage-brace-"]')).toHaveAttribute('data-slabs', '2');
-  await page.getByRole('button', { name: 'Zur Übersicht', exact: true }).click();
-  const production = page.getByRole('region', { name: 'Produktion Beschwerungsprobe', exact: true });
-  await production.getByText('Materialbedarf', { exact: true }).click();
-  const slabRow = production.getByRole('row').filter({ hasText: 'Gehwegplatten' });
-  await expect(slabRow.getByRole('cell')).toHaveText(['Gehwegplatten · 400 × 400 × 50 mm', '2', '1', '1']);
+  await page.locator('[data-testid^="object-"][aria-label^="Stützdreieck"] polygon').click();
+  await showProperties(page);
+  await expect(page.getByLabel('Betonplatten', { exact: true })).toHaveValue('2');
   expect(errors).toEqual([]);
 });

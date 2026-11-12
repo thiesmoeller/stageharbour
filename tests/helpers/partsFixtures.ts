@@ -9,7 +9,7 @@ export const refOf = (definition: PartDefinition): PartRef => ({ id: definition.
 export const FIXTURE_MATERIALS: PartMaterial[] = [
   ...STARTER_MATERIALS,
   { kind: 'hardware', key: 'kiste', name: 'Transportkiste', weightKgPerPiece: 4, color: '#555555' },
-  { kind: 'sheet', key: 'tuerblatt-40', name: 'Türblatt 40 mm', thickness: 40, weightKgPerM2: 20, color: '#8a5a2b' },
+  { kind: 'sheet', key: 'fixture-tuerblatt-40', name: 'Türblatt 40 mm', thickness: 40, weightKgPerM2: 20, color: '#8a5a2b' },
   { kind: 'profile', key: 'zarge-60x28', name: 'Zargenprofil 60 × 28 mm', section: { width: 60, height: 28 }, weightKgPerM: 1.2, color: '#eeeeee' },
 ];
 
@@ -43,7 +43,7 @@ export const DOOR_LEAF: PartDefinition = {
   ],
   bodies: [
     {
-      kind: 'sheet', key: 'blatt', material: 'tuerblatt-40', plane: 'xy', anchor: 'centre', at: [0, 0, 0],
+      kind: 'sheet', key: 'blatt', material: 'fixture-tuerblatt-40', plane: 'xy', anchor: 'centre', at: [0, 0, 0],
       outline: { shape: 'rect', x: 0, y: 0, width: 'B', height: 'H' },
     },
   ],

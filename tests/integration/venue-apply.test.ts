@@ -6,16 +6,27 @@ import { hashPassword } from 'better-auth/crypto';
 import { createApp } from '../../src/server/app.js';
 import { bootstrapAdministrator } from '../../src/server/identity/bootstrap.js';
 import { account, membership, user, venueVersion } from '../../src/server/db/schema.js';
-import { newWall, type Scene } from '../../src/shared/layout.js';
+import type { Scene } from '../../src/shared/layout.js';
 import { AUDIENCE_FLOOR_ID, newPlatform } from '../../src/shared/levels.js';
 import { newOverheadBox } from '../../src/shared/overhead.js';
 import { newKeepClearZone } from '../../src/shared/keepClear.js';
+import { STARTER_PART_IDS } from '../../src/shared/parts/starter/index.js';
 import { testAdministrator, testDatabase } from '../helpers/database.js';
 
 let fixture: Awaited<ReturnType<typeof testDatabase>>;
 let app: Awaited<ReturnType<typeof createApp>>;
 let headers: { cookie: string; origin: string };
 let base: string;
+
+function wallObject(id: string, x: number, y: number, support: string, height = 2400) {
+  return {
+    id, label: 'Wandelement',
+    part: { id: STARTER_PART_IDS.wall, revision: 1 },
+    variant: 'plain',
+    values: { B: 1200, H: height, D: 28 },
+    x, y, rotation: 0, support,
+  };
+}
 
 before(async () => {
   fixture = await testDatabase();
@@ -55,11 +66,11 @@ test('saving a venue inserts a new version; siblings stay pinned until they appl
   const pinnedA = (await app.inject({ url: `${base}/${lastYear.id}`, headers })).json<Scene>();
   assert.notEqual(pinnedA.venueVersionId, lastYear.venueVersionId);
   assert.equal(pinnedA.venue.ceilingHeight, 8000);
-  const onPlatform = { ...newWall(randomUUID(), 4000, 4800), supportingSurfaceId: platform.id };
-  const crossing = { ...newWall(randomUUID(), 4000, 4750), height: 2800, label: 'Bühnenwand' };
+  const onPlatform = wallObject(randomUUID(), 4000, 4800, platform.id);
+  const crossing = { ...wallObject(randomUUID(), 4000, 4750, AUDIENCE_FLOOR_ID, 2800), label: 'Bühnenwand' };
   assert.equal((await app.inject({
     method: 'PUT', url: `${base}/${lastYear.id}/layout`, headers,
-    payload: { revision: pinnedA.revision, layout: { schemaVersion: 1, walls: [onPlatform, crossing], braces: [] } },
+    payload: { revision: pinnedA.revision, layout: { schemaVersion: 2, objects: [onPlatform, crossing], joints: [] } },
   })).statusCode, 200);
   const dest = (await app.inject({
     method: 'POST', url: base, headers,
@@ -92,7 +103,7 @@ test('saving a venue inserts a new version; siblings stay pinned until they appl
   assert.notEqual(issuer.venueVersionId, current.venueVersionId);
   assert.equal(issuer.venue.ceilingHeight, 2000);
   assert.equal(issuer.venueUpdateAvailable, false);
-  assert.equal(issuer.layout.walls[0]?.supportingSurfaceId, undefined);
+  assert.equal(issuer.layout.objects[0]?.support, undefined);
   const [oldRow] = await fixture.db.select().from(venueVersion).where(eq(venueVersion.id, current.venueVersionId));
   assert.equal(oldRow?.geometry.ceilingHeight, 8000);
   assert.equal(oldRow?.geometry.platforms?.[0]?.id, platform.id);
@@ -105,8 +116,8 @@ test('saving a venue inserts a new version; siblings stay pinned until they appl
   assert.equal(stillPinned.venue.ceilingHeight, 8000);
   assert.equal(stillPinned.venue.platforms?.[0]?.id, platform.id);
   assert.equal(stillPinned.venueUpdateAvailable, true);
-  assert.equal(stillPinned.layout.walls[0]?.supportingSurfaceId, platform.id);
-  assert.equal(stillPinned.layout.walls[1]?.supportingSurfaceId, AUDIENCE_FLOOR_ID);
+  assert.equal(stillPinned.layout.objects[0]?.support, platform.id);
+  assert.equal(stillPinned.layout.objects[1]?.support, AUDIENCE_FLOOR_ID);
   const afterSave = Buffer.from((await app.inject({ url: `${base}/${lastYear.id}/exports/${frozen.json().id}/file`, headers })).rawPayload);
   assert.deepEqual(afterSave, original);
   assert.equal((await app.inject({ method: 'POST', url: `${base}/${sibling.id}/venue-apply`, headers, payload: {} })).statusCode, 423);
@@ -120,11 +131,11 @@ test('saving a venue inserts a new version; siblings stay pinned until they appl
   assert.equal(result.venueVersionId, issuer.venueVersionId);
   assert.equal(result.venue.ceilingHeight, 2000);
   assert.equal(result.venueUpdateAvailable, false);
-  assert.equal(result.layout.walls[0]?.supportingSurfaceId, undefined);
-  assert.equal(result.unresolvedSupport.some(item => item.objectId === result.layout.walls[0]?.id && item.kind === 'missing-surface'), true);
-  assert.equal(result.warnings.some(item => item.kind === 'ceiling' && item.objectId === result.layout.walls[1]?.id), true);
-  assert.equal(result.warnings.some(item => item.kind === 'overhead' && item.objectId === result.layout.walls[1]?.id), true);
-  assert.equal(result.unresolvedWarnings.some(item => item.kind === 'keep-clear-overlap' && item.objectId === result.layout.walls[1]?.id), true);
+  assert.equal(result.layout.objects[0]?.support, undefined);
+  assert.equal(result.unresolvedSupport.some(item => item.objectId === result.layout.objects[0]?.id && item.kind === 'missing-surface'), true);
+  assert.equal(result.warnings.some(item => item.kind === 'ceiling' && item.objectId === result.layout.objects[1]?.id), true);
+  assert.equal(result.warnings.some(item => item.kind === 'overhead' && item.objectId === result.layout.objects[1]?.id), true);
+  assert.equal(result.unresolvedWarnings.some(item => item.kind === 'keep-clear-overlap' && item.objectId === result.layout.objects[1]?.id), true);
   const afterApply = Buffer.from((await app.inject({ url: `${base}/${lastYear.id}/exports/${frozen.json().id}/file`, headers })).rawPayload);
   assert.deepEqual(afterApply, original);
 });
