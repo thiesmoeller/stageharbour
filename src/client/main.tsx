@@ -2,7 +2,7 @@ import { awaitLocalMode } from './local/boot.js';
 import { LocalWorkspaceBar } from './local/LocalWorkspaceBar.js';
 import { isLocalMode, localCapabilities } from './local/mode.js';
 import { FeedbackProvider, FeedbackButton } from './feedback/Feedback.js';
-import { StrictMode, useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { lazy, StrictMode, Suspense, useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { z } from 'zod';
 import { invitationSchema, loginOptionsSchema, meSchema, membersSchema, invitationPreviewSchema, passwordResetPreviewSchema, brandingSchema, DEFAULT_BRANDING, type Branding, type Me, type Member, type Role } from '../shared/contracts.js';
@@ -16,6 +16,7 @@ import { AuditLog } from './AuditLog.js';
 import { parseWorkspaceLocation, workspaceHash, writeWorkspaceLocation, type WorkspaceLocation } from './workspaceRoutes.js';
 import { askConfirm, ConfirmHost } from './ConfirmDialog.js';
 import { shouldBlockDirtyRouteChange, UNSAVED_ROUTE_LEAVE_CONFIRM } from './dirtyRouteChange.js';
+import { isStageCanvasHarnessRoute } from './stage/harnessRoute.js';
 import './style.css';
 import './workspace.css';
 
@@ -573,4 +574,8 @@ function Members({ me }: { me: Me }) {
   </section>;
 }
 
-createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>);
+const StageCanvasHarness = lazy(() => import('./stage/StageCanvasHarness.js').then(module => ({ default: module.StageCanvasHarness })));
+
+createRoot(document.getElementById('root')!).render(<StrictMode>
+  {isStageCanvasHarnessRoute(location, import.meta.env.DEV) ? <Suspense fallback={null}><StageCanvasHarness /></Suspense> : <App />}
+</StrictMode>);
