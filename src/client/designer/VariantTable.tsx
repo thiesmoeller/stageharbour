@@ -23,7 +23,7 @@ export function VariantTable({ definition, onChange, issues, disabled, previewVa
     {variants.length > 0 && <table className="designer-table">
       <thead><tr>
         <th scope="col">Vorschau</th><th scope="col">Schlüssel</th><th scope="col">Bezeichnung</th>
-        {columns.map(parameter => <th key={parameter.key} scope="col">{parameter.label} ({parameter.key})</th>)}
+        {columns.map(parameter => <th key={parameter.key} scope="col" title={parameter.label}>{parameter.key}</th>)}
         <th scope="col"><span className="sr-only">Aktionen</span></th>
       </tr></thead>
       <tbody>
@@ -54,7 +54,7 @@ export function VariantTable({ definition, onChange, issues, disabled, previewVa
               <button type="button" className="quiet icon-button" disabled={disabled || index === 0} aria-label={`Variante ${variant.key} nach oben`}
                 onClick={() => setVariants(moveItem(variants, index, -1))}>↑</button>
               <button type="button" className="quiet icon-button" disabled={disabled} aria-label={`Variante ${variant.key} entfernen`}
-                onClick={() => setVariants(removeAt(variants, index))}>Entfernen</button>
+                onClick={() => setVariants(removeAt(variants, index))}>×</button>
             </td>
           </tr>
           {own.length > 0 && <tr className="row-issues"><td colSpan={columns.length + 4}><IssueLines issues={own} /></td></tr>}

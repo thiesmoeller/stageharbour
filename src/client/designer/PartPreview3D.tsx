@@ -91,10 +91,10 @@ export function PartPreview3D({ resolved, materials, selection, label = '3D-Vors
         onChange={event => setQuality(event.target.checked ? 'enhanced' : 'simple')} /> Erweiterte Darstellung</label>
     </div>
     <PreviewBoundary>
-      <StageCanvas className="designer-canvas" aria-label={label} theme="studio" quality={quality} bounds={bounds} camera={camera}
+      <div className="designer-canvas"><StageCanvas aria-label={label} theme="studio" quality={quality} bounds={bounds} camera={camera}
         controls={{ buttons: 'preview' }} ground="solid">
         {resolved && <PartMesh resolved={resolved} materials={materials} selection={selection} />}
-      </StageCanvas>
+      </StageCanvas></div>
     </PreviewBoundary>
   </div>;
 }

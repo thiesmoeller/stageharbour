@@ -1,5 +1,5 @@
 /* Bühnentechnik-Designer. Scoped to .designer-page; builds on the workspace palette in workspace.css. */
-.workspace:has(.designer-page) { width: min(2200px, 98vw); }
+.workspace:has(.designer-page) { width: min(2200px, 98vw); max-width: none; }
 .designer-page { color: var(--ui-ink); }
 .designer-page .section-heading .muted { margin-top: 4px; max-width: 760px; }
 .designer-page label { margin: 0; font-size: 12px; font-weight: 600; color: #475b65; }
@@ -23,7 +23,7 @@
 .designer-page .checkbox-line { display: flex; align-items: center; font-weight: 400; margin: 4px 0; }
 .designer-readonly { margin: 12px 0 0; padding: 8px 12px; border: 1px solid #d7dde2; background: #f3f6f7; border-radius: 6px; font-size: 13px; color: var(--ui-muted); }
 
-.designer-layout { display: grid; grid-template-columns: minmax(230px, 280px) minmax(0, 1fr) minmax(340px, 440px); gap: 16px; margin-top: 18px; align-items: start; }
+.designer-layout { display: grid; grid-template-columns: minmax(240px, 290px) minmax(0, 1fr) minmax(380px, 480px); gap: 16px; margin-top: 18px; align-items: start; }
 .designer-left, .designer-right { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .designer-centre { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .designer-right { border: 1px solid var(--ui-line); border-radius: 8px; overflow: hidden; background: #fff; }
@@ -36,10 +36,10 @@
 .designer-elements ol { list-style: none; margin: 0; padding: 0; }
 .designer-elements li { display: flex; align-items: center; gap: 4px; border-radius: 5px; }
 .designer-elements li.selected { background: #e6f1ef; }
-.designer-elements .element-select { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; background: none; color: var(--ui-ink); padding: 4px 6px; text-align: left; font-weight: 500; }
+.designer-elements .element-select { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; column-gap: 6px; row-gap: 0; background: none; color: var(--ui-ink); padding: 4px 6px; text-align: left; font-weight: 500; }
 .designer-elements .element-select:hover { background: #f3f6f7; }
 .designer-elements .element-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.designer-elements .element-detail { margin-left: auto; font-size: 11px; color: var(--ui-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.designer-elements .element-detail { flex-basis: 100%; padding-left: 16px; font-size: 11px; font-weight: 400; color: var(--ui-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .designer-elements .element-marker { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; border: 1px solid #0002; }
 .element-actions { display: inline-flex; gap: 2px; flex-shrink: 0; }
 .element-actions .icon-button { padding: 0 5px; min-width: 22px; font-size: 12px; }
@@ -63,6 +63,7 @@
 .designer-starters ul { list-style: none; margin: 0; padding: 0; }
 .designer-starters li { display: flex; flex-direction: column; gap: 2px; padding: 6px 0; border-bottom: 1px solid #eef1f3; }
 .designer-starters .designer-actions { margin-top: 2px; }
+.designer-starters .part-name { font-weight: 600; font-size: 13px; }
 .designer-import-report { margin-top: 8px; padding: 8px; font-size: 12px; background: #eef6f4; border: 1px solid #c6ddd8; border-radius: 6px; }
 .designer-import-report p { margin: 0 0 4px; }
 .designer-import-report ul { margin: 0 0 6px; padding-left: 16px; }
@@ -102,6 +103,7 @@
 .designer-subsection { margin: 0; padding: 8px; border: 1px solid var(--ui-line); border-radius: 6px; display: flex; flex-direction: column; gap: 6px; }
 .designer-subsection legend { font-size: 12px; font-weight: 600; color: #475b65; padding: 0 4px; }
 .designer-element { display: flex; flex-direction: column; gap: 8px; }
+.designer-element > button, .designer-subsection > button, .repeat-level > button, .designer-traits button.quiet:not(.icon-button) { align-self: flex-start; }
 .designer-child-ref { margin: 0; font-size: 12px; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .repeat-level { display: flex; flex-direction: column; gap: 6px; padding-bottom: 6px; border-bottom: 1px dashed var(--ui-line); }
 .repeat-title { margin: 0; font-size: 12px; font-weight: 600; }
@@ -133,8 +135,15 @@
 .designer-table th { font-size: 11px; color: var(--ui-muted); }
 .designer-table caption { text-align: left; font-size: 12px; font-weight: 600; padding: 4px 0; color: #475b65; }
 .designer-table input, .designer-table select { width: 100%; min-width: 54px; }
+.designer-table .row-actions { white-space: nowrap; }
 .designer-table .row-issues td { padding-top: 0; border-bottom-color: var(--ui-line); }
-.designer-table .range-inputs { display: flex; gap: 4px; }
+.designer-table .range-inputs { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--ui-muted); }
+.designer-table .range-inputs input { width: 64px; min-width: 0; }
+.parameter-table tbody.parameter-row > tr:first-child td { border-bottom: 0; padding-bottom: 2px; }
+.parameter-table .parameter-details td { padding-top: 0; }
+.parameter-details-line { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.parameter-details-line select { width: auto; min-width: 0; }
+.parameter-details-line > input { flex: 1; min-width: 90px; }
 .designer-table.compact td, .designer-table.compact th { padding: 3px 5px; }
 .designer-cutlist { display: flex; flex-direction: column; gap: 8px; }
 .designer-weight { display: flex; justify-content: space-between; margin: 0; font-size: 13px; }
