@@ -35,6 +35,8 @@ import { CentrelineMark } from './SnapGuides.js';
 import { MeasureLayer } from './MeasureLayer.js';
 import { DimensionLayer } from './DimensionLayer.js';
 import { RecipientDocumentWorkspace } from './RecipientDocumentWorkspace.js';
+import { downloadExchangeFile } from './exchangeDownload.js';
+import type { ExchangeFormat } from '../../shared/exchange/formats.js';
 import { SurfaceRegistryPanel } from './SurfaceRegistryPanel.js';
 import { SurfaceRegistryProvider } from './SurfaceRegistryContext.js';
 import { ToolIcon } from './ToolIcon.js';
@@ -168,6 +170,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
   }));
   const saveState = useSyncExternalStore(saver.subscribe, saver.getSnapshot);
   const readOnly = permissionReadOnly || saveState.status === 'conflict';
+  const exchangeBlocked = saveState.dirty || venueDirty || pendingForms > 0;
   const sceneLease = useEditingLease(`/api/workspaces/${workspaceId}/scenes/${initial.id}`, !permissionReadOnly);
 
   useEffect(() => { recordFeedbackActivity({ action: `save.${saveState.status}`, area: 'plans' }); }, [saveState.status]);
@@ -375,6 +378,14 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
       setCatalogMessage('Der Name konnte nicht gespeichert werden.');
     }
   }
+  async function exportExchange(format: ExchangeFormat) {
+    setCatalogMessage('');
+    try {
+      await downloadExchangeFile(workspaceId, initial.id, sceneName, format);
+    } catch (error) {
+      setCatalogMessage(error instanceof ApiError ? error.message : 'Der Export konnte nicht erstellt werden.');
+    }
+  }
   function downloadDraft() {
     const url = URL.createObjectURL(new Blob([
       JSON.stringify({ ...initial, name: sceneName, revision: saveState.revision, layout: state.present }, null, 2),
@@ -548,6 +559,10 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
         <EditorMenuBar>
           <EditorMenu label="Datei">
             <button type="button" onClick={() => setExportsOpen(true)}>Ausgabe erstellen</button>
+            <button type="button" data-testid="export-gltf" disabled={exchangeBlocked} title={exchangeBlocked ? 'Erst speichern, dann exportieren.' : 'Bühnenbild und Spielstätte als glTF-Datei (.glb) für Visualisierungen'}
+              onClick={() => void exportExchange('gltf')}>Export als glTF (.glb)</button>
+            <button type="button" data-testid="export-mvr" disabled={exchangeBlocked} title={exchangeBlocked ? 'Erst speichern, dann exportieren.' : 'Bühnenbild als MVR-Datei (DIN SPEC 15801) für Lichtpulte und Visualisierer'}
+              onClick={() => void exportExchange('mvr')}>Export als MVR</button>
             <button type="button" onClick={onClose}>Bühnenbild schließen</button>
           </EditorMenu>
           <EditorMenu label="Bearbeiten">

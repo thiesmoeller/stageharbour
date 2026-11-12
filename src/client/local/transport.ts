@@ -39,6 +39,7 @@ import { wallTypeSchema, type WallElementType } from '../../shared/wall-types.js
 import { createLayoutPartIndex, resolveLayoutObjects } from '../../shared/layoutObjects.js';
 import type { StockInventory } from '../../shared/partLists.js';
 import { productionStockDemand, stockDemand, type DemandScene } from '../../shared/stockDemand.js';
+import { isExchangeFormat } from '../../shared/exchange/formats.js';
 import { STARTER_PART_IDS } from '../../shared/parts/starter/index.js';
 import { createVenueSchema, publishVenueSchema, renameVenueSchema, venuePlanPreview } from '../../shared/venueLibrary.js';
 import { boundsFromOutline } from '../../shared/venue.js';
@@ -1066,8 +1067,23 @@ export function createLocalTransport(store: LocalStore, options: PartsHandlerOpt
     async upload() {
       fail(501, 'Uploads sind im lokalen Demo-Modus nicht verfügbar.');
     },
-    async getBlob() {
-      fail(501, 'PDF- und Dateiabrufe sind im lokalen Demo-Modus nicht verfügbar.');
+    async getBlob(path) {
+      const params = match(pathOnly(path), '/api/workspaces/:workspaceId/scenes/:sceneId/export/:format');
+      if (!params) fail(501, 'PDF- und Dateiabrufe sind im lokalen Demo-Modus nicht verfügbar.');
+      const snapshot = store.getSnapshot();
+      requireWorkspace(snapshot, params.workspaceId!);
+      if (!isExchangeFormat(params.format!)) fail(404, 'Dieses Austauschformat gibt es nicht.');
+      const record = toSceneRecord(snapshot, findScene(snapshot, params.sceneId!));
+      const { exportSceneFile } = await import('../../shared/exchange/index.js');
+      const file = await exportSceneFile({
+        format: params.format, scene: record, venue: record.venue, layout: record.layout,
+        catalog: createLayoutPartIndex({
+          parts: snapshot.catalog.revisions.map(item => item.definition),
+          materials: snapshot.catalog.materials,
+        }),
+        providerVersion: 'lokal',
+      });
+      return new Blob([file.data], { type: file.contentType });
     },
   };
 }
