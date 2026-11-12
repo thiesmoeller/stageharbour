@@ -1,13 +1,12 @@
 name: Local demo (GitHub Pages)
-# The public browser demo is built from the `dev` branch. This workflow file on
-# `main` only documents that; pushes to `dev` run the copy of this file there.
+# Public demo URL always serves the tip of `dev`. This workflow runs on `main`
+# so it satisfies the github-pages environment branch policy (main only, until
+# `dev` is also allowed). Prefer enabling `dev` as a deployment branch so pushes
+# to `dev` update the site directly via the workflow copy on that branch.
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
-    inputs:
-      note:
-        description: 'Emergency rebuild from main (prefer pushing to dev)'
-        required: false
-        default: ''
 permissions:
   contents: read
   pages: write
