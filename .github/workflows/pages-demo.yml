@@ -1,8 +1,13 @@
 name: Local demo (GitHub Pages)
+# The public browser demo is built from the `dev` branch. This workflow file on
+# `main` only documents that; pushes to `dev` run the copy of this file there.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      note:
+        description: 'Emergency rebuild from main (prefer pushing to dev)'
+        required: false
+        default: ''
 permissions:
   contents: read
   pages: write
@@ -16,12 +21,14 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7.0.1
+        with:
+          ref: dev
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: 24.22.2
           cache: npm
       - run: npm ci
-      - name: Build browser-local demo
+      - name: Build browser-local demo from dev
         env:
           VITE_LOCAL_MODE: '1'
           VITE_BASE: /${{ github.event.repository.name }}/
