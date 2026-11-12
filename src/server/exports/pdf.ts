@@ -6,10 +6,9 @@ import {
   boundsOverlapTile, drawingAreaMm, PAGE_HEADER_MM, PAGE_MARGIN_MM, PAGE_OVERLAP_MM,
   planTiles, REGISTRATION_MARK_MM, type PlanTile,
 } from '../../shared/tiling.js';
-import { strokeBraceFootprints } from './bracePdf.js';
 import { strokeKeepClearZones } from './keepClearPdf.js';
 import { strokeLevelFeatures } from './levelPdf.js';
-import { strokeAssemblyLabels } from './assemblyPdf.js';
+import { strokePartSymbols } from './partPdf.js';
 import { packElevationPages, strokeElevations } from './elevationPdf.js';
 import { strokeOverheadFeatures } from './overheadPdf.js';
 import { strokePlaceholders } from './placeholderPdf.js';
@@ -37,8 +36,6 @@ function forTile(snapshot: ConstructionSnapshot, tile: PlanTile): ConstructionSn
   };
   return {
     ...snapshot,
-    resolvedWalls: snapshot.resolvedWalls.filter(wall => hit(wall.corners)),
-    resolvedBraces: (snapshot.resolvedBraces ?? []).filter(brace => hit(brace.corners)),
     resolvedPlaceholders: (snapshot.resolvedPlaceholders ?? []).filter(item => hit(item.corners)),
   };
 }
@@ -84,26 +81,9 @@ function strokePlan(
     }
   }
   if (layers.scenery) {
-    for (const wall of snapshot.resolvedWalls) {
-      const [a, b, c, d] = wall.corners.map(point => toPage(point.x, point.y));
-      if (!a || !b || !c || !d) continue;
-      doc.moveTo(a.x, a.y).lineTo(b.x, b.y).lineTo(c.x, c.y).lineTo(d.x, d.y).closePath().fillAndStroke('#315d49', '#315d49');
-      for (const opening of wall.openings ?? []) {
-        const [oa, ob, oc, od] = opening.corners.map(point => toPage(point.x, point.y));
-        if (!oa || !ob || !oc || !od) continue;
-        doc.moveTo(oa.x, oa.y).lineTo(ob.x, ob.y).lineTo(oc.x, oc.y).lineTo(od.x, od.y).closePath().fillAndStroke('#ffffff', '#315d49');
-      }
-      if (layers.dimensions) {
-        const widthMm = Math.hypot(wall.corners[1]!.x - wall.corners[0]!.x, wall.corners[1]!.y - wall.corners[0]!.y);
-        const midX = (a.x + b.x) / 2, midY = (a.y + b.y) / 2;
-        doc.fontSize(7).fillColor('#395640')
-          .text(`${Math.round(widthMm)} mm`, midX - mm(7), midY - mm(5), { lineBreak: false });
-      }
-    }
-    strokeBraceFootprints(doc, snapshot, toPage);
+    strokePartSymbols(doc, snapshot, toPage);
     strokePlaceholders(doc, snapshot, toPage);
   }
-  if (layers.labels || layers.orientation) strokeAssemblyLabels(doc, snapshot, toPage);
   strokeOverheadFeatures(doc, snapshot, toPage);
   strokeKeepClearZones(doc, snapshot, toPage);
   if (layers.venueContext) {

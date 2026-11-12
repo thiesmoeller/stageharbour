@@ -1,10 +1,9 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { and, eq, lt } from 'drizzle-orm';
-import { germanDate, type ConstructionSnapshot } from '../../shared/export.js';
+import { CONSTRUCTION_SNAPSHOT_VERSION, germanDate, type ConstructionSnapshot } from '../../shared/export.js';
 import {
   composeDocument, layoutManifest, PREVIEW_TTL_MS, type DocumentLayout, type ExportDocumentSpec, type FrozenScene,
 } from '../../shared/exportDocument.js';
-import type { ConstructionPackage } from '../../shared/package.js';
 import type { Database } from '../db/connection.js';
 import { exportPreparation } from '../db/schema.js';
 import { createFontMeasure, renderDocument } from './documentPdf.js';
@@ -17,13 +16,21 @@ export type IssuedDocument = {
   spec: ExportDocumentSpec;
   productionName: string;
   issuedAt: string;
+  /** Each snapshot inlines the part revisions and stock it was drawn from. */
   scenes: FrozenScene[];
-  stock?: ConstructionPackage['stock'];
 };
 
+/**
+ * Documents whose scenes inline their part library can be drawn again. Older issued documents
+ * keep their stored PDF bytes.
+ */
 export function isIssuedDocument(value: unknown): value is IssuedDocument {
-  return Boolean(value && typeof value === 'object' && (value as { schemaVersion?: number }).schemaVersion === 2
-    && Array.isArray((value as IssuedDocument).scenes));
+  if (!value || typeof value !== 'object' || (value as { schemaVersion?: number }).schemaVersion !== 2) return false;
+  const scenes = (value as { scenes?: unknown }).scenes;
+  return Array.isArray(scenes) && scenes.every(scene => {
+    const snapshot = (scene as { snapshot?: { schemaVersion?: unknown; library?: unknown } } | null)?.snapshot;
+    return snapshot?.schemaVersion === CONSTRUCTION_SNAPSHOT_VERSION && Boolean(snapshot.library);
+  });
 }
 
 function stableStringify(value: unknown): string {
@@ -87,7 +94,7 @@ async function renderPreparation(
     const measure = createFontMeasure();
     const layout = composeDocument({
       spec: frozen.spec, scenes: frozen.scenes, productionName: frozen.productionName,
-      issuedAtLabel: germanDate(frozen.issuedAt), stock: frozen.stock, measure,
+      issuedAtLabel: germanDate(frozen.issuedAt), measure,
     });
     const images = renderImages ? await renderImages(layout, frozen) : new Map<string, Buffer>();
     if (signal.aborted) throw new Error('cancelled');
@@ -115,7 +122,7 @@ export async function renderIssuedDocument(frozen: IssuedDocument) {
   const measure = createFontMeasure();
   const layout = composeDocument({
     spec: frozen.spec, scenes: frozen.scenes, productionName: frozen.productionName,
-    issuedAtLabel: germanDate(frozen.issuedAt), stock: frozen.stock, measure,
+    issuedAtLabel: germanDate(frozen.issuedAt), measure,
   });
   return renderDocument(layout);
 }

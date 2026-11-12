@@ -1,4 +1,3 @@
-import { EMPTY_BALLAST_STOCK } from '../../shared/ballast.js';
 import { randomUUID } from 'node:crypto';
 import { and, eq, inArray } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
@@ -9,19 +8,16 @@ import { exportRevisionSchema, freezeSnapshot } from '../../shared/export.js';
 import { documentDraftSchema, exportDocumentSpecSchema, prepareDocumentBodySchema, decodeViewImages, type ExportDocumentSpec, type FrozenScene } from '../../shared/exportDocument.js';
 import { sceneSchema, type Scene } from '../../shared/layout.js';
 import { migrateLayout } from '../../shared/layoutMigrate.js';
-import { createLayoutPartIndex, resolveLayoutObjects } from '../../shared/layoutObjects.js';
-import { freezePackage } from '../../shared/package.js';
 import type { Database } from '../db/connection.js';
 import {
-  inventoryBallast, adaptation, constructionPackage, constructionPlanRevision, documentDraft, exportPreparation, inventoryPanel, inventoryWallType,
-  production, scene, stockItem, venue, venueVersion,
+  adaptation, constructionPackage, constructionPlanRevision, documentDraft, exportPreparation, production, scene, venue, venueVersion,
 } from '../db/schema.js';
-import { loadAllRevisions, loadMaterials } from '../parts/data.js';
 import { AccessError, type createAccess } from '../identity/access.js';
 import {
   cancelPreparation, enqueuePreparation, expirePreparations, isIssuedDocument, newPreparationId,
   preparationExpiry, renderIssuedDocument, sourceFingerprint, type IssuedDocument,
 } from './documentJobs.js';
+import { freezeSource, workspacePartIndex } from './freezeSource.js';
 import type { FileStorage } from './storage.js';
 
 const jobSchema = z.strictObject({
@@ -66,31 +62,7 @@ export function registerDocumentRoutes(
     return loaded as Scene[];
   }
 
-  async function layoutIndex(workspaceId: string) {
-    const [revisions, materials] = await Promise.all([loadAllRevisions(db, workspaceId), loadMaterials(db, workspaceId)]);
-    return createLayoutPartIndex({
-      parts: [...revisions.values()].flatMap(items => [...items.values()]),
-      materials: [...materials.values()],
-    });
-  }
-
-  async function stockLabels(workspaceId: string, itemIds: string[]) {
-    const ids = [...new Set(itemIds)];
-    if (!ids.length) return {};
-    const rows = await db.select({ id: stockItem.id, label: stockItem.label })
-      .from(stockItem).where(and(eq(stockItem.workspaceId, workspaceId), inArray(stockItem.id, ids)));
-    return Object.fromEntries(rows.map(row => [row.id, row.label]));
-  }
-
-  async function inventory(workspaceId: string) {
-    const types = await db.select().from(inventoryWallType).where(eq(inventoryWallType.workspaceId, workspaceId));
-    const typeMap = new Map(types.map(row => [row.id, row.definition]));
-    const rows = await db.select().from(inventoryPanel).where(eq(inventoryPanel.workspaceId, workspaceId));
-    return rows.flatMap(row => {
-      const type = typeMap.get(row.typeId);
-      return type ? [{ id: row.id, label: row.label, typeId: row.typeId, available: row.available, note: row.note, type }] : [];
-    });
-  }
+  const layoutIndex = (workspaceId: string) => workspacePartIndex(db, workspaceId);
 
   function asJob(row: typeof exportPreparation.$inferSelect) {
     return {
@@ -151,26 +123,18 @@ export function registerDocumentRoutes(
     const spec = exportDocumentSpecSchema.parse(specFields);
     const scenes = await loadScenes(request.params.workspaceId, spec.scenes.map(item => item.sceneId));
     const issuedAt = new Date();
-    const labels = await stockLabels(request.params.workspaceId, scenes.flatMap(scene => scene.layout.objects.flatMap(object => object.stockItemId ? [object.stockItemId] : [])));
-    const index = await layoutIndex(request.params.workspaceId);
+    const source = await freezeSource(db, request.params.workspaceId);
     const frozenScenes = scenes.map(scene => {
       const selected = spec.scenes.find(item => item.sceneId === scene.id);
       const snapshot = freezeSnapshot(scene, {
         id: randomUUID(), name: spec.revisionName, issuedAt, paper: spec.paper,
         scale: spec.scale, elevationGroupIds: selected?.elevationGroupIds ?? [], layers: spec.layers,
-      }, labels, resolveLayoutObjects(scene.layout, index));
+      }, source);
       return { sceneId: scene.id, sceneName: scene.name, venueName: scene.venueName, snapshot };
     });
-    const [ballastStock] = await db.select({ slabs: inventoryBallast.slabs, straps: inventoryBallast.straps }).from(inventoryBallast).where(eq(inventoryBallast.workspaceId, request.params.workspaceId));
-    const packageStock = spec.kind === 'package' || spec.scenes.length > 1
-      ? freezePackage(scenes, {
-        id: randomUUID(), name: spec.revisionName, issuedAt, paper: spec.paper, scale: spec.scale,
-        elevationGroupIds: spec.scenes[0]?.elevationGroupIds ?? [], layers: spec.layers,
-      }, await inventory(request.params.workspaceId), ballastStock ?? EMPTY_BALLAST_STOCK).stock
-      : undefined;
     const frozen: IssuedDocument = {
       schemaVersion: 2, paper: spec.paper, scale: spec.scale, spec, productionName: scenes[0]!.productionName,
-      issuedAt: issuedAt.toISOString(), scenes: frozenScenes, stock: packageStock,
+      issuedAt: issuedAt.toISOString(), scenes: frozenScenes,
     };
     const id = newPreparationId();
     const row = {
