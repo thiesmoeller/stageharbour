@@ -8,10 +8,10 @@ import {
   stockItemParamsSchema, stockItemSchema, stockItemsSchema, unprocessableSchema, updateStockItemSchema,
   type StockCount, type StockItem,
 } from '../../shared/parts/catalog.js';
-import { compareNames, refused } from '../../shared/parts/catalogPlans.js';
+import { refused } from '../../shared/parts/catalogPlans.js';
 import {
-  newStockItemFields, stockCountMaterialIssue, stockCountPartIssue, stockItemTargetIssue, updatedStockItemFields,
-  variantColumn, variantFromColumn, variantLabelOf, type StockPart,
+  buildStockCount, buildStockItem, newStockItemFields, sortStockCounts, sortStockItems, stockCountMaterialIssue,
+  stockCountPartIssue, stockItemTargetIssue, updatedStockItemFields, variantColumn, variantFromColumn, type StockPart,
 } from '../../shared/parts/stock.js';
 import type { Database } from '../db/connection.js';
 import { partDefinition, partRevision, stockCount, stockItem } from '../db/schema.js';
@@ -48,13 +48,11 @@ export function registerStockRoutes(
   }
 
   function itemOf(row: ItemRow, part: PartInfo | undefined): StockItem {
-    const variantKey = variantFromColumn(row.variantKey);
-    return {
-      id: row.id, label: row.label, partId: row.partId, partName: part?.name ?? '',
-      variantKey, variantLabel: part ? variantLabelOf(part.definition, variantKey) : null,
+    return buildStockItem({
+      id: row.id, label: row.label, partId: row.partId, variantKey: variantFromColumn(row.variantKey),
       values: row.values, usable: row.usable, notes: row.notes, cutouts: row.cutouts, finish: row.finish ?? null,
-      archived: row.archivedAt !== null, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString(),
-    };
+      archivedAt: row.archivedAt?.toISOString() ?? null, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString(),
+    }, part);
   }
 
   async function readItem(store: Store, workspaceId: string, itemId: string, lock = false) {
@@ -82,8 +80,7 @@ export function registerStockRoutes(
     const rows = await db.select().from(stockItem).where(and(
       eq(stockItem.workspaceId, workspaceId), includesArchived(request.query) ? undefined : isNull(stockItem.archivedAt)));
     const parts = await readParts(db, workspaceId, [...new Set(rows.map(row => row.partId))]);
-    return rows.map(row => itemOf(row, parts.get(row.partId)))
-      .sort((a, b) => compareNames(a.label, b.label) || (a.id < b.id ? -1 : 1));
+    return sortStockItems(rows.map(row => itemOf(row, parts.get(row.partId))));
   });
 
   api.post(`${base}/items`, {
@@ -158,16 +155,10 @@ export function registerStockRoutes(
   async function presentCounts(store: Store, workspaceId: string, rows: readonly CountRow[]): Promise<StockCount[]> {
     const materials = await loadMaterials(store, workspaceId);
     const parts = await readParts(store, workspaceId, [...new Set(rows.flatMap(row => row.partId ? [row.partId] : []))]);
-    return rows.map(row => {
-      const variantKey = row.partId ? variantFromColumn(row.variantKey) : null;
-      const part = row.partId ? parts.get(row.partId) : undefined;
-      return {
-        id: row.id, materialKey: row.materialKey, partId: row.partId, variantKey,
-        name: row.materialKey ? materials.get(row.materialKey)?.name ?? row.materialKey : part?.name ?? '',
-        variantLabel: part ? variantLabelOf(part.definition, variantKey) : null,
-        quantity: row.quantity, updatedAt: row.updatedAt.toISOString(),
-      };
-    }).sort((a, b) => compareNames(a.name, b.name) || compareNames(a.variantLabel ?? '', b.variantLabel ?? '') || (a.id < b.id ? -1 : 1));
+    return sortStockCounts(rows.map(row => buildStockCount({
+      id: row.id, materialKey: row.materialKey, partId: row.partId,
+      variantKey: row.partId ? variantFromColumn(row.variantKey) : null, quantity: row.quantity, updatedAt: row.updatedAt.toISOString(),
+    }, { materialName: key => materials.get(key)?.name, part: id => parts.get(id) })));
   }
 
   api.get(`${base}/counts`, {

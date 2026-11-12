@@ -1,6 +1,6 @@
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import type { PartDetail, PartRevisionInfo, PartSummary } from '../../shared/parts/catalog.js';
-import { summarizeDefinition, compareNames } from '../../shared/parts/catalogPlans.js';
+import { buildPartDetail, buildPartSummary, sortPartSummaries } from '../../shared/parts/catalogPlans.js';
 import {
   createPartContext, partRefKey, type PartContext, type PartDefinition, type PartMaterial, type PartRef,
 } from '../../shared/parts/definition.js';
@@ -83,12 +83,13 @@ export async function contextFor(store: Store, workspaceId: string, input: unkno
 }
 
 export function summaryOf(row: PartRow, definition: PartDefinition): PartSummary {
-  return {
-    id: row.id, name: row.name, category: row.category, latestRevision: row.latestRevision,
-    archived: row.archivedAt !== null, favourite: row.favourite,
-    ...summarizeDefinition(definition), updatedAt: row.updatedAt.toISOString(),
-  };
+  return buildPartSummary(recordOf(row), definition);
 }
+
+const recordOf = (row: PartRow) => ({
+  id: row.id, name: row.name, category: row.category, latestRevision: row.latestRevision, favourite: row.favourite,
+  archivedAt: row.archivedAt?.toISOString() ?? null, updatedAt: row.updatedAt.toISOString(),
+});
 
 const latestJoin = and(
   eq(partRevision.workspaceId, partDefinition.workspaceId), eq(partRevision.partId, partDefinition.id),
@@ -98,8 +99,7 @@ export async function readSummaries(store: Store, workspaceId: string, includeAr
   const rows = await store.select({ part: partDefinition, definition: partRevision.definition }).from(partDefinition)
     .innerJoin(partRevision, latestJoin)
     .where(and(eq(partDefinition.workspaceId, workspaceId), includeArchived ? undefined : isNull(partDefinition.archivedAt)));
-  return rows.map(row => summaryOf(row.part, row.definition))
-    .sort((a, b) => compareNames(a.name, b.name) || (a.id < b.id ? -1 : 1));
+  return sortPartSummaries(rows.map(row => summaryOf(row.part, row.definition)));
 }
 
 export async function findPart(store: Store, workspaceId: string, partId: string, lock = false): Promise<PartRow> {
@@ -133,7 +133,7 @@ export async function readDetail(store: Store, workspaceId: string, partId: stri
   const infos: PartRevisionInfo[] = revisions.map(item => ({
     revision: item.revision, createdAt: item.createdAt.toISOString(), authorName: item.authorName,
   }));
-  return { ...summaryOf(row, definition), definition, revisions: infos };
+  return buildPartDetail(recordOf(row), definition, infos);
 }
 
 export async function insertNewPart(store: Store, workspaceId: string, definition: PartDefinition, authorId: string | null, now: Date) {

@@ -1,4 +1,5 @@
-import type { CreateStockItemRequest, StockItem, UpdateStockItemRequest } from './catalog.js';
+import type { CreateStockItemRequest, StockCount, StockItem, UpdateStockItemRequest } from './catalog.js';
+import { compareNames } from './catalogPlans.js';
 import {
   MATERIAL_KIND_LABELS, normalizeParameterValue, type PartDefinition, type PartMaterial, type StockMode,
 } from './definition.js';
@@ -105,3 +106,41 @@ export function updatedStockItemFields(current: StockItemFields, request: Update
     finish: request.finish === undefined ? current.finish : request.finish ? confirmed(request.finish, now) : null,
   };
 }
+
+/** A stock item as stored; `variantKey` is null for a part without variants, times are ISO strings. */
+export type StockItemRecord = StockItemFields & {
+  id: string; partId: string; archivedAt: string | null; createdAt: string; updatedAt: string;
+};
+
+export function buildStockItem(record: StockItemRecord, part: { name: string; definition: PartDefinition } | undefined): StockItem {
+  const { archivedAt, ...rest } = record;
+  return {
+    ...rest, partName: part?.name ?? '',
+    variantLabel: part ? variantLabelOf(part.definition, record.variantKey) : null,
+    archived: archivedAt !== null,
+  };
+}
+
+const compareText = (a: string, b: string): number => a < b ? -1 : a > b ? 1 : 0;
+
+export const sortStockItems = (items: readonly StockItem[]): StockItem[] =>
+  [...items].sort((a, b) => compareNames(a.label, b.label) || compareText(a.id, b.id));
+
+export type StockCountRecord = {
+  id: string; materialKey: string | null; partId: string | null; variantKey: string | null; quantity: number; updatedAt: string;
+};
+
+export function buildStockCount(
+  record: StockCountRecord,
+  lookup: { materialName(key: string): string | undefined; part(id: string): { name: string; definition: PartDefinition } | undefined },
+): StockCount {
+  const part = record.partId ? lookup.part(record.partId) : undefined;
+  return {
+    ...record,
+    name: record.materialKey ? lookup.materialName(record.materialKey) ?? record.materialKey : part?.name ?? '',
+    variantLabel: part ? variantLabelOf(part.definition, record.variantKey) : null,
+  };
+}
+
+export const sortStockCounts = (counts: readonly StockCount[]): StockCount[] =>
+  [...counts].sort((a, b) => compareNames(a.name, b.name) || compareNames(a.variantLabel ?? '', b.variantLabel ?? '') || compareText(a.id, b.id));

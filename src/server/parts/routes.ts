@@ -11,7 +11,7 @@ import {
   unprocessableSchema, type ResolvedParts,
 } from '../../shared/parts/catalog.js';
 import {
-  compareNames, planCreatePart, planDuplicatePart, planMaterialDelete, planMaterialUpsert, planSavePart,
+  planCreatePart, planDuplicatePart, planMaterialDelete, planMaterialUpsert, planSavePart, sortMaterials,
 } from '../../shared/parts/catalogPlans.js';
 import { materialSchema, partLibraryJsonSchema, partRefKey, type PartDefinition } from '../../shared/parts/definition.js';
 import {
@@ -175,8 +175,7 @@ export function registerPartRoutes(
     schema: { params: workspaceParamsSchema, response: { 200: materialListSchema, ...errors } },
   }, async request => {
     await access(request, request.params.workspaceId);
-    const materials = [...(await loadMaterials(db, request.params.workspaceId)).values()];
-    return materials.sort((a, b) => a.kind.localeCompare(b.kind) || compareNames(a.name, b.name));
+    return sortMaterials([...(await loadMaterials(db, request.params.workspaceId)).values()]);
   });
 
   api.put(`${base}/materials/:key`, {

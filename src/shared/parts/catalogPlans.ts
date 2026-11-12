@@ -1,4 +1,4 @@
-import type { CatalogIssue, PartVariantSummary } from './catalog.js';
+import type { CatalogIssue, PartDetail, PartRevisionInfo, PartSummary } from './catalog.js';
 import {
   partRefKey, type PartContext, type PartDefinition, type PartMaterial, type PartRef, type StockMode,
 } from './definition.js';
@@ -33,15 +33,35 @@ export function sameDefinitionContent(a: PartDefinition, b: PartDefinition): boo
   return canonicalJson({ ...a, revision: 0 }) === canonicalJson({ ...b, revision: 0 });
 }
 
-/** What a part list shows without opening the definition. */
-export function summarizeDefinition(definition: PartDefinition): { variants: PartVariantSummary[]; stock: StockMode } {
+export const compareNames = (a: string, b: string): number => a.localeCompare(b, 'de');
+const compareText = (a: string, b: string): number => a < b ? -1 : a > b ? 1 : 0;
+
+/** What the storage keeps about a part besides its revisions; timestamps are ISO strings. */
+export type PartRecord = {
+  id: string; name: string; category: string; latestRevision: number; favourite: boolean;
+  archivedAt: string | null; updatedAt: string;
+};
+
+/** What a part list shows without opening the definition: the record plus variants and stock mode of the latest definition. */
+export function buildPartSummary(record: PartRecord, definition: PartDefinition): PartSummary {
   return {
+    id: record.id, name: record.name, category: record.category, latestRevision: record.latestRevision,
+    archived: record.archivedAt !== null, favourite: record.favourite,
     variants: (definition.variants ?? []).map(variant => ({ key: variant.key, label: variant.label })),
-    stock: definition.traits.stock,
+    stock: definition.traits.stock satisfies StockMode,
+    updatedAt: record.updatedAt,
   };
 }
 
-export const compareNames = (a: string, b: string): number => a.localeCompare(b, 'de');
+export function buildPartDetail(record: PartRecord, definition: PartDefinition, revisions: PartRevisionInfo[]): PartDetail {
+  return { ...buildPartSummary(record, definition), definition, revisions: [...revisions].sort((a, b) => a.revision - b.revision) };
+}
+
+export const sortPartSummaries = (parts: readonly PartSummary[]): PartSummary[] =>
+  [...parts].sort((a, b) => compareNames(a.name, b.name) || compareText(a.id, b.id));
+
+export const sortMaterials = (materials: readonly PartMaterial[]): PartMaterial[] =>
+  [...materials].sort((a, b) => compareText(a.kind, b.kind) || compareNames(a.name, b.name) || compareText(a.key, b.key));
 
 /** Direct child parts of a definition, each exact revision once. */
 export function childRefs(definition: PartDefinition): PartRef[] {
