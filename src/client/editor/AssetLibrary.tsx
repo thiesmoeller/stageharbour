@@ -11,7 +11,7 @@ import { localCapabilities } from '../local/mode.js';
 import { measureGlbFile } from './measureGlb.js';
 import { useEditingLease } from './useEditingLease.js';
 import { InventoryStock } from './InventoryPanel.js';
-import PascalCatalog from './PascalCatalog.js';
+import ModelCatalog from './ModelCatalog.js';
 import { WallTypePanel } from './WallTypePanel.js';
 
 const axisLabels: Record<ModelAxis, string> = { width: 'Breite', height: 'Höhe', depth: 'Tiefe' };
@@ -105,7 +105,7 @@ export function AssetLibrary({ workspaceId, assets, layout, readOnly, selected, 
         ['panels', 'Plattenbestand'],
         ['wallTypes', 'Wandtypen'],
         ...(localCapabilities.uploads ? [['import', 'GLB importieren'] as const] : []),
-        ...(!localCapabilities.local ? [['catalog', 'Pascal-Katalog'] as const] : []),
+        ...(!localCapabilities.local ? [['catalog', 'Modellkatalog'] as const] : []),
       ] as const satisfies ReadonlyArray<readonly [LibraryTab, string]>)
         .map(([id, title]) => <button key={id} type="button" className="quiet" aria-pressed={tab === id} onClick={() => { setTab(id); setError(''); }}>{title}</button>)}
     </div>
@@ -177,7 +177,7 @@ export function AssetLibrary({ workspaceId, assets, layout, readOnly, selected, 
       {dimensions && <p className="muted">Ergebnis: {Math.round(dimensions.width)} × {Math.round(dimensions.height)} × {Math.round(dimensions.depth)} mm (Breite × Höhe × Tiefe).</p>}
       <button type="submit" disabled={!dimensions}>Modell in Objektvorlagen importieren</button>
     </fieldset></form>}
-    {tab === 'catalog' && <PascalCatalog disabled={readOnly || busy} onAdd={async (name, definition) => {
+    {tab === 'catalog' && <ModelCatalog disabled={readOnly || busy} onAdd={async (name, definition) => {
       setBusy(true); setError('');
       try { await create(name, definition); setTab('inventory'); }
       catch { setError('Das Katalogmodell konnte nicht übernommen werden.'); }

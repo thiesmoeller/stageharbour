@@ -43,6 +43,4 @@ export function useSurfaceRegistry() {
   return useContext(SurfaceRegistryContext);
 }
 
-export function surfaceTextureUrl(workspaceId: string, fileId: string) {
-  return `/api/workspaces/${workspaceId}/surfaces/files/${fileId}`;
-}
+export { surfaceTextureUrl } from '../../shared/surfaceRegistry.js';

@@ -1,5 +1,5 @@
 import { MIXED_PROPERTY } from '../../shared/editing.js';
-import { MATERIAL_CATALOG, toLibraryMaterialRef } from '@pascal-app/core';
+import { MATERIAL_LIBRARY, toLibraryRef } from '../stage/materialLibrary.js';
 
 /** CAD multi-edit picker: shared value, empty, or “—” when selection disagrees (Figma/Blender). */
 export default function MaterialPicker({ value, id = 'surface-finish', onChange, mixed = false }: {
@@ -7,7 +7,7 @@ export default function MaterialPicker({ value, id = 'surface-finish', onChange,
 }) {
   const selectValue = mixed ? MIXED_PROPERTY : (value ?? '');
   return <>
-    <label htmlFor={id}>Oberfläche · Pascal-Materialbibliothek</label>
+    <label htmlFor={id}>Oberfläche · Materialbibliothek</label>
     <select
       id={id}
       name="finish"
@@ -25,8 +25,8 @@ export default function MaterialPicker({ value, id = 'surface-finish', onChange,
     >
       {mixed && <option value={MIXED_PROPERTY}>— gemischt —</option>}
       <option value="">Sperrholz (Standard)</option>
-      {MATERIAL_CATALOG.map(item =>
-        <option key={item.id} value={toLibraryMaterialRef(item.id)}>{item.label} · {item.category}</option>)}
+      {MATERIAL_LIBRARY.map(item =>
+        <option key={item.id} value={toLibraryRef(item.id)}>{item.label} · {item.category}</option>)}
     </select>
   </>;
 }

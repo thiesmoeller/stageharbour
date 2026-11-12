@@ -1,0 +1,126 @@
+/**
+ * Regenerates the app-owned material library and model catalogue from the installed Pascal
+ * packages (MIT, see THIRD_PARTY_NOTICES.md).
+ *
+ *   node --import tsx scripts/vendor-pascal-assets.ts
+ *
+ * Needs @pascal-app/core and @pascal-app/editor in node_modules. The generated modules are
+ * committed, so the app and its tests never import those packages; run this only to pick up a newer
+ * catalogue while the packages are still available. Every id is kept as published because saved
+ * layouts refer to finishes as `library:<id>` and to catalogue models by id.
+ */
+import { readFile, writeFile } from 'node:fs/promises';
+import { MATERIAL_ASSET_BASE_URL, MODEL_ASSET_BASE_URL } from '../src/shared/assetHosts.js';
+
+type PascalMaterial = {
+  id: string; label: string; category: string; surfaces?: string[]; description?: string;
+  previewThumbnailUrl?: string; previewColor: string;
+  preset: {
+    maps: Partial<Record<'albedoMap' | 'normalMap' | 'roughnessMap' | 'metalnessMap' | 'aoMap', string>> & Record<string, string | undefined>;
+    mapProperties: {
+      color: string; roughness: number; metalness: number; repeatX: number; repeatY: number; rotation: number;
+      flipY: boolean; transparent: boolean; opacity: number; wrapS: string; wrapT: string; side: number;
+      normalScaleX: number; normalScaleY: number;
+    };
+  };
+};
+type PascalCatalogItem = {
+  id: string; category: string; name: string; tags?: string[]; thumbnail?: string; src?: string;
+  dimensions?: number[]; offset?: number[]; rotation?: number[]; scale?: number[]; tool?: string;
+};
+
+const MAP_SLOTS = { albedoMap: 'albedo', normalMap: 'normal', roughnessMap: 'roughness', metalnessMap: 'metalness', aoMap: 'ao' } as const;
+
+function relativeTo(base: string, url: string, what: string) {
+  if (url.startsWith('/')) return url.slice(1);
+  if (url.startsWith(`${base}/`)) return url.slice(base.length + 1);
+  throw new Error(`${what}: ${url} is not below ${base}`);
+}
+
+function vector(value: number[] | undefined, fallback: [number, number, number], what: string): [number, number, number] {
+  if (value === undefined) return fallback;
+  if (value.length !== 3 || !value.every(Number.isFinite)) throw new Error(`${what}: expected three numbers`);
+  return [value[0]!, value[1]!, value[2]!];
+}
+
+function material(item: PascalMaterial) {
+  const properties = item.preset.mapProperties;
+  const unsupported = Object.keys(item.preset.maps).filter(slot => !(slot in MAP_SLOTS));
+  if (unsupported.length) throw new Error(`${item.id}: unsupported texture slots ${unsupported.join(', ')}`);
+  if (properties.rotation !== 0 || properties.wrapS !== 'Repeat' || properties.wrapT !== 'Repeat' || properties.normalScaleX !== 1 || properties.normalScaleY !== 1) {
+    throw new Error(`${item.id}: texture properties the vendored format does not carry`);
+  }
+  const maps = Object.fromEntries(Object.entries(MAP_SLOTS).flatMap(([slot, name]) => {
+    const url = item.preset.maps[slot as keyof typeof MAP_SLOTS];
+    return url ? [[name, relativeTo(MATERIAL_ASSET_BASE_URL, url, `${item.id} ${slot}`)]] : [];
+  }));
+  return {
+    id: item.id, label: item.label, category: item.category,
+    ...(item.surfaces?.length ? { surfaces: item.surfaces } : {}),
+    ...(item.description ? { description: item.description } : {}),
+    previewColor: item.previewColor,
+    ...(item.previewThumbnailUrl ? { thumbnail: relativeTo(MATERIAL_ASSET_BASE_URL, item.previewThumbnailUrl, `${item.id} thumbnail`) } : {}),
+    color: properties.color, roughness: properties.roughness, metalness: properties.metalness,
+    ...(properties.transparent ? { opacity: properties.opacity } : {}),
+    repeat: [properties.repeatX, properties.repeatY],
+    flipY: properties.flipY,
+    maps,
+  };
+}
+
+function model(item: PascalCatalogItem) {
+  return {
+    id: item.id, name: item.name, category: item.category, tags: item.tags ?? [],
+    ...(item.thumbnail ? { thumbnail: relativeTo(MODEL_ASSET_BASE_URL, item.thumbnail, `${item.id} thumbnail`) } : {}),
+    ...(item.src ? { model: relativeTo(MODEL_ASSET_BASE_URL, item.src, `${item.id} model`) } : {}),
+    dimensions: vector(item.dimensions, [1, 1, 1], `${item.id} dimensions`),
+    offset: vector(item.offset, [0, 0, 0], `${item.id} offset`),
+    rotation: vector(item.rotation, [0, 0, 0], `${item.id} rotation`),
+    scale: vector(item.scale, [1, 1, 1], `${item.id} scale`),
+    ...(item.tool ? { tool: item.tool } : {}),
+  };
+}
+
+function unique(ids: string[], what: string) {
+  const seen = new Set<string>();
+  for (const id of ids) {
+    if (seen.has(id)) throw new Error(`${what}: duplicate id ${id}`);
+    seen.add(id);
+  }
+}
+
+async function version(name: string) {
+  const manifest = JSON.parse(await readFile(new URL(`../node_modules/${name}/package.json`, import.meta.url), 'utf8')) as { version: string };
+  return `${name}@${manifest.version}`;
+}
+
+function moduleSource(header: string[], typeImport: string, name: string, type: string, rows: unknown[]) {
+  return [
+    '// Generated by scripts/vendor-pascal-assets.ts. Do not edit by hand.',
+    ...header.map(line => `// ${line}`),
+    typeImport,
+    '',
+    `export const ${name}: readonly ${type}[] = [`,
+    ...rows.map(row => `  ${JSON.stringify(row)},`),
+    '];',
+    '',
+  ].join('\n');
+}
+
+const { MATERIAL_CATALOG } = await import('@pascal-app/core') as unknown as { MATERIAL_CATALOG: PascalMaterial[] };
+const { CATALOG_ITEMS } = await import('@pascal-app/editor/catalog') as unknown as { CATALOG_ITEMS: PascalCatalogItem[] };
+unique(MATERIAL_CATALOG.map(item => item.id), 'material library');
+unique(CATALOG_ITEMS.map(item => item.id), 'model catalogue');
+const licence = 'MIT License, Copyright (c) 2026 Pascal Group Inc. See THIRD_PARTY_NOTICES.md.';
+
+await writeFile(new URL('../src/client/stage/materialLibrary.data.ts', import.meta.url), moduleSource(
+  [`Source: MATERIAL_CATALOG of ${await version('@pascal-app/core')}. ${licence}`, `Texture and thumbnail paths are relative to MATERIAL_ASSET_BASE_URL (src/shared/assetHosts.ts).`],
+  "import type { LibraryMaterial } from './materialLibrary.js';",
+  'MATERIAL_LIBRARY_DATA', 'LibraryMaterial', MATERIAL_CATALOG.map(material),
+));
+await writeFile(new URL('../src/client/stage/modelCatalog.data.ts', import.meta.url), moduleSource(
+  [`Source: CATALOG_ITEMS of ${await version('@pascal-app/editor')}. ${licence}`, `Model and thumbnail paths are relative to MODEL_ASSET_BASE_URL (src/shared/assetHosts.ts).`],
+  "import type { CatalogModel } from './modelCatalog.js';",
+  'MODEL_CATALOG_DATA', 'CatalogModel', CATALOG_ITEMS.map(model),
+));
+console.log(`vendored ${MATERIAL_CATALOG.length} materials and ${CATALOG_ITEMS.length} catalogue models`);

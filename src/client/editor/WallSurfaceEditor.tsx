@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MATERIAL_CATALOG, toLibraryMaterialRef } from '@pascal-app/core';
+import { MATERIAL_LIBRARY, toLibraryRef } from '../stage/materialLibrary.js';
 import {
   DEFAULT_LIBRARY_SCALE_MM, DEFAULT_SURFACE_SPLIT_MM, SURFACE_ROTATIONS_DEG,
   applyUniformFinish, faceIsBanded, patchWallSurfaces, resolveFaceBand, resolveUniformFinish,
@@ -13,7 +13,7 @@ const TEXTURED_CATEGORIES = new Set([
   'wood', 'stone', 'brick', 'tile', 'concrete', 'metal', 'fabric', 'leather', 'roofing', 'ground', 'glass',
 ]);
 
-const libraryItems = MATERIAL_CATALOG.filter(item => TEXTURED_CATEGORIES.has(item.category));
+const libraryItems = MATERIAL_LIBRARY.filter(item => TEXTURED_CATEGORIES.has(item.category));
 
 export function FinishEditor({
   id, finish, onChange, faceHeightMm,
@@ -37,7 +37,7 @@ export function FinishEditor({
         if (value === 'none') onChange(undefined);
         else if (value === 'paint') onChange({ kind: 'paint', ral: finish?.kind === 'paint' ? finish.ral : '9010' });
         else if (value === 'library') {
-          const ref = finish?.kind === 'library' ? finish.ref : toLibraryMaterialRef(libraryItems[0]?.id ?? 'wood-finewood27');
+          const ref = finish?.kind === 'library' ? finish.ref : toLibraryRef(libraryItems[0]?.id ?? 'wood-finewood27');
           onChange({
             kind: 'library', ref,
             scaleMm: finish?.kind === 'library' ? finish.scaleMm : DEFAULT_LIBRARY_SCALE_MM,
@@ -69,7 +69,7 @@ export function FinishEditor({
         Oberfläche
         <select aria-label={`${id} Bibliothek`} value={finish.ref} onChange={event => onChange({ ...finish, ref: event.target.value })}>
           {libraryItems.map(item =>
-            <option key={item.id} value={toLibraryMaterialRef(item.id)}>{item.label} · {item.category}</option>)}
+            <option key={item.id} value={toLibraryRef(item.id)}>{item.label} · {item.category}</option>)}
         </select>
       </label>
       <label>

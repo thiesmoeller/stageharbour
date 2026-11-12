@@ -94,3 +94,8 @@ export const importCatalogSurfaceSchema = z.strictObject({
   productionId: z.uuid().optional(),
 }).refine(value => value.scope === 'production' ? !!value.productionId : !value.productionId,
   'Production scope requires exactly one production');
+
+/** Where the app serves an uploaded texture map of the surface registry. */
+export function surfaceTextureUrl(workspaceId: string, fileId: string) {
+  return `/api/workspaces/${workspaceId}/surfaces/files/${fileId}`;
+}

@@ -185,7 +185,7 @@ const venueGeometryObject = z.strictObject({
   keepClearZones: keepClearZonesSchema.optional(),
   stageCentreline: stageCentrelineSchema.optional(),
   audienceViewpoint: audienceViewpointSchema.optional(),
-  /** Pascal library material for the audience floor / venue footprint. */
+  /** Material library finish (`library:<id>`) for the audience floor / venue footprint. */
   floorFinish: z.string().regex(/^library:[a-zA-Z0-9_-]+$/).max(180).optional(),
   /**
    * Construction-report sheet templates for this venue (views / crops).
