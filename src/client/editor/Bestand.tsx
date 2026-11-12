@@ -6,8 +6,9 @@ import {
   createStockItem, listParts, listStockItems, updateStockItem,
 } from '../partsApi.js';
 import { BallastStock } from './BallastStock.js';
+import { StockCounts } from './StockCounts.js';
 
-type BestandTab = 'items' | 'parts' | 'hardware';
+type BestandTab = 'items' | 'counts' | 'parts' | 'hardware';
 
 /** Workspace stock is catalog based: a physical item references one stable part and optional variant. */
 export function Bestand({ me }: { me: Me }) {
@@ -70,10 +71,12 @@ export function Bestand({ me }: { me: Me }) {
       <p className="muted">Physische Bestandsstücke und Bauteile des Arbeitsbereichs.</p></div></div>
     <div className="asset-tabs" role="tablist" aria-label="Bestand">
       <button type="button" role="tab" className="quiet" data-testid="bestand-tab-items" aria-selected={tab === 'items'} onClick={() => setTab('items')}>Bestandsstücke</button>
+      <button type="button" role="tab" className="quiet" data-testid="bestand-tab-counts" aria-selected={tab === 'counts'} onClick={() => setTab('counts')}>Stückzahlen</button>
       <button type="button" role="tab" className="quiet" data-testid="bestand-tab-parts" aria-selected={tab === 'parts'} onClick={() => setTab('parts')}>Bauteile</button>
       <button type="button" role="tab" className="quiet" data-testid="bestand-tab-ballast" aria-selected={tab === 'hardware'} onClick={() => setTab('hardware')}>Beschwerung</button>
     </div>
     {error && <p role="alert" className="error">{error}</p>}
+    {tab === 'counts' && <StockCounts workspaceId={me.workspace.id} parts={parts} readOnly={readOnly} />}
     {tab === 'hardware' && <BallastStock workspaceId={me.workspace.id} readOnly={readOnly} />}
     {tab === 'items' && <div className="inventory-panel" data-testid="bestand-items">
       {!readOnly && <form onSubmit={create}><fieldset disabled={busy}>

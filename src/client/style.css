@@ -51,6 +51,9 @@ g.plan-overlap text { fill: #7a2a1c; }
 .inventory-list { list-style: none; padding-left: 0; }
 .inventory-list label { display: flex; gap: 8px; align-items: center; font-weight: 400; margin: 6px 0; }
 .inventory-panel input[type=checkbox] { width: auto; }
+.inventory-panel .inline-form fieldset { display: flex; gap: 8px; align-items: center; margin: 0; padding: 0; border: 0; }
+.inventory-panel .inline-form input[type=number] { width: 7em; }
+.stock-demand .shortage { color: #a3341f; font-weight: 600; }
 .assembly-panel { margin: 0 0 22px; padding: 0 0 18px; border-bottom: 1px solid #e0e5d8; }
 .assembly-panel ul { list-style: none; padding-left: 0; font-size: .78rem; }
 .assembly-panel li { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; }
