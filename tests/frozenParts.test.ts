@@ -109,7 +109,7 @@ test('elevations project front faces with their cut-outs and heights above the f
   const index = freshIndex();
   const [window, door, turned] = resolveLayoutObjects({
     schemaVersion: 2, joints: [], objects: [
-      wall('Fenster', 0, 'window', { values: { B: 1200, H: 2400, D: 28, openingLeft: 200, openingSill: 900, openingB: 600, openingH: 800 } }),
+      wall('Fenster', 0, 'window', { values: { B: 1200, H: 2400, D: 28, fensterLeft: 200, fensterSill: 900, fensterB: 600, fensterH: 800 } }),
       wall('Tür', 2000, 'doorLeft'),
       wall('Gedreht', 4000, 'plain', { rotation: 90 }),
     ],
