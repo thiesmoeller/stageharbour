@@ -59,6 +59,11 @@ jobs:
         with:
           path: site
   deploy:
+    # The github-pages environment currently allows only `main`. Skip deploy on
+    # `dev` pushes so CI stays green; add `dev` under Settings → Environments →
+    # github-pages → Deployment branches, then drop this `if` to auto-publish
+    # /preview/ on every push to `dev`.
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10
