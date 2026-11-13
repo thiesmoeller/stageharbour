@@ -146,9 +146,9 @@ test('face sketcher draws, moves and deletes an opening on a sheet and saves it 
   expect(errors).toEqual([]);
 });
 
-// TODO(P3): the Wandelement starter also needs a save-valid path. A hole drawn on the plain wall is
-// applied to every variant and clashes with the door / window holes at the ends of B and H.
-test('face sketcher is offered on the Wandelement sheet and draws an opening', async ({ page }) => {
+test('face sketcher saves and reloads a window pocket on a Wandelement copy', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
   await signInToPlans(page);
   await openDesigner(page);
   await copyStarter(page, 'Wandelement');
@@ -157,6 +157,16 @@ test('face sketcher is offered on the Wandelement sheet and draws an opening', a
   await dragOnSheet(page, [0.4, 0.45], [0.6, 0.55]);
   await expect(page.getByTestId('designer-face-sketcher')).toHaveAttribute('data-openings', '1');
   await expect(page.getByTestId('parameter-default-oeffnungLeft')).toBeVisible();
+  await expect(page.getByTestId('designer-issues')).toContainText('Keine Fehler');
+  await expect(page.getByTestId('designer-save')).toBeEnabled();
+  await page.getByTestId('designer-save').click();
+  await expect(page.getByTestId('designer-status')).toContainText('Gespeichert als Revision 2');
+  await page.reload();
+  await expect(page.getByTestId('designer-title')).toHaveText(/^Wandelement Kopie/);
+  await expect(page.getByTestId('designer-face-sketcher')).toHaveAttribute('data-openings', '1');
+  await expect(page.getByTestId('face-sketcher-opening-oeffnung')).toBeVisible();
+  await expect(page.getByTestId('parameter-default-oeffnungB')).toBeVisible();
+  expect(errors).toEqual([]);
 });
 
 test('designer exports a part and imports the edited file as a new revision', async ({ page }) => {

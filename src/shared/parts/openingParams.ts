@@ -37,6 +37,8 @@ export type OpeningInput =
 
 const SUFFIXES = { left: 'Left', sill: 'Sill', width: 'B', height: 'H' } as const;
 const MAX_BASE_LENGTH = 40 - Math.max(...Object.values(SUFFIXES).map(suffix => suffix.length));
+const OPENING_POSITION_LIMIT_MM = 10_000;
+const OPENING_SIZE_LIMIT_MM = 10_000;
 
 function hashKey(value: string): string {
   let hash = 0x811c9dc5;
@@ -77,10 +79,10 @@ function finiteInRange(name: string, value: number, min: number, max: number): v
 }
 
 function dimensionsOf(input: RectOpeningInput): Record<keyof OpeningParameterKeys, number> {
-  finiteInRange('Linke Kante', input.left, -MAX_PART_COORDINATE_MM, MAX_PART_COORDINATE_MM);
-  finiteInRange('Brüstung', input.sill, -MAX_PART_COORDINATE_MM, MAX_PART_COORDINATE_MM);
-  finiteInRange('Breite', input.width, 1, MAX_PART_COORDINATE_MM);
-  finiteInRange('Höhe', input.height, 1, MAX_PART_COORDINATE_MM);
+  finiteInRange('Linke Kante', input.left, -OPENING_POSITION_LIMIT_MM, OPENING_POSITION_LIMIT_MM);
+  finiteInRange('Brüstung', input.sill, -OPENING_POSITION_LIMIT_MM, OPENING_POSITION_LIMIT_MM);
+  finiteInRange('Breite', input.width, 1, OPENING_SIZE_LIMIT_MM);
+  finiteInRange('Höhe', input.height, 1, OPENING_SIZE_LIMIT_MM);
   return { left: input.left, sill: input.sill, width: input.width, height: input.height };
 }
 
@@ -92,8 +94,8 @@ function openingParameter(key: string, label: string, value: number, position: b
     default: value,
     scope: 'placement',
     range: position
-      ? { min: -MAX_PART_COORDINATE_MM, max: MAX_PART_COORDINATE_MM }
-      : { min: 1, max: MAX_PART_COORDINATE_MM },
+      ? { min: -OPENING_POSITION_LIMIT_MM, max: OPENING_POSITION_LIMIT_MM }
+      : { min: 1, max: OPENING_SIZE_LIMIT_MM },
   };
 }
 
@@ -141,6 +143,31 @@ function existingHole(definition: PartDefinition, bodyKey: string, holeKey: stri
   return body?.kind === 'sheet' ? body.holes?.find(hole => hole.key === holeKey) : undefined;
 }
 
+const grouped = (formula: Formula): string => `(${formula})`;
+
+function boundedOpeningFormulas(
+  definition: PartDefinition,
+  bodyKey: string,
+  shape: 'rect' | 'arch',
+  keys: OpeningParameterKeys,
+): Pick<Extract<SheetHole, { shape: 'rect' | 'arch' }>, 'x' | 'y' | 'width' | 'height'> {
+  const body = definition.bodies.find(candidate => candidate.key === bodyKey);
+  if (body?.kind !== 'sheet' || body.outline.shape !== 'rect') {
+    return { x: keys.left, y: keys.sill, width: keys.width, height: keys.height };
+  }
+  const outline = body.outline;
+  const left = `max(1, min(${keys.left} - ${grouped(outline.x)}, ${grouped(outline.width)} - 2))`;
+  const sill = `max(1, min(${keys.sill} - ${grouped(outline.y)}, ${grouped(outline.height)} - 2))`;
+  const height = `max(1, min(${keys.height}, ${grouped(outline.height)} - (${sill}) - 1))`;
+  const widthLimits = `${grouped(outline.width)} - (${left}) - 1${shape === 'arch' ? `, 2 * (${height})` : ''}`;
+  return {
+    x: `${grouped(outline.x)} + (${left})`,
+    y: `${grouped(outline.y)} + (${sill})`,
+    width: `max(1, min(${keys.width}, ${widthLimits}))`,
+    height,
+  };
+}
+
 function upsertParametricOpening(
   definition: PartDefinition,
   bodyKey: string,
@@ -153,11 +180,18 @@ function upsertParametricOpening(
     shape,
     key: input.key,
     ...condition(existingHole(definition, bodyKey, input.key), input.when),
-    x: keys.left,
-    y: keys.sill,
-    width: keys.width,
-    height: keys.height,
+    ...boundedOpeningFormulas(definition, bodyKey, shape, keys),
   });
+}
+
+/** Condition that limits a new opening to the selected named variant's variant-parameter values. */
+export function openingVariantCondition(definition: PartDefinition, variantKey?: string): Formula | undefined {
+  if (!definition.variants?.length) return undefined;
+  const variant = definition.variants.find(candidate => candidate.key === variantKey) ?? definition.variants[0]!;
+  const comparisons = definition.parameters
+    .filter(parameter => parameter.scope === 'variant')
+    .map(parameter => `(${parameter.key} == ${variant.values[parameter.key] ?? parameter.default})`);
+  return comparisons.length ? comparisons.join(' * ') : undefined;
 }
 
 export function upsertRectOpening(

@@ -41,10 +41,11 @@ const errorText = (error: unknown) => error instanceof Error && error.message ? 
  * sheet's own u/v frame. Every committed edit is written through the opening-parameter helpers, so
  * the hole formulas and their parameter group stay in sync with the drawing.
  */
-export function FaceOpeningsSketcher({ definition, bodyKey, resolved, materials, disabled, onChange }: {
+export function FaceOpeningsSketcher({ definition, bodyKey, resolved, activeVariant, materials, disabled, onChange }: {
   definition: PartDefinition;
   bodyKey: string;
   resolved: Pick<ResolvedPart, 'solids'> | undefined;
+  activeVariant?: string;
   materials: readonly PartMaterial[];
   disabled: boolean;
   onChange: (definition: PartDefinition) => void;
@@ -125,7 +126,7 @@ export function FaceOpeningsSketcher({ definition, bodyKey, resolved, materials,
 
   function commit(key: string, geometry: OpeningGeometry) {
     try {
-      onChange(writeOpening(definition, bodyKey, key, geometry));
+      onChange(writeOpening(definition, bodyKey, key, geometry, activeVariant));
       setOverrides(current => new Map(current).set(key, asOpening(key, geometry)));
       setSelectedKey(key);
       setError('');

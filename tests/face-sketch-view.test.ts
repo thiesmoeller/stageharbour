@@ -68,7 +68,7 @@ test('drawn openings write hole formulas and a parameter group, and the wall res
   const body = drawn.bodies.find(item => item.key === 'platte');
   assert.ok(body?.kind === 'sheet' && body.holes?.some(hole => hole.key === key));
   assert.ok(drawn.parameters.some(parameter => parameter.key === 'oeffnungLeft' && parameter.default === -300));
-  assert.deepEqual(drawn.parameters.find(parameter => parameter.key === 'oeffnungLeft')?.range, { min: -300, max: -300 });
+  assert.deepEqual(drawn.parameters.find(parameter => parameter.key === 'oeffnungLeft')?.range, { min: -10000, max: 10000 });
   const sheet = wallSheet(drawn);
   const opening = sketchOpenings(sheet).find(item => item.key === key)!;
   assert.deepEqual(opening.bounds, { x: -300, y: 900, width: 600, height: 800 });
@@ -107,8 +107,16 @@ test('a pocket in the middle of a table top passes the save check', () => {
   assert.equal(check.ok, true);
 });
 
-test('known limit: a hole drawn on the plain Wandelement is also applied to the window variant', () => {
+test('a hole drawn on the plain Wandelement is clamped and limited to that variant', () => {
   const drawn = writeOpening(STARTER_WALL, 'platte', 'oeffnung', { shape: 'rect', box: { x: -120, y: 2100, width: 240, height: 200 } });
-  const codes = validateDefinition(drawn, STARTER_CONTEXT).issues.filter(issue => issue.severity === 'error').map(issue => issue.code);
-  assert.ok(codes.includes('hole-overlap') || codes.includes('hole-splits-sheet'));
+  const body = drawn.bodies.find(item => item.key === 'platte');
+  assert.equal(body?.kind, 'sheet');
+  const hole = body?.kind === 'sheet' ? body.holes?.find(item => item.key === 'oeffnung') : undefined;
+  assert.ok(hole?.shape === 'rect');
+  assert.equal(hole?.when, '(shape == 0)');
+  assert.match(String(hole.x), /max\(1, min\(oeffnungLeft/);
+  assert.deepEqual(validateDefinition(drawn, STARTER_CONTEXT).issues.filter(issue => issue.severity === 'error'), []);
+  assert.equal(validateDefinition(drawn, STARTER_CONTEXT).ok, true);
+  assert.deepEqual(sketchOpenings(wallSheet(drawn, 'plain')).map(item => item.key), ['oeffnung']);
+  assert.deepEqual(sketchOpenings(wallSheet(drawn, 'window')).map(item => item.key), ['fenster']);
 });

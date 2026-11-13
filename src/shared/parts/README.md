@@ -144,6 +144,12 @@ Save only when `ok`. Ranges are tried at their ends, not in between; a formula t
 inside a range is caught at resolve time instead. `validateLibrary` does the same for a file of
 materials and parts.
 
+## Authoring openings
+
+Selecting a sheet body in the Designer opens the face sketcher for drawing, moving and resizing
+rectangular, arched and polygonal openings without editing formulas directly. New openings are
+stored as sheet holes and per-opening parameters as decided in [ADR 0011](../../../docs/adr/0011-face-openings-sketcher.md).
+
 ## Drawing
 
 `buildPartGeometry(resolvedOrPlaced)` returns one indexed `BufferGeometry` and `slots`: one

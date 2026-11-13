@@ -338,8 +338,8 @@ export function Designer({ me, onDirty, partId }: { me: Me; onDirty: (dirty: boo
             </>}
           </div>
           <PartPreview3D resolved={resolved} materials={materials} selection={selection} label={`3D-Vorschau von ${draft.name}`} />
-          {sketchBodyKey && <FaceOpeningsSketcher definition={draft} bodyKey={sketchBodyKey} resolved={resolved} materials={materials}
-            disabled={readOnly} onChange={definition => change(definition)} />}
+          {sketchBodyKey && <FaceOpeningsSketcher definition={draft} bodyKey={sketchBodyKey} resolved={resolved}
+            activeVariant={previewVariant} materials={materials} disabled={readOnly} onChange={definition => change(definition)} />}
           <PartViewsSvg resolved={resolved} materials={materials} selection={selection} onSelect={setSelection} />
         </>}
       </div>

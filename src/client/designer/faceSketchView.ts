@@ -1,7 +1,9 @@
 import type { Vec2 } from '../../shared/parts/math.js';
 import type { PartDefinition } from '../../shared/parts/definition.js';
 import type { ResolvedOpening, ResolvedSheet } from '../../shared/parts/resolve.js';
-import { openingParameterKeys, removeOpening, upsertOpening, type OpeningInput } from '../../shared/parts/openingParams.js';
+import {
+  openingParameterKeys, openingVariantCondition, removeOpening, upsertOpening, type OpeningInput,
+} from '../../shared/parts/openingParams.js';
 import { uniqueKey } from './draft.js';
 
 /**
@@ -179,12 +181,15 @@ export type OpeningGeometry =
   | { shape: 'rect' | 'arch'; box: Box }
   | { shape: 'polygon'; points: readonly Vec2[] };
 
-export function openingInput(key: string, geometry: OpeningGeometry): OpeningInput {
+export function openingInput(key: string, geometry: OpeningGeometry, when?: OpeningInput['when']): OpeningInput {
   if (geometry.shape === 'polygon') {
-    return { shape: 'polygon', key, points: geometry.points.map(point => [point.x, point.y] as const) };
+    return { shape: 'polygon', key, points: geometry.points.map(point => [point.x, point.y] as const), ...(when === undefined ? {} : { when }) };
   }
   const { box } = geometry;
-  return { shape: geometry.shape, key, left: box.x, sill: box.y, width: box.width, height: box.height };
+  return {
+    shape: geometry.shape, key, left: box.x, sill: box.y, width: box.width, height: box.height,
+    ...(when === undefined ? {} : { when }),
+  };
 }
 
 export function geometryOf(opening: SketchOpening): OpeningGeometry {
@@ -193,11 +198,6 @@ export function geometryOf(opening: SketchOpening): OpeningGeometry {
     : { shape: opening.shape, box: opening.bounds };
 }
 
-/**
- * Narrows the four parameters of a rect / arch opening to the drawn value. The save check tries the
- * ends of every free range, and a hole whose position may run to ±100 m is rejected at those ends;
- * a drawn opening is one concrete place, so only that place is checked. The ranges stay editable.
- */
 function pinOpeningRanges(definition: PartDefinition, holeKey: string): PartDefinition {
   const names = new Set(Object.values(openingParameterKeys(holeKey)));
   return {
@@ -208,9 +208,21 @@ function pinOpeningRanges(definition: PartDefinition, holeKey: string): PartDefi
 }
 
 /** Writes one opening (hole formulas and parameter group) into the definition. */
-export function writeOpening(definition: PartDefinition, bodyKey: string, key: string, geometry: OpeningGeometry): PartDefinition {
-  const next = upsertOpening(definition, bodyKey, openingInput(key, geometry));
-  return geometry.shape === 'polygon' ? next : pinOpeningRanges(next, key);
+export function writeOpening(
+  definition: PartDefinition,
+  bodyKey: string,
+  key: string,
+  geometry: OpeningGeometry,
+  activeVariant?: string,
+): PartDefinition {
+  const body = definition.bodies.find(candidate => candidate.key === bodyKey);
+  const existing = body?.kind === 'sheet' && body.holes?.some(hole => hole.key === key);
+  const when = existing ? undefined : openingVariantCondition(definition, activeVariant);
+  const next = upsertOpening(definition, bodyKey, openingInput(key, geometry, when));
+  // Polygon outlines cannot yet express parameter-safe inset formulas, so keep their rectangular openings fixed temporarily.
+  return geometry.shape !== 'polygon' && body?.kind === 'sheet' && body.outline.shape === 'polygon'
+    ? pinOpeningRanges(next, key)
+    : next;
 }
 
 export function deleteOpening(definition: PartDefinition, bodyKey: string, key: string): PartDefinition {

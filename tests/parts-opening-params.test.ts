@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  openingParameterKeys, partDefinitionSchema, removeOpening, upsertArchOpening, upsertOpening,
+  openingParameterKeys, openingVariantCondition, partDefinitionSchema, removeOpening, upsertArchOpening, upsertOpening,
   upsertPolygonOpening, upsertRectOpening,
   type PartDefinition,
 } from '../src/shared/parts/index.js';
@@ -41,16 +41,23 @@ test('a rectangular opening owns four placement parameters and formula bindings'
   assert.deepEqual(keys, {
     left: 'fensterLeft', sill: 'fensterSill', width: 'fensterB', height: 'fensterH',
   });
-  assert.deepEqual(holes(definition), [{
-    shape: 'rect', key: 'fenster',
-    x: keys.left, y: keys.sill, width: keys.width, height: keys.height,
-  }]);
+  const [hole] = holes(definition);
+  assert.equal(hole?.shape, 'rect');
+  assert.equal(hole?.key, 'fenster');
+  assert.match(String(hole?.x), /fensterLeft/);
+  assert.match(String(hole?.width), /fensterB/);
   assert.deepEqual(definition.parameters.map(parameter =>
     [parameter.key, parameter.label, parameter.type, parameter.scope, parameter.default]), [
     ['fensterLeft', 'fenster · Linke Kante', 'length', 'placement', 450],
     ['fensterSill', 'fenster · Brüstung', 'length', 'placement', 900],
     ['fensterB', 'fenster · Breite', 'length', 'placement', 1200],
     ['fensterH', 'fenster · Höhe', 'length', 'placement', 1000],
+  ]);
+  assert.deepEqual(definition.parameters.map(parameter => parameter.range), [
+    { min: -10000, max: 10000 },
+    { min: -10000, max: 10000 },
+    { min: 1, max: 10000 },
+    { min: 1, max: 10000 },
   ]);
   assert.deepEqual(original, panel(), 'the helper does not mutate its input');
   assert.equal(partDefinitionSchema.safeParse(definition).success, true);
@@ -118,11 +125,29 @@ test('an arch uses the same four-parameter contract', () => {
   });
   const keys = openingParameterKeys('bogen');
 
-  assert.deepEqual(holes(definition), [{
-    shape: 'arch', key: 'bogen',
-    x: keys.left, y: keys.sill, width: keys.width, height: keys.height,
-  }]);
+  const [hole] = holes(definition);
+  assert.equal(hole?.shape, 'arch');
+  assert.match(String(hole?.x), new RegExp(keys.left));
+  assert.match(String(hole?.width), new RegExp(keys.width));
+  assert.match(String(hole?.width), new RegExp(keys.height));
   assert.equal(partDefinitionSchema.safeParse(definition).success, true);
+});
+
+test('a variant condition identifies the active variant parameter values', () => {
+  const definition = {
+    ...panel(),
+    parameters: [
+      { key: 'shape', label: 'Form', type: 'count' as const, default: 0, scope: 'variant' as const, values: [0, 1] },
+      { key: 'side', label: 'Seite', type: 'count' as const, default: -1, scope: 'variant' as const, values: [-1, 1] },
+    ],
+    variants: [
+      { key: 'left', label: 'Links', values: { shape: 0, side: -1 } },
+      { key: 'right', label: 'Rechts', values: { shape: 1, side: 1 } },
+    ],
+  };
+
+  assert.equal(openingVariantCondition(definition, 'right'), '(shape == 1) * (side == 1)');
+  assert.equal(openingVariantCondition(definition, 'missing'), '(shape == 0) * (side == -1)');
 });
 
 test('a polygon keeps literal points and removes a replaced rectangular parameter group', () => {
