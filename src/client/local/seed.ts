@@ -1,7 +1,8 @@
 import { DEFAULT_BRANDING } from '../../shared/contracts.js';
 import { EMPTY_BALLAST_STOCK } from '../../shared/ballast.js';
 import { groupWallType } from '../../shared/inventory.js';
-import { newWall } from '../../shared/layout.js';
+import { STARTER_PART_IDS } from '../../shared/parts/starter/index.js';
+import { emptyCatalog, ensureStarterCatalog } from './catalog.js';
 import { SNAPSHOT_SCHEMA_VERSION, type LocalSnapshot } from './snapshot.js';
 
 /** Stable demo IDs so local mode and tests can address the same rows. */
@@ -29,9 +30,10 @@ export function createSeedSnapshot(): LocalSnapshot {
     width: 8000,
     depth: 6000,
   };
+  const now = new Date();
   return {
     schemaVersion: SNAPSHOT_SCHEMA_VERSION,
-    savedAt: new Date().toISOString(),
+    savedAt: now.toISOString(),
     user: {
       id: 'local-user',
       name: 'Demo-Nutzer',
@@ -59,13 +61,13 @@ export function createSeedSnapshot(): LocalSnapshot {
       revision: 0,
       lease: null,
       layout: {
-        schemaVersion: 1,
-        braces: [],
-        walls: [
-          newWall(LOCAL_SEED_IDS.wall1, 2000, 2000),
-          newWall(LOCAL_SEED_IDS.wall2, 3200, 2000),
-          { ...newWall(LOCAL_SEED_IDS.wall3, 4400, 2000), rotation: 90 },
+        schemaVersion: 2,
+        objects: [
+          { id: LOCAL_SEED_IDS.wall1, label: 'Wand', part: { id: STARTER_PART_IDS.wall, revision: 1 }, variant: 'plain', values: { B: 1200, H: 2400, D: 28 }, x: 2000, y: 2000, rotation: 0 },
+          { id: LOCAL_SEED_IDS.wall2, label: 'Wand', part: { id: STARTER_PART_IDS.wall, revision: 1 }, variant: 'plain', values: { B: 1200, H: 2400, D: 28 }, x: 3200, y: 2000, rotation: 0 },
+          { id: LOCAL_SEED_IDS.wall3, label: 'Wand', part: { id: STARTER_PART_IDS.wall, revision: 1 }, variant: 'plain', values: { B: 1200, H: 2400, D: 28 }, x: 4400, y: 2000, rotation: 90 },
         ],
+        joints: [],
       },
     }],
     inventory: {
@@ -93,5 +95,6 @@ export function createSeedSnapshot(): LocalSnapshot {
     },
     documentDrafts: {},
     sceneTemplates: [],
+    catalog: ensureStarterCatalog(emptyCatalog(), now),
   };
 }

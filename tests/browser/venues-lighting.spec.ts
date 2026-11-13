@@ -68,19 +68,22 @@ test('design a venue independently, reuse it in a production, and save scene lig
     await expect(page.locator('[data-testid^="venue-wall-"]')).toHaveCount(1);
   });
   await test.step('Render scene lighting, undo and redo, and verify blackout', async () => {
-    await page.getByRole('button', { name: 'Raumansicht', exact: true }).click();
+    await revealEditorCommand(page, 'Raumsicht');
+    await page.getByRole('button', { name: 'Raumsicht', exact: true }).click();
     await toggleLighting(page);
     await expect(page.getByLabel('Bühnenlicht aktivieren')).toBeChecked();
     await expect(page.getByLabel('Frontlichtfarbe')).toHaveValue('#ffd19a');
     await page.locator('.lighting-presets').getByRole('button', { name: 'Kühl', exact: true }).click();
     await expect(page.getByLabel('Frontlichtfarbe')).toHaveValue('#c1d8ff');
     await expect(page.locator('.save-status')).toHaveText('Gespeichert', { timeout: 15_000 });
+    await revealEditorCommand(page, 'Rückgängig');
     await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
     await expect(page.getByLabel('Frontlichtfarbe')).toHaveValue('#ffd19a');
+    await revealEditorCommand(page, 'Wiederholen');
     await page.getByRole('button', { name: 'Wiederholen', exact: true }).click();
     await expect(page.getByLabel('Frontlichtfarbe')).toHaveValue('#c1d8ff');
     await expect(page.locator('.save-status')).toHaveText('Gespeichert', { timeout: 15_000 });
-    const canvas = page.locator('[data-renderer="pascal"] canvas');
+    const canvas = page.locator('[data-renderer="stage"] canvas');
     await expect(canvas).toBeVisible();
     await toggleLighting(page);
     await page.waitForTimeout(1000);
@@ -101,9 +104,8 @@ test('design a venue independently, reuse it in a production, and save scene lig
     await page.reload();
     const editor = page.getByRole('heading', { name: 'Bühnenbild 1', exact: true });
     const card = page.getByRole('button', { name: /Lichtprobe · Bühnenbild 1/ });
-    const workspace = page.getByRole('region', { name: 'Bühnenbild bearbeiten' });
     try {
-      await workspace.waitFor({ state: 'visible', timeout: 8_000 });
+      await editor.waitFor({ state: 'visible', timeout: 8_000 });
     } catch {
       await card.click();
     }

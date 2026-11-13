@@ -1,15 +1,15 @@
 import { useId } from 'react';
-import { getCatalogMaterialById } from '@pascal-app/core';
 import { openingOutlinePoints, type Opening, type WallElementType } from '../../shared/wall-types.js';
 import { ralHex, ralLabel } from '../../shared/ral.js';
 import type { SurfaceFinish, WallSurfaces } from '../../shared/surfaces.js';
 import { surfaceTextureUrl, useSurfaceRegistry } from './SurfaceRegistryContext.js';
+import { libraryMaterial, libraryThumbnailUrl } from '../stage/materialLibrary.js';
 
 export function finishLabel(finish?: SurfaceFinish): string {
   if (!finish) return 'Sperrholz';
   if (finish.kind === 'paint') return ralLabel(finish.ral);
   if (finish.kind === 'registry') return 'Eigene Oberfläche';
-  return getCatalogMaterialById(finish.ref.slice(8))?.label ?? finish.ref;
+  return libraryMaterial(finish.ref)?.label ?? finish.ref;
 }
 
 export function WallTypePreview({ type, cutouts = [], surfaces, label = type.name, side = 'front' }: {
@@ -23,11 +23,11 @@ export function WallTypePreview({ type, cutouts = [], surfaces, label = type.nam
     : [{ y: 0, height: type.height, finish: face?.full }];
   return <svg className="wall-type-preview" viewBox={`-60 -60 ${type.width + 120} ${type.height + 120}`} role="img" aria-label={`${label} · ${type.width} × ${type.height} mm · ${type.openings.length + cutouts.length} Öffnungen`}>
     {bands.map((band, index) => {
-      const material = band.finish?.kind === 'library' ? getCatalogMaterialById(band.finish.ref.slice(8)) : undefined;
+      const material = band.finish?.kind === 'library' ? libraryMaterial(band.finish.ref) : undefined;
       const customId = band.finish?.kind === 'registry' ? band.finish.surfaceId : undefined;
       const custom = customId ? registry.surfaces.find(item => item.id === customId) : undefined;
       const texture = custom ? surfaceTextureUrl(registry.workspaceId, custom.definition.maps.baseColor)
-        : material?.preset.maps.albedoMap ?? material?.previewThumbnailUrl;
+        : material && libraryThumbnailUrl(material);
       const color = band.finish?.kind === 'paint' ? ralHex(band.finish.ral) ?? '#d6d4cf' : material?.previewColor ?? '#d9c4a0';
       const width = band.finish?.kind === 'registry'
         ? band.finish.scaleMm ?? custom?.definition.tileWidthMm ?? 1000

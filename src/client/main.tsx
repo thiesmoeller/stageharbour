@@ -2,7 +2,7 @@ import { awaitLocalMode } from './local/boot.js';
 import { LocalWorkspaceBar } from './local/LocalWorkspaceBar.js';
 import { isLocalMode, localCapabilities } from './local/mode.js';
 import { FeedbackProvider, FeedbackButton } from './feedback/Feedback.js';
-import { StrictMode, useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { lazy, StrictMode, Suspense, useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { z } from 'zod';
 import { invitationSchema, loginOptionsSchema, meSchema, membersSchema, invitationPreviewSchema, passwordResetPreviewSchema, brandingSchema, DEFAULT_BRANDING, type Branding, type Me, type Member, type Role } from '../shared/contracts.js';
@@ -16,6 +16,7 @@ import { AuditLog } from './AuditLog.js';
 import { parseWorkspaceLocation, workspaceHash, writeWorkspaceLocation, type WorkspaceLocation } from './workspaceRoutes.js';
 import { askConfirm, ConfirmHost } from './ConfirmDialog.js';
 import { shouldBlockDirtyRouteChange, UNSAVED_ROUTE_LEAVE_CONFIRM } from './dirtyRouteChange.js';
+import { isStageCanvasHarnessRoute } from './stage/harnessRoute.js';
 import './style.css';
 import './workspace.css';
 
@@ -354,6 +355,7 @@ function Workspace({ me, branding, onBranding, onDirty, location }: {
       <button className="quiet" aria-current={section === 'plans' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'plans' })}>Produktionen & Bühnenbilder<span>Bühnenbilder entwerfen und planen</span></button>
       <button className="quiet" aria-current={section === 'venues' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'venues' })}>Spielstätten & Bühnen<span>Räume, Grundrisse und feste Einrichtungen</span></button>
       <button className="quiet" aria-current={section === 'bestand' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'bestand' })}>Bestand<span>Platten und Wandtypen</span></button>
+      <button className="quiet" aria-current={section === 'designer' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'designer' })}>Bühnentechnik<span>Parametrische Bauteile entwerfen</span></button>
       <button className="quiet" aria-current={section === 'help' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'help' })}>Hilfe<span>Werkzeuge, Kürzel und Oberflächen</span></button>
       {showAccount && <button className="quiet" aria-current={section === 'account' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'account' })}>Mein Konto<span>Anmeldung und Konto</span></button>}
       {showAdmin && <button className="quiet" aria-current={section === 'admin' ? 'page' : undefined} onClick={() => writeWorkspaceLocation({ section: 'admin' })}>Verwaltung<span>Mitglieder, Darstellung und Aktivität</span></button>}
@@ -361,6 +363,9 @@ function Workspace({ me, branding, onBranding, onDirty, location }: {
     {section === 'plans' && <Plans me={me} onDirty={onDirty} sceneId={'sceneId' in location ? location.sceneId : undefined} />}
     {section === 'venues' && <Venues me={me} onDirty={onDirty} venueId={'venueId' in location ? location.venueId : undefined} />}
     {section === 'bestand' && <Bestand me={me} />}
+    {section === 'designer' && <Suspense fallback={<p className="loading" role="status">Bühnentechnik wird geladen …</p>}>
+      <Designer me={me} onDirty={onDirty} partId={'partId' in location ? location.partId : undefined} />
+    </Suspense>}
     {section === 'help' && <Help topic={'topic' in location ? location.topic : undefined} />}
     {section === 'account' && showAccount && <div className="workspace-management"><LinkedAccounts me={me} /></div>}
     {section === 'admin' && showAdmin && <div className="workspace-management">
@@ -573,4 +578,9 @@ function Members({ me }: { me: Me }) {
   </section>;
 }
 
-createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>);
+const Designer = lazy(() => import('./designer/Designer.js').then(module => ({ default: module.Designer })));
+const StageCanvasHarness = lazy(() => import('./stage/StageCanvasHarness.js').then(module => ({ default: module.StageCanvasHarness })));
+
+createRoot(document.getElementById('root')!).render(<StrictMode>
+  {isStageCanvasHarnessRoute(location, import.meta.env.DEV) ? <Suspense fallback={null}><StageCanvasHarness /></Suspense> : <App />}
+</StrictMode>);

@@ -694,6 +694,12 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
 .editor-grid.dock-grid { display: grid; position: relative; grid-template-columns: minmax(0, 1fr) 320px 64px; min-height: 0; overflow: hidden; }
 .editor-grid.dock-grid[data-dock-open=false] { grid-template-columns: minmax(0, 1fr) 64px; }
 .dock-grid > .editor-views { min-width: 0; min-height: 0; grid-template-rows: minmax(0, 1fr); padding: 4px 4px 4px 0; overflow: hidden; }
+.editor-shell .editor-views { display: grid; }
+.editor-shell .plan-workspace { display: flex; flex-direction: column; min-width: 0; min-height: 0; height: 100%; }
+.editor-shell .plan-workspace > .plan-canvas { flex: 1; }
+.editor-shell .editor-view-plan, .editor-shell .editor-view-stage { grid-template-columns: minmax(0, 1fr); }
+.editor-shell .editor-view-split { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.editor-dock[hidden] { display: none !important; }
 .editor-dock { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: #fff; border-left: 1px solid var(--ui-line); overflow: hidden; }
 .dock-heading { display: flex; align-items: center; gap: 4px; flex-shrink: 0; min-height: 40px; padding: 4px 8px; border-bottom: 1px solid var(--ui-line); }
 .dock-heading h3 { flex: 1; margin: 0; font-size: 13px; }
@@ -715,7 +721,7 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
 .dock-pane .stage-measurements { font-size: 12px; }
 .dock-pane > div > .muted { padding: 12px; font-size: 12px; }
 .dock-empty { padding: 16px; font-size: 13px; line-height: 1.5; }
-.panel-rail { display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 6px 3px; border-left: 1px solid var(--ui-line); background: #fff; overflow-y: auto; }
+.panel-rail { position: relative; z-index: 16; display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 6px 3px; border-left: 1px solid var(--ui-line); background: #fff; overflow-y: auto; }
 .editor .panel-rail button { flex-direction: column; gap: 4px; min-height: 54px; padding: 5px 1px; }
 .panel-rail button span { font-size: 10px; }
 /* View controls float at the edges; they never consume a row of drawing height. */

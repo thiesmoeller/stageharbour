@@ -1,0 +1,29 @@
+{
+  "counts": {"inventory": 4},
+  "warnings": [
+    {
+      "family": "inventory",
+      "ids": [],
+      "kind": "shortage",
+      "message": "Plattenbestand reicht nicht: 3 Plätze, 1 verfügbare Platten."
+    },
+    {
+      "family": "inventory",
+      "ids": ["a6000000-0000-4000-8000-000000000001"],
+      "kind": "unassigned",
+      "message": "„Wand“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["a6000000-0000-4000-8000-000000000002"],
+      "kind": "unassigned",
+      "message": "„Wand“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["a6000000-0000-4000-8000-000000000003"],
+      "kind": "unassigned",
+      "message": "„Wand“ hat keine Platte zugewiesen."
+    }
+  ]
+}

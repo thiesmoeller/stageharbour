@@ -46,11 +46,14 @@ g.plan-overlap text { fill: #7a2a1c; }
 .wall-inspector h3 { margin-top: 0; }
 .wall-inspector h4 { margin: 16px 0 8px; font-size: .85rem; }
 .wall-types { margin-bottom: 22px; padding-bottom: 18px; border-bottom: 1px solid #e0e5d8; }
-.inventory-panel { margin: 22px 0; padding: 18px 0; border-top: 1px solid #e0e5d8; border-bottom: 1px solid #e0e5d8; }
+.inventory-panel { min-width: 0; max-width: 100%; overflow-x: auto; margin: 22px 0; padding: 18px 0; border-top: 1px solid #e0e5d8; border-bottom: 1px solid #e0e5d8; }
 .inventory-panel ul { margin: 8px 0; padding-left: 1.1em; font-size: .78rem; }
 .inventory-list { list-style: none; padding-left: 0; }
 .inventory-list label { display: flex; gap: 8px; align-items: center; font-weight: 400; margin: 6px 0; }
 .inventory-panel input[type=checkbox] { width: auto; }
+.inventory-panel .inline-form fieldset { display: flex; gap: 8px; align-items: center; margin: 0; padding: 0; border: 0; }
+.inventory-panel .inline-form input[type=number] { width: 7em; }
+.stock-demand .shortage { color: #a3341f; font-weight: 600; }
 .assembly-panel { margin: 0 0 22px; padding: 0 0 18px; border-bottom: 1px solid #e0e5d8; }
 .assembly-panel ul { list-style: none; padding-left: 0; font-size: .78rem; }
 .assembly-panel li { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; }

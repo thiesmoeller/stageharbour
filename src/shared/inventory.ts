@@ -130,27 +130,20 @@ export function usablePanels(panels: readonly InventoryPanel[]): InventoryPanel[
 
 export function inventoryWarnings(layout: Layout, panels: readonly InventoryPanel[]): InventoryWarning[] {
   const byId = new Map(panels.map(item => [item.id, item]));
-  const types = typesOf(layout);
   const warnings: InventoryWarning[] = [];
   const assigned = new Map<string, string[]>();
-  for (const wall of layout.walls) {
-    if (!wall.panelId) {
-      warnings.push({ kind: 'unassigned', wallId: wall.id, message: `„${wall.label}“ hat keine Platte zugewiesen.` });
-      continue;
-    }
-    const holders = assigned.get(wall.panelId) ?? [];
-    holders.push(wall.id);
-    assigned.set(wall.panelId, holders);
-    const panel = byId.get(wall.panelId);
+  for (const object of layout.objects) {
+    if (!object.stockItemId) continue;
+    const holders = assigned.get(object.stockItemId) ?? [];
+    holders.push(object.id);
+    assigned.set(object.stockItemId, holders);
+    const panel = byId.get(object.stockItemId);
     if (!panel) {
-      warnings.push({ kind: 'unavailable', wallId: wall.id, panelId: wall.panelId, message: `Die zugewiesene Platte für „${wall.label}“ ist nicht im Plattenbestand.` });
+      warnings.push({ kind: 'unavailable', wallId: object.id, panelId: object.stockItemId, message: `Das Bestandsstück für „${object.label}“ ist nicht verfügbar.` });
       continue;
     }
     if (!panel.available) {
-      warnings.push({ kind: 'unavailable', wallId: wall.id, panelId: panel.id, message: `Platte ${panel.label} ist nicht verfügbar.` });
-    }
-    if (!typesCompatible(panel.type, placementType(wall, types))) {
-      warnings.push({ kind: 'incompatible', wallId: wall.id, panelId: panel.id, message: `Platte ${panel.label} passt nicht zu „${wall.label}“.` });
+      warnings.push({ kind: 'unavailable', wallId: object.id, panelId: panel.id, message: `Bestandsstück ${panel.label} ist nicht verfügbar.` });
     }
   }
   for (const [panelId, wallIds] of assigned) {
@@ -158,35 +151,12 @@ export function inventoryWarnings(layout: Layout, panels: readonly InventoryPane
     const panel = byId.get(panelId);
     warnings.push({ kind: 'duplicate', panelId, wallId: wallIds[0], message: `Platte ${panel?.label ?? panelId} ist in diesem Bühnenbild mehrfach zugewiesen.` });
   }
-  const groups = new Map<string, { needed: number; placement: PlacementType }>();
-  for (const wall of layout.walls) {
-    const placement = placementType(wall, types);
-    const key = geometryKey(placement);
-    const group = groups.get(key) ?? { needed: 0, placement };
-    group.needed += 1;
-    groups.set(key, group);
-  }
-  for (const group of groups.values()) {
-    const usable = panels.filter(item => item.available && typesCompatible(item.type, group.placement)).length;
-    if (group.needed > usable) {
-      warnings.push({ kind: 'shortage', message: `Plattenbestand reicht nicht: ${group.needed} Plätze, ${usable} verfügbare Platten.` });
-    }
-  }
   return warnings;
 }
 
-/** Preserve a saved assignment snapshot even when the scene finish changes. */
-export function snapshotPanelAssignments(previous: Layout, next: Layout, makeId: () => string): Layout {
-  return { ...next, walls: next.walls.map(wall => {
-    const { finishAssignment: incoming, ...rest } = wall;
-    if (!wall.panelId) return rest;
-    const saved = previous.walls.find(item => item.id === wall.id && item.panelId === wall.panelId);
-    return { ...rest, finishAssignment: saved?.finishAssignment ?? {
-      id: incoming?.id ?? makeId(),
-      // Prefer the client-captured assign-time surfaces over a later design edit before first save.
-      surfaces: structuredClone(incoming?.surfaces ?? wall.surfaces ?? {}),
-    } };
-  }) };
+/** Legacy inventory endpoints no longer rewrite layouts; stock assignments are first-class object fields. */
+export function snapshotPanelAssignments(_previous: Layout, next: Layout, _makeId: () => string): Layout {
+  return next;
 }
 
 export const finishWorkSchema = z.strictObject({

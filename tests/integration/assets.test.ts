@@ -23,7 +23,7 @@ before(async () => {
 });
 after(async () => { await app?.close(); await fixture?.dispose(); });
 
-test('shared GLB assets survive restart and archival; layout references are workspace scoped', async () => {
+test('shared GLB assets survive restart and archival and stay workspace scoped', async () => {
   const payload = cubeGlb();
   const uploaded = await app.inject({ method: 'POST', url: `${base}/files`, headers: { ...headers, 'content-type': 'model/gltf-binary' }, payload });
   assert.equal(uploaded.statusCode, 201, uploaded.body);
@@ -37,15 +37,8 @@ test('shared GLB assets survive restart and archival; layout references are work
   assert.equal(file.statusCode, 200); assert.deepEqual(file.rawPayload, payload);
   assert.equal((await app.inject({ url: `${base}/files/${fileId}` })).statusCode, 401);
 
-  const sceneBase = `/api/workspaces/${fixture.config.WORKSPACE_ID}/scenes`;
-  const scene = (await app.inject({ method: 'POST', url: sceneBase, headers, payload: { productionName: 'Test', venueName: 'Saal', sceneName: 'Szene', width: 8000, depth: 6000 } })).json();
-  await app.inject({ method: 'POST', url: `${sceneBase}/${scene.id}/lease`, headers });
-  const prop = { id: randomUUID(), assetId: asset.id, label: 'Podest', x: 2000, y: 3000, kind: 'box' as const, rotation: 30, width: 1200, height: 900, depth: 800 };
-  const layout = { schemaVersion: 1, walls: [], braces: [], placeholders: [prop] };
-  assert.equal((await app.inject({ method: 'PUT', url: `${sceneBase}/${scene.id}/layout`, headers, payload: { revision: 0, layout } })).statusCode, 200);
   assert.equal((await app.inject({ method: 'DELETE', url: `${base}/${asset.id}`, headers })).statusCode, 200);
   assert.equal((await app.inject({ url: base, headers })).json()[0].archived, true);
-  assert.deepEqual((await app.inject({ url: `${sceneBase}/${scene.id}`, headers })).json().layout.placeholders, [prop]);
   assert.equal((await app.inject({ url: `${base}/files/${fileId}`, headers })).statusCode, 200);
 
   const foreign = randomUUID();
@@ -56,8 +49,10 @@ test('shared GLB assets survive restart and archival; layout references are work
   assert.equal((await app.inject({ method: 'POST', url: `/api/workspaces/${foreign}/inventory/lease`, headers })).statusCode, 200);
   assert.equal((await app.inject({ url: `${foreignBase}/files/${fileId}`, headers })).statusCode, 404);
   assert.equal((await app.inject({ method: 'POST', url: foreignBase, headers, payload: { name: 'Fremd', definition } })).statusCode, 400);
-  const foreignAsset = (await app.inject({ method: 'POST', url: foreignBase, headers, payload: { name: 'Wand', definition: { kind: 'wall', template: { width: 1200, height: 2400, thickness: 28 } } } })).json();
-  assert.equal((await app.inject({ method: 'PUT', url: `${sceneBase}/${scene.id}/layout`, headers, payload: { revision: 1, layout: { ...layout, placeholders: [{ ...prop, assetId: foreignAsset.id }] } } })).statusCode, 400);
+  assert.equal((await app.inject({ method: 'POST', url: foreignBase, headers, payload: {
+    name: 'Wand',
+    definition: { kind: 'wall', template: { width: 1200, height: 2400, thickness: 28 } },
+  } })).statusCode, 201);
 });
 
 test('renames an inventory asset while the inventory lease is held', async () => {

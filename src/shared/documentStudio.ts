@@ -1,4 +1,4 @@
-import { freezeSnapshot } from './export.js';
+import { freezeSnapshot, type FreezeSource } from './export.js';
 import {
   bodyRect, composeDocument, defaultCamera,
   type DocumentFrame, type DocumentLayout, type DocumentPage, type DocumentPurpose,
@@ -6,8 +6,6 @@ import {
   sectionsForPurpose, layersForPurpose,
 } from './exportDocument.js';
 import type { Scene } from './layout.js';
-import type { Inventory } from './inventory.js';
-import { freezePackage } from './package.js';
 
 export const FRAME_LABELS: Record<FrameKind, string> = {
   plan: 'Grundriss', elevation: 'Wandansicht', view3d: 'Raumsicht', notes: 'Text und Hinweise', schedule: 'Stückliste',
@@ -32,19 +30,17 @@ export function studioSpec(purpose: DocumentPurpose, sceneIds: string[], revisio
 }
 
 /** Immediate design preview from the same geometry/layout pipeline as the final PDF. */
-export function studioLayout(spec: ExportDocumentSpec, scenes: readonly Scene[], issuedAt: Date, measure?: Parameters<typeof composeDocument>[0]['measure'], inventory?: Pick<Inventory, 'panels' | 'ballast'>): DocumentLayout {
+export function studioLayout(spec: ExportDocumentSpec, scenes: readonly Scene[], issuedAt: Date, measure?: Parameters<typeof composeDocument>[0]['measure'], source?: FreezeSource): DocumentLayout {
   const selected = spec.scenes.map(entry => scenes.find(scene => scene.id === entry.sceneId)).filter((scene): scene is Scene => !!scene);
   if (!selected.length) throw new Error('Für dieses Dokument ist kein Bühnenbild verfügbar.');
-  const labels = Object.fromEntries((inventory?.panels ?? []).map(panel => [panel.id, panel.label]));
-  const stock = (spec.kind === 'package' || selected.length > 1) ? freezePackage(selected, { id: selected[0]!.id, name: spec.revisionName || 'Entwurf', issuedAt, paper: spec.paper, scale: spec.scale }, inventory?.panels, inventory?.ballast).stock : undefined;
   return composeDocument({
-    spec, productionName: scenes[0]?.productionName ?? 'Produktion', issuedAtLabel: issuedAt.toLocaleDateString('de-DE'), measure, stock,
+    spec, productionName: scenes[0]?.productionName ?? 'Produktion', issuedAtLabel: issuedAt.toLocaleDateString('de-DE'), measure,
     scenes: selected.map(scene => ({
       sceneId: scene.id, sceneName: scene.name, venueName: scene.venueName,
       snapshot: freezeSnapshot(scene, {
         id: scene.id, name: spec.revisionName || 'Entwurf', issuedAt, paper: spec.paper, scale: spec.scale,
         elevationGroupIds: spec.scenes.find(entry => entry.sceneId === scene.id)?.elevationGroupIds, layers: spec.layers,
-      }, labels),
+      }, source),
     })),
   });
 }

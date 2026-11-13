@@ -11,7 +11,6 @@ import { snapDrawSegment } from './snapping.js';
 import { stageCentrelineSchema } from './centreline.js';
 import { audienceViewpointSchema, venueOutlineSchema, venueTraceSchema } from './venue.js';
 import { placeholdersSchema } from './placeholders.js';
-import { panelConnectionSchema } from './assembly.js';
 import { groupSchema, groupsReferenceLayout } from './groups.js';
 import { trussesSchema } from './truss.js';
 import { hangPlanFitsTrusses, hangPlanSchema, lightLooksSchema } from './hangPlan.js';
@@ -21,8 +20,11 @@ import { playDimensionsSchema } from './dimensionSchema.js';
 import { wallPicturesSchema } from './wallPictures.js';
 import { reportTemplatesSchema } from './reportTemplate.js';
 import { RAL_CODE_PATTERN } from './ral.js';
-import { finishAssignmentSchema, migrateWallSurfaces, wallSurfacesSchema } from './surfaces.js';
+import {
+  faceSurfacingSchema, finishAssignmentSchema, migrateWallSurfaces, surfaceFinishSchema, wallSurfacesSchema,
+} from './surfaces.js';
 import { BRACE_TIMBER_MM } from './braceTransforms.js';
+import { identifierSchema, partKeySchema, partRefSchema } from './parts/definition.js';
 
 const name = z.string().trim().min(1).max(120);
 const dimension = z.number().finite().min(1).max(100000);
@@ -111,60 +113,89 @@ export const braceSchema = z.strictObject({
   supportingSurfaceId: z.uuid().optional(),
 });
 export type Brace = z.infer<typeof braceSchema>;
+
+/** Finish assigned to a finishable face trait. Upright faces may be split into bands. */
+export const partFaceFinishSchema = z.union([surfaceFinishSchema, faceSurfacingSchema]);
+export type PartFaceFinish = z.infer<typeof partFaceFinishSchema>;
+
+/** A resolved child/repeat path such as `tuer/blatt` or `fuss[0,1]/kopf`. */
+export const resolvedPartElementKeySchema = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_.\-/,\[\]]{0,239}$/);
+
+export const layoutObjectSchema = z.strictObject({
+  id: z.uuid(),
+  label: name,
+  part: partRefSchema,
+  variant: partKeySchema.optional(),
+  values: z.record(identifierSchema, z.number().finite().min(-1_000_000).max(1_000_000)).optional(),
+  state: z.record(identifierSchema, z.number().finite().min(-1_000_000).max(1_000_000)).optional(),
+  x: coordinate,
+  y: coordinate,
+  rotation: z.number().finite().min(-360).max(360),
+  /** UUID of the venue surface or placed object this object stands on. */
+  support: z.uuid().optional(),
+  stockItemId: z.uuid().optional(),
+  finishes: z.record(resolvedPartElementKeySchema, partFaceFinishSchema).optional(),
+  assemblyNumber: z.number().int().positive().max(250).optional(),
+});
+export type LayoutObject = z.infer<typeof layoutObjectSchema>;
+
+export const jointEndpointSchema = z.strictObject({
+  object: z.uuid(),
+  connector: resolvedPartElementKeySchema,
+});
+export const jointSchema = z.strictObject({
+  id: z.uuid().optional(),
+  a: jointEndpointSchema,
+  b: jointEndpointSchema,
+}).refine(joint => joint.a.object !== joint.b.object || joint.a.connector !== joint.b.connector,
+  'A joint connects two different connector endpoints');
+export type Joint = z.infer<typeof jointSchema>;
+
 export const layoutSchema = z.strictObject({
   lighting: stageLightingSchema.optional(),
   /** Named lighting looks for hung Scheinwerfer (ADR 0007). Not cues. */
   lightLooks: lightLooksSchema.optional(),
   activeLightLookId: z.uuid().optional(),
-  schemaVersion: z.literal(1),
-  wallTypes: z.array(wallTypeSchema).max(250).refine(
-    types => new Set(types.map(type => type.id)).size === types.length, 'Wall type IDs must be unique',
-  ).optional(),
-  walls: z.array(wallSchema).max(250).refine(walls => new Set(walls.map(wall => wall.id)).size === walls.length, 'Wall IDs must be unique'),
-  braces: z.array(braceSchema).max(250).default([]).refine(braces => new Set(braces.map(brace => brace.id)).size === braces.length, 'Brace IDs must be unique'),
-  platforms: z.array(platformSchema).max(250).optional(),
-  stairs: z.array(stairSchema).max(250).optional(),
-  connections: z.array(panelConnectionSchema).max(250).optional(),
+  schemaVersion: z.literal(2),
+  objects: z.array(layoutObjectSchema).max(1000)
+    .refine(objects => new Set(objects.map(object => object.id)).size === objects.length, 'Object IDs must be unique'),
+  joints: z.array(jointSchema).max(1000),
   groups: z.array(groupSchema).max(250).optional(),
-  placeholders: placeholdersSchema.optional(),
   /** Actual cables for this Bühnenbild. Venue corridors only guide their paths. */
   cableRuns: cableRunsSchema.optional(),
   measureLines: measureLinesSchema.optional(),
   /** Associative horizontal or vertical distances on this play. */
   dimensions: playDimensionsSchema.optional(),
   wallPictures: wallPicturesSchema.optional(),
-  /**
-   * @deprecated Prefer `venue.reportTemplates`. Kept optional so older scene layouts still parse;
-   * lift to the venue and strip on save.
-   */
-  reportTemplates: reportTemplatesSchema.optional(),
   riggingNotes: z.string().max(2000).optional(),
   riggingSetupId: z.uuid().optional(),
   /** Scene-only opening state for fixed venue curtains and permanent doors. */
   venueFixtureState: venueFixtureStateSchema.optional(),
 }).refine(layout => {
-  const ids = new Set((layout.wallTypes ?? []).map(type => type.id));
-  return layout.walls.every(wall => !wall.typeId || ids.has(wall.typeId));
-}, 'Walls must reference a defined wall type').refine(
-  layout => uniqueLevelIds(layout.platforms ?? [], layout.stairs ?? []), 'Platform and stair IDs must be unique',
-).refine(layout => {
-  const ids = new Set(layout.walls.map(wall => wall.id));
-  return (layout.connections ?? []).every(connection => ids.has(connection.a) && ids.has(connection.b));
-}, 'Connections must reference walls in the layout').refine(layout => {
-  const ids = new Set(layout.walls.map(wall => wall.id));
+  const ids = new Set(layout.objects.map(object => object.id));
+  return layout.joints.every(joint => ids.has(joint.a.object) && ids.has(joint.b.object));
+}, 'Joints must reference objects in the layout').refine(layout => {
+  const ids = new Set(layout.objects.map(object => object.id));
   return (layout.wallPictures ?? []).every(picture => ids.has(picture.wallId));
-}, 'Wall pictures must reference walls in the layout').refine(layout => {
-  const numbers = layout.walls.flatMap(wall => wall.assemblyNumber == null ? [] : [wall.assemblyNumber]);
+}, 'Wall pictures must reference objects in the layout').refine(layout => {
+  const numbers = layout.objects.flatMap(object => object.assemblyNumber == null ? [] : [object.assemblyNumber]);
   return new Set(numbers).size === numbers.length;
 }, 'Assembly numbers must be unique').refine(layout => {
-  const pairs = (layout.connections ?? []).map(connection => connection.a < connection.b ? `${connection.a}:${connection.b}` : `${connection.b}:${connection.a}`);
+  const pairs = layout.joints.map(joint => {
+    const a = `${joint.a.object}:${joint.a.connector}`, b = `${joint.b.object}:${joint.b.connector}`;
+    return a < b ? `${a}|${b}` : `${b}|${a}`;
+  });
   return new Set(pairs).size === pairs.length;
-}, 'Connection pairs must be unique').refine(layout => groupsReferenceLayout(layout), 'Groups must reference unique layout members').refine(layout => {
+}, 'Joint endpoint pairs must be unique').refine(layout => groupsReferenceLayout(layout), 'Groups must reference unique layout members').refine(layout => {
   const looks = layout.lightLooks ?? [];
   if (!layout.activeLightLookId) return true;
   return looks.some(look => look.id === layout.activeLightLookId);
 }, 'Active light look must exist in lightLooks');
 export type Layout = z.infer<typeof layoutSchema>;
+
+export function emptyLayout(): Layout {
+  return { schemaVersion: 2, objects: [], joints: [] };
+}
 const venueGeometryObject = z.strictObject({
   lighting: stageLightingSchema.optional(),
   schemaVersion: z.literal(1), width: dimension, depth: dimension,
@@ -185,7 +216,7 @@ const venueGeometryObject = z.strictObject({
   keepClearZones: keepClearZonesSchema.optional(),
   stageCentreline: stageCentrelineSchema.optional(),
   audienceViewpoint: audienceViewpointSchema.optional(),
-  /** Pascal library material for the audience floor / venue footprint. */
+  /** Material library finish (`library:<id>`) for the audience floor / venue footprint. */
   floorFinish: z.string().regex(/^library:[a-zA-Z0-9_-]+$/).max(180).optional(),
   /**
    * Construction-report sheet templates for this venue (views / crops).

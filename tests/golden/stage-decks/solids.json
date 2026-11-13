@@ -1,0 +1,3568 @@
+{
+  "elements": {
+    "01040000-0000-4000-8000-000000000001": {
+      "bbox": {"max": {"x": 4600, "y": 3300, "z": 12014}, "min": {"x": 3400, "y": 900, "z": 11986}},
+      "boxes": [
+        {
+          "center": {"x": 4000, "y": 2100, "z": 12000},
+          "part": "panel",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1200, "y": 2400, "z": 28}
+        }
+      ],
+      "details": {
+        "doorOpenPercent": 0,
+        "mesh": {
+          "bbox": {"max": [600, 1200, 14], "min": [-600, -1200, -14]},
+          "groups": [
+            {"areaMm2": 201600, "materialIndex": 0, "triangles": 8},
+            {"areaMm2": 2880000, "materialIndex": 1, "triangles": 2},
+            {"areaMm2": 0, "materialIndex": 2, "triangles": 0},
+            {"areaMm2": 2880000, "materialIndex": 3, "triangles": 2},
+            {"areaMm2": 0, "materialIndex": 4, "triangles": 0}
+          ],
+          "triangleCount": 12,
+          "vertexCount": 36
+        },
+        "openings": []
+      },
+      "elevation": 900,
+      "height": 2400,
+      "label": "Glattwand",
+      "source": "layout",
+      "v1Kind": "wall"
+    },
+    "03040000-0000-4000-8000-000000000001": {
+      "bbox": {"max": {"x": 2500, "y": 200, "z": 1500}, "min": {"x": 500, "y": 0, "z": 500}},
+      "boxes": [
+        {
+          "center": {"x": 1500, "y": 160, "z": 1498},
+          "part": "deck.module.0.edge.north",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 1500, "y": 160, "z": 502},
+          "part": "deck.module.0.edge.south",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 2498, "y": 160, "z": 1000},
+          "part": "deck.module.0.edge.east",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 502, "y": 160, "z": 1000},
+          "part": "deck.module.0.edge.west",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 1500, "y": 160, "z": 1000},
+          "part": "deck.module.0.infield",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1991, "y": 80, "z": 991}
+        },
+        {
+          "center": {"x": 533, "y": 6, "z": 533},
+          "part": "deck.leg.0.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 533, "y": 66, "z": 533},
+          "part": "deck.leg.0.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 108, "z": 50}
+        },
+        {
+          "center": {"x": 2467, "y": 6, "z": 533},
+          "part": "deck.leg.1.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 2467, "y": 66, "z": 533},
+          "part": "deck.leg.1.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 108, "z": 50}
+        },
+        {
+          "center": {"x": 2467, "y": 6, "z": 1467},
+          "part": "deck.leg.2.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 2467, "y": 66, "z": 1467},
+          "part": "deck.leg.2.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 108, "z": 50}
+        },
+        {
+          "center": {"x": 533, "y": 6, "z": 1467},
+          "part": "deck.leg.3.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 533, "y": 66, "z": 1467},
+          "part": "deck.leg.3.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 108, "z": 50}
+        }
+      ],
+      "elevation": 200,
+      "height": 200,
+      "label": "Bühnenelement 1",
+      "source": "layout",
+      "v1Kind": "platform"
+    },
+    "03040000-0000-4000-8000-000000000002": {
+      "bbox": {"max": {"x": 5500, "y": 400, "z": 1500}, "min": {"x": 3500, "y": 0, "z": 500}},
+      "boxes": [
+        {
+          "center": {"x": 4500, "y": 360, "z": 1498},
+          "part": "deck.module.0.edge.north",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 4500, "y": 360, "z": 502},
+          "part": "deck.module.0.edge.south",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 5498, "y": 360, "z": 1000},
+          "part": "deck.module.0.edge.east",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 3502, "y": 360, "z": 1000},
+          "part": "deck.module.0.edge.west",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 4500, "y": 360, "z": 1000},
+          "part": "deck.module.0.infield",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1991, "y": 80, "z": 991}
+        },
+        {
+          "center": {"x": 3533, "y": 6, "z": 533},
+          "part": "deck.leg.0.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 3533, "y": 166, "z": 533},
+          "part": "deck.leg.0.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 5467, "y": 6, "z": 533},
+          "part": "deck.leg.1.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 5467, "y": 166, "z": 533},
+          "part": "deck.leg.1.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 5467, "y": 6, "z": 1467},
+          "part": "deck.leg.2.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 5467, "y": 166, "z": 1467},
+          "part": "deck.leg.2.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 3533, "y": 6, "z": 1467},
+          "part": "deck.leg.3.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 3533, "y": 166, "z": 1467},
+          "part": "deck.leg.3.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        }
+      ],
+      "elevation": 400,
+      "height": 400,
+      "label": "Bühnenelement 2",
+      "source": "layout",
+      "v1Kind": "platform"
+    },
+    "03040000-0000-4000-8000-000000000003": {
+      "bbox": {"max": {"x": 10250, "y": 600, "z": 2250}, "min": {"x": 6750, "y": 0, "z": 750}},
+      "boxes": [
+        {
+          "center": {"x": 7750, "y": 560, "z": 1748},
+          "part": "deck.module.0.edge.north",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 7750, "y": 560, "z": 752},
+          "part": "deck.module.0.edge.south",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 8748, "y": 560, "z": 1250},
+          "part": "deck.module.0.edge.east",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 6752, "y": 560, "z": 1250},
+          "part": "deck.module.0.edge.west",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 7750, "y": 560, "z": 1250},
+          "part": "deck.module.0.infield",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1991, "y": 80, "z": 991}
+        },
+        {
+          "center": {"x": 9250, "y": 560, "z": 1748},
+          "part": "deck.module.1.edge.north",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 9250, "y": 560, "z": 752},
+          "part": "deck.module.1.edge.south",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 9748, "y": 560, "z": 1250},
+          "part": "deck.module.1.edge.east",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 8752, "y": 560, "z": 1250},
+          "part": "deck.module.1.edge.west",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 9250, "y": 560, "z": 1250},
+          "part": "deck.module.1.infield",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 991, "y": 80, "z": 991}
+        },
+        {
+          "center": {"x": 10000, "y": 560, "z": 1748},
+          "part": "deck.module.2.edge.north",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 500, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 10000, "y": 560, "z": 752},
+          "part": "deck.module.2.edge.south",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 500, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 10248, "y": 560, "z": 1250},
+          "part": "deck.module.2.edge.east",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 9752, "y": 560, "z": 1250},
+          "part": "deck.module.2.edge.west",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 10000, "y": 560, "z": 1250},
+          "part": "deck.module.2.infield",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 491, "y": 80, "z": 991}
+        },
+        {
+          "center": {"x": 7750, "y": 560, "z": 2248},
+          "part": "deck.module.3.edge.north",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 7750, "y": 560, "z": 1752},
+          "part": "deck.module.3.edge.south",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 8748, "y": 560, "z": 2000},
+          "part": "deck.module.3.edge.east",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 492}
+        },
+        {
+          "center": {"x": 6752, "y": 560, "z": 2000},
+          "part": "deck.module.3.edge.west",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 492}
+        },
+        {
+          "center": {"x": 7750, "y": 560, "z": 2000},
+          "part": "deck.module.3.infield",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1991, "y": 80, "z": 491}
+        },
+        {
+          "center": {"x": 9250, "y": 560, "z": 2248},
+          "part": "deck.module.4.edge.north",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 9250, "y": 560, "z": 1752},
+          "part": "deck.module.4.edge.south",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 9748, "y": 560, "z": 2000},
+          "part": "deck.module.4.edge.east",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 492}
+        },
+        {
+          "center": {"x": 8752, "y": 560, "z": 2000},
+          "part": "deck.module.4.edge.west",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 492}
+        },
+        {
+          "center": {"x": 9250, "y": 560, "z": 2000},
+          "part": "deck.module.4.infield",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 991, "y": 80, "z": 491}
+        },
+        {
+          "center": {"x": 10000, "y": 560, "z": 2248},
+          "part": "deck.module.5.edge.north",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 500, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 10000, "y": 560, "z": 1752},
+          "part": "deck.module.5.edge.south",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 500, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 10248, "y": 560, "z": 2000},
+          "part": "deck.module.5.edge.east",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 492}
+        },
+        {
+          "center": {"x": 9752, "y": 560, "z": 2000},
+          "part": "deck.module.5.edge.west",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 492}
+        },
+        {
+          "center": {"x": 10000, "y": 560, "z": 2000},
+          "part": "deck.module.5.infield",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 491, "y": 80, "z": 491}
+        },
+        {
+          "center": {"x": 6783, "y": 6, "z": 783},
+          "part": "deck.leg.0.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 6783, "y": 266, "z": 783},
+          "part": "deck.leg.0.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 8717, "y": 6, "z": 783},
+          "part": "deck.leg.1.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 8717, "y": 266, "z": 783},
+          "part": "deck.leg.1.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 8717, "y": 6, "z": 1717},
+          "part": "deck.leg.2.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 8717, "y": 266, "z": 1717},
+          "part": "deck.leg.2.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 6783, "y": 6, "z": 1717},
+          "part": "deck.leg.3.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 6783, "y": 266, "z": 1717},
+          "part": "deck.leg.3.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 8783, "y": 6, "z": 783},
+          "part": "deck.leg.4.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 8783, "y": 266, "z": 783},
+          "part": "deck.leg.4.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 9717, "y": 6, "z": 783},
+          "part": "deck.leg.5.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 9717, "y": 266, "z": 783},
+          "part": "deck.leg.5.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 9717, "y": 6, "z": 1717},
+          "part": "deck.leg.6.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 9717, "y": 266, "z": 1717},
+          "part": "deck.leg.6.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 8783, "y": 6, "z": 1717},
+          "part": "deck.leg.7.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 8783, "y": 266, "z": 1717},
+          "part": "deck.leg.7.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 9783, "y": 6, "z": 783},
+          "part": "deck.leg.8.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 9783, "y": 266, "z": 783},
+          "part": "deck.leg.8.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 10217, "y": 6, "z": 783},
+          "part": "deck.leg.9.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 10217, "y": 266, "z": 783},
+          "part": "deck.leg.9.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 10217, "y": 6, "z": 1717},
+          "part": "deck.leg.10.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 10217, "y": 266, "z": 1717},
+          "part": "deck.leg.10.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 9783, "y": 6, "z": 1717},
+          "part": "deck.leg.11.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 9783, "y": 266, "z": 1717},
+          "part": "deck.leg.11.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 6783, "y": 6, "z": 1783},
+          "part": "deck.leg.12.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 6783, "y": 266, "z": 1783},
+          "part": "deck.leg.12.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 8717, "y": 6, "z": 1783},
+          "part": "deck.leg.13.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 8717, "y": 266, "z": 1783},
+          "part": "deck.leg.13.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 8717, "y": 6, "z": 2217},
+          "part": "deck.leg.14.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 8717, "y": 266, "z": 2217},
+          "part": "deck.leg.14.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 6783, "y": 6, "z": 2217},
+          "part": "deck.leg.15.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 6783, "y": 266, "z": 2217},
+          "part": "deck.leg.15.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 8783, "y": 6, "z": 1783},
+          "part": "deck.leg.16.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 8783, "y": 266, "z": 1783},
+          "part": "deck.leg.16.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 9717, "y": 6, "z": 1783},
+          "part": "deck.leg.17.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 9717, "y": 266, "z": 1783},
+          "part": "deck.leg.17.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 9717, "y": 6, "z": 2217},
+          "part": "deck.leg.18.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 9717, "y": 266, "z": 2217},
+          "part": "deck.leg.18.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 8783, "y": 6, "z": 2217},
+          "part": "deck.leg.19.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 8783, "y": 266, "z": 2217},
+          "part": "deck.leg.19.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 9783, "y": 6, "z": 1783},
+          "part": "deck.leg.20.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 9783, "y": 266, "z": 1783},
+          "part": "deck.leg.20.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 10217, "y": 6, "z": 1783},
+          "part": "deck.leg.21.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 10217, "y": 266, "z": 1783},
+          "part": "deck.leg.21.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 10217, "y": 6, "z": 2217},
+          "part": "deck.leg.22.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 10217, "y": 266, "z": 2217},
+          "part": "deck.leg.22.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 9783, "y": 6, "z": 2217},
+          "part": "deck.leg.23.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 9783, "y": 266, "z": 2217},
+          "part": "deck.leg.23.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        }
+      ],
+      "elevation": 600,
+      "height": 600,
+      "label": "Bühnenelement 3",
+      "source": "layout",
+      "v1Kind": "platform"
+    },
+    "03040000-0000-4000-8000-000000000004": {
+      "bbox": {"max": {"x": 14750, "y": 800, "z": 2250}, "min": {"x": 11250, "y": 0, "z": 750}},
+      "boxes": [
+        {
+          "center": {"x": 12250, "y": 760, "z": 1748},
+          "part": "deck.module.0.edge.north",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 12250, "y": 760, "z": 752},
+          "part": "deck.module.0.edge.south",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 13248, "y": 760, "z": 1250},
+          "part": "deck.module.0.edge.east",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 11252, "y": 760, "z": 1250},
+          "part": "deck.module.0.edge.west",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 12250, "y": 760, "z": 1250},
+          "part": "deck.module.0.infield",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1991, "y": 80, "z": 991}
+        },
+        {
+          "center": {"x": 12250, "y": 760, "z": 2248},
+          "part": "deck.module.1.edge.north",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 12250, "y": 760, "z": 1752},
+          "part": "deck.module.1.edge.south",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 13248, "y": 760, "z": 2000},
+          "part": "deck.module.1.edge.east",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 492}
+        },
+        {
+          "center": {"x": 11252, "y": 760, "z": 2000},
+          "part": "deck.module.1.edge.west",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 492}
+        },
+        {
+          "center": {"x": 12250, "y": 760, "z": 2000},
+          "part": "deck.module.1.infield",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1991, "y": 80, "z": 491}
+        },
+        {
+          "center": {"x": 13750, "y": 760, "z": 1748},
+          "part": "deck.module.2.edge.north",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 13750, "y": 760, "z": 752},
+          "part": "deck.module.2.edge.south",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 14248, "y": 760, "z": 1250},
+          "part": "deck.module.2.edge.east",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 13252, "y": 760, "z": 1250},
+          "part": "deck.module.2.edge.west",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 13750, "y": 760, "z": 1250},
+          "part": "deck.module.2.infield",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 991, "y": 80, "z": 991}
+        },
+        {
+          "center": {"x": 13750, "y": 760, "z": 2248},
+          "part": "deck.module.3.edge.north",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 13750, "y": 760, "z": 1752},
+          "part": "deck.module.3.edge.south",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 14248, "y": 760, "z": 2000},
+          "part": "deck.module.3.edge.east",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 492}
+        },
+        {
+          "center": {"x": 13252, "y": 760, "z": 2000},
+          "part": "deck.module.3.edge.west",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 492}
+        },
+        {
+          "center": {"x": 13750, "y": 760, "z": 2000},
+          "part": "deck.module.3.infield",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 991, "y": 80, "z": 491}
+        },
+        {
+          "center": {"x": 14500, "y": 760, "z": 1748},
+          "part": "deck.module.4.edge.north",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 500, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 14500, "y": 760, "z": 752},
+          "part": "deck.module.4.edge.south",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 500, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 14748, "y": 760, "z": 1250},
+          "part": "deck.module.4.edge.east",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 14252, "y": 760, "z": 1250},
+          "part": "deck.module.4.edge.west",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 14500, "y": 760, "z": 1250},
+          "part": "deck.module.4.infield",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 491, "y": 80, "z": 991}
+        },
+        {
+          "center": {"x": 14500, "y": 760, "z": 2248},
+          "part": "deck.module.5.edge.north",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 500, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 14500, "y": 760, "z": 1752},
+          "part": "deck.module.5.edge.south",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 500, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 14748, "y": 760, "z": 2000},
+          "part": "deck.module.5.edge.east",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 492}
+        },
+        {
+          "center": {"x": 14252, "y": 760, "z": 2000},
+          "part": "deck.module.5.edge.west",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 492}
+        },
+        {
+          "center": {"x": 14500, "y": 760, "z": 2000},
+          "part": "deck.module.5.infield",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 491, "y": 80, "z": 491}
+        },
+        {
+          "center": {"x": 11283, "y": 6, "z": 783},
+          "part": "deck.leg.0.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 11283, "y": 366, "z": 783},
+          "part": "deck.leg.0.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 708, "z": 50}
+        },
+        {
+          "center": {"x": 13217, "y": 6, "z": 783},
+          "part": "deck.leg.1.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 13217, "y": 366, "z": 783},
+          "part": "deck.leg.1.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 708, "z": 50}
+        },
+        {
+          "center": {"x": 13217, "y": 6, "z": 1717},
+          "part": "deck.leg.2.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 13217, "y": 366, "z": 1717},
+          "part": "deck.leg.2.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 708, "z": 50}
+        },
+        {
+          "center": {"x": 11283, "y": 6, "z": 1717},
+          "part": "deck.leg.3.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 11283, "y": 366, "z": 1717},
+          "part": "deck.leg.3.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 708, "z": 50}
+        },
+        {
+          "center": {"x": 11283, "y": 6, "z": 1783},
+          "part": "deck.leg.4.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 11283, "y": 366, "z": 1783},
+          "part": "deck.leg.4.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 708, "z": 50}
+        },
+        {
+          "center": {"x": 13217, "y": 6, "z": 1783},
+          "part": "deck.leg.5.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 13217, "y": 366, "z": 1783},
+          "part": "deck.leg.5.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 708, "z": 50}
+        },
+        {
+          "center": {"x": 13217, "y": 6, "z": 2217},
+          "part": "deck.leg.6.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 13217, "y": 366, "z": 2217},
+          "part": "deck.leg.6.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 708, "z": 50}
+        },
+        {
+          "center": {"x": 11283, "y": 6, "z": 2217},
+          "part": "deck.leg.7.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 11283, "y": 366, "z": 2217},
+          "part": "deck.leg.7.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 708, "z": 50}
+        },
+        {
+          "center": {"x": 13283, "y": 6, "z": 783},
+          "part": "deck.leg.8.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 13283, "y": 366, "z": 783},
+          "part": "deck.leg.8.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 708, "z": 50}
+        },
+        {
+          "center": {"x": 14217, "y": 6, "z": 783},
+          "part": "deck.leg.9.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 14217, "y": 366, "z": 783},
+          "part": "deck.leg.9.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 708, "z": 50}
+        },
+        {
+          "center": {"x": 14217, "y": 6, "z": 1717},
+          "part": "deck.leg.10.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 14217, "y": 366, "z": 1717},
+          "part": "deck.leg.10.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 708, "z": 50}
+        },
+        {
+          "center": {"x": 13283, "y": 6, "z": 1717},
+          "part": "deck.leg.11.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 13283, "y": 366, "z": 1717},
+          "part": "deck.leg.11.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 708, "z": 50}
+        },
+        {
+          "center": {"x": 13283, "y": 6, "z": 1783},
+          "part": "deck.leg.12.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 13283, "y": 366, "z": 1783},
+          "part": "deck.leg.12.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 708, "z": 50}
+        },
+        {
+          "center": {"x": 14217, "y": 6, "z": 1783},
+          "part": "deck.leg.13.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 14217, "y": 366, "z": 1783},
+          "part": "deck.leg.13.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 708, "z": 50}
+        },
+        {
+          "center": {"x": 14217, "y": 6, "z": 2217},
+          "part": "deck.leg.14.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 14217, "y": 366, "z": 2217},
+          "part": "deck.leg.14.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 708, "z": 50}
+        },
+        {
+          "center": {"x": 13283, "y": 6, "z": 2217},
+          "part": "deck.leg.15.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 13283, "y": 366, "z": 2217},
+          "part": "deck.leg.15.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 708, "z": 50}
+        },
+        {
+          "center": {"x": 14283, "y": 6, "z": 783},
+          "part": "deck.leg.16.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 14283, "y": 366, "z": 783},
+          "part": "deck.leg.16.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 708, "z": 50}
+        },
+        {
+          "center": {"x": 14717, "y": 6, "z": 783},
+          "part": "deck.leg.17.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 14717, "y": 366, "z": 783},
+          "part": "deck.leg.17.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 708, "z": 50}
+        },
+        {
+          "center": {"x": 14717, "y": 6, "z": 1717},
+          "part": "deck.leg.18.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 14717, "y": 366, "z": 1717},
+          "part": "deck.leg.18.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 708, "z": 50}
+        },
+        {
+          "center": {"x": 14283, "y": 6, "z": 1717},
+          "part": "deck.leg.19.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 14283, "y": 366, "z": 1717},
+          "part": "deck.leg.19.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 708, "z": 50}
+        },
+        {
+          "center": {"x": 14283, "y": 6, "z": 1783},
+          "part": "deck.leg.20.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 14283, "y": 366, "z": 1783},
+          "part": "deck.leg.20.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 708, "z": 50}
+        },
+        {
+          "center": {"x": 14717, "y": 6, "z": 1783},
+          "part": "deck.leg.21.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 14717, "y": 366, "z": 1783},
+          "part": "deck.leg.21.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 708, "z": 50}
+        },
+        {
+          "center": {"x": 14717, "y": 6, "z": 2217},
+          "part": "deck.leg.22.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 14717, "y": 366, "z": 2217},
+          "part": "deck.leg.22.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 708, "z": 50}
+        },
+        {
+          "center": {"x": 14283, "y": 6, "z": 2217},
+          "part": "deck.leg.23.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 14283, "y": 366, "z": 2217},
+          "part": "deck.leg.23.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 708, "z": 50}
+        }
+      ],
+      "elevation": 800,
+      "height": 800,
+      "label": "Bühnenelement 4",
+      "source": "layout",
+      "v1Kind": "platform"
+    },
+    "03040000-0000-4000-8000-000000000005": {
+      "bbox": {"max": {"x": 1250, "y": 1000, "z": 4250}, "min": {"x": 750, "y": 0, "z": 3750}},
+      "boxes": [
+        {
+          "center": {"x": 1000, "y": 960, "z": 4248},
+          "part": "deck.module.0.edge.north",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 500, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 1000, "y": 960, "z": 3752},
+          "part": "deck.module.0.edge.south",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 500, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 1248, "y": 960, "z": 4000},
+          "part": "deck.module.0.edge.east",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 492}
+        },
+        {
+          "center": {"x": 752, "y": 960, "z": 4000},
+          "part": "deck.module.0.edge.west",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 492}
+        },
+        {
+          "center": {"x": 1000, "y": 960, "z": 4000},
+          "part": "deck.module.0.infield",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 491, "y": 80, "z": 491}
+        },
+        {
+          "center": {"x": 783, "y": 6, "z": 3783},
+          "part": "deck.leg.0.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 783, "y": 466, "z": 3783},
+          "part": "deck.leg.0.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 908, "z": 50}
+        },
+        {
+          "center": {"x": 1217, "y": 6, "z": 3783},
+          "part": "deck.leg.1.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 1217, "y": 466, "z": 3783},
+          "part": "deck.leg.1.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 908, "z": 50}
+        },
+        {
+          "center": {"x": 1217, "y": 6, "z": 4217},
+          "part": "deck.leg.2.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 1217, "y": 466, "z": 4217},
+          "part": "deck.leg.2.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 908, "z": 50}
+        },
+        {
+          "center": {"x": 783, "y": 6, "z": 4217},
+          "part": "deck.leg.3.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 783, "y": 466, "z": 4217},
+          "part": "deck.leg.3.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 908, "z": 50}
+        }
+      ],
+      "elevation": 1000,
+      "height": 1000,
+      "label": "Bühnenelement 5",
+      "source": "layout",
+      "v1Kind": "platform"
+    },
+    "03040000-0000-4000-8000-000000000006": {
+      "bbox": {"max": {"x": 4250, "y": 1200, "z": 4250}, "min": {"x": 2750, "y": 0, "z": 3750}},
+      "boxes": [
+        {
+          "center": {"x": 3250, "y": 1160, "z": 4248},
+          "part": "deck.module.0.edge.north",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 3250, "y": 1160, "z": 3752},
+          "part": "deck.module.0.edge.south",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 3748, "y": 1160, "z": 4000},
+          "part": "deck.module.0.edge.east",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 492}
+        },
+        {
+          "center": {"x": 2752, "y": 1160, "z": 4000},
+          "part": "deck.module.0.edge.west",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 492}
+        },
+        {
+          "center": {"x": 3250, "y": 1160, "z": 4000},
+          "part": "deck.module.0.infield",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 991, "y": 80, "z": 491}
+        },
+        {
+          "center": {"x": 4000, "y": 1160, "z": 4248},
+          "part": "deck.module.1.edge.north",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 500, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 4000, "y": 1160, "z": 3752},
+          "part": "deck.module.1.edge.south",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 500, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 4248, "y": 1160, "z": 4000},
+          "part": "deck.module.1.edge.east",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 492}
+        },
+        {
+          "center": {"x": 3752, "y": 1160, "z": 4000},
+          "part": "deck.module.1.edge.west",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 492}
+        },
+        {
+          "center": {"x": 4000, "y": 1160, "z": 4000},
+          "part": "deck.module.1.infield",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 491, "y": 80, "z": 491}
+        },
+        {
+          "center": {"x": 2783, "y": 6, "z": 3783},
+          "part": "deck.leg.0.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 2783, "y": 566, "z": 3783},
+          "part": "deck.leg.0.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 1108, "z": 50}
+        },
+        {
+          "center": {"x": 3717, "y": 6, "z": 3783},
+          "part": "deck.leg.1.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 3717, "y": 566, "z": 3783},
+          "part": "deck.leg.1.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 1108, "z": 50}
+        },
+        {
+          "center": {"x": 3717, "y": 6, "z": 4217},
+          "part": "deck.leg.2.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 3717, "y": 566, "z": 4217},
+          "part": "deck.leg.2.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 1108, "z": 50}
+        },
+        {
+          "center": {"x": 2783, "y": 6, "z": 4217},
+          "part": "deck.leg.3.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 2783, "y": 566, "z": 4217},
+          "part": "deck.leg.3.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 1108, "z": 50}
+        },
+        {
+          "center": {"x": 3783, "y": 6, "z": 3783},
+          "part": "deck.leg.4.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 3783, "y": 566, "z": 3783},
+          "part": "deck.leg.4.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 1108, "z": 50}
+        },
+        {
+          "center": {"x": 4217, "y": 6, "z": 3783},
+          "part": "deck.leg.5.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 4217, "y": 566, "z": 3783},
+          "part": "deck.leg.5.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 1108, "z": 50}
+        },
+        {
+          "center": {"x": 4217, "y": 6, "z": 4217},
+          "part": "deck.leg.6.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 4217, "y": 566, "z": 4217},
+          "part": "deck.leg.6.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 1108, "z": 50}
+        },
+        {
+          "center": {"x": 3783, "y": 6, "z": 4217},
+          "part": "deck.leg.7.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 3783, "y": 566, "z": 4217},
+          "part": "deck.leg.7.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 1108, "z": 50}
+        }
+      ],
+      "elevation": 1200,
+      "height": 1200,
+      "label": "Bühnenelement 6",
+      "source": "layout",
+      "v1Kind": "platform"
+    },
+    "03040000-0000-4000-8000-000000000007": {
+      "bbox": {"max": {"x": 8000, "y": 400, "z": 5000}, "min": {"x": 6000, "y": 0, "z": 3000}},
+      "boxes": [
+        {
+          "center": {"x": 7000, "y": 360, "z": 3998},
+          "part": "deck.module.0.edge.north",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 7000, "y": 360, "z": 3002},
+          "part": "deck.module.0.edge.south",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 7998, "y": 360, "z": 3500},
+          "part": "deck.module.0.edge.east",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 6002, "y": 360, "z": 3500},
+          "part": "deck.module.0.edge.west",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 7000, "y": 360, "z": 3500},
+          "part": "deck.module.0.infield",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1991, "y": 80, "z": 991}
+        },
+        {
+          "center": {"x": 7000, "y": 360, "z": 4998},
+          "part": "deck.module.1.edge.north",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 7000, "y": 360, "z": 4002},
+          "part": "deck.module.1.edge.south",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 7998, "y": 360, "z": 4500},
+          "part": "deck.module.1.edge.east",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 6002, "y": 360, "z": 4500},
+          "part": "deck.module.1.edge.west",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 7000, "y": 360, "z": 4500},
+          "part": "deck.module.1.infield",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1991, "y": 80, "z": 991}
+        },
+        {
+          "center": {"x": 6033, "y": 6, "z": 3033},
+          "part": "deck.leg.0.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 6033, "y": 166, "z": 3033},
+          "part": "deck.leg.0.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 7967, "y": 6, "z": 3033},
+          "part": "deck.leg.1.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 7967, "y": 166, "z": 3033},
+          "part": "deck.leg.1.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 7967, "y": 6, "z": 3967},
+          "part": "deck.leg.2.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 7967, "y": 166, "z": 3967},
+          "part": "deck.leg.2.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 6033, "y": 6, "z": 3967},
+          "part": "deck.leg.3.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 6033, "y": 166, "z": 3967},
+          "part": "deck.leg.3.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 6033, "y": 6, "z": 4033},
+          "part": "deck.leg.4.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 6033, "y": 166, "z": 4033},
+          "part": "deck.leg.4.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 7967, "y": 6, "z": 4033},
+          "part": "deck.leg.5.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 7967, "y": 166, "z": 4033},
+          "part": "deck.leg.5.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 7967, "y": 6, "z": 4967},
+          "part": "deck.leg.6.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 7967, "y": 166, "z": 4967},
+          "part": "deck.leg.6.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 6033, "y": 6, "z": 4967},
+          "part": "deck.leg.7.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 6033, "y": 166, "z": 4967},
+          "part": "deck.leg.7.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        }
+      ],
+      "elevation": 400,
+      "height": 400,
+      "label": "Bühnenelement 7",
+      "source": "layout",
+      "v1Kind": "platform"
+    },
+    "03040000-0000-4000-8000-000000000008": {
+      "bbox": {"max": {"x": 11500, "y": 400, "z": 5000}, "min": {"x": 9500, "y": 0, "z": 3000}},
+      "boxes": [
+        {
+          "center": {"x": 10000, "y": 360, "z": 4998},
+          "part": "deck.module.0.edge.north",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 10000, "y": 360, "z": 3002},
+          "part": "deck.module.0.edge.south",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 10498, "y": 360, "z": 4000},
+          "part": "deck.module.0.edge.east",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 1992}
+        },
+        {
+          "center": {"x": 9502, "y": 360, "z": 4000},
+          "part": "deck.module.0.edge.west",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 1992}
+        },
+        {
+          "center": {"x": 10000, "y": 360, "z": 4000},
+          "part": "deck.module.0.infield",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 991, "y": 80, "z": 1991}
+        },
+        {
+          "center": {"x": 11000, "y": 360, "z": 4998},
+          "part": "deck.module.1.edge.north",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 11000, "y": 360, "z": 3002},
+          "part": "deck.module.1.edge.south",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 11498, "y": 360, "z": 4000},
+          "part": "deck.module.1.edge.east",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 1992}
+        },
+        {
+          "center": {"x": 10502, "y": 360, "z": 4000},
+          "part": "deck.module.1.edge.west",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 1992}
+        },
+        {
+          "center": {"x": 11000, "y": 360, "z": 4000},
+          "part": "deck.module.1.infield",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 991, "y": 80, "z": 1991}
+        },
+        {
+          "center": {"x": 9533, "y": 6, "z": 3033},
+          "part": "deck.leg.0.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 9533, "y": 166, "z": 3033},
+          "part": "deck.leg.0.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 10467, "y": 6, "z": 3033},
+          "part": "deck.leg.1.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 10467, "y": 166, "z": 3033},
+          "part": "deck.leg.1.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 10467, "y": 6, "z": 4967},
+          "part": "deck.leg.2.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 10467, "y": 166, "z": 4967},
+          "part": "deck.leg.2.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 9533, "y": 6, "z": 4967},
+          "part": "deck.leg.3.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 9533, "y": 166, "z": 4967},
+          "part": "deck.leg.3.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 10533, "y": 6, "z": 3033},
+          "part": "deck.leg.4.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 10533, "y": 166, "z": 3033},
+          "part": "deck.leg.4.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 11467, "y": 6, "z": 3033},
+          "part": "deck.leg.5.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 11467, "y": 166, "z": 3033},
+          "part": "deck.leg.5.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 11467, "y": 6, "z": 4967},
+          "part": "deck.leg.6.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 11467, "y": 166, "z": 4967},
+          "part": "deck.leg.6.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 10533, "y": 6, "z": 4967},
+          "part": "deck.leg.7.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 10533, "y": 166, "z": 4967},
+          "part": "deck.leg.7.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        }
+      ],
+      "elevation": 400,
+      "height": 400,
+      "label": "Bühnenelement 8",
+      "source": "layout",
+      "v1Kind": "platform"
+    },
+    "03040000-0000-4000-8000-000000000009": {
+      "bbox": {"max": {"x": 6500, "y": 600, "z": 9250}, "min": {"x": 1500, "y": 0, "z": 6750}},
+      "boxes": [
+        {
+          "center": {"x": 2500, "y": 560, "z": 7748},
+          "part": "deck.module.0.edge.north",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 2500, "y": 560, "z": 6752},
+          "part": "deck.module.0.edge.south",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 3498, "y": 560, "z": 7250},
+          "part": "deck.module.0.edge.east",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 1502, "y": 560, "z": 7250},
+          "part": "deck.module.0.edge.west",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 2500, "y": 560, "z": 7250},
+          "part": "deck.module.0.infield",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1991, "y": 80, "z": 991}
+        },
+        {
+          "center": {"x": 2500, "y": 560, "z": 8748},
+          "part": "deck.module.1.edge.north",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 2500, "y": 560, "z": 7752},
+          "part": "deck.module.1.edge.south",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 3498, "y": 560, "z": 8250},
+          "part": "deck.module.1.edge.east",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 1502, "y": 560, "z": 8250},
+          "part": "deck.module.1.edge.west",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 2500, "y": 560, "z": 8250},
+          "part": "deck.module.1.infield",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1991, "y": 80, "z": 991}
+        },
+        {
+          "center": {"x": 4500, "y": 560, "z": 7748},
+          "part": "deck.module.2.edge.north",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 4500, "y": 560, "z": 6752},
+          "part": "deck.module.2.edge.south",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 5498, "y": 560, "z": 7250},
+          "part": "deck.module.2.edge.east",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 3502, "y": 560, "z": 7250},
+          "part": "deck.module.2.edge.west",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 4500, "y": 560, "z": 7250},
+          "part": "deck.module.2.infield",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1991, "y": 80, "z": 991}
+        },
+        {
+          "center": {"x": 4500, "y": 560, "z": 8748},
+          "part": "deck.module.3.edge.north",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 4500, "y": 560, "z": 7752},
+          "part": "deck.module.3.edge.south",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 5498, "y": 560, "z": 8250},
+          "part": "deck.module.3.edge.east",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 3502, "y": 560, "z": 8250},
+          "part": "deck.module.3.edge.west",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 4500, "y": 560, "z": 8250},
+          "part": "deck.module.3.infield",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1991, "y": 80, "z": 991}
+        },
+        {
+          "center": {"x": 6000, "y": 560, "z": 8748},
+          "part": "deck.module.4.edge.north",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 6000, "y": 560, "z": 6752},
+          "part": "deck.module.4.edge.south",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 6498, "y": 560, "z": 7750},
+          "part": "deck.module.4.edge.east",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 1992}
+        },
+        {
+          "center": {"x": 5502, "y": 560, "z": 7750},
+          "part": "deck.module.4.edge.west",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 1992}
+        },
+        {
+          "center": {"x": 6000, "y": 560, "z": 7750},
+          "part": "deck.module.4.infield",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 991, "y": 80, "z": 1991}
+        },
+        {
+          "center": {"x": 2500, "y": 560, "z": 9248},
+          "part": "deck.module.5.edge.north",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 2500, "y": 560, "z": 8752},
+          "part": "deck.module.5.edge.south",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 3498, "y": 560, "z": 9000},
+          "part": "deck.module.5.edge.east",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 492}
+        },
+        {
+          "center": {"x": 1502, "y": 560, "z": 9000},
+          "part": "deck.module.5.edge.west",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 492}
+        },
+        {
+          "center": {"x": 2500, "y": 560, "z": 9000},
+          "part": "deck.module.5.infield",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1991, "y": 80, "z": 491}
+        },
+        {
+          "center": {"x": 4500, "y": 560, "z": 9248},
+          "part": "deck.module.6.edge.north",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 4500, "y": 560, "z": 8752},
+          "part": "deck.module.6.edge.south",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 5498, "y": 560, "z": 9000},
+          "part": "deck.module.6.edge.east",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 492}
+        },
+        {
+          "center": {"x": 3502, "y": 560, "z": 9000},
+          "part": "deck.module.6.edge.west",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 492}
+        },
+        {
+          "center": {"x": 4500, "y": 560, "z": 9000},
+          "part": "deck.module.6.infield",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1991, "y": 80, "z": 491}
+        },
+        {
+          "center": {"x": 6000, "y": 560, "z": 9248},
+          "part": "deck.module.7.edge.north",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 6000, "y": 560, "z": 8752},
+          "part": "deck.module.7.edge.south",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 6498, "y": 560, "z": 9000},
+          "part": "deck.module.7.edge.east",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 492}
+        },
+        {
+          "center": {"x": 5502, "y": 560, "z": 9000},
+          "part": "deck.module.7.edge.west",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 492}
+        },
+        {
+          "center": {"x": 6000, "y": 560, "z": 9000},
+          "part": "deck.module.7.infield",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 991, "y": 80, "z": 491}
+        },
+        {
+          "center": {"x": 1533, "y": 6, "z": 6783},
+          "part": "deck.leg.0.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 1533, "y": 266, "z": 6783},
+          "part": "deck.leg.0.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 3467, "y": 6, "z": 6783},
+          "part": "deck.leg.1.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 3467, "y": 266, "z": 6783},
+          "part": "deck.leg.1.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 3467, "y": 6, "z": 7717},
+          "part": "deck.leg.2.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 3467, "y": 266, "z": 7717},
+          "part": "deck.leg.2.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 1533, "y": 6, "z": 7717},
+          "part": "deck.leg.3.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 1533, "y": 266, "z": 7717},
+          "part": "deck.leg.3.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 1533, "y": 6, "z": 7783},
+          "part": "deck.leg.4.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 1533, "y": 266, "z": 7783},
+          "part": "deck.leg.4.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 3467, "y": 6, "z": 7783},
+          "part": "deck.leg.5.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 3467, "y": 266, "z": 7783},
+          "part": "deck.leg.5.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 3467, "y": 6, "z": 8717},
+          "part": "deck.leg.6.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 3467, "y": 266, "z": 8717},
+          "part": "deck.leg.6.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 1533, "y": 6, "z": 8717},
+          "part": "deck.leg.7.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 1533, "y": 266, "z": 8717},
+          "part": "deck.leg.7.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 3533, "y": 6, "z": 6783},
+          "part": "deck.leg.8.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 3533, "y": 266, "z": 6783},
+          "part": "deck.leg.8.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 5467, "y": 6, "z": 6783},
+          "part": "deck.leg.9.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 5467, "y": 266, "z": 6783},
+          "part": "deck.leg.9.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 5467, "y": 6, "z": 7717},
+          "part": "deck.leg.10.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 5467, "y": 266, "z": 7717},
+          "part": "deck.leg.10.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 3533, "y": 6, "z": 7717},
+          "part": "deck.leg.11.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 3533, "y": 266, "z": 7717},
+          "part": "deck.leg.11.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 3533, "y": 6, "z": 7783},
+          "part": "deck.leg.12.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 3533, "y": 266, "z": 7783},
+          "part": "deck.leg.12.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 5467, "y": 6, "z": 7783},
+          "part": "deck.leg.13.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 5467, "y": 266, "z": 7783},
+          "part": "deck.leg.13.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 5467, "y": 6, "z": 8717},
+          "part": "deck.leg.14.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 5467, "y": 266, "z": 8717},
+          "part": "deck.leg.14.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 3533, "y": 6, "z": 8717},
+          "part": "deck.leg.15.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 3533, "y": 266, "z": 8717},
+          "part": "deck.leg.15.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 5533, "y": 6, "z": 6783},
+          "part": "deck.leg.16.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 5533, "y": 266, "z": 6783},
+          "part": "deck.leg.16.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 6467, "y": 6, "z": 6783},
+          "part": "deck.leg.17.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 6467, "y": 266, "z": 6783},
+          "part": "deck.leg.17.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 6467, "y": 6, "z": 8717},
+          "part": "deck.leg.18.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 6467, "y": 266, "z": 8717},
+          "part": "deck.leg.18.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 5533, "y": 6, "z": 8717},
+          "part": "deck.leg.19.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 5533, "y": 266, "z": 8717},
+          "part": "deck.leg.19.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 1533, "y": 6, "z": 8783},
+          "part": "deck.leg.20.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 1533, "y": 266, "z": 8783},
+          "part": "deck.leg.20.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 3467, "y": 6, "z": 8783},
+          "part": "deck.leg.21.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 3467, "y": 266, "z": 8783},
+          "part": "deck.leg.21.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 3467, "y": 6, "z": 9217},
+          "part": "deck.leg.22.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 3467, "y": 266, "z": 9217},
+          "part": "deck.leg.22.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 1533, "y": 6, "z": 9217},
+          "part": "deck.leg.23.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 1533, "y": 266, "z": 9217},
+          "part": "deck.leg.23.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 3533, "y": 6, "z": 8783},
+          "part": "deck.leg.24.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 3533, "y": 266, "z": 8783},
+          "part": "deck.leg.24.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 5467, "y": 6, "z": 8783},
+          "part": "deck.leg.25.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 5467, "y": 266, "z": 8783},
+          "part": "deck.leg.25.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 5467, "y": 6, "z": 9217},
+          "part": "deck.leg.26.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 5467, "y": 266, "z": 9217},
+          "part": "deck.leg.26.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 3533, "y": 6, "z": 9217},
+          "part": "deck.leg.27.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 3533, "y": 266, "z": 9217},
+          "part": "deck.leg.27.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 5533, "y": 6, "z": 8783},
+          "part": "deck.leg.28.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 5533, "y": 266, "z": 8783},
+          "part": "deck.leg.28.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 6467, "y": 6, "z": 8783},
+          "part": "deck.leg.29.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 6467, "y": 266, "z": 8783},
+          "part": "deck.leg.29.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 6467, "y": 6, "z": 9217},
+          "part": "deck.leg.30.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 6467, "y": 266, "z": 9217},
+          "part": "deck.leg.30.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 5533, "y": 6, "z": 9217},
+          "part": "deck.leg.31.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 5533, "y": 266, "z": 9217},
+          "part": "deck.leg.31.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        }
+      ],
+      "elevation": 600,
+      "height": 600,
+      "label": "Bühnenelement 9",
+      "source": "layout",
+      "v1Kind": "platform"
+    },
+    "03040000-0000-4000-8000-000000000010": {
+      "bbox": {"max": {"x": 11500, "y": 400, "z": 10000}, "min": {"x": 8500, "y": 0, "z": 6000}},
+      "boxes": [
+        {
+          "center": {"x": 10502, "y": 360, "z": 7000},
+          "part": "deck.module.0.edge.north",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 11498, "y": 360, "z": 7000},
+          "part": "deck.module.0.edge.south",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 11000, "y": 360, "z": 7998},
+          "part": "deck.module.0.edge.east",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 11000, "y": 360, "z": 6002},
+          "part": "deck.module.0.edge.west",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 11000, "y": 360, "z": 7000},
+          "part": "deck.module.0.infield",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 1991, "y": 80, "z": 991}
+        },
+        {
+          "center": {"x": 9502, "y": 360, "z": 7000},
+          "part": "deck.module.1.edge.north",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 10498, "y": 360, "z": 7000},
+          "part": "deck.module.1.edge.south",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 10000, "y": 360, "z": 7998},
+          "part": "deck.module.1.edge.east",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 10000, "y": 360, "z": 6002},
+          "part": "deck.module.1.edge.west",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 10000, "y": 360, "z": 7000},
+          "part": "deck.module.1.infield",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 1991, "y": 80, "z": 991}
+        },
+        {
+          "center": {"x": 10502, "y": 360, "z": 9000},
+          "part": "deck.module.2.edge.north",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 11498, "y": 360, "z": 9000},
+          "part": "deck.module.2.edge.south",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 11000, "y": 360, "z": 9998},
+          "part": "deck.module.2.edge.east",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 11000, "y": 360, "z": 8002},
+          "part": "deck.module.2.edge.west",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 11000, "y": 360, "z": 9000},
+          "part": "deck.module.2.infield",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 1991, "y": 80, "z": 991}
+        },
+        {
+          "center": {"x": 9502, "y": 360, "z": 9000},
+          "part": "deck.module.3.edge.north",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 10498, "y": 360, "z": 9000},
+          "part": "deck.module.3.edge.south",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 10000, "y": 360, "z": 9998},
+          "part": "deck.module.3.edge.east",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 10000, "y": 360, "z": 8002},
+          "part": "deck.module.3.edge.west",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 10000, "y": 360, "z": 9000},
+          "part": "deck.module.3.infield",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 1991, "y": 80, "z": 991}
+        },
+        {
+          "center": {"x": 8502, "y": 360, "z": 7000},
+          "part": "deck.module.4.edge.north",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 9498, "y": 360, "z": 7000},
+          "part": "deck.module.4.edge.south",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 9000, "y": 360, "z": 7998},
+          "part": "deck.module.4.edge.east",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 9000, "y": 360, "z": 6002},
+          "part": "deck.module.4.edge.west",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 9000, "y": 360, "z": 7000},
+          "part": "deck.module.4.infield",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 1991, "y": 80, "z": 991}
+        },
+        {
+          "center": {"x": 8502, "y": 360, "z": 9000},
+          "part": "deck.module.5.edge.north",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 9498, "y": 360, "z": 9000},
+          "part": "deck.module.5.edge.south",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 9000, "y": 360, "z": 9998},
+          "part": "deck.module.5.edge.east",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 9000, "y": 360, "z": 8002},
+          "part": "deck.module.5.edge.west",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 9000, "y": 360, "z": 9000},
+          "part": "deck.module.5.infield",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 1991, "y": 80, "z": 991}
+        },
+        {
+          "center": {"x": 11467, "y": 6, "z": 6033},
+          "part": "deck.leg.0.rubber",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 11467, "y": 166, "z": 6033},
+          "part": "deck.leg.0.post",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 11467, "y": 6, "z": 7967},
+          "part": "deck.leg.1.rubber",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 11467, "y": 166, "z": 7967},
+          "part": "deck.leg.1.post",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 10533, "y": 6, "z": 7967},
+          "part": "deck.leg.2.rubber",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 10533, "y": 166, "z": 7967},
+          "part": "deck.leg.2.post",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 10533, "y": 6, "z": 6033},
+          "part": "deck.leg.3.rubber",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 10533, "y": 166, "z": 6033},
+          "part": "deck.leg.3.post",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 10467, "y": 6, "z": 6033},
+          "part": "deck.leg.4.rubber",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 10467, "y": 166, "z": 6033},
+          "part": "deck.leg.4.post",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 10467, "y": 6, "z": 7967},
+          "part": "deck.leg.5.rubber",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 10467, "y": 166, "z": 7967},
+          "part": "deck.leg.5.post",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 9533, "y": 6, "z": 7967},
+          "part": "deck.leg.6.rubber",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 9533, "y": 166, "z": 7967},
+          "part": "deck.leg.6.post",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 9533, "y": 6, "z": 6033},
+          "part": "deck.leg.7.rubber",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 9533, "y": 166, "z": 6033},
+          "part": "deck.leg.7.post",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 11467, "y": 6, "z": 8033},
+          "part": "deck.leg.8.rubber",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 11467, "y": 166, "z": 8033},
+          "part": "deck.leg.8.post",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 11467, "y": 6, "z": 9967},
+          "part": "deck.leg.9.rubber",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 11467, "y": 166, "z": 9967},
+          "part": "deck.leg.9.post",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 10533, "y": 6, "z": 9967},
+          "part": "deck.leg.10.rubber",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 10533, "y": 166, "z": 9967},
+          "part": "deck.leg.10.post",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 10533, "y": 6, "z": 8033},
+          "part": "deck.leg.11.rubber",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 10533, "y": 166, "z": 8033},
+          "part": "deck.leg.11.post",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 10467, "y": 6, "z": 8033},
+          "part": "deck.leg.12.rubber",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 10467, "y": 166, "z": 8033},
+          "part": "deck.leg.12.post",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 10467, "y": 6, "z": 9967},
+          "part": "deck.leg.13.rubber",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 10467, "y": 166, "z": 9967},
+          "part": "deck.leg.13.post",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 9533, "y": 6, "z": 9967},
+          "part": "deck.leg.14.rubber",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 9533, "y": 166, "z": 9967},
+          "part": "deck.leg.14.post",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 9533, "y": 6, "z": 8033},
+          "part": "deck.leg.15.rubber",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 9533, "y": 166, "z": 8033},
+          "part": "deck.leg.15.post",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 9467, "y": 6, "z": 6033},
+          "part": "deck.leg.16.rubber",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 9467, "y": 166, "z": 6033},
+          "part": "deck.leg.16.post",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 9467, "y": 6, "z": 7967},
+          "part": "deck.leg.17.rubber",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 9467, "y": 166, "z": 7967},
+          "part": "deck.leg.17.post",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 8533, "y": 6, "z": 7967},
+          "part": "deck.leg.18.rubber",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 8533, "y": 166, "z": 7967},
+          "part": "deck.leg.18.post",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 8533, "y": 6, "z": 6033},
+          "part": "deck.leg.19.rubber",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 8533, "y": 166, "z": 6033},
+          "part": "deck.leg.19.post",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 9467, "y": 6, "z": 8033},
+          "part": "deck.leg.20.rubber",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 9467, "y": 166, "z": 8033},
+          "part": "deck.leg.20.post",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 9467, "y": 6, "z": 9967},
+          "part": "deck.leg.21.rubber",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 9467, "y": 166, "z": 9967},
+          "part": "deck.leg.21.post",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 8533, "y": 6, "z": 9967},
+          "part": "deck.leg.22.rubber",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 8533, "y": 166, "z": 9967},
+          "part": "deck.leg.22.post",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        },
+        {
+          "center": {"x": 8533, "y": 6, "z": 8033},
+          "part": "deck.leg.23.rubber",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 8533, "y": 166, "z": 8033},
+          "part": "deck.leg.23.post",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 50, "y": 308, "z": 50}
+        }
+      ],
+      "elevation": 400,
+      "height": 400,
+      "label": "Bühnenelement 10",
+      "source": "layout",
+      "v1Kind": "platform"
+    },
+    "03040000-0000-4000-8000-000000000011": {
+      "bbox": {"max": {"x": 15914.214, "y": 200, "z": 9414.214}, "min": {"x": 13085.786, "y": 0, "z": 6585.786}},
+      "boxes": [
+        {
+          "center": {"x": 14147.861, "y": 160, "z": 7998.586},
+          "part": "deck.module.0.edge.north",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 14852.139, "y": 160, "z": 7294.307},
+          "part": "deck.module.0.edge.south",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 15205.693, "y": 160, "z": 8352.139},
+          "part": "deck.module.0.edge.east",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 13794.307, "y": 160, "z": 6940.754},
+          "part": "deck.module.0.edge.west",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 14500, "y": 160, "z": 7646.447},
+          "part": "deck.module.0.infield",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 1991, "y": 80, "z": 991}
+        },
+        {
+          "center": {"x": 15031.744, "y": 160, "z": 8882.469},
+          "part": "deck.module.1.edge.north",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 500, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 15736.023, "y": 160, "z": 8178.191},
+          "part": "deck.module.1.edge.south",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 500, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 15559.246, "y": 160, "z": 8705.693},
+          "part": "deck.module.1.edge.east",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 15208.521, "y": 160, "z": 8354.968},
+          "part": "deck.module.1.edge.west",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 15383.883, "y": 160, "z": 8530.33},
+          "part": "deck.module.1.infield",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 491, "y": 80, "z": 991}
+        },
+        {
+          "center": {"x": 13794.307, "y": 160, "z": 8352.139},
+          "part": "deck.module.2.edge.north",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 14145.032, "y": 160, "z": 8001.414},
+          "part": "deck.module.2.edge.south",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 14675.362, "y": 160, "z": 8882.469},
+          "part": "deck.module.2.edge.east",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 492}
+        },
+        {
+          "center": {"x": 13263.977, "y": 160, "z": 7471.084},
+          "part": "deck.module.2.edge.west",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 492}
+        },
+        {
+          "center": {"x": 13969.67, "y": 160, "z": 8176.777},
+          "part": "deck.module.2.infield",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 1991, "y": 80, "z": 491}
+        },
+        {
+          "center": {"x": 14678.191, "y": 160, "z": 9236.023},
+          "part": "deck.module.3.edge.north",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 500, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 15028.916, "y": 160, "z": 8885.298},
+          "part": "deck.module.3.edge.south",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 500, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 15028.916, "y": 160, "z": 9236.023},
+          "part": "deck.module.3.edge.east",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 492}
+        },
+        {
+          "center": {"x": 14678.191, "y": 160, "z": 8885.298},
+          "part": "deck.module.3.edge.west",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 492}
+        },
+        {
+          "center": {"x": 14853.553, "y": 160, "z": 9060.66},
+          "part": "deck.module.3.infield",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 491, "y": 80, "z": 491}
+        },
+        {
+          "center": {"x": 14146.447, "y": 6, "z": 6632.455},
+          "part": "deck.leg.0.rubber",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 14146.447, "y": 66, "z": 6632.455},
+          "part": "deck.leg.0.post",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 50, "y": 108, "z": 50}
+        },
+        {
+          "center": {"x": 15513.991, "y": 6, "z": 8000},
+          "part": "deck.leg.1.rubber",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 15513.991, "y": 66, "z": 8000},
+          "part": "deck.leg.1.post",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 50, "y": 108, "z": 50}
+        },
+        {
+          "center": {"x": 14853.553, "y": 6, "z": 8660.438},
+          "part": "deck.leg.2.rubber",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 14853.553, "y": 66, "z": 8660.438},
+          "part": "deck.leg.2.post",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 50, "y": 108, "z": 50}
+        },
+        {
+          "center": {"x": 13486.009, "y": 6, "z": 7292.893},
+          "part": "deck.leg.3.rubber",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 13486.009, "y": 66, "z": 7292.893},
+          "part": "deck.leg.3.post",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 50, "y": 108, "z": 50}
+        },
+        {
+          "center": {"x": 15560.66, "y": 6, "z": 8046.669},
+          "part": "deck.leg.4.rubber",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 15560.66, "y": 66, "z": 8046.669},
+          "part": "deck.leg.4.post",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 50, "y": 108, "z": 50}
+        },
+        {
+          "center": {"x": 15867.545, "y": 6, "z": 8353.553},
+          "part": "deck.leg.5.rubber",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 15867.545, "y": 66, "z": 8353.553},
+          "part": "deck.leg.5.post",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 50, "y": 108, "z": 50}
+        },
+        {
+          "center": {"x": 15207.107, "y": 6, "z": 9013.991},
+          "part": "deck.leg.6.rubber",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 15207.107, "y": 66, "z": 9013.991},
+          "part": "deck.leg.6.post",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 50, "y": 108, "z": 50}
+        },
+        {
+          "center": {"x": 14900.222, "y": 6, "z": 8707.107},
+          "part": "deck.leg.7.rubber",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 14900.222, "y": 66, "z": 8707.107},
+          "part": "deck.leg.7.post",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 50, "y": 108, "z": 50}
+        },
+        {
+          "center": {"x": 13439.34, "y": 6, "z": 7339.562},
+          "part": "deck.leg.8.rubber",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 13439.34, "y": 66, "z": 7339.562},
+          "part": "deck.leg.8.post",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 50, "y": 108, "z": 50}
+        },
+        {
+          "center": {"x": 14806.884, "y": 6, "z": 8707.107},
+          "part": "deck.leg.9.rubber",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 14806.884, "y": 66, "z": 8707.107},
+          "part": "deck.leg.9.post",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 50, "y": 108, "z": 50}
+        },
+        {
+          "center": {"x": 14500, "y": 6, "z": 9013.991},
+          "part": "deck.leg.10.rubber",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 14500, "y": 66, "z": 9013.991},
+          "part": "deck.leg.10.post",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 50, "y": 108, "z": 50}
+        },
+        {
+          "center": {"x": 13132.455, "y": 6, "z": 7646.447},
+          "part": "deck.leg.11.rubber",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 13132.455, "y": 66, "z": 7646.447},
+          "part": "deck.leg.11.post",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 50, "y": 108, "z": 50}
+        },
+        {
+          "center": {"x": 14853.553, "y": 6, "z": 8753.776},
+          "part": "deck.leg.12.rubber",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 14853.553, "y": 66, "z": 8753.776},
+          "part": "deck.leg.12.post",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 50, "y": 108, "z": 50}
+        },
+        {
+          "center": {"x": 15160.438, "y": 6, "z": 9060.66},
+          "part": "deck.leg.13.rubber",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 15160.438, "y": 66, "z": 9060.66},
+          "part": "deck.leg.13.post",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 50, "y": 108, "z": 50}
+        },
+        {
+          "center": {"x": 14853.553, "y": 6, "z": 9367.545},
+          "part": "deck.leg.14.rubber",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 14853.553, "y": 66, "z": 9367.545},
+          "part": "deck.leg.14.post",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 50, "y": 108, "z": 50}
+        },
+        {
+          "center": {"x": 14546.669, "y": 6, "z": 9060.66},
+          "part": "deck.leg.15.rubber",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 14546.669, "y": 66, "z": 9060.66},
+          "part": "deck.leg.15.post",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 50, "y": 108, "z": 50}
+        }
+      ],
+      "elevation": 200,
+      "height": 200,
+      "label": "Bühnenelement 11",
+      "source": "layout",
+      "v1Kind": "platform"
+    },
+    "03040000-0000-4000-8000-000000000012": {
+      "bbox": {"max": {"x": 17000, "y": 1000, "z": 4500}, "min": {"x": 16000, "y": 0, "z": 3500}},
+      "boxes": [
+        {
+          "center": {"x": 16500, "y": 960, "z": 4498},
+          "part": "deck.module.0.edge.north",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 16500, "y": 960, "z": 3502},
+          "part": "deck.module.0.edge.south",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 16998, "y": 960, "z": 4000},
+          "part": "deck.module.0.edge.east",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 16002, "y": 960, "z": 4000},
+          "part": "deck.module.0.edge.west",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 16500, "y": 960, "z": 4000},
+          "part": "deck.module.0.infield",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 991, "y": 80, "z": 991}
+        },
+        {
+          "center": {"x": 16033, "y": 6, "z": 3533},
+          "part": "deck.leg.0.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 16033, "y": 466, "z": 3533},
+          "part": "deck.leg.0.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 908, "z": 50}
+        },
+        {
+          "center": {"x": 16967, "y": 6, "z": 3533},
+          "part": "deck.leg.1.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 16967, "y": 466, "z": 3533},
+          "part": "deck.leg.1.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 908, "z": 50}
+        },
+        {
+          "center": {"x": 16967, "y": 6, "z": 4467},
+          "part": "deck.leg.2.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 16967, "y": 466, "z": 4467},
+          "part": "deck.leg.2.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 908, "z": 50}
+        },
+        {
+          "center": {"x": 16033, "y": 6, "z": 4467},
+          "part": "deck.leg.3.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 16033, "y": 466, "z": 4467},
+          "part": "deck.leg.3.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 908, "z": 50}
+        }
+      ],
+      "elevation": 1000,
+      "height": 1000,
+      "label": "Bühnenelement 12",
+      "source": "layout",
+      "v1Kind": "platform"
+    },
+    "03040000-0000-4000-8000-000000000020": {
+      "bbox": {"max": {"x": 8000, "y": 300, "z": 13500}, "min": {"x": 2000, "y": 0, "z": 10500}},
+      "boxes": [
+        {
+          "center": {"x": 5000, "y": 150, "z": 12000},
+          "part": "slab",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 6000, "y": 300, "z": 3000}
+        }
+      ],
+      "elevation": 300,
+      "height": 300,
+      "label": "Massiver Unterbau",
+      "source": "layout",
+      "v1Kind": "platform"
+    },
+    "03040000-0000-4000-8000-000000000021": {
+      "bbox": {"max": {"x": 5000, "y": 900, "z": 13000}, "min": {"x": 3000, "y": 300, "z": 11000}},
+      "boxes": [
+        {
+          "center": {"x": 4000, "y": 860, "z": 11998},
+          "part": "deck.module.0.edge.north",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 4000, "y": 860, "z": 11002},
+          "part": "deck.module.0.edge.south",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 4998, "y": 860, "z": 11500},
+          "part": "deck.module.0.edge.east",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 3002, "y": 860, "z": 11500},
+          "part": "deck.module.0.edge.west",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 4000, "y": 860, "z": 11500},
+          "part": "deck.module.0.infield",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1991, "y": 80, "z": 991}
+        },
+        {
+          "center": {"x": 4000, "y": 860, "z": 12998},
+          "part": "deck.module.1.edge.north",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 4000, "y": 860, "z": 12002},
+          "part": "deck.module.1.edge.south",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 4998, "y": 860, "z": 12500},
+          "part": "deck.module.1.edge.east",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 3002, "y": 860, "z": 12500},
+          "part": "deck.module.1.edge.west",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 4000, "y": 860, "z": 12500},
+          "part": "deck.module.1.infield",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1991, "y": 80, "z": 991}
+        },
+        {
+          "center": {"x": 3033, "y": 306, "z": 11033},
+          "part": "deck.leg.0.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 3033, "y": 566, "z": 11033},
+          "part": "deck.leg.0.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 4967, "y": 306, "z": 11033},
+          "part": "deck.leg.1.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 4967, "y": 566, "z": 11033},
+          "part": "deck.leg.1.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 4967, "y": 306, "z": 11967},
+          "part": "deck.leg.2.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 4967, "y": 566, "z": 11967},
+          "part": "deck.leg.2.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 3033, "y": 306, "z": 11967},
+          "part": "deck.leg.3.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 3033, "y": 566, "z": 11967},
+          "part": "deck.leg.3.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 3033, "y": 306, "z": 12033},
+          "part": "deck.leg.4.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 3033, "y": 566, "z": 12033},
+          "part": "deck.leg.4.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 4967, "y": 306, "z": 12033},
+          "part": "deck.leg.5.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 4967, "y": 566, "z": 12033},
+          "part": "deck.leg.5.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 4967, "y": 306, "z": 12967},
+          "part": "deck.leg.6.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 4967, "y": 566, "z": 12967},
+          "part": "deck.leg.6.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        },
+        {
+          "center": {"x": 3033, "y": 306, "z": 12967},
+          "part": "deck.leg.7.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 3033, "y": 566, "z": 12967},
+          "part": "deck.leg.7.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 508, "z": 50}
+        }
+      ],
+      "elevation": 900,
+      "height": 600,
+      "label": "Bühnenelement auf Unterbau",
+      "source": "layout",
+      "v1Kind": "platform"
+    },
+    "03040000-0000-4000-8000-000000000022": {
+      "bbox": {"max": {"x": 7200, "y": 1200, "z": 12500}, "min": {"x": 5200, "y": 300, "z": 11500}},
+      "boxes": [
+        {
+          "center": {"x": 6200, "y": 1160, "z": 12498},
+          "part": "deck.module.0.edge.north",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 6200, "y": 1160, "z": 11502},
+          "part": "deck.module.0.edge.south",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2000, "y": 80, "z": 4}
+        },
+        {
+          "center": {"x": 7198, "y": 1160, "z": 12000},
+          "part": "deck.module.0.edge.east",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 5202, "y": 1160, "z": 12000},
+          "part": "deck.module.0.edge.west",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 4, "y": 80, "z": 992}
+        },
+        {
+          "center": {"x": 6200, "y": 1160, "z": 12000},
+          "part": "deck.module.0.infield",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1991, "y": 80, "z": 991}
+        },
+        {
+          "center": {"x": 5233, "y": 306, "z": 11533},
+          "part": "deck.leg.0.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 5233, "y": 716, "z": 11533},
+          "part": "deck.leg.0.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 808, "z": 50}
+        },
+        {
+          "center": {"x": 7167, "y": 306, "z": 11533},
+          "part": "deck.leg.1.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 7167, "y": 716, "z": 11533},
+          "part": "deck.leg.1.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 808, "z": 50}
+        },
+        {
+          "center": {"x": 7167, "y": 306, "z": 12467},
+          "part": "deck.leg.2.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 7167, "y": 716, "z": 12467},
+          "part": "deck.leg.2.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 808, "z": 50}
+        },
+        {
+          "center": {"x": 5233, "y": 306, "z": 12467},
+          "part": "deck.leg.3.rubber",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 12, "z": 50}
+        },
+        {
+          "center": {"x": 5233, "y": 716, "z": 12467},
+          "part": "deck.leg.3.post",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 50, "y": 808, "z": 50}
+        }
+      ],
+      "elevation": 1200,
+      "height": 900,
+      "label": "Bühnenelement auf Unterbau 2",
+      "source": "layout",
+      "v1Kind": "platform"
+    },
+    "04040000-0000-4000-8000-000000000001": {
+      "bbox": {"max": {"x": 2100, "y": 200, "z": 3500}, "min": {"x": 900, "y": 0, "z": 1500}},
+      "boxes": [
+        {
+          "center": {"x": 1500, "y": 100, "z": 2500},
+          "part": "step.0",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1200, "y": 200, "z": 2000}
+        }
+      ],
+      "elevation": 0,
+      "height": 200,
+      "label": "Treppe",
+      "source": "layout",
+      "v1Kind": "stair"
+    }
+  },
+  "units": {
+    "angle": "degrees",
+    "frame": "x = plan x (audience-right), y = up, z = plan y (away from audience); unmirrored model space",
+    "length": "mm",
+    "rotation": "Euler XYZ, Three.js convention"
+  }
+}

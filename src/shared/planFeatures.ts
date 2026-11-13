@@ -6,8 +6,24 @@ import { stairCorners } from './levels.js';
 import { overheadBoxCorners } from './overhead.js';
 import { trussCorners } from './truss.js';
 import { curtainEndTicks, curtainWavyPoints } from './curtains.js';
+import { resolveFrozen } from './frozenParts.js';
+import { planSymbol, type PlanStrokeKind, type PlanSymbol } from './partDrawings.js';
 
 type Point = { x: number; y: number };
+
+const STROKE_STYLES: Record<PlanStrokeKind, { stroke: string; fill?: string }> = {
+  solid: { stroke: '#4b5d42', fill: '#c9d6c3' },
+  step: { stroke: '#4b5d42' },
+  opening: { stroke: '#4b5d42', fill: '#ffffff' },
+  leaf: { stroke: '#986122' },
+  swing: { stroke: '#986122' },
+};
+
+/** Plan symbols of the frozen objects, lowest first so stacked parts paint over their support. */
+export function snapshotPlanSymbols(snapshot: Pick<ConstructionSnapshot, 'layout' | 'venue' | 'library' | 'stock'>): PlanSymbol[] {
+  return resolveFrozen(snapshot).objects.map(planSymbol)
+    .sort((a, b) => a.elevation - b.elevation);
+}
 export type PlanFeature = { points: Point[]; closed: boolean; label?: string; fill?: string; stroke: string };
 
 /** The same enabled geometry drives PDF painting and automatic framing. */
@@ -16,10 +32,18 @@ export function planFeatures(snapshot: ConstructionSnapshot, partial: Partial<Ex
   const features: PlanFeature[] = [];
   const add = (points: Point[], stroke: string, label?: string, fill?: string, closed = true) =>
     features.push({ points, stroke, label: layers.labels ? label : undefined, fill, closed });
-  for (const source of [layers.venueContext ? snapshot.venue : undefined, layers.scenery ? snapshot.layout : undefined]) {
-    if (!source) continue;
-    for (const platform of source.platforms ?? []) add(platform.outline, '#5a6e52', `${platform.label}${layers.dimensions ? ` · ${platform.elevation} mm` : ''}`, '#e8efe3');
-    for (const stair of source.stairs ?? []) add(stairCorners(stair), '#718469', stair.label, '#f1f4ed');
+  if (layers.venueContext) {
+    for (const platform of snapshot.venue.platforms ?? []) add(platform.outline, '#5a6e52', `${platform.label}${layers.dimensions ? ` · ${platform.elevation} mm` : ''}`, '#e8efe3');
+    for (const stair of snapshot.venue.stairs ?? []) add(stairCorners(stair), '#718469', stair.label, '#f1f4ed');
+  }
+  if (layers.scenery) {
+    for (const symbol of snapshotPlanSymbols(snapshot)) {
+      add(symbol.footprint, '#4b5d42', symbol.label, '#dfe7d8');
+      for (const stroke of symbol.strokes) {
+        const style = STROKE_STYLES[stroke.kind];
+        add(stroke.points, style.stroke, undefined, style.fill, stroke.closed);
+      }
+    }
   }
   if (layers.venueContext) {
     for (const wall of snapshot.venue.walls ?? []) add(wallCorners(resolveWall(wall, snapshot.venue.wallTypes ?? [])), '#625b50', wall.label, '#aaa397');

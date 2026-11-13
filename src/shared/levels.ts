@@ -36,7 +36,7 @@ export const platformSchema = z.strictObject({
    * 0 = long 2 m edge along local width; 90 = long edge along local depth.
    */
   deckGrain: z.union([z.literal(0), z.literal(90)]).optional(),
-  /** @deprecated Legacy uniform Pascal material; read as both top and sides. */
+  /** @deprecated Legacy uniform library material; read as both top and sides. */
   finish: z.string().regex(/^library:[a-zA-Z0-9_-]+$/).max(180).optional(),
   /** Walking surface and vertical/bottom faces can be surfaced independently. */
   surfaces: platformSurfacesSchema.optional(),

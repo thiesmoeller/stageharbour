@@ -66,14 +66,3 @@ export function StageCurtains({ curtains }: { curtains: Curtain[] }) {
     })}
   </>;
 }
-
-export function StageCurtainList({ curtains }: { curtains: Curtain[] }) {
-  if (!curtains.length) return null;
-  return <ul aria-label="Molton-Vorhänge in der Raumsicht">
-    {curtains.map(curtain => <li key={curtain.id} data-testid={`stage-curtain-${curtain.id}`}
-      data-x={curtain.x} data-z={curtain.y} data-length={curtain.length} data-height={curtain.height}
-      data-open={curtain.openPercent} data-opening={curtain.opening} data-rotation={curtain.rotation}>
-      {curtain.label}: {curtain.length} × {curtain.height} mm · {curtain.opening === 'traveler' ? 'Traveler' : curtain.opening === 'stackLeft' ? 'Stapel links' : 'Stapel rechts'} · {Math.round(curtain.openPercent)}% offen
-    </li>)}
-  </ul>;
-}

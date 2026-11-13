@@ -1,0 +1,81 @@
+{
+  "document": {
+    "pageCount": 5,
+    "pages": [
+      {
+        "heightPt": 841.89,
+        "images": 0,
+        "operators": 293,
+        "paths": 38,
+        "text": "BEISPIELPRODUKTION\n\nAufbau / Technik\n\nBühnenbild 1 · Beispielsaal\n\nFassung Goldene Fassung · 07.09.2026 · A4\n \nBlatt 1 von 5\n\n— · 100 % drucken, nicht an Seite anpassen\n\nAUFBAU / TECHNIK\n\nBeispielproduktion\n\nBeispielsaal\n\nBÜHNENBILDER IN DIESEM DOKUMENT\n\nBühnenbild 1\n\nBLICK AUF DIE BÜHNE\n↑ Blick zur Bühne (Zuschauerraum)\n\nOrientierung · ohne Maßstab\n—",
+        "widthPt": 595.276
+      },
+      {
+        "heightPt": 841.89,
+        "images": 0,
+        "operators": 239,
+        "paths": 38,
+        "text": "BEISPIELPRODUKTION\n\nGrundriss\n\nBühnenbild 1 · Beispielsaal\n\nFassung Goldene Fassung · 07.09.2026 · A4\n \nBlatt 2 von 5\n\nMaßstab 1:50 · 100 % drucken, nicht an Seite anpassen\n \n1000 mm\n\n↑ Blick zur Bühne (Zuschauerraum)\n\n1:50",
+        "widthPt": 595.276
+      },
+      {
+        "heightPt": 841.89,
+        "images": 0,
+        "operators": 239,
+        "paths": 38,
+        "text": "BEISPIELPRODUKTION\n\nKabelplan\n\nBühnenbild 1 · Beispielsaal\n\nFassung Goldene Fassung · 07.09.2026 · A4\n \nBlatt 3 von 5\n\nMaßstab 1:50 · 100 % drucken, nicht an Seite anpassen\n \n1000 mm\n\n↑ Blick zur Bühne (Zuschauerraum)\n\n1:50",
+        "widthPt": 595.276
+      },
+      {
+        "heightPt": 841.89,
+        "images": 0,
+        "operators": 206,
+        "paths": 8,
+        "text": "BEISPIELPRODUKTION\n\nStückliste\n\nBühnenbild 1 · Beispielsaal\n\nFassung Goldene Fassung · 07.09.2026 · A4\n \nBlatt 4 von 5\n\n— · 100 % drucken, nicht an Seite anpassen\n\nNr.\n \nBezeichnung\n \nMaß\n\n1\n \nWand\n \n1200 mm\n2\n \nWand\n \n1200 mm\n3\n \nWand\n \n1200 mm\n\n—",
+        "widthPt": 595.276
+      },
+      {
+        "heightPt": 841.89,
+        "images": 0,
+        "operators": 96,
+        "paths": 3,
+        "text": "BEISPIELPRODUKTION\n\nHinweise\n\nBühnenbild 1 · Beispielsaal\n\nFassung Goldene Fassung · 07.09.2026 · A4\n \nBlatt 5 von 5\n\n— · 100 % drucken, nicht an Seite anpassen\n\nHinweise\n\nVerbindungskompatibilität prüft die Crew manuell. Es gibt keine automatische Scharnierprüfung.\n\n—",
+        "widthPt": 595.276
+      }
+    ]
+  },
+  "package": {
+    "pageCount": 2,
+    "pages": [
+      {
+        "heightPt": 841.89,
+        "images": 0,
+        "operators": 405,
+        "paths": 1,
+        "text": "Konstruktionspaket\n\nBeispielproduktion · Stückliste\n\nFassung Goldene Fassung · 07.09.2026 · Maßstab 1:50\n\nBlatt 1 · A4\n\nf1000000-0000-4000-8000-000000000001\n\nInhaltsverzeichnis\n\n1. Stückliste (dieses Blatt)\n2. Bühnenbild 1\n\nStückliste\n\n0 physische Platten · 0 Einsätze\n\nPlatte\n \nEinsätze\n \nBühnenbilder\n \nStatus\n\nNicht zugewiesen\n\n„Wand“ in Bühnenbild 1\n„Wand“ in Bühnenbild 1\n„Wand“ in Bühnenbild 1\n\nNicht verfügbar\n\nKeine.\n\nMaterialbedarf · Beispielsaal · enthaltene Bühnenbilder\n\nStützen: 0\nGehwegplatten 400 × 400 × 50 mm: 0 · verfügbar 0 · fehlend 0\nSpanngurte: 0 · verfügbar 0 · fehlend 0\n\nBühnenbild 1\n\nWand\n \nPos.\n \nPlatte\n \nMaße (mm)\n\nWand\n \n—\n \n—\n \n1200×2400×28\nWand\n \n—\n \n—\n \n1200×2400×28\nWand\n \n—\n \n—\n \n1200×2400×28\nGehwegplatten: 0 · Spanngurte: 0\n\n„Wand“ hat keine Platte zugewiesen.\n„Wand“ hat keine Platte zugewiesen.\n„Wand“ hat keine Platte zugewiesen.\nPlattenbestand reicht nicht: 3 Plätze, 1 verfügbare Platten.\nBlatt 1 · 100 % drucken",
+        "widthPt": 595.28
+      },
+      {
+        "heightPt": 841.89,
+        "images": 0,
+        "operators": 233,
+        "paths": 17,
+        "text": "Konstruktionsplan\n\nBeispielproduktion · Bühnenbild 1 · Beispielsaal\n\nFassung Goldene Fassung · 07.09.2026 · Maßstab 1:50\n\nBlatt 1 von 1 · A4 · Publikum unten\n\nf1000000-0000-4000-8000-000000000001\n\n1200 mm\n \n1200 mm\n \n1200 mm\n\nV\nR\n \nV\nR\n \nV\nR\n\nPublikum (Blick zur Buehne)\n\n8000 mm\n6000 mm\n\nHinweise\n\nV Vorderseite · R Rückseite\nVerbindungskompatibilität prüft die Crew manuell. Es gibt keine automatische Scharnierprüfung.\n\n1000 mm\n\nBlatt 1 von 1 · 100 % drucken",
+        "widthPt": 595.28
+      }
+    ]
+  },
+  "plan": {
+    "pageCount": 1,
+    "pages": [
+      {
+        "heightPt": 841.89,
+        "images": 0,
+        "operators": 233,
+        "paths": 17,
+        "text": "Konstruktionsplan\n\nBeispielproduktion · Bühnenbild 1 · Beispielsaal\n\nFassung Goldene Fassung · 07.09.2026 · Maßstab 1:50\n\nBlatt 1 von 1 · A4 · Publikum unten\n\nf1000000-0000-4000-8000-000000000001\n\n1200 mm\n \n1200 mm\n \n1200 mm\n\nV\nR\n \nV\nR\n \nV\nR\n\nPublikum (Blick zur Buehne)\n\n8000 mm\n6000 mm\n\nHinweise\n\nV Vorderseite · R Rückseite\nVerbindungskompatibilität prüft die Crew manuell. Es gibt keine automatische Scharnierprüfung.\n\n1000 mm\n\nBlatt 1 von 1 · 100 % drucken",
+        "widthPt": 595.28
+      }
+    ]
+  }
+}

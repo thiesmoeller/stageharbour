@@ -1,7 +1,7 @@
 import { recordApiFailure } from './feedback/activity.js';
 
 export class ApiError extends Error {
-  constructor(public status: number, message: string) { super(message); }
+  constructor(public status: number, message: string, public details?: unknown) { super(message); }
 }
 
 function failure(status: number): never {
@@ -35,7 +35,7 @@ const fetchTransport: ApiTransport = {
     if (!response.ok) {
       recordApiFailure(path, response.status);
       const payload = await response.json().catch(() => undefined) as { message?: unknown } | undefined;
-      if (typeof payload?.message === 'string' && payload.message.trim()) throw new ApiError(response.status, payload.message);
+      if (typeof payload?.message === 'string' && payload.message.trim()) throw new ApiError(response.status, payload.message, payload);
       failure(response.status);
     }
     if (response.status === 204) return undefined;

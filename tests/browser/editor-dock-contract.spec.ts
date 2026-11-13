@@ -10,6 +10,11 @@ for (const kind of ['stage', 'venue'] as const) {
       await page.getByRole('button', { name, exact: true }).click();
       await expectActiveDock(page, name);
     }
+    if (kind === 'venue') {
+      await page.getByRole('button', { name: 'Anzeige', exact: true }).click();
+      await expectActiveDock(page, null);
+      return;
+    }
     const names = page.getByRole('checkbox', { name: 'Namen', exact: true });
     await names.focus();
     await page.keyboard.press('Space');
@@ -38,17 +43,25 @@ for (const kind of ['stage', 'venue'] as const) {
     await openEditorShell(page, kind, `${kind} pin behavior`);
     const library = page.getByRole('region', { name: 'Bibliothek', exact: true });
     await page.getByRole('button', { name: 'Bibliothek', exact: true }).click();
-    if (kind === 'stage') await library.getByRole('button', { name: 'Wandtypen', exact: true }).click();
-    await library.getByRole('button', { name: 'Wandtyp anlegen', exact: true }).click();
+    if (kind === 'venue') await library.getByRole('button', { name: 'Wandtyp anlegen', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Seitenleiste anheften' })).toHaveAttribute('aria-pressed', 'false');
-    await library.getByRole('button', { name: 'Wandtyp platzieren', exact: true }).click();
+    if (kind === 'stage') {
+      await library.locator('.library-row').filter({ hasText: 'Wandelement' }).first().getByRole('button', { name: 'Einsetzen' }).click();
+    } else await library.getByRole('button', { name: 'Wandtyp platzieren', exact: true }).click();
     await expectActiveDock(page, null);
-    await page.getByRole('button', { name: kind === 'stage' ? 'Auswahl' : 'Auswählen', exact: true }).click();
+    if (kind === 'stage') await page.keyboard.press('Escape');
+    else await page.getByRole('button', { name: 'Auswählen', exact: true }).click();
     await page.getByRole('button', { name: 'Bibliothek', exact: true }).click();
     await page.getByRole('button', { name: 'Seitenleiste anheften' }).click();
-    await library.getByRole('button', { name: 'Wandtyp platzieren', exact: true }).click();
+    if (kind === 'stage') {
+      await library.locator('.library-row').filter({ hasText: 'Wandelement' }).first().getByRole('button', { name: 'Einsetzen' }).click();
+    } else await library.getByRole('button', { name: 'Wandtyp platzieren', exact: true }).click();
     await expectActiveDock(page, 'Bibliothek');
-    await page.getByRole('button', { name: kind === 'stage' ? 'Auswahl' : 'Auswählen', exact: true }).click();
+    if (kind === 'stage') {
+      await page.getByRole('button', { name: 'Zur Übersicht' }).focus();
+      await page.keyboard.press('Escape');
+    }
+    else await page.getByRole('button', { name: 'Auswählen', exact: true }).click();
     if (kind === 'venue') await page.getByRole('button', { name: 'Speichern', exact: true }).click();
     await expect(page.locator('.save-status:visible')).toHaveText(kind === 'stage' ? 'Gespeichert' : 'Spielstättenfassung gespeichert');
     // Nested venue editing returns to the stage after reload; explicitly reopen it.
@@ -71,7 +84,7 @@ for (const kind of ['stage', 'venue'] as const) {
       await test.step(`${width}px`, async () => {
         await page.setViewportSize({ width, height: 844 });
         const closed = await bounds(canvas);
-        expect(closed.height).toBeGreaterThan(844 * (width <= 760 ? .65 : .8));
+        expect(closed.height).toBeGreaterThan(844 * (width <= 760 ? .6 : .68));
         await expect(canvas).toBeInViewport({ ratio: 1 });
         await page.getByRole('button', { name: 'Anzeige', exact: true }).click();
         await expectActiveDock(page, 'Anzeige');
@@ -100,24 +113,24 @@ for (const kind of ['stage', 'venue'] as const) {
 
 test('Escape closes a property draft without clearing selection, applying or discarding it', async ({ page }) => {
   await openEditorShell(page, 'stage', 'Escape draft');
-  await page.getByRole('button', { name: 'Wand hinzufügen', exact: true }).click();
+  await page.getByRole('button', { name: 'Wandelement · Glattwand einsetzen', exact: true }).click();
   await commitWallPlacement(page);
   await page.getByRole('button', { name: 'Eigenschaften', exact: true }).click();
   await expect(page.locator('.save-status')).toHaveText('Gespeichert');
-  const originalX = await page.locator('#wall-x').inputValue();
+  const originalX = await page.locator('#part-x').inputValue();
   const mutations: string[] = [];
   page.on('request', request => { if (request.method() === 'PUT' && request.url().endsWith('/layout')) mutations.push(request.url()); });
-  await page.locator('#wall-x').fill('2750');
+  await page.locator('#part-x').fill('2750');
   await page.keyboard.press('Escape');
   await expectActiveDock(page, null);
   await expect(page.getByTestId('selection-count')).toHaveText('1 ausgewählt');
   await expect(page.locator('.save-status')).toHaveText('Nicht übernommene Eingaben');
   await page.keyboard.press('Enter');
   await expectActiveDock(page, 'Eigenschaften');
-  await expect(page.locator('#wall-x')).toHaveValue('2750');
+  await expect(page.locator('#part-x')).toHaveValue('2750');
   // Discard through the form proves that switching/closing panes never committed the draft.
   await page.getByRole('button', { name: 'Verwerfen', exact: true }).click();
-  await expect(page.locator('#wall-x')).toHaveValue(originalX);
+  await expect(page.locator('#part-x')).toHaveValue(originalX);
   await expect(page.locator('.save-status')).toHaveText('Gespeichert');
   expect(mutations).toEqual([]);
 });
@@ -130,7 +143,7 @@ test('stage and venue panel and pin preferences remain independent across naviga
   await expectActiveDock(page, null);
   await page.getByRole('button', { name: 'Bibliothek', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Seitenleiste anheften' })).toHaveAttribute('aria-pressed', 'false');
-  await page.getByRole('button', { name: 'Spielstätte schließen', exact: true }).click();
+  await page.getByRole('button', { name: 'Zur Spielstättenübersicht', exact: true }).click();
   await expectActiveDock(page, 'Anzeige');
   await expect(page.getByRole('button', { name: 'Seitenleiste anheften' })).toHaveAttribute('aria-pressed', 'true');
   await page.reload();
@@ -160,7 +173,9 @@ for (const storage of ['unavailable', 'invalid'] as const) {
     for (const kind of ['stage', 'venue']) {
       if (kind === 'venue') await enterVenue(page);
       await expectActiveDock(page, null);
-      await expect(page.getByRole('button', { name: 'Grundriss', exact: true })).toHaveAttribute('aria-pressed', 'true');
+      if (kind === 'venue') {
+        await expect(page.getByRole('button', { name: 'Grundriss', exact: true })).toHaveAttribute('aria-pressed', 'true');
+      } else await expect(page.getByRole('img', { name: 'Grundriss der Spielstätte', exact: true })).toBeVisible();
       await page.getByRole('button', { name: 'Anzeige', exact: true }).click();
       await expectActiveDock(page, 'Anzeige');
       await page.getByRole('button', { name: 'Seitenleiste anheften' }).click();

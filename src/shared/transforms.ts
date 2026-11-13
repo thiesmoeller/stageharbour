@@ -46,24 +46,17 @@ export function wallSolid(wall: Wall & { openings?: Opening[]; doorOpenPercent?:
 }
 
 export function stageModel(layout: Layout, venue: Pick<VenueGeometry, 'width' | 'depth' | 'outline' | 'platforms' | 'stairs' | 'walls' | 'wallTypes' | 'placeholders'> & { audienceViewpoint?: AudienceViewpoint }): StageModel {
-  const types = layout.wallTypes ?? [];
-  const surfaces = supportingSurfaces(venue, layout);
-  const stairs: StairUnit[] = [...venue.stairs ?? [], ...layout.stairs ?? []];
+  const surfaces = supportingSurfaces(venue);
+  const stairs: StairUnit[] = venue.stairs ?? [];
   const viewpoint = venue.audienceViewpoint ?? defaultAudienceViewpoint(venue);
   return {
     floor: { width: venue.width, depth: venue.depth },
-    walls: [...(venue.walls ?? []).map(wall => {
+    walls: (venue.walls ?? []).map(wall => {
       const resolved = resolveWall(wall, venue.wallTypes ?? []);
       return wallSolid({ ...resolved, doorOpenPercent: effectiveVenueDoorOpen(wall, layout) }, surfaceElevation(surfaces, wall.supportingSurfaceId));
-    }), ...layout.walls.map(wall => {
-      const resolved = resolveWall(wall, types);
-      return wallSolid({ ...resolved, doorOpenPercent: wall.doorOpenPercent }, surfaceElevation(surfaces, wall.supportingSurfaceId));
-    })],
-    braces: (layout.braces ?? []).map(brace => braceSolid(brace, surfaceElevation(surfaces, brace.supportingSurfaceId))),
-    placeholders: [
-      ...(venue.placeholders ?? []).map(item => placeholderSolid(item, surfaceElevation(surfaces, item.supportingSurfaceId))),
-      ...(layout.placeholders ?? []).map(item => placeholderSolid(item, surfaceElevation(surfaces, item.supportingSurfaceId))),
-    ],
+    }),
+    braces: [],
+    placeholders: (venue.placeholders ?? []).map(item => placeholderSolid(item, surfaceElevation(surfaces, item.supportingSurfaceId))),
     platforms: surfaces.filter(surface => surface.id !== AUDIENCE_FLOOR_ID),
     stairs: stairs.map(stair => ({ id: stair.id, label: stair.label, rise: stairRise(stair, surfaces), steps: stairSteps(stair, surfaces) })),
     audience: {

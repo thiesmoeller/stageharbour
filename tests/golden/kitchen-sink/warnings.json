@@ -1,0 +1,35 @@
+{
+  "counts": {"inventory": 4, "overlap": 1},
+  "warnings": [
+    {
+      "family": "inventory",
+      "ids": [],
+      "kind": "shortage",
+      "message": "Plattenbestand reicht nicht: 1 Plätze, 0 verfügbare Platten."
+    },
+    {
+      "family": "inventory",
+      "ids": [],
+      "kind": "shortage",
+      "message": "Plattenbestand reicht nicht: 1 Plätze, 0 verfügbare Platten."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01010000-0000-4000-8000-000000000010"],
+      "kind": "unassigned",
+      "message": "„Wand ohne Typ“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "inventory",
+      "ids": ["01010000-0000-4000-8000-000000000011"],
+      "kind": "unassigned",
+      "message": "„Wand ohne Typ 90°“ hat keine Platte zugewiesen."
+    },
+    {
+      "family": "overlap",
+      "ids": ["03010000-0000-4000-8000-000000000002", "03010000-0000-4000-8000-000000000006"],
+      "kind": "scene",
+      "message": "Podest „Massives Podest“ überschneidet Podest „Bühnenelement gestapelt, 1000“."
+    }
+  ]
+}

@@ -7,13 +7,13 @@ import {
   duplicateSceneSchema,
   instantiateTemplateSchema,
   layoutSchema,
+  emptyLayout as createEmptyLayout,
   renameProductionSchema,
   renameSceneSchema,
   renameSceneTemplateSchema,
   saveLayoutSchema,
   saveVenueSchema,
   venueGeometrySchema,
-  wallCorners,
   type Layout,
   type Scene,
 } from '../../shared/layout.js';
@@ -21,12 +21,11 @@ import { ballastStockSchema, materialRequirements } from '../../shared/ballast.j
 import {
   createPanelSchema,
   sameGeometry,
-  snapshotPanelAssignments,
   updatePanelSchema,
   upsertInventoryTypeSchema,
   type InventoryPanel,
 } from '../../shared/inventory.js';
-import { saveReportTemplatesSchema, stripLayoutReportTemplates } from '../../shared/reportTemplate.js';
+import { saveReportTemplatesSchema } from '../../shared/reportTemplate.js';
 import {
   applyVenueVersion,
   captureTemplateLayout,
@@ -34,12 +33,19 @@ import {
   copyLayoutIntoVenue,
   duplicateLayout,
 } from '../../shared/scenes.js';
-import { overheadClearance } from '../../shared/overhead.js';
-import { keepClearWarnings } from '../../shared/keepClear.js';
-import { resolveWall, wallTypeSchema, type WallElementType } from '../../shared/wall-types.js';
+import { resolvedOverheadClearance } from '../../shared/overhead.js';
+import { resolvedKeepClearWarnings } from '../../shared/keepClear.js';
+import { wallTypeSchema, type WallElementType } from '../../shared/wall-types.js';
+import { createLayoutPartIndex, resolveLayoutObjects } from '../../shared/layoutObjects.js';
+import type { StockInventory } from '../../shared/partLists.js';
+import { productionStockDemand, stockDemand, type DemandScene } from '../../shared/stockDemand.js';
+import { isExchangeFormat } from '../../shared/exchange/formats.js';
+import { STARTER_PART_IDS } from '../../shared/parts/starter/index.js';
 import { createVenueSchema, publishVenueSchema, renameVenueSchema, venuePlanPreview } from '../../shared/venueLibrary.js';
 import { boundsFromOutline } from '../../shared/venue.js';
 import { z } from 'zod';
+import { createPartsHandler, type PartsHandlerOptions } from './partsTransport.js';
+import { match, pathOnly, queryOf } from './route.js';
 import type { LocalScene, LocalSnapshot, LocalVenueVersion } from './snapshot.js';
 import type { LocalStore } from './store.js';
 
@@ -49,25 +55,6 @@ function fail(status: number, message: string): never {
 
 function nextId(): string {
   return crypto.randomUUID();
-}
-
-function pathOnly(path: string): string {
-  const q = path.indexOf('?');
-  return q >= 0 ? path.slice(0, q) : path;
-}
-
-function match(path: string, pattern: string): Record<string, string> | undefined {
-  const pathParts = path.split('/').filter(Boolean);
-  const patternParts = pattern.split('/').filter(Boolean);
-  if (pathParts.length !== patternParts.length) return undefined;
-  const params: Record<string, string> = {};
-  for (let i = 0; i < patternParts.length; i++) {
-    const expected = patternParts[i]!;
-    const actual = pathParts[i]!;
-    if (expected.startsWith(':')) params[expected.slice(1)] = actual;
-    else if (expected !== actual) return undefined;
-  }
-  return params;
 }
 
 function requireWorkspace(snapshot: LocalSnapshot, workspaceId: string): void {
@@ -162,10 +149,46 @@ function toSceneRecord(snapshot: LocalSnapshot, scene: LocalScene): Scene {
   };
 }
 
+function localPartIndex(snapshot: LocalSnapshot) {
+  return createLayoutPartIndex({
+    parts: snapshot.catalog.revisions.map(item => item.definition),
+    materials: snapshot.catalog.materials,
+  });
+}
+
+function localInventory(snapshot: LocalSnapshot): StockInventory {
+  return {
+    items: snapshot.catalog.stockItems.map(item => ({
+      id: item.id, label: item.label, partId: item.partId, variantKey: item.variantKey,
+      values: item.values, usable: item.usable, archived: item.archivedAt !== null,
+    })),
+    counts: snapshot.catalog.stockCounts.map(count => ({
+      materialKey: count.materialKey, partId: count.partId, variantKey: count.variantKey, quantity: count.quantity,
+    })),
+  };
+}
+
+function demandScene(snapshot: LocalSnapshot, scene: LocalScene): DemandScene {
+  const record = toSceneRecord(snapshot, scene);
+  return {
+    id: record.id, name: record.name, productionId: record.productionId, venueId: record.venueId,
+    venueName: record.venueName, layout: record.layout, venue: record.venue,
+  };
+}
+
 function toSceneSummary(snapshot: LocalSnapshot, scene: LocalScene) {
   const full = toSceneRecord(snapshot, scene);
   const layout = full.layout;
   const venue = full.venue;
+  const partIndex = createLayoutPartIndex({
+    parts: snapshot.catalog.revisions.map(item => item.definition),
+    materials: snapshot.catalog.materials,
+  });
+  const objects = resolveLayoutObjects(layout, partIndex);
+  const walls = objects.filter(item => item.object.part.id === STARTER_PART_IDS.wall);
+  const platforms = objects.filter(item => [
+    STARTER_PART_IDS.deck, STARTER_PART_IDS.floatingPlatform, STARTER_PART_IDS.solidPlatform,
+  ].includes(item.object.part.id));
   return {
     id: full.id,
     name: full.name,
@@ -179,10 +202,11 @@ function toSceneSummary(snapshot: LocalSnapshot, scene: LocalScene) {
     preview: {
       width: venue.width,
       depth: venue.depth,
-      walls: (layout.walls ?? []).map(wall => ({
-        corners: wallCorners(resolveWall(wall, layout.wallTypes ?? [])),
-      })),
-      platforms: [...(venue.platforms ?? []), ...(layout.platforms ?? [])].map(platform => ({ outline: platform.outline })),
+      walls: walls.map(item => ({ corners: item.footprint })),
+      platforms: [
+        ...(venue.platforms ?? []).map(platform => ({ outline: platform.outline })),
+        ...platforms.map(item => ({ outline: item.footprint })),
+      ],
     },
   };
 }
@@ -209,11 +233,12 @@ function toVenueRecord(snapshot: LocalSnapshot, venueId: string, versionId?: str
 }
 
 function emptyLayout(): Layout {
-  return { schemaVersion: 1, walls: [], braces: [] };
+  return createEmptyLayout();
 }
 
-export function createLocalTransport(store: LocalStore): ApiTransport {
+export function createLocalTransport(store: LocalStore, options: PartsHandlerOptions = {}): ApiTransport {
   let signedIn = true;
+  const handleParts = createPartsHandler(store, options);
 
   async function handle(pathRaw: string, body?: unknown, methodRaw?: string): Promise<unknown> {
     const path = pathOnly(pathRaw);
@@ -238,6 +263,9 @@ export function createLocalTransport(store: LocalStore): ApiTransport {
       signedIn = false;
       return {};
     }
+
+    const parts = await handleParts({ path, method, query: queryOf(pathRaw), body });
+    if (parts) return parts.value;
 
     let params = match(path, '/api/workspaces/:workspaceId/scenes');
     if (params && method === 'GET') {
@@ -401,20 +429,21 @@ export function createLocalTransport(store: LocalStore): ApiTransport {
       }
       const version = findVenueVersion(snapshot, scene.venueVersionId);
       const venue = venueGeometrySchema.parse(version.geometry);
-      const layout = snapshotPanelAssignments(
-        scene.layout,
-        stripLayoutReportTemplates(layoutSchema.parse(input.layout)),
-        nextId,
-      );
+      const layout = layoutSchema.parse(input.layout);
       const revision = scene.revision + 1;
       await store.mutate(draft => {
         const row = findScene(draft, params!.sceneId!);
         row.layout = layout;
         row.revision = revision;
       });
+      const partIndex = createLayoutPartIndex({
+        parts: snapshot.catalog.revisions.map(item => item.definition),
+        materials: snapshot.catalog.materials,
+      });
+      const objects = resolveLayoutObjects(layout, partIndex);
       return {
         revision,
-        warnings: [...overheadClearance(layout, venue), ...keepClearWarnings(venue, layout)],
+        warnings: [...resolvedOverheadClearance(objects, venue), ...resolvedKeepClearWarnings(venue, objects)],
       };
     }
 
@@ -747,6 +776,36 @@ export function createLocalTransport(store: LocalStore): ApiTransport {
       return materialRequirements(layouts, snapshot.inventory.ballast);
     }
 
+    params = match(path, '/api/workspaces/:workspaceId/scenes/:sceneId/stock-demand');
+    if (params && method === 'GET') {
+      const snapshot = store.getSnapshot();
+      requireWorkspace(snapshot, params.workspaceId!);
+      const scene = snapshot.scenes.find(row => row.id === params!.sceneId) ?? fail(404, 'Bühnenbild nicht verfügbar.');
+      return stockDemand([demandScene(snapshot, scene)], localPartIndex(snapshot), localInventory(snapshot));
+    }
+
+    params = match(path, '/api/workspaces/:workspaceId/productions/:productionId/venues/:venueId/stock-demand');
+    if (params && method === 'GET') {
+      const snapshot = store.getSnapshot();
+      requireWorkspace(snapshot, params.workspaceId!);
+      findProduction(snapshot, params.productionId!);
+      findVenue(snapshot, params.venueId!);
+      const scenes = snapshot.scenes.filter(row => row.productionId === params!.productionId)
+        .map(row => demandScene(snapshot, row)).filter(row => row.venueId === params!.venueId);
+      if (!scenes.length) fail(404, 'Produktion an dieser Spielstätte nicht verfügbar.');
+      return stockDemand(scenes, localPartIndex(snapshot), localInventory(snapshot));
+    }
+
+    params = match(path, '/api/workspaces/:workspaceId/productions/:productionId/stock-demand');
+    if (params && method === 'GET') {
+      const snapshot = store.getSnapshot();
+      requireWorkspace(snapshot, params.workspaceId!);
+      findProduction(snapshot, params.productionId!);
+      const scenes = snapshot.scenes.filter(row => row.productionId === params!.productionId).map(row => demandScene(snapshot, row));
+      if (!scenes.length) fail(404, 'Produktion nicht verfügbar.');
+      return productionStockDemand(scenes, localPartIndex(snapshot), localInventory(snapshot));
+    }
+
     params = match(path, '/api/workspaces/:workspaceId/venues/:venueId/versions/:venueVersionId');
     if (params && method === 'GET') {
       const snapshot = store.getSnapshot();
@@ -824,16 +883,7 @@ export function createLocalTransport(store: LocalStore): ApiTransport {
     if (params && method === 'GET') {
       const snapshot = store.getSnapshot();
       requireWorkspace(snapshot, params.workspaceId!);
-      return snapshot.scenes.flatMap(record => record.layout.walls.flatMap(wall => wall.panelId && wall.finishAssignment
-        ? [{
-          sceneId: record.id,
-          sceneName: record.name,
-          wallId: wall.id,
-          wallLabel: wall.label,
-          panelId: wall.panelId,
-          assignment: wall.finishAssignment,
-        }]
-        : []));
+      return [];
     }
 
     params = match(path, '/api/workspaces/:workspaceId/inventory/types');
@@ -915,26 +965,9 @@ export function createLocalTransport(store: LocalStore): ApiTransport {
       const snapshot = store.getSnapshot();
       requireWorkspace(snapshot, params.workspaceId!);
       const input = finishCompleteBodySchema.parse(body);
-      const scene = findScene(snapshot, input.sceneId);
-      const wall = scene.layout.walls.find(item => item.id === input.wallId && item.panelId === panelId);
-      if (!wall?.finishAssignment || wall.finishAssignment.id !== input.assignmentId) {
-        fail(409, 'Die Zuweisung wurde geändert. Bitte den Bestand neu laden.');
-      }
+      findScene(snapshot, input.sceneId);
       findInventoryPanel(snapshot, panelId);
-      let updated: InventoryPanel | undefined;
-      await store.mutate(draft => {
-        const panel = findInventoryPanel(draft, panelId);
-        if (panel.currentFinish?.assignmentId !== wall.finishAssignment!.id) {
-          panel.currentFinish = {
-            surfaces: wall.finishAssignment!.surfaces,
-            description: '',
-            assignmentId: wall.finishAssignment!.id,
-            confirmedAt: new Date().toISOString(),
-          };
-        }
-        updated = panel;
-      });
-      return updated!;
+      fail(410, 'Oberflächenarbeiten werden jetzt am Bestandsstück des Bauteils dokumentiert.');
     }
 
     params = match(path, '/api/workspaces/:workspaceId/inventory/panels/:panelId');
@@ -972,7 +1005,7 @@ export function createLocalTransport(store: LocalStore): ApiTransport {
       const snapshot = store.getSnapshot();
       requireWorkspace(snapshot, params.workspaceId!);
       findInventoryPanel(snapshot, panelId);
-      const used = snapshot.scenes.filter(record => record.layout.walls.some(wall => wall.panelId === panelId));
+      const used = snapshot.scenes.filter(record => record.layout.objects.some(object => object.stockItemId === panelId));
       if (used.length) {
         fail(409, `Platte ist noch zugewiesen: ${used.map(record => record.name).join(', ')}. Zuweisungen zuerst in den Bühnenbildern lösen.`);
       }
@@ -1034,8 +1067,23 @@ export function createLocalTransport(store: LocalStore): ApiTransport {
     async upload() {
       fail(501, 'Uploads sind im lokalen Demo-Modus nicht verfügbar.');
     },
-    async getBlob() {
-      fail(501, 'PDF- und Dateiabrufe sind im lokalen Demo-Modus nicht verfügbar.');
+    async getBlob(path) {
+      const params = match(pathOnly(path), '/api/workspaces/:workspaceId/scenes/:sceneId/export/:format');
+      if (!params) fail(501, 'PDF- und Dateiabrufe sind im lokalen Demo-Modus nicht verfügbar.');
+      const snapshot = store.getSnapshot();
+      requireWorkspace(snapshot, params.workspaceId!);
+      if (!isExchangeFormat(params.format!)) fail(404, 'Dieses Austauschformat gibt es nicht.');
+      const record = toSceneRecord(snapshot, findScene(snapshot, params.sceneId!));
+      const { exportSceneFile } = await import('../../shared/exchange/index.js');
+      const file = await exportSceneFile({
+        format: params.format, scene: record, venue: record.venue, layout: record.layout,
+        catalog: createLayoutPartIndex({
+          parts: snapshot.catalog.revisions.map(item => item.definition),
+          materials: snapshot.catalog.materials,
+        }),
+        providerVersion: 'lokal',
+      });
+      return new Blob([file.data], { type: file.contentType });
     },
   };
 }

@@ -5,6 +5,7 @@ import { z } from 'zod';
 import type { Database } from '../db/connection.js';
 import type { Config } from '../config.js';
 import { account, membership, user, workspace } from '../db/schema.js';
+import { ensureStarterLibrary } from '../parts/starter.js';
 
 const administratorSchema = z.object({
   email: z.email().transform(value => value.toLowerCase()),
@@ -34,6 +35,7 @@ export async function bootstrapAdministrator(db: Database, config: Config, input
     await tx.insert(account).values({ id: randomUUID(), userId, accountId: userId, providerId: 'credential', password });
     await tx.insert(workspace).values({ id: config.WORKSPACE_ID, name: config.WORKSPACE_NAME });
     await tx.insert(membership).values({ workspaceId: config.WORKSPACE_ID, userId, role: 'administrator' });
+    await ensureStarterLibrary(tx, config.WORKSPACE_ID);
     return 'created' as const;
   });
 }

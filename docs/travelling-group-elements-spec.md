@@ -4,6 +4,8 @@ Status: **working product spec** · 21 October 2026
 
 This document is for discussion and refinement. It describes the intended behaviour, a first implementation slice, and decisions still to make. It does not authorize implementation or deployment.
 
+> **Overridden in part by [ADR 0009](adr/0009-parametric-parts-one-object-model.md) and [ADR 0010](adr/0010-owned-stage-canvas.md).** Elements are group-defined parametric parts (Bauteile) authored in the Bühnentechnik-Designer, on one object model with typed connectors, named variants and derived cut lists. Where a section below conflicts, the ADRs win. Overridden passages are marked *Overridden by ADR 0009*.
+
 ## Product premise
 
 A **theatre group** creates productions and travels with its own scenery, equipment, and stock. A **venue** is a place where the group performs. The group may stage the same production at several venues, changing the arrangement to fit each space while retaining the identity of its own physical pieces.
@@ -71,15 +73,15 @@ The app must state the scope of every count. It must not infer simultaneous dema
 
 Each definition has a stable group-scoped ID, name, category for browsing, revision, description, supported geometry kind, default dimensions, allowed parameter ranges, optional visual asset, and a material recipe. Archived definitions remain resolvable from existing placements and issued revisions.
 
-The initial geometry kinds should be a **finite, validated set**, for example panel with openings, rectangular volume, and platform footprint. A GLB may improve the visual representation but cannot be the only source of a measured footprint, height, or collision behaviour. Each kind exposes the same minimum planning facts: plan footprint, vertical extent, supported placement surfaces, and whether it participates in clearance and keep-clear checks. Geometry that cannot be represented accurately must be labelled approximate in the UI and output.
+*Overridden by ADR 0009: the geometry kinds below are replaced by bodies (beam, sheet, box) that name a stock material, child parts, typed connectors and traits.* The initial geometry kinds should be a **finite, validated set**, for example panel with openings, rectangular volume, and platform footprint. A GLB may improve the visual representation but cannot be the only source of a measured footprint, height, or collision behaviour. Each kind exposes the same minimum planning facts: plan footprint, vertical extent, supported placement surfaces, and whether it participates in clearance and keep-clear checks. Geometry that cannot be represented accurately must be labelled approximate in the UI and output.
 
-Dimensions and recipe quantities use bounded, typed fields. A group can change values and choose from supported rules; arbitrary user scripts, custom executable geometry, and user-defined calculation expressions are outside the first release.
+Dimensions and recipe quantities use bounded, typed fields. A group can change values and choose from supported rules; arbitrary user scripts and custom executable geometry are outside the first release. *Overridden by ADR 0009: parameter and derived values may be formulas (numbers, parameter names, `+ - * /`, brackets, `min max abs round floor ceil sqrt if`), evaluated by a hand-written parser without `eval`.*
 
 ### Placement contract
 
 Each placement stores its own ID, definition ID, definition revision, resolved planning snapshot, label, position, rotation, supporting surface, permitted overrides, and optional physical assignment. Copying, undo, groups, selection, snapping, 2D, 3D, warnings, and exports must all operate on it. A placement whose definition is archived must still load, edit, and export. Missing or incompatible stock produces an actionable warning and does not erase the placement.
 
-The group catalog is a starting point, not a live master of all stage layouts. A published definition edit creates a new revision. Existing placements retain their previous definition values until an explicit update with a preview of changed geometry and requirements. Issued documents always retain their frozen values.
+The group catalog is a starting point, not a live master of all stage layouts. A published definition edit creates a new revision. *ADR 0009: revisions are immutable and placements reference id + revision; frozen documents inline the definitions they used.* Existing placements retain their previous definition values until an explicit update with a preview of changed geometry and requirements. Issued documents always retain their frozen values.
 
 ### Stock and requirements
 
@@ -103,7 +105,7 @@ Every supported element kind contributes a measured footprint and height to dest
 
 ## Compatibility and migration
 
-Existing saved walls, braces, physical panels, ballast stock, templates, venue adaptations, and issued revisions must continue to load. Migration should be additive first: introduce the new definition/placement path, map existing walls and braces into it where semantics match, and keep legacy readers until every dependent workflow has moved. Preserve panel labels, finish assignment snapshots, assembly numbers, rigging setup IDs, and opening geometry.
+*Overridden by ADR 0009: existing Bühnenbilder, templates and the demo seed are converted once to layout schema v2 by a script, not supported indefinitely by legacy readers; issued revisions keep their stored PDF and are not re-rendered. The additive, reader-preserving approach below no longer applies.* Existing saved walls, braces, physical panels, ballast stock, templates, venue adaptations, and issued revisions must continue to load. Migration should be additive first: introduce the new definition/placement path, map existing walls and braces into it where semantics match, and keep legacy readers until every dependent workflow has moved. Preserve panel labels, finish assignment snapshots, assembly numbers, rigging setup IDs, and opening geometry.
 
 Do not silently replace an existing wall or brace with an approximate generic object. A migration test should compare geometry, stock demand, warnings, and frozen output before and after conversion. The current `schemaVersion: 1` layout and frozen document schemas require explicit versioning or compatible decoding for any persisted shape change.
 
@@ -118,6 +120,8 @@ Do not silently replace an existing wall or brace with an approximate generic ob
 Each slice needs domain tests for geometry/counting, integration tests for ownership and persisted revisions, and a browser journey crossing catalog → placement → venue adaptation → document. A generic element feature is incomplete if any part of that journey silently drops it.
 
 ## Open decisions for the next discussion
+
+ADR 0009 resolves parts of items 2, 5 and 6 (revisions, assemblies, joints between connectors) and, for item 7, keeps one workspace per installation with part libraries exchanged as files.
 
 1. **First non-wall kind:** Which real object from another travelling group should prove the model: a reusable platform module, a rolling scenic unit, a freestanding set piece, or something else? We need its actual dimensions, footprint, height, assembly, and stock rules.
 2. **Definition versus one-off:** Should a designer be able to create a one-off definition inside a Bühnenbild and later promote it to the group catalog, as wall types can today?

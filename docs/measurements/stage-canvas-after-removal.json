@@ -1,0 +1,744 @@
+{
+  "label": "after-removal",
+  "measuredAt": "2026-11-12T18:19:39.723Z",
+  "git": {
+    "commit": "bef26dc7fe45bc1d14824bcedc9c9f336325fcdc",
+    "branch": "cursor/wt-b4-pascal-e051",
+    "dirty": false
+  },
+  "environment": {
+    "os": "Linux 6.12.113+",
+    "cpuModel": "Intel(R) Xeon(R) Processor",
+    "cpuCount": 4,
+    "memoryGiB": 15.6,
+    "node": "v24.22.2",
+    "chromium": "156.0.8078.4",
+    "headless": true,
+    "viewport": "1280x800 @1x",
+    "webgl.webgl2": true,
+    "webgl.renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "webgl.vendor": "Google Inc. (Google)"
+  },
+  "bundle": {
+    "chunks": [
+      {
+        "file": "assets/pdf.worker.min-CjEcRF4W.mjs",
+        "name": "pdf.worker.min.mjs",
+        "kind": "other",
+        "bytes": 1264342,
+        "gzipBytes": 376488,
+        "initial": false
+      },
+      {
+        "file": "assets/index-BE8gsO7M.js",
+        "name": "index.js",
+        "kind": "js",
+        "bytes": 1011594,
+        "gzipBytes": 289622,
+        "initial": true
+      },
+      {
+        "file": "assets/draco_decoder-fzg4nYZr.js",
+        "name": "draco_decoder.js",
+        "kind": "js",
+        "bytes": 719410,
+        "gzipBytes": 148812,
+        "initial": false
+      },
+      {
+        "file": "assets/StageCanvas-IH6sR4M2.js",
+        "name": "StageCanvas.js",
+        "kind": "js",
+        "bytes": 669408,
+        "gzipBytes": 188715,
+        "initial": false
+      },
+      {
+        "file": "assets/basis_transcoder-VXdx5NbI.wasm",
+        "name": "basis_transcoder.wasm",
+        "kind": "other",
+        "bytes": 527333,
+        "gzipBytes": 247619,
+        "initial": false
+      },
+      {
+        "file": "assets/SourceSans3-Regular-CgvQnV7E.ttf",
+        "name": "SourceSans3-Regular.ttf",
+        "kind": "other",
+        "bytes": 431196,
+        "gzipBytes": 204207,
+        "initial": false
+      },
+      {
+        "file": "assets/pdf-ULJPBbF3.js",
+        "name": "pdf.js",
+        "kind": "js",
+        "bytes": 430162,
+        "gzipBytes": 128129,
+        "initial": false
+      },
+      {
+        "file": "assets/SourceSans3-Bold-D6_5tO0y.ttf",
+        "name": "SourceSans3-Bold.ttf",
+        "kind": "other",
+        "bytes": 428176,
+        "gzipBytes": 204530,
+        "initial": false
+      },
+      {
+        "file": "assets/surfaceRegistry-D9c-1Wfh.js",
+        "name": "surfaceRegistry.js",
+        "kind": "js",
+        "bytes": 397423,
+        "gzipBytes": 106410,
+        "initial": true
+      },
+      {
+        "file": "assets/draco_decoder-C32yEggz.wasm",
+        "name": "draco_decoder.wasm",
+        "kind": "other",
+        "bytes": 285747,
+        "gzipBytes": 88636,
+        "initial": false
+      },
+      {
+        "file": "assets/draco_decoder-Z1_iN-Ht.wasm",
+        "name": "draco_decoder.wasm",
+        "kind": "other",
+        "bytes": 192420,
+        "gzipBytes": 63458,
+        "initial": false
+      },
+      {
+        "file": "assets/materialLibrary-DdwbSjM2.js",
+        "name": "materialLibrary.js",
+        "kind": "js",
+        "bytes": 151553,
+        "gzipBytes": 34152,
+        "initial": true
+      },
+      {
+        "file": "assets/RaumsichtCanvas-DIMflmzN.js",
+        "name": "RaumsichtCanvas.js",
+        "kind": "js",
+        "bytes": 98428,
+        "gzipBytes": 30007,
+        "initial": false
+      },
+      {
+        "file": "assets/index-dUK9PUMz.css",
+        "name": "index.css",
+        "kind": "css",
+        "bytes": 94503,
+        "gzipBytes": 18827,
+        "initial": true
+      },
+      {
+        "file": "assets/Designer-DHUTfzk0.js",
+        "name": "Designer.js",
+        "kind": "js",
+        "bytes": 80564,
+        "gzipBytes": 22605,
+        "initial": false
+      },
+      {
+        "file": "assets/draco_wasm_wrapper-DxJM36Ib.js",
+        "name": "draco_wasm_wrapper.js",
+        "kind": "js",
+        "bytes": 58763,
+        "gzipBytes": 11903,
+        "initial": false
+      },
+      {
+        "file": "assets/draco_wasm_wrapper-fZCQGLGb.js",
+        "name": "draco_wasm_wrapper.js",
+        "kind": "js",
+        "bytes": 58456,
+        "gzipBytes": 11748,
+        "initial": false
+      },
+      {
+        "file": "assets/basis_transcoder-o4Hde_L7.js",
+        "name": "basis_transcoder.js",
+        "kind": "js",
+        "bytes": 57529,
+        "gzipBytes": 15169,
+        "initial": false
+      },
+      {
+        "file": "assets/Designer-ByHKCrCK.css",
+        "name": "Designer.css",
+        "kind": "css",
+        "bytes": 11715,
+        "gzipBytes": 2733,
+        "initial": false
+      },
+      {
+        "file": "assets/wall-types-BtM3h123.js",
+        "name": "wall-types.js",
+        "kind": "js",
+        "bytes": 6649,
+        "gzipBytes": 2576,
+        "initial": true
+      },
+      {
+        "file": "assets/StageCanvasHarness-38iJ3Yhp.js",
+        "name": "StageCanvasHarness.js",
+        "kind": "js",
+        "bytes": 3790,
+        "gzipBytes": 1679,
+        "initial": false
+      },
+      {
+        "file": "assets/MaterialPicker-i6uWpo86.js",
+        "name": "MaterialPicker.js",
+        "kind": "js",
+        "bytes": 750,
+        "gzipBytes": 459,
+        "initial": false
+      },
+      {
+        "file": "assets/rolldown-runtime-XKyaHtl9.js",
+        "name": "rolldown-runtime.js",
+        "kind": "js",
+        "bytes": 726,
+        "gzipBytes": 429,
+        "initial": true
+      },
+      {
+        "file": "assets/pdf.worker.min--Ao2iAXA.js",
+        "name": "pdf.worker.min.js",
+        "kind": "js",
+        "bytes": 65,
+        "gzipBytes": 85,
+        "initial": false
+      }
+    ],
+    "totals": {
+      "files": 24,
+      "bytes": 6980702,
+      "gzipBytes": 2198998,
+      "jsBytes": 3745270,
+      "jsGzipBytes": 992500,
+      "cssBytes": 106218,
+      "cssGzipBytes": 21560
+    },
+    "initial": {
+      "files": [
+        "assets/index-BE8gsO7M.js",
+        "assets/surfaceRegistry-D9c-1Wfh.js",
+        "assets/materialLibrary-DdwbSjM2.js",
+        "assets/index-dUK9PUMz.css",
+        "assets/wall-types-BtM3h123.js",
+        "assets/rolldown-runtime-XKyaHtl9.js"
+      ],
+      "bytes": 1662448,
+      "gzipBytes": 452016
+    }
+  },
+  "packages": {
+    "npmLsAll": 246,
+    "npmLsProduction": 222,
+    "lockfile": {
+      "entries": 375,
+      "production": 314,
+      "dev": 61,
+      "optional": 138,
+      "installed": 246
+    },
+    "pascalOnly": {
+      "all": 0,
+      "production": 0,
+      "installed": 0,
+      "names": [],
+      "paths": []
+    }
+  },
+  "attribution": {
+    "method": "vite build --sourcemap hidden; minified characters per generated source-map segment, grouped by the installed package path of the original source; gzip share estimated proportionally",
+    "jsBytes": 2687265,
+    "pascal": {
+      "bytes": 0,
+      "share": 0,
+      "estimatedGzipBytes": 0,
+      "packages": []
+    },
+    "three": {
+      "bytes": 717412,
+      "share": 0.267,
+      "files": [
+        {
+          "name": "three/build/three.core.js",
+          "bytes": 380200,
+          "share": 0.1415
+        },
+        {
+          "name": "three/build/three.module.js",
+          "bytes": 198218,
+          "share": 0.0738
+        },
+        {
+          "name": "three/examples/jsm",
+          "bytes": 138994,
+          "share": 0.0517
+        }
+      ]
+    },
+    "app": {
+      "bytes": 967685,
+      "share": 0.3601
+    },
+    "topPackages": [
+      {
+        "name": "app:src/client",
+        "bytes": 719585,
+        "share": 0.2678
+      },
+      {
+        "name": "three",
+        "bytes": 717412,
+        "share": 0.267
+      },
+      {
+        "name": "pdfjs-dist",
+        "bytes": 427980,
+        "share": 0.1593
+      },
+      {
+        "name": "app:src/shared",
+        "bytes": 248100,
+        "share": 0.0923
+      },
+      {
+        "name": "react-dom",
+        "bytes": 207439,
+        "share": 0.0772
+      },
+      {
+        "name": "@react-three/fiber",
+        "bytes": 167970,
+        "share": 0.0625
+      },
+      {
+        "name": "zod",
+        "bytes": 99909,
+        "share": 0.0372
+      },
+      {
+        "name": "three-stdlib",
+        "bytes": 41769,
+        "share": 0.0155
+      },
+      {
+        "name": "(unmapped)",
+        "bytes": 25382,
+        "share": 0.0094
+      },
+      {
+        "name": "@react-three/drei",
+        "bytes": 11025,
+        "share": 0.0041
+      },
+      {
+        "name": "react",
+        "bytes": 8125,
+        "share": 0.003
+      },
+      {
+        "name": "scheduler",
+        "bytes": 3467,
+        "share": 0.0013
+      },
+      {
+        "name": "react-use-measure",
+        "bytes": 3134,
+        "share": 0.0012
+      },
+      {
+        "name": "its-fine",
+        "bytes": 2652,
+        "share": 0.001
+      },
+      {
+        "name": "use-sync-external-store",
+        "bytes": 1499,
+        "share": 0.0006
+      },
+      {
+        "name": "suspend-react",
+        "bytes": 1024,
+        "share": 0.0004
+      },
+      {
+        "name": "zustand",
+        "bytes": 574,
+        "share": 0.0002
+      },
+      {
+        "name": "@babel/runtime",
+        "bytes": 219,
+        "share": 0.0001
+      }
+    ],
+    "chunks": [
+      {
+        "file": "assets/index-BE8gsO7M.js",
+        "bytes": 1006476,
+        "pascalShare": 0,
+        "topSources": [
+          {
+            "name": "app:src/client",
+            "bytes": 524528,
+            "share": 0.521
+          },
+          {
+            "name": "app:src/shared",
+            "bytes": 222131,
+            "share": 0.221
+          },
+          {
+            "name": "react-dom",
+            "bytes": 207439,
+            "share": 0.206
+          },
+          {
+            "name": "three",
+            "bytes": 46131,
+            "share": 0.046
+          },
+          {
+            "name": "(unmapped)",
+            "bytes": 3602,
+            "share": 0.004
+          }
+        ]
+      },
+      {
+        "file": "assets/StageCanvas-IH6sR4M2.js",
+        "bytes": 515337,
+        "pascalShare": 0,
+        "topSources": [
+          {
+            "name": "three",
+            "bytes": 291081,
+            "share": 0.565
+          },
+          {
+            "name": "@react-three/fiber",
+            "bytes": 167970,
+            "share": 0.326
+          },
+          {
+            "name": "app:src/client",
+            "bytes": 15836,
+            "share": 0.031
+          },
+          {
+            "name": "three-stdlib",
+            "bytes": 14291,
+            "share": 0.028
+          },
+          {
+            "name": "(unmapped)",
+            "bytes": 13743,
+            "share": 0.027
+          }
+        ]
+      },
+      {
+        "file": "assets/pdf-ULJPBbF3.js",
+        "bytes": 429183,
+        "pascalShare": 0,
+        "topSources": [
+          {
+            "name": "pdfjs-dist",
+            "bytes": 427936,
+            "share": 0.997
+          },
+          {
+            "name": "(unmapped)",
+            "bytes": 1247,
+            "share": 0.003
+          }
+        ]
+      },
+      {
+        "file": "assets/surfaceRegistry-D9c-1Wfh.js",
+        "bytes": 397296,
+        "pascalShare": 0,
+        "topSources": [
+          {
+            "name": "three",
+            "bytes": 380200,
+            "share": 0.957
+          },
+          {
+            "name": "react",
+            "bytes": 7789,
+            "share": 0.02
+          },
+          {
+            "name": "scheduler",
+            "bytes": 3467,
+            "share": 0.009
+          },
+          {
+            "name": "(unmapped)",
+            "bytes": 3437,
+            "share": 0.009
+          },
+          {
+            "name": "app:src/shared",
+            "bytes": 2403,
+            "share": 0.006
+          }
+        ]
+      },
+      {
+        "file": "assets/materialLibrary-DdwbSjM2.js",
+        "bytes": 150488,
+        "pascalShare": 0,
+        "topSources": [
+          {
+            "name": "zod",
+            "bytes": 97236,
+            "share": 0.646
+          },
+          {
+            "name": "app:src/client",
+            "bytes": 51541,
+            "share": 0.342
+          },
+          {
+            "name": "app:src/shared",
+            "bytes": 961,
+            "share": 0.006
+          },
+          {
+            "name": "(unmapped)",
+            "bytes": 414,
+            "share": 0.003
+          },
+          {
+            "name": "react",
+            "bytes": 336,
+            "share": 0.002
+          }
+        ]
+      },
+      {
+        "file": "assets/RaumsichtCanvas-DIMflmzN.js",
+        "bytes": 96881,
+        "pascalShare": 0,
+        "topSources": [
+          {
+            "name": "app:src/client",
+            "bytes": 47935,
+            "share": 0.495
+          },
+          {
+            "name": "three-stdlib",
+            "bytes": 27478,
+            "share": 0.284
+          },
+          {
+            "name": "app:src/shared",
+            "bytes": 12582,
+            "share": 0.13
+          },
+          {
+            "name": "@react-three/drei",
+            "bytes": 7711,
+            "share": 0.08
+          },
+          {
+            "name": "(unmapped)",
+            "bytes": 1175,
+            "share": 0.012
+          }
+        ]
+      },
+      {
+        "file": "assets/Designer-DHUTfzk0.js",
+        "bytes": 80361,
+        "pascalShare": 0,
+        "topSources": [
+          {
+            "name": "app:src/client",
+            "bytes": 75638,
+            "share": 0.941
+          },
+          {
+            "name": "app:src/shared",
+            "bytes": 3789,
+            "share": 0.047
+          },
+          {
+            "name": "(unmapped)",
+            "bytes": 934,
+            "share": 0.012
+          }
+        ]
+      },
+      {
+        "file": "assets/wall-types-BtM3h123.js",
+        "bytes": 6649,
+        "pascalShare": 0,
+        "topSources": [
+          {
+            "name": "app:src/shared",
+            "bytes": 6234,
+            "share": 0.938
+          },
+          {
+            "name": "(unmapped)",
+            "bytes": 387,
+            "share": 0.058
+          },
+          {
+            "name": "zod",
+            "bytes": 28,
+            "share": 0.004
+          }
+        ]
+      },
+      {
+        "file": "assets/StageCanvasHarness-38iJ3Yhp.js",
+        "bytes": 3788,
+        "pascalShare": 0,
+        "topSources": [
+          {
+            "name": "app:src/client",
+            "bytes": 3501,
+            "share": 0.924
+          },
+          {
+            "name": "(unmapped)",
+            "bytes": 287,
+            "share": 0.076
+          }
+        ]
+      },
+      {
+        "file": "assets/MaterialPicker-i6uWpo86.js",
+        "bytes": 741,
+        "pascalShare": 0,
+        "topSources": [
+          {
+            "name": "app:src/client",
+            "bytes": 606,
+            "share": 0.818
+          },
+          {
+            "name": "(unmapped)",
+            "bytes": 135,
+            "share": 0.182
+          }
+        ]
+      },
+      {
+        "file": "assets/pdf.worker.min--Ao2iAXA.js",
+        "bytes": 65,
+        "pascalShare": 0,
+        "topSources": [
+          {
+            "name": "pdfjs-dist",
+            "bytes": 44,
+            "share": 0.677
+          },
+          {
+            "name": "(unmapped)",
+            "bytes": 21,
+            "share": 0.323
+          }
+        ]
+      }
+    ]
+  },
+  "firstFrame": {
+    "scene": "Messprobe: 8 × 6 m venue, 2 walls, 1 brace, 1 table, 1 stage-deck platform, 1 stair (stage-view.spec.ts object kinds)",
+    "objects": 6,
+    "runs": [
+      {
+        "firstDrawMs": 427.7,
+        "settledMs": 571.3,
+        "steadyDrawCalls": 18,
+        "chunkFiles": [
+          "RaumsichtCanvas-DIMflmzN.js",
+          "StageCanvas-IH6sR4M2.js"
+        ],
+        "chunkTransferBytes": 767836,
+        "chunkDecodedBytes": 767836
+      },
+      {
+        "firstDrawMs": 405.3,
+        "settledMs": 539.8,
+        "steadyDrawCalls": 18,
+        "chunkFiles": [
+          "RaumsichtCanvas-DIMflmzN.js",
+          "StageCanvas-IH6sR4M2.js"
+        ],
+        "chunkTransferBytes": 767836,
+        "chunkDecodedBytes": 767836
+      },
+      {
+        "firstDrawMs": 427.9,
+        "settledMs": 588.6,
+        "steadyDrawCalls": 18,
+        "chunkFiles": [
+          "RaumsichtCanvas-DIMflmzN.js",
+          "StageCanvas-IH6sR4M2.js"
+        ],
+        "chunkTransferBytes": 767836,
+        "chunkDecodedBytes": 767836
+      },
+      {
+        "firstDrawMs": 407.6,
+        "settledMs": 539.3,
+        "steadyDrawCalls": 18,
+        "chunkFiles": [
+          "RaumsichtCanvas-DIMflmzN.js",
+          "StageCanvas-IH6sR4M2.js"
+        ],
+        "chunkTransferBytes": 767836,
+        "chunkDecodedBytes": 767836
+      },
+      {
+        "firstDrawMs": 405.5,
+        "settledMs": 540.7,
+        "steadyDrawCalls": 18,
+        "chunkFiles": [
+          "RaumsichtCanvas-DIMflmzN.js",
+          "StageCanvas-IH6sR4M2.js"
+        ],
+        "chunkTransferBytes": 767836,
+        "chunkDecodedBytes": 767836
+      }
+    ],
+    "medianFirstDrawMs": 407.6,
+    "medianSettledMs": 540.7
+  },
+  "orbit": {
+    "scene": "Dichteprobe: 20 × 16 m venue, 250 chairs (schema maximum per Bühnenbild), 40 stage-deck platforms 2 × 1 m at 400 mm with legs, 10 walls",
+    "objects": {
+      "chairs": 250,
+      "stageDeckPlatforms": 40,
+      "walls": 10
+    },
+    "firstDrawMs": 480.4,
+    "settledMs": 854.9,
+    "seconds": 6.09,
+    "frames": 104,
+    "viewChanged": true,
+    "frameTimeMs": {
+      "median": 66.6,
+      "p95": 66.7,
+      "mean": 58.3,
+      "max": 83.4
+    },
+    "drawCallsPerFrame": {
+      "median": 58,
+      "max": 58
+    }
+  }
+}

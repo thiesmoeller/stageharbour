@@ -7,6 +7,11 @@ import { errorSchema, okSchema, venueReferenceSchema, workspaceParamsSchema } fr
 import {
   applyVenueResultSchema, saveVenueResultSchema, saveVenueSchema, venueGeometrySchema, type Layout, type VenueGeometry,
 } from '../../shared/layout.js';
+import { migrateLayout } from '../../shared/layoutMigrate.js';
+import { createLayoutPartIndex, resolveLayoutObjects } from '../../shared/layoutObjects.js';
+import { resolvedKeepClearWarnings } from '../../shared/keepClear.js';
+import { supportingSurfaces } from '../../shared/levels.js';
+import { resolvedOverheadClearance } from '../../shared/overhead.js';
 import { saveReportTemplatesSchema } from '../../shared/reportTemplate.js';
 import { applyVenueVersion } from '../../shared/scenes.js';
 import { createVenueSchema, publishVenueSchema, renameVenueSchema, venueListSchema, venuePlanPreview, venueRecordSchema } from '../../shared/venueLibrary.js';
@@ -16,6 +21,7 @@ import { adaptation, editingLease, production, scene, venue, venueReference, ven
 import type { FileStorage } from '../exports/storage.js';
 import { AccessError, type createAccess } from '../identity/access.js';
 import { type Leases } from '../productions/leases.js';
+import { loadAllRevisions, loadMaterials } from '../parts/data.js';
 import { inspectReference, MAX_REFERENCE_BYTES, originalFileName } from './files.js';
 import { requireRegistrySurfaces } from '../surfaces/validate.js';
 
@@ -23,7 +29,7 @@ export class VenueError extends Error {
   constructor(public statusCode: 400, message: string) { super(message); }
 }
 
-type Store = Pick<Database, 'select' | 'insert' | 'update' | 'execute'>;
+type Store = Pick<Database, 'select' | 'insert' | 'update' | 'delete' | 'execute'>;
 
 export function registerVenueRoutes(
   app: FastifyInstance, db: Database, access: ReturnType<typeof createAccess>, origin: string, storage: FileStorage, leases: Leases,
@@ -59,6 +65,16 @@ export function registerVenueRoutes(
     if (!record) throw new AccessError(404, 'Bühnenbild nicht verfügbar.');
     return record;
   }
+  async function layoutPartIndex(store: Store, workspaceId: string) {
+    const [revisions, materials] = await Promise.all([
+      loadAllRevisions(store, workspaceId),
+      loadMaterials(store, workspaceId),
+    ]);
+    return createLayoutPartIndex({
+      parts: [...revisions.values()].flatMap(byRevision => [...byRevision.values()]),
+      materials: [...materials.values()],
+    });
+  }
   async function retargetAdaptation(
     tx: Store, workspaceId: string, adaptationId: string, nextVersionId: string, geometry: VenueGeometry, userId: string,
   ) {
@@ -66,15 +82,17 @@ export function registerVenueRoutes(
       .where(and(eq(adaptation.workspaceId, workspaceId), eq(adaptation.id, adaptationId)));
     const rows = await tx.select({ id: scene.id, layout: scene.layout, revision: scene.revision })
       .from(scene).where(and(eq(scene.workspaceId, workspaceId), eq(scene.adaptationId, adaptationId))).orderBy(scene.id);
+    const partIndex = await layoutPartIndex(tx, workspaceId);
     const applied = new Map<string, { layout: Layout; revision: number }>();
     for (const candidate of rows) {
       await leases.requireAvailable(tx, workspaceId, 'scene', candidate.id, userId);
       const [row] = await tx.select({ id: scene.id, layout: scene.layout, revision: scene.revision })
         .from(scene).where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, candidate.id)));
       if (!row) continue;
-      const next = applyVenueVersion(row.layout, geometry);
+      const migrated = migrateLayout(row.layout, partIndex);
+      const next = applyVenueVersion(migrated, geometry);
       if (JSON.stringify(next.layout) === JSON.stringify(row.layout)) {
-        applied.set(row.id, { layout: row.layout, revision: row.revision });
+        applied.set(row.id, { layout: migrated, revision: row.revision });
         continue;
       }
       const [updated] = await tx.update(scene)
@@ -101,8 +119,13 @@ export function registerVenueRoutes(
       .from(venueVersion)
       .where(and(eq(venueVersion.workspaceId, workspaceId), eq(venueVersion.venueId, record.venueId)));
     const { pinnedCreatedAt, ...rest } = record;
+    const partIndex = await layoutPartIndex(db, workspaceId);
+    const layout = migrateLayout(rest.layout, partIndex);
+    if (layout !== rest.layout && (rest.layout as { schemaVersion?: unknown }).schemaVersion !== 2) {
+      await db.update(scene).set({ layout }).where(and(eq(scene.workspaceId, workspaceId), eq(scene.id, sceneId)));
+    }
     return {
-      ...rest,
+      ...rest, layout,
       venueUpdateAvailable: (newest?.createdAt ? new Date(newest.createdAt).getTime() : 0) > pinnedCreatedAt.getTime(),
     };
   }
@@ -319,11 +342,20 @@ export function registerVenueRoutes(
     });
     const record = await loadSceneRecord(workspaceId, sceneId);
     const diagnostics = applyVenueVersion(record.layout, record.venue);
+    const partIndex = await layoutPartIndex(db, workspaceId);
+    const supportElevations = new Map(
+      supportingSurfaces(record.venue).map(surface => [surface.id, surface.elevation]),
+    );
+    const objects = resolveLayoutObjects(record.layout, partIndex, { supportElevations });
+    const warnings = [
+      ...resolvedOverheadClearance(objects, record.venue),
+      ...resolvedKeepClearWarnings(record.venue, objects),
+    ];
     return {
       ...record, lease: await leases.read(workspaceId, 'scene', sceneId),
       unresolvedSupport: diagnostics.unresolvedSupport,
-      warnings: diagnostics.warnings,
-      unresolvedWarnings: diagnostics.unresolvedWarnings,
+      warnings,
+      unresolvedWarnings: resolvedKeepClearWarnings(record.venue, objects),
     };
   });
   api.delete(`${venuesPath}/:venueId`, { schema: { params: venueParams, response: { 200: okSchema, ...errors } } }, async request => {

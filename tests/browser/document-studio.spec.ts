@@ -11,7 +11,7 @@ test('layout pages, frame positions, one-gesture undo and page order survive dra
   await createProduction(page, { productionName: 'RoboGirl · Aufbau', venueName: 'Probebühne', sceneName: 'Erster Akt' });
   await placeWallAt(page, 2500, 3000);
   await expect(page.locator('.save-status')).toHaveText('Gespeichert');
-  await revealEditorCommand(page, 'PDF gestalten'); await page.getByRole('button', { name: 'PDF gestalten' }).click();
+  await revealEditorCommand(page, 'Ausgabe erstellen'); await page.getByRole('button', { name: 'Ausgabe erstellen' }).click();
   const studio = page.getByRole('dialog', { name: 'Dokument erstellen' });
   await expect(studio.getByTestId('document-sheet')).toBeVisible();
   const originalPages = await studio.locator('.studio-page-card').count();
@@ -58,7 +58,7 @@ test('layout pages, frame positions, one-gesture undo and page order survive dra
   await expect(studio.getByTitle('PDF-Vorschau')).toBeVisible({ timeout: 30_000 });
   await expect(studio.getByRole('button', { name: 'PDF herunterladen', exact: true })).toBeEnabled();
   await studio.getByRole('button', { name: 'Zurück zum Editor' }).click();
-  await revealEditorCommand(page, 'PDF gestalten'); await page.getByRole('button', { name: 'PDF gestalten' }).click();
+  await revealEditorCommand(page, 'Ausgabe erstellen'); await page.getByRole('button', { name: 'Ausgabe erstellen' }).click();
   await expect(studio.getByRole('button', { name: /Seite \d+: Aufbau und Absprachen/ })).toBeVisible();
   await studio.getByRole('button', { name: /Seite \d+: Aufbau und Absprachen/ }).click();
   await expect(studio.getByLabel('Blattname', { exact: true })).toHaveValue('Aufbau und Absprachen');
@@ -72,7 +72,7 @@ test('a captured 3D frame is embedded in the PDF and cancelling a preset change 
   await createProduction(page, { productionName: 'Raum und Plan', venueName: 'Studio', sceneName: 'Bühnenprobe' });
   await placeWallAt(page, 2500, 3000);
   await expect(page.locator('.save-status')).toHaveText('Gespeichert');
-  await revealEditorCommand(page, 'PDF gestalten'); await page.getByRole('button', { name: 'PDF gestalten' }).click();
+  await revealEditorCommand(page, 'Ausgabe erstellen'); await page.getByRole('button', { name: 'Ausgabe erstellen' }).click();
   const studio = page.getByRole('dialog', { name: 'Dokument erstellen' });
   await studio.getByRole('button', { name: 'Layouts', exact: true }).click();
   await studio.getByRole('button', { name: /Plan und Raumsicht/ }).click();

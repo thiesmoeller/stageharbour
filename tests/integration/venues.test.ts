@@ -354,9 +354,9 @@ test('PATCH report-templates updates only templates and scene PUT venue round-tr
       layout: { ...loaded.layout, reportTemplates: [newReportTemplate(randomUUID(), 'should-strip')] },
     },
   });
-  assert.equal(afterLayout.statusCode, 200, afterLayout.body);
+  assert.equal(afterLayout.statusCode, 400, afterLayout.body);
   const final = (await app.inject({ url: `${scenes}/${scene.id}`, headers })).json<Scene>();
-  assert.equal(final.layout.reportTemplates, undefined);
+  assert.equal('reportTemplates' in final.layout, false);
   assert.equal(final.venue.reportTemplates?.[0]!.name, 'Saalblatt v2');
 });
 

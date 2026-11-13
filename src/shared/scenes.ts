@@ -1,78 +1,54 @@
-import { AUDIENCE_FLOOR_ID, layoutDiagnostics, type PlacementDiagnostic } from './levels.js';
-import type { GroupMemberKind } from './groups.js';
-import { keepClearWarnings, type KeepClearWarning } from './keepClear.js';
+import { AUDIENCE_FLOOR_ID, type PlacementDiagnostic } from './levels.js';
+import type { KeepClearWarning } from './keepClear.js';
+import type { DimensionAnchor } from './dimensionSchema.js';
 import type { Layout, VenueGeometry } from './layout.js';
-import { overheadClearance, type OverheadWarning } from './overhead.js';
+import type { OverheadWarning } from './overhead.js';
+import { measuredOutline } from './venue.js';
 import { pruneVenueFixtureState } from './venueFixtures.js';
-import { stripLayoutReportTemplates } from './reportTemplate.js';
 
-/**
- * Whole-scene clone for another scene in the same production. Placement records
- * get new ids so later edits cannot collide with the source document; `panelId`
- * and `assemblyNumber` stay so the copy reuses the same physical walls. Groups,
- * connections, and layout-owned platform and placeholder refs remap to those new ids. Venue
- * surfaces and the audience floor keep their ids. The copy shares the source
- * `riggingSetupId` (minted on the copy when the source has none). Pin changes
- * are `riggingNotes`; remounting is a new `riggingSetupId`. Compatibility stays
- * a crew check.
- */
+function remapDimensionAnchor<T extends Record<string, unknown>>(anchor: T, ids: ReadonlyMap<string, string>): T {
+  for (const key of ['wallId', 'platformId', 'braceId'] as const) {
+    const value = anchor[key];
+    if (typeof value === 'string' && ids.has(value)) return { ...anchor, [key]: ids.get(value) } as T;
+  }
+  return anchor;
+}
+
+/** Clone a v2 scene document while preserving references inside the clone. */
 export function duplicateLayout(layout: Layout, nextId: () => string): Layout {
   const source = structuredClone(layout);
-  const wallMap = new Map(source.walls.map(wall => [wall.id, nextId()]));
-  const braceMap = new Map(source.braces.map(brace => [brace.id, nextId()]));
-  const platformMap = new Map((source.platforms ?? []).map(platform => [platform.id, nextId()]));
-  const stairMap = new Map((source.stairs ?? []).map(stair => [stair.id, nextId()]));
-  const placeholderMap = new Map((source.placeholders ?? []).map(item => [item.id, nextId()]));
-  function memberId(kind: GroupMemberKind, id: string) {
-    if (kind === 'wall') return wallMap.get(id) ?? id;
-    if (kind === 'brace') return braceMap.get(id) ?? id;
-    if (kind === 'stair') return stairMap.get(id) ?? id;
-    return placeholderMap.get(id) ?? id;
-  }
-  function surfaceId(id: string) {
-    if (id === AUDIENCE_FLOOR_ID) return id;
-    return platformMap.get(id) ?? id;
-  }
-  return stripLayoutReportTemplates({
+  const ids = new Map(source.objects.map(object => [object.id, nextId()]));
+  const groupIds = new Map((source.groups ?? []).map(group => [group.id, nextId()]));
+  return {
     ...source,
-    walls: source.walls.map(wall => ({
-      ...wall,
-      id: wallMap.get(wall.id)!,
-      supportingSurfaceId: wall.supportingSurfaceId ? surfaceId(wall.supportingSurfaceId) : wall.supportingSurfaceId,
+    objects: source.objects.map(object => ({
+      ...object,
+      id: ids.get(object.id)!,
+      ...(object.support && ids.has(object.support) ? { support: ids.get(object.support)! } : {}),
     })),
-    braces: source.braces.map(brace => ({
-      ...brace,
-      id: braceMap.get(brace.id)!,
-      supportingSurfaceId: brace.supportingSurfaceId ? surfaceId(brace.supportingSurfaceId) : brace.supportingSurfaceId,
-    })),
-    platforms: source.platforms?.map(platform => ({
-      ...platform,
-      id: platformMap.get(platform.id)!,
-      supportingSurfaceId: platform.supportingSurfaceId ? surfaceId(platform.supportingSurfaceId) : platform.supportingSurfaceId,
-    })),
-    stairs: source.stairs?.map(stair => ({
-      ...stair,
-      id: stairMap.get(stair.id)!,
-      lowerSurfaceId: surfaceId(stair.lowerSurfaceId),
-      upperSurfaceId: surfaceId(stair.upperSurfaceId),
-    })),
-    placeholders: source.placeholders?.map(item => ({
-      ...item,
-      id: placeholderMap.get(item.id)!,
-      supportingSurfaceId: item.supportingSurfaceId ? surfaceId(item.supportingSurfaceId) : item.supportingSurfaceId,
-    })),
-    connections: source.connections?.map(connection => ({
-      id: nextId(),
-      a: wallMap.get(connection.a) ?? connection.a,
-      b: wallMap.get(connection.b) ?? connection.b,
+    joints: source.joints.map(joint => ({
+      ...joint,
+      ...(joint.id ? { id: nextId() } : {}),
+      a: { ...joint.a, object: ids.get(joint.a.object) ?? joint.a.object },
+      b: { ...joint.b, object: ids.get(joint.b.object) ?? joint.b.object },
     })),
     groups: source.groups?.map(group => ({
       ...group,
+      id: groupIds.get(group.id)!,
+      members: group.members.map(member => ({ ...member, id: ids.get(member.id) ?? member.id })),
+    })),
+    dimensions: source.dimensions?.map(dimension => ({
+      ...dimension,
+      a: remapDimensionAnchor(dimension.a, ids),
+      b: remapDimensionAnchor(dimension.b, ids),
+    })),
+    wallPictures: source.wallPictures?.map(picture => ({
+      ...picture,
       id: nextId(),
-      members: group.members.map(member => ({ ...member, id: memberId(member.kind, member.id) })),
+      wallId: ids.get(picture.wallId) ?? picture.wallId,
     })),
     riggingSetupId: source.riggingSetupId ?? nextId(),
-  });
+  };
 }
 
 export type AdaptedLayout = {
@@ -82,97 +58,114 @@ export type AdaptedLayout = {
   unresolvedWarnings: KeepClearWarning[];
 };
 
+function adaptationDiagnostics(layout: Layout, destination: VenueGeometry): PlacementDiagnostic[] {
+  const internal = new Set(layout.objects.map(object => object.id));
+  const venue = new Set([
+    AUDIENCE_FLOOR_ID,
+    ...(destination.platforms ?? []).map(platform => platform.id),
+  ]);
+  const diagnostics: PlacementDiagnostic[] = [];
+  for (const object of layout.objects) {
+    if (!object.support) {
+      diagnostics.push({
+        objectId: object.id,
+        kind: 'missing-surface',
+        message: 'Bitte eine Auflagefläche wählen. Ohne Auswahl wird die Höhe nicht stillschweigend gesetzt.',
+      });
+      continue;
+    }
+    if (!internal.has(object.support) && !venue.has(object.support)) {
+      diagnostics.push({
+        objectId: object.id,
+        kind: 'unknown-surface',
+        message: 'Die gewählte Auflagefläche ist nicht vorhanden.',
+      });
+    }
+  }
+  return diagnostics;
+}
+
+/** A venue-owned dimension anchor in the destination venue, or undefined when it has no counterpart there. */
+function venueAnchor(anchor: DimensionAnchor, destination: VenueGeometry, surfaceMap: Readonly<Record<string, string>>): DimensionAnchor | undefined {
+  switch (anchor.kind) {
+    case 'outline': return anchor.index < measuredOutline(destination).length ? anchor : undefined;
+    case 'outlineEdge': return anchor.edge < measuredOutline(destination).length ? anchor : undefined;
+    case 'wall': case 'wallEdge':
+      return anchor.scope === 'scene' || (destination.walls ?? []).some(wall => wall.id === anchor.wallId) ? anchor : undefined;
+    case 'platform': case 'platformEdge': {
+      if (anchor.scope === 'scene') return anchor;
+      const platformId = surfaceMap[anchor.platformId];
+      return platformId && (destination.platforms ?? []).some(platform => platform.id === platformId) ? { ...anchor, platformId } : undefined;
+    }
+    case 'brace': return anchor;
+  }
+}
+
 /**
- * Cross-production or destination-venue copy. Placement records get new ids;
- * `panelId` is cleared so current inventory can be assigned later. Movable
- * layout platforms, stairs, placeholders, walls, braces and groups transfer.
- * Source venue outlines, permanent equipment and constraints stay behind.
- * `surfaceMap` sends source venue surfaces onto explicitly chosen destination
- * surfaces; unmapped support becomes a missing-surface diagnostic. Destination
- * overhead and keep-clear warnings are computed from the destination venue.
- * The copy is a remount (`riggingSetupId` is always new). The source is only
- * read; callers must not require a lease on it.
+ * Copy to another venue. Object-owned support chains survive; venue-owned support ids and
+ * dimension anchors are mapped explicitly, and dimensions to venue parts without a counterpart
+ * are dropped. Physical stock assignments are deliberately cleared.
  */
 export function copyLayoutIntoVenue(
-  layout: Layout, destination: VenueGeometry, surfaceMap: Readonly<Record<string, string>>, nextId: () => string,
+  layout: Layout,
+  destination: VenueGeometry,
+  surfaceMap: Readonly<Record<string, string>>,
+  nextId: () => string,
 ): AdaptedLayout {
   const transferred = duplicateLayout(layout, nextId);
-  const layoutPlatforms = new Set((transferred.platforms ?? []).map(platform => platform.id));
-  function mappedSupport(id: string | undefined) {
-    if (!id) return undefined;
-    if (layoutPlatforms.has(id)) return id;
-    if (Object.hasOwn(surfaceMap, id)) return surfaceMap[id];
-    if (id === AUDIENCE_FLOOR_ID) return id;
-    return undefined;
-  }
-  function mappedStairSurface(id: string) {
-    if (layoutPlatforms.has(id)) return id;
-    if (Object.hasOwn(surfaceMap, id)) return surfaceMap[id]!;
-    return id;
-  }
-  function withoutPanel<T extends { panelId?: string; finishAssignment?: unknown }>(item: T) {
-    const { panelId: _panelId, finishAssignment: _finishAssignment, ...rest } = item;
-    return rest;
-  }
-  const adapted: Layout = {
+  const internal = new Set(transferred.objects.map(object => object.id));
+  const objects = transferred.objects.map(object => {
+    const { stockItemId: _stockItemId, ...withoutStock } = object;
+    if (!object.support || internal.has(object.support)) return withoutStock;
+    const support = Object.hasOwn(surfaceMap, object.support)
+      ? surfaceMap[object.support]
+      : object.support === AUDIENCE_FLOOR_ID ? AUDIENCE_FLOOR_ID : undefined;
+    return { ...withoutStock, support };
+  });
+  const dimensions = transferred.dimensions?.flatMap(dimension => {
+    const a = venueAnchor(dimension.a, destination, surfaceMap);
+    const b = venueAnchor(dimension.b, destination, surfaceMap);
+    return a && b ? [{ ...dimension, a, b }] : [];
+  });
+  const adapted = pruneVenueFixtureState({
     ...transferred,
-    walls: transferred.walls.map(wall => ({ ...withoutPanel(wall), supportingSurfaceId: mappedSupport(wall.supportingSurfaceId) })),
-    braces: transferred.braces.map(brace => ({ ...brace, supportingSurfaceId: mappedSupport(brace.supportingSurfaceId) })),
-    platforms: transferred.platforms?.map(platform => ({ ...platform, supportingSurfaceId: mappedSupport(platform.supportingSurfaceId) })),
-    placeholders: transferred.placeholders?.map(item => ({ ...item, supportingSurfaceId: mappedSupport(item.supportingSurfaceId) })),
-    stairs: transferred.stairs?.map(stair => ({
-      ...stair, lowerSurfaceId: mappedStairSurface(stair.lowerSurfaceId), upperSurfaceId: mappedStairSurface(stair.upperSurfaceId),
-    })),
+    objects,
+    ...(dimensions ? { dimensions } : {}),
     riggingSetupId: nextId(),
-  };
+  }, destination);
   return {
-    layout: pruneVenueFixtureState(adapted, destination),
-    unresolvedSupport: layoutDiagnostics(adapted, destination),
-    warnings: overheadClearance(adapted, destination),
-    unresolvedWarnings: keepClearWarnings(destination, adapted),
+    layout: adapted,
+    unresolvedSupport: adaptationDiagnostics(adapted, destination),
+    // Generic geometry checks run after the caller resolves the destination catalog (layoutObjects.ts).
+    warnings: [],
+    unresolvedWarnings: [],
   };
 }
 
-/**
- * Named scene-template snapshot. Clones layout JSON including `wallTypes`, groups
- * and relative arrangement at capture time so later source millimetre edits cannot
- * change the stored template. Instantiating uses `copyLayoutIntoVenue` (clears
- * `panelId`, destination surfaces and conflicts). The source is only read.
- */
 export function captureTemplateLayout(layout: Layout): Layout {
-  return stripLayoutReportTemplates(structuredClone(layout));
+  return structuredClone(layout);
 }
 
-/**
- * Same-venue pin update. Placement ids, panel assignments and rigging stay;
- * support that no longer exists on the destination venue is cleared so
- * `layoutDiagnostics` reports a missing surface. Overhead and keep-clear are
- * recomputed against the destination. The source layout is only read.
- */
 export function applyVenueVersion(layout: Layout, destination: VenueGeometry): AdaptedLayout {
-  const layoutPlatforms = new Set((layout.platforms ?? []).map(platform => platform.id));
-  const venueSurfaces = new Set((destination.platforms ?? []).map(platform => platform.id));
-  function mappedSupport(id: string | undefined) {
-    if (!id) return undefined;
-    if (layoutPlatforms.has(id) || venueSurfaces.has(id) || id === AUDIENCE_FLOOR_ID) return id;
-    return undefined;
-  }
-  const adapted: Layout = {
-    ...stripLayoutReportTemplates(layout),
-    walls: layout.walls.map(wall => ({ ...wall, supportingSurfaceId: mappedSupport(wall.supportingSurfaceId) })),
-    braces: layout.braces.map(brace => ({ ...brace, supportingSurfaceId: mappedSupport(brace.supportingSurfaceId) })),
-    platforms: layout.platforms?.map(platform => ({ ...platform, supportingSurfaceId: mappedSupport(platform.supportingSurfaceId) })),
-    placeholders: layout.placeholders?.map(item => ({ ...item, supportingSurfaceId: mappedSupport(item.supportingSurfaceId) })),
-  };
+  const internal = new Set(layout.objects.map(object => object.id));
+  const venueSurfaces = new Set([
+    AUDIENCE_FLOOR_ID,
+    ...(destination.platforms ?? []).map(platform => platform.id),
+  ]);
+  const objects = layout.objects.map(object => {
+    if (!object.support || internal.has(object.support) || venueSurfaces.has(object.support)) return object;
+    const { support: _support, ...rest } = object;
+    return rest;
+  });
+  const adapted = pruneVenueFixtureState({ ...layout, objects }, destination);
   return {
-    layout: pruneVenueFixtureState(adapted, destination),
-    unresolvedSupport: layoutDiagnostics(adapted, destination),
-    warnings: overheadClearance(adapted, destination),
-    unresolvedWarnings: keepClearWarnings(destination, adapted),
+    layout: adapted,
+    unresolvedSupport: adaptationDiagnostics(adapted, destination),
+    warnings: [],
+    unresolvedWarnings: [],
   };
 }
 
-/** A remount unscrews hinges; pin changes stay in `riggingNotes` on the same setup. */
 export function remountRigging(layout: Layout, nextId: () => string): Layout {
   return { ...layout, riggingSetupId: nextId() };
 }

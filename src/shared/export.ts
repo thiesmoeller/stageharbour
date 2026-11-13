@@ -1,13 +1,15 @@
 import { z } from 'zod';
-import { layoutSchema, openingCorners, venueGeometrySchema, wallCorners, type Scene } from './layout.js';
-import { braceCorners, braceSlabFootprints } from './braceTransforms.js';
-import { overheadClearance, overheadWarningsSchema } from './overhead.js';
-import { keepClearWarningSchema, keepClearWarnings } from './keepClear.js';
+import { layoutSchema, venueGeometrySchema, type Scene } from './layout.js';
+import { overheadWarningsSchema, resolvedOverheadClearance } from './overhead.js';
+import { keepClearWarningSchema, resolvedKeepClearWarnings } from './keepClear.js';
 import { placeholderCorners, placeholderKindSchema } from './placeholders.js';
-import { resolveWall } from './wall-types.js';
 import { withVenueFixtureOpenings } from './venueFixtures.js';
 import { defaultExportLayers, exportLayersSchema, resolveExportLayers, type ExportLayers } from './exportLayers.js';
 import type { DrawingScale, PaperSize } from './tiling.js';
+import { createLayoutPartIndex, type LayoutPartIndex } from './layoutObjects.js';
+import { partLibrarySchema } from './parts/definition.js';
+import { stockInventorySchema, type InventoryCount, type InventoryItem } from './partLists.js';
+import { frozenInventory, layoutLibrary, resolveFrozen } from './frozenParts.js';
 
 export { planTiles, PAGE_OVERLAP_MM, REGISTRATION_MARK_MM, drawingAreaMm } from './tiling.js';
 export type { DrawingScale, PaperSize, PlanTile } from './tiling.js';
@@ -26,8 +28,15 @@ export const freezeExportSchema = z.strictObject({
   elevationGroupIds: z.array(z.uuid()).max(250).optional().default([]),
   layers: exportLayersSchema.partial().optional(),
 });
+/**
+ * A frozen Bühnenbild. Version 2 inlines the exact part revisions and materials the layout used
+ * (`library`) and the stock it was checked against, so drawings and lists are derived again from
+ * the snapshot alone. Version 1 snapshots carried pre-resolved wall and object outlines; their
+ * issued PDFs stay as stored bytes.
+ */
+export const CONSTRUCTION_SNAPSHOT_VERSION = 2;
 export const constructionSnapshotSchema = z.strictObject({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(CONSTRUCTION_SNAPSHOT_VERSION),
   paper: paperSizeSchema.default('A4'),
   scale: drawingScaleSchema,
   revisionId: z.uuid(),
@@ -37,26 +46,10 @@ export const constructionSnapshotSchema = z.strictObject({
   venueVersionId: z.uuid(),
   venue: venueGeometrySchema,
   layout: layoutSchema,
+  library: partLibrarySchema,
+  stock: stockInventorySchema.default({ items: [], counts: [] }),
   elevationGroupIds: z.array(z.uuid()).max(250).default([]),
   layers: exportLayersSchema.default(defaultExportLayers),
-  resolvedWalls: z.array(z.strictObject({
-    id: z.uuid(), label: name,
-    assemblyNumber: z.number().int().positive().max(250).optional(),
-    panelLabel: name.optional(),
-    corners: z.tuple([point, point, point, point]),
-    openings: z.array(z.strictObject({
-      id: z.uuid(), left: z.number().finite(), sill: z.number().finite(),
-      width: z.number().finite(), height: z.number().finite(),
-      profile: z.enum(['rectangle', 'arch']).optional(),
-      corners: z.tuple([point, point, point, point]),
-    })).default([]),
-  })),
-  resolvedBraces: z.array(z.strictObject({
-    timberCorners: z.tuple([point, point, point, point]).optional(),
-    slabs: z.array(z.tuple([point, point, point, point])).optional(),
-    id: z.uuid(), label: name, height: z.number().finite().min(1).max(100000),
-    corners: z.tuple([point, point, point, point]),
-  })).default([]),
   resolvedPlaceholders: z.array(z.strictObject({
     id: z.uuid(), kind: placeholderKindSchema, label: name,
     width: z.number().finite().min(1).max(100000), depth: z.number().finite().min(1).max(100000),
@@ -88,54 +81,38 @@ export const exportPreviewResultSchema = z.strictObject({
   tiles: z.number().int().nonnegative(),
 });
 
+/** Parts and stock of the workspace at issue time; the snapshot keeps only what the layout uses. */
+export type FreezeSource = {
+  index: Pick<LayoutPartIndex, 'part' | 'context'>;
+  stock?: { items: readonly InventoryItem[]; counts: readonly InventoryCount[] };
+};
+
+
+const EMPTY_SOURCE: FreezeSource = { index: createLayoutPartIndex({ parts: [], materials: [] }) };
+
 export function freezeSnapshot(
   scene: Scene,
   revision: {
     id: string; name: string; issuedAt: Date; paper?: PaperSize; scale?: DrawingScale;
     elevationGroupIds?: string[]; layers?: Partial<ExportLayers>;
   },
-  panelLabels: Readonly<Record<string, string>> = {},
+  source: FreezeSource = EMPTY_SOURCE,
 ): ConstructionSnapshot {
   const layout = structuredClone(scene.layout);
   const venue = withVenueFixtureOpenings(structuredClone(scene.venue), layout);
   const knownGroups = new Set((layout.groups ?? []).map(group => group.id));
   const elevationGroupIds = [...new Set(revision.elevationGroupIds ?? [])].filter(id => knownGroups.has(id));
+  const library = layoutLibrary([layout], source.index);
+  const stock = frozenInventory(library, [layout], source.stock ?? { items: [], counts: [] });
+  const { objects } = resolveFrozen({ layout, venue, library, stock });
   return {
-    schemaVersion: 1, paper: revision.paper ?? 'A4', scale: revision.scale ?? DRAWING_SCALE,
+    schemaVersion: CONSTRUCTION_SNAPSHOT_VERSION, paper: revision.paper ?? 'A4', scale: revision.scale ?? DRAWING_SCALE,
     revisionId: revision.id, revisionName: revision.name, issuedAt: revision.issuedAt.toISOString(),
     productionName: scene.productionName, venueName: scene.venueName, sceneName: scene.name,
-    venueVersionId: scene.venueVersionId, venue, layout, elevationGroupIds,
+    venueVersionId: scene.venueVersionId, venue, layout, library, stock, elevationGroupIds,
     layers: resolveExportLayers(revision.layers),
-    warnings: overheadClearance(layout, venue),
-    resolvedWalls: scene.layout.walls.map(wall => {
-      const resolved = resolveWall(wall, scene.layout.wallTypes ?? []);
-      const [a, b, c, d] = wallCorners(resolved);
-      if (!a || !b || !c || !d) throw new Error('Wall geometry must resolve to four corners.');
-      const panelLabel = wall.panelId ? panelLabels[wall.panelId] : undefined;
-      return {
-        id: resolved.id, label: resolved.label, corners: [a, b, c, d] as const,
-        assemblyNumber: wall.assemblyNumber, panelLabel,
-        openings: resolved.openings.map(opening => {
-          const [oa, ob, oc, od] = openingCorners(resolved, opening);
-          if (!oa || !ob || !oc || !od) throw new Error('Opening geometry must resolve to four corners.');
-          return {
-            id: opening.id, left: opening.left, sill: opening.sill, width: opening.width, height: opening.height,
-            ...(opening.profile ? { profile: opening.profile } : {}),
-            corners: [oa, ob, oc, od] as const,
-          };
-        }),
-      };
-    }),
-    resolvedBraces: (scene.layout.braces ?? []).map(brace => {
-      const [a, b, c, d] = braceCorners(brace);
-      if (!a || !b || !c || !d) throw new Error('Brace geometry must resolve to four corners.');
-      return { id: brace.id, label: brace.label, height: brace.height,
-        ...(brace.ballast && brace.ballast.mode !== 'none' ? {
-          timberCorners: braceCorners({ ...brace, ballast: undefined }) as [{ x: number; y: number }, { x: number; y: number }, { x: number; y: number }, { x: number; y: number }],
-          slabs: braceSlabFootprints(brace),
-        } : {}), corners: [a, b, c, d] as const };
-    }),
-    resolvedPlaceholders: [...(venue.placeholders ?? []), ...(scene.layout.placeholders ?? [])].map(item => {
+    warnings: resolvedOverheadClearance(objects, venue),
+    resolvedPlaceholders: (venue.placeholders ?? []).map(item => {
       const [a, b, c, d] = placeholderCorners(item);
       if (!a || !b || !c || !d) throw new Error('Placeholder geometry must resolve to four corners.');
       return {
@@ -143,11 +120,13 @@ export function freezeSnapshot(
         width: item.width, depth: item.depth, height: item.height, corners: [a, b, c, d] as const,
       };
     }),
-    unresolvedWarnings: keepClearWarnings(venue, {
-      ...layout,
-      placeholders: [...(venue.placeholders ?? []), ...(layout.placeholders ?? [])],
-    }),
+    unresolvedWarnings: resolvedKeepClearWarnings(venue, objects),
   };
+}
+
+/** Objects of a frozen Bühnenbild, resolved from the revisions it inlined. */
+export function snapshotObjects(snapshot: Pick<ConstructionSnapshot, 'layout' | 'venue' | 'library' | 'stock'>) {
+  return resolveFrozen(snapshot);
 }
 
 export function germanDate(iso: string) {

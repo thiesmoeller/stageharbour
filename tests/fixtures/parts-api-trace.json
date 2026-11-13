@@ -1,0 +1,7335 @@
+[
+  {
+    "step": "list parts",
+    "role": "viewer",
+    "request": "GET /api/workspaces/<workspace>/parts",
+    "status": 200,
+    "body": [
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000003",
+        "name": "Bühnenelement",
+        "category": "Podeste",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [
+          {
+            "key": "2x1",
+            "label": "2 × 1 m"
+          },
+          {
+            "key": "2x05",
+            "label": "2 × 0,5 m"
+          },
+          {
+            "key": "1x1",
+            "label": "1 × 1 m"
+          },
+          {
+            "key": "1x05",
+            "label": "1 × 0,5 m"
+          }
+        ],
+        "stock": "item",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000010",
+        "name": "Kiste",
+        "category": "Requisite",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000009",
+        "name": "Lautsprecher",
+        "category": "Technik",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000013",
+        "name": "Massives Podest",
+        "category": "Podeste",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000008",
+        "name": "Person",
+        "category": "Darsteller",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000012",
+        "name": "Schwebendes Podest",
+        "category": "Podeste",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000002",
+        "name": "Steckfuß",
+        "category": "Podeste",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [
+          {
+            "key": "200",
+            "label": "20 cm"
+          },
+          {
+            "key": "400",
+            "label": "40 cm"
+          },
+          {
+            "key": "600",
+            "label": "60 cm"
+          },
+          {
+            "key": "800",
+            "label": "80 cm"
+          },
+          {
+            "key": "1000",
+            "label": "100 cm"
+          },
+          {
+            "key": "1200",
+            "label": "120 cm"
+          }
+        ],
+        "stock": "count",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000007",
+        "name": "Stuhl",
+        "category": "Möbel",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000001",
+        "name": "Stützdreieck",
+        "category": "Stützen",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [
+          {
+            "key": "standard",
+            "label": "50 × 120 cm"
+          },
+          {
+            "key": "niedrig",
+            "label": "40 × 90 cm"
+          },
+          {
+            "key": "hoch",
+            "label": "80 × 240 cm"
+          }
+        ],
+        "stock": "count",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000005",
+        "name": "Tisch",
+        "category": "Möbel",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000011",
+        "name": "Treppe",
+        "category": "Podeste",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000006",
+        "name": "Tür",
+        "category": "Wände",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000004",
+        "name": "Wandelement",
+        "category": "Wände",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [
+          {
+            "key": "plain",
+            "label": "Glattwand"
+          },
+          {
+            "key": "doorLeft",
+            "label": "Tür · Scharnier links"
+          },
+          {
+            "key": "doorRight",
+            "label": "Tür · Scharnier rechts"
+          },
+          {
+            "key": "window",
+            "label": "Fensterwand"
+          },
+          {
+            "key": "arch",
+            "label": "Bogen"
+          },
+          {
+            "key": "half",
+            "label": "Halbe Wand"
+          }
+        ],
+        "stock": "item",
+        "updatedAt": "<time>"
+      }
+    ]
+  },
+  {
+    "step": "list parts with archived",
+    "role": "viewer",
+    "request": "GET /api/workspaces/<workspace>/parts?includeArchived=true",
+    "status": 200,
+    "body": [
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000003",
+        "name": "Bühnenelement",
+        "category": "Podeste",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [
+          {
+            "key": "2x1",
+            "label": "2 × 1 m"
+          },
+          {
+            "key": "2x05",
+            "label": "2 × 0,5 m"
+          },
+          {
+            "key": "1x1",
+            "label": "1 × 1 m"
+          },
+          {
+            "key": "1x05",
+            "label": "1 × 0,5 m"
+          }
+        ],
+        "stock": "item",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000010",
+        "name": "Kiste",
+        "category": "Requisite",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000009",
+        "name": "Lautsprecher",
+        "category": "Technik",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000013",
+        "name": "Massives Podest",
+        "category": "Podeste",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000008",
+        "name": "Person",
+        "category": "Darsteller",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000012",
+        "name": "Schwebendes Podest",
+        "category": "Podeste",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000002",
+        "name": "Steckfuß",
+        "category": "Podeste",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [
+          {
+            "key": "200",
+            "label": "20 cm"
+          },
+          {
+            "key": "400",
+            "label": "40 cm"
+          },
+          {
+            "key": "600",
+            "label": "60 cm"
+          },
+          {
+            "key": "800",
+            "label": "80 cm"
+          },
+          {
+            "key": "1000",
+            "label": "100 cm"
+          },
+          {
+            "key": "1200",
+            "label": "120 cm"
+          }
+        ],
+        "stock": "count",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000007",
+        "name": "Stuhl",
+        "category": "Möbel",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000001",
+        "name": "Stützdreieck",
+        "category": "Stützen",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [
+          {
+            "key": "standard",
+            "label": "50 × 120 cm"
+          },
+          {
+            "key": "niedrig",
+            "label": "40 × 90 cm"
+          },
+          {
+            "key": "hoch",
+            "label": "80 × 240 cm"
+          }
+        ],
+        "stock": "count",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000005",
+        "name": "Tisch",
+        "category": "Möbel",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000011",
+        "name": "Treppe",
+        "category": "Podeste",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000006",
+        "name": "Tür",
+        "category": "Wände",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000004",
+        "name": "Wandelement",
+        "category": "Wände",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [
+          {
+            "key": "plain",
+            "label": "Glattwand"
+          },
+          {
+            "key": "doorLeft",
+            "label": "Tür · Scharnier links"
+          },
+          {
+            "key": "doorRight",
+            "label": "Tür · Scharnier rechts"
+          },
+          {
+            "key": "window",
+            "label": "Fensterwand"
+          },
+          {
+            "key": "arch",
+            "label": "Bogen"
+          },
+          {
+            "key": "half",
+            "label": "Halbe Wand"
+          }
+        ],
+        "stock": "item",
+        "updatedAt": "<time>"
+      }
+    ]
+  },
+  {
+    "step": "list parts, bad query",
+    "role": "viewer",
+    "request": "GET /api/workspaces/<workspace>/parts?includeArchived=maybe",
+    "status": 400,
+    "body": {
+      "message": "Ungültige Anfrage."
+    }
+  },
+  {
+    "step": "list parts in an unknown workspace",
+    "role": "administrator",
+    "request": "GET /api/workspaces/<id1>/parts",
+    "status": 404,
+    "body": {
+      "message": "Arbeitsbereich nicht verfügbar."
+    }
+  },
+  {
+    "step": "list parts, workspace id not a uuid",
+    "role": "administrator",
+    "request": "GET /api/workspaces/nope/parts",
+    "status": 400,
+    "body": {
+      "message": "Ungültige Anfrage."
+    }
+  },
+  {
+    "step": "get starter deck",
+    "role": "viewer",
+    "request": "GET /api/workspaces/<workspace>/parts/5a17e9a0-0000-4000-8000-000000000003",
+    "status": 200,
+    "body": {
+      "id": "5a17e9a0-0000-4000-8000-000000000003",
+      "name": "Bühnenelement",
+      "category": "Podeste",
+      "latestRevision": 1,
+      "archived": false,
+      "favourite": false,
+      "variants": [
+        {
+          "key": "2x1",
+          "label": "2 × 1 m"
+        },
+        {
+          "key": "2x05",
+          "label": "2 × 0,5 m"
+        },
+        {
+          "key": "1x1",
+          "label": "1 × 1 m"
+        },
+        {
+          "key": "1x05",
+          "label": "1 × 0,5 m"
+        }
+      ],
+      "stock": "item",
+      "updatedAt": "<time>",
+      "definition": {
+        "id": "5a17e9a0-0000-4000-8000-000000000003",
+        "revision": 1,
+        "name": "Bühnenelement",
+        "category": "Podeste",
+        "description": "Bühnenelement mit Aluminiumrahmen, Deckplatte und vier Steckfüßen.",
+        "parameters": [
+          {
+            "key": "B",
+            "label": "Breite",
+            "type": "length",
+            "default": 2000,
+            "scope": "variant",
+            "values": [
+              1000,
+              2000
+            ]
+          },
+          {
+            "key": "T",
+            "label": "Tiefe",
+            "type": "length",
+            "default": 1000,
+            "scope": "variant",
+            "values": [
+              500,
+              1000
+            ]
+          },
+          {
+            "key": "BO",
+            "label": "Breite Altbestand",
+            "type": "count",
+            "default": 0,
+            "scope": "placement",
+            "range": {
+              "min": 0,
+              "max": 20000
+            }
+          },
+          {
+            "key": "TO",
+            "label": "Tiefe Altbestand",
+            "type": "count",
+            "default": 0,
+            "scope": "placement",
+            "range": {
+              "min": 0,
+              "max": 20000
+            }
+          },
+          {
+            "key": "H",
+            "label": "Podesthöhe",
+            "type": "length",
+            "default": 600,
+            "scope": "placement",
+            "values": [
+              200,
+              400,
+              600,
+              800,
+              1000,
+              1200
+            ]
+          },
+          {
+            "key": "HO",
+            "label": "Höhe Altbestand",
+            "type": "count",
+            "default": 0,
+            "scope": "placement",
+            "range": {
+              "min": 0,
+              "max": 10000
+            }
+          }
+        ],
+        "variants": [
+          {
+            "key": "2x1",
+            "label": "2 × 1 m",
+            "values": {
+              "B": 2000,
+              "T": 1000
+            }
+          },
+          {
+            "key": "2x05",
+            "label": "2 × 0,5 m",
+            "values": {
+              "B": 2000,
+              "T": 500
+            }
+          },
+          {
+            "key": "1x1",
+            "label": "1 × 1 m",
+            "values": {
+              "B": 1000,
+              "T": 1000
+            }
+          },
+          {
+            "key": "1x05",
+            "label": "1 × 0,5 m",
+            "values": {
+              "B": 1000,
+              "T": 500
+            }
+          }
+        ],
+        "derived": [
+          {
+            "key": "W",
+            "label": "Wirksame Breite",
+            "formula": "if(BO > 0, BO, B)"
+          },
+          {
+            "key": "D",
+            "label": "Wirksame Tiefe",
+            "formula": "if(TO > 0, TO, T)"
+          },
+          {
+            "key": "E",
+            "label": "Wirksame Höhe",
+            "formula": "if(HO > 0, HO, H)"
+          },
+          {
+            "key": "einzug",
+            "label": "Fußachse ab Kante",
+            "formula": 33
+          },
+          {
+            "key": "staerke",
+            "label": "Stärke Deckplatte",
+            "formula": 12
+          },
+          {
+            "key": "rahmenB",
+            "label": "Rahmenbreite",
+            "formula": 40
+          },
+          {
+            "key": "rahmenH",
+            "label": "Rahmenhöhe",
+            "formula": 68
+          },
+          {
+            "key": "rahmenY",
+            "label": "Achse Rahmen",
+            "formula": "E - staerke - rahmenH / 2"
+          },
+          {
+            "key": "unten",
+            "label": "Unterkante Rahmen",
+            "formula": "E - staerke - rahmenH"
+          },
+          {
+            "key": "fussX",
+            "label": "Fußachse quer",
+            "formula": "W / 2 - einzug"
+          },
+          {
+            "key": "fussZ",
+            "label": "Fußachse längs",
+            "formula": "D / 2 - einzug"
+          }
+        ],
+        "bodies": [
+          {
+            "key": "platte",
+            "label": "Deckplatte",
+            "material": "sperrholz-12",
+            "kind": "sheet",
+            "plane": "xz",
+            "at": [
+              0,
+              "E",
+              0
+            ],
+            "outline": {
+              "shape": "rect",
+              "x": "-W / 2",
+              "y": "-D / 2",
+              "width": "W",
+              "height": "D"
+            }
+          },
+          {
+            "key": "rahmen-lang",
+            "label": "Rahmen längs",
+            "material": "buehnenrahmen-40x68",
+            "repeat": {
+              "count": 2,
+              "step": [
+                0,
+                0,
+                "D - rahmenB"
+              ]
+            },
+            "kind": "beam",
+            "from": [
+              "-W / 2",
+              "rahmenY",
+              "-(D - rahmenB) / 2"
+            ],
+            "to": [
+              "W / 2",
+              "rahmenY",
+              "-(D - rahmenB) / 2"
+            ]
+          },
+          {
+            "key": "rahmen-quer",
+            "label": "Rahmen quer",
+            "material": "buehnenrahmen-40x68",
+            "repeat": {
+              "count": 2,
+              "step": [
+                "W - rahmenB",
+                0,
+                0
+              ]
+            },
+            "kind": "beam",
+            "from": [
+              "-(W - rahmenB) / 2",
+              "rahmenY",
+              "-D / 2 + rahmenB"
+            ],
+            "to": [
+              "-(W - rahmenB) / 2",
+              "rahmenY",
+              "D / 2 - rahmenB"
+            ]
+          }
+        ],
+        "children": [
+          {
+            "key": "fuss",
+            "label": "Steckfuß",
+            "part": {
+              "id": "5a17e9a0-0000-4000-8000-000000000002",
+              "revision": 1
+            },
+            "values": {
+              "H": "H",
+              "HO": "HO"
+            },
+            "at": [
+              "-fussX",
+              0,
+              "-fussZ"
+            ],
+            "repeat": [
+              {
+                "count": 2,
+                "step": [
+                  "2 * fussX",
+                  0,
+                  0
+                ]
+              },
+              {
+                "count": 2,
+                "step": [
+                  0,
+                  0,
+                  "2 * fussZ"
+                ]
+              }
+            ]
+          }
+        ],
+        "connectors": [
+          {
+            "key": "kante-vorn",
+            "label": "Kante vorn",
+            "kind": "deck-edge",
+            "at": [
+              "-W / 2",
+              "E",
+              "-D / 2"
+            ],
+            "axis": [
+              1,
+              0,
+              0
+            ],
+            "length": "W"
+          },
+          {
+            "key": "kante-hinten",
+            "label": "Kante hinten",
+            "kind": "deck-edge",
+            "at": [
+              "-W / 2",
+              "E",
+              "D / 2"
+            ],
+            "axis": [
+              1,
+              0,
+              0
+            ],
+            "length": "W"
+          },
+          {
+            "key": "kante-links",
+            "label": "Kante links",
+            "kind": "deck-edge",
+            "at": [
+              "-W / 2",
+              "E",
+              "-D / 2"
+            ],
+            "axis": [
+              0,
+              0,
+              1
+            ],
+            "length": "D"
+          },
+          {
+            "key": "kante-rechts",
+            "label": "Kante rechts",
+            "kind": "deck-edge",
+            "at": [
+              "W / 2",
+              "E",
+              "-D / 2"
+            ],
+            "axis": [
+              0,
+              0,
+              1
+            ],
+            "length": "D"
+          },
+          {
+            "key": "fuss-vl",
+            "label": "Fuß vorn links",
+            "kind": "leg-socket",
+            "at": [
+              "-fussX",
+              "unten",
+              "-fussZ"
+            ],
+            "axis": [
+              0,
+              -1,
+              0
+            ]
+          },
+          {
+            "key": "fuss-vr",
+            "label": "Fuß vorn rechts",
+            "kind": "leg-socket",
+            "at": [
+              "fussX",
+              "unten",
+              "-fussZ"
+            ],
+            "axis": [
+              0,
+              -1,
+              0
+            ]
+          },
+          {
+            "key": "fuss-hl",
+            "label": "Fuß hinten links",
+            "kind": "leg-socket",
+            "at": [
+              "-fussX",
+              "unten",
+              "fussZ"
+            ],
+            "axis": [
+              0,
+              -1,
+              0
+            ]
+          },
+          {
+            "key": "fuss-hr",
+            "label": "Fuß hinten rechts",
+            "kind": "leg-socket",
+            "at": [
+              "fussX",
+              "unten",
+              "fussZ"
+            ],
+            "axis": [
+              0,
+              -1,
+              0
+            ]
+          }
+        ],
+        "traits": {
+          "surface": {
+            "body": "platte"
+          },
+          "faces": [
+            {
+              "key": "belag",
+              "label": "Belag",
+              "body": "platte",
+              "side": "front"
+            }
+          ],
+          "stock": "item"
+        }
+      },
+      "revisions": [
+        {
+          "revision": 1,
+          "createdAt": "<time>",
+          "authorName": null
+        }
+      ]
+    }
+  },
+  {
+    "step": "get starter revision",
+    "role": "viewer",
+    "request": "GET /api/workspaces/<workspace>/parts/5a17e9a0-0000-4000-8000-000000000003/revisions/1",
+    "status": 200,
+    "body": {
+      "revision": 1,
+      "createdAt": "<time>",
+      "authorName": null,
+      "partId": "5a17e9a0-0000-4000-8000-000000000003",
+      "definition": {
+        "id": "5a17e9a0-0000-4000-8000-000000000003",
+        "revision": 1,
+        "name": "Bühnenelement",
+        "category": "Podeste",
+        "description": "Bühnenelement mit Aluminiumrahmen, Deckplatte und vier Steckfüßen.",
+        "parameters": [
+          {
+            "key": "B",
+            "label": "Breite",
+            "type": "length",
+            "default": 2000,
+            "scope": "variant",
+            "values": [
+              1000,
+              2000
+            ]
+          },
+          {
+            "key": "T",
+            "label": "Tiefe",
+            "type": "length",
+            "default": 1000,
+            "scope": "variant",
+            "values": [
+              500,
+              1000
+            ]
+          },
+          {
+            "key": "BO",
+            "label": "Breite Altbestand",
+            "type": "count",
+            "default": 0,
+            "scope": "placement",
+            "range": {
+              "min": 0,
+              "max": 20000
+            }
+          },
+          {
+            "key": "TO",
+            "label": "Tiefe Altbestand",
+            "type": "count",
+            "default": 0,
+            "scope": "placement",
+            "range": {
+              "min": 0,
+              "max": 20000
+            }
+          },
+          {
+            "key": "H",
+            "label": "Podesthöhe",
+            "type": "length",
+            "default": 600,
+            "scope": "placement",
+            "values": [
+              200,
+              400,
+              600,
+              800,
+              1000,
+              1200
+            ]
+          },
+          {
+            "key": "HO",
+            "label": "Höhe Altbestand",
+            "type": "count",
+            "default": 0,
+            "scope": "placement",
+            "range": {
+              "min": 0,
+              "max": 10000
+            }
+          }
+        ],
+        "variants": [
+          {
+            "key": "2x1",
+            "label": "2 × 1 m",
+            "values": {
+              "B": 2000,
+              "T": 1000
+            }
+          },
+          {
+            "key": "2x05",
+            "label": "2 × 0,5 m",
+            "values": {
+              "B": 2000,
+              "T": 500
+            }
+          },
+          {
+            "key": "1x1",
+            "label": "1 × 1 m",
+            "values": {
+              "B": 1000,
+              "T": 1000
+            }
+          },
+          {
+            "key": "1x05",
+            "label": "1 × 0,5 m",
+            "values": {
+              "B": 1000,
+              "T": 500
+            }
+          }
+        ],
+        "derived": [
+          {
+            "key": "W",
+            "label": "Wirksame Breite",
+            "formula": "if(BO > 0, BO, B)"
+          },
+          {
+            "key": "D",
+            "label": "Wirksame Tiefe",
+            "formula": "if(TO > 0, TO, T)"
+          },
+          {
+            "key": "E",
+            "label": "Wirksame Höhe",
+            "formula": "if(HO > 0, HO, H)"
+          },
+          {
+            "key": "einzug",
+            "label": "Fußachse ab Kante",
+            "formula": 33
+          },
+          {
+            "key": "staerke",
+            "label": "Stärke Deckplatte",
+            "formula": 12
+          },
+          {
+            "key": "rahmenB",
+            "label": "Rahmenbreite",
+            "formula": 40
+          },
+          {
+            "key": "rahmenH",
+            "label": "Rahmenhöhe",
+            "formula": 68
+          },
+          {
+            "key": "rahmenY",
+            "label": "Achse Rahmen",
+            "formula": "E - staerke - rahmenH / 2"
+          },
+          {
+            "key": "unten",
+            "label": "Unterkante Rahmen",
+            "formula": "E - staerke - rahmenH"
+          },
+          {
+            "key": "fussX",
+            "label": "Fußachse quer",
+            "formula": "W / 2 - einzug"
+          },
+          {
+            "key": "fussZ",
+            "label": "Fußachse längs",
+            "formula": "D / 2 - einzug"
+          }
+        ],
+        "bodies": [
+          {
+            "key": "platte",
+            "label": "Deckplatte",
+            "material": "sperrholz-12",
+            "kind": "sheet",
+            "plane": "xz",
+            "at": [
+              0,
+              "E",
+              0
+            ],
+            "outline": {
+              "shape": "rect",
+              "x": "-W / 2",
+              "y": "-D / 2",
+              "width": "W",
+              "height": "D"
+            }
+          },
+          {
+            "key": "rahmen-lang",
+            "label": "Rahmen längs",
+            "material": "buehnenrahmen-40x68",
+            "repeat": {
+              "count": 2,
+              "step": [
+                0,
+                0,
+                "D - rahmenB"
+              ]
+            },
+            "kind": "beam",
+            "from": [
+              "-W / 2",
+              "rahmenY",
+              "-(D - rahmenB) / 2"
+            ],
+            "to": [
+              "W / 2",
+              "rahmenY",
+              "-(D - rahmenB) / 2"
+            ]
+          },
+          {
+            "key": "rahmen-quer",
+            "label": "Rahmen quer",
+            "material": "buehnenrahmen-40x68",
+            "repeat": {
+              "count": 2,
+              "step": [
+                "W - rahmenB",
+                0,
+                0
+              ]
+            },
+            "kind": "beam",
+            "from": [
+              "-(W - rahmenB) / 2",
+              "rahmenY",
+              "-D / 2 + rahmenB"
+            ],
+            "to": [
+              "-(W - rahmenB) / 2",
+              "rahmenY",
+              "D / 2 - rahmenB"
+            ]
+          }
+        ],
+        "children": [
+          {
+            "key": "fuss",
+            "label": "Steckfuß",
+            "part": {
+              "id": "5a17e9a0-0000-4000-8000-000000000002",
+              "revision": 1
+            },
+            "values": {
+              "H": "H",
+              "HO": "HO"
+            },
+            "at": [
+              "-fussX",
+              0,
+              "-fussZ"
+            ],
+            "repeat": [
+              {
+                "count": 2,
+                "step": [
+                  "2 * fussX",
+                  0,
+                  0
+                ]
+              },
+              {
+                "count": 2,
+                "step": [
+                  0,
+                  0,
+                  "2 * fussZ"
+                ]
+              }
+            ]
+          }
+        ],
+        "connectors": [
+          {
+            "key": "kante-vorn",
+            "label": "Kante vorn",
+            "kind": "deck-edge",
+            "at": [
+              "-W / 2",
+              "E",
+              "-D / 2"
+            ],
+            "axis": [
+              1,
+              0,
+              0
+            ],
+            "length": "W"
+          },
+          {
+            "key": "kante-hinten",
+            "label": "Kante hinten",
+            "kind": "deck-edge",
+            "at": [
+              "-W / 2",
+              "E",
+              "D / 2"
+            ],
+            "axis": [
+              1,
+              0,
+              0
+            ],
+            "length": "W"
+          },
+          {
+            "key": "kante-links",
+            "label": "Kante links",
+            "kind": "deck-edge",
+            "at": [
+              "-W / 2",
+              "E",
+              "-D / 2"
+            ],
+            "axis": [
+              0,
+              0,
+              1
+            ],
+            "length": "D"
+          },
+          {
+            "key": "kante-rechts",
+            "label": "Kante rechts",
+            "kind": "deck-edge",
+            "at": [
+              "W / 2",
+              "E",
+              "-D / 2"
+            ],
+            "axis": [
+              0,
+              0,
+              1
+            ],
+            "length": "D"
+          },
+          {
+            "key": "fuss-vl",
+            "label": "Fuß vorn links",
+            "kind": "leg-socket",
+            "at": [
+              "-fussX",
+              "unten",
+              "-fussZ"
+            ],
+            "axis": [
+              0,
+              -1,
+              0
+            ]
+          },
+          {
+            "key": "fuss-vr",
+            "label": "Fuß vorn rechts",
+            "kind": "leg-socket",
+            "at": [
+              "fussX",
+              "unten",
+              "-fussZ"
+            ],
+            "axis": [
+              0,
+              -1,
+              0
+            ]
+          },
+          {
+            "key": "fuss-hl",
+            "label": "Fuß hinten links",
+            "kind": "leg-socket",
+            "at": [
+              "-fussX",
+              "unten",
+              "fussZ"
+            ],
+            "axis": [
+              0,
+              -1,
+              0
+            ]
+          },
+          {
+            "key": "fuss-hr",
+            "label": "Fuß hinten rechts",
+            "kind": "leg-socket",
+            "at": [
+              "fussX",
+              "unten",
+              "fussZ"
+            ],
+            "axis": [
+              0,
+              -1,
+              0
+            ]
+          }
+        ],
+        "traits": {
+          "surface": {
+            "body": "platte"
+          },
+          "faces": [
+            {
+              "key": "belag",
+              "label": "Belag",
+              "body": "platte",
+              "side": "front"
+            }
+          ],
+          "stock": "item"
+        }
+      }
+    }
+  },
+  {
+    "step": "get missing revision",
+    "role": "viewer",
+    "request": "GET /api/workspaces/<workspace>/parts/5a17e9a0-0000-4000-8000-000000000003/revisions/2",
+    "status": 404,
+    "body": {
+      "message": "Revision nicht verfügbar."
+    }
+  },
+  {
+    "step": "get revision zero",
+    "role": "viewer",
+    "request": "GET /api/workspaces/<workspace>/parts/5a17e9a0-0000-4000-8000-000000000003/revisions/0",
+    "status": 400,
+    "body": {
+      "message": "Ungültige Anfrage."
+    }
+  },
+  {
+    "step": "get unknown part",
+    "role": "viewer",
+    "request": "GET /api/workspaces/<workspace>/parts/c47a1090-0000-4000-8000-000000000404",
+    "status": 404,
+    "body": {
+      "message": "Bauteil nicht verfügbar."
+    }
+  },
+  {
+    "step": "get part, id not a uuid",
+    "role": "viewer",
+    "request": "GET /api/workspaces/<workspace>/parts/not-a-uuid",
+    "status": 400,
+    "body": {
+      "message": "Ungültige Anfrage."
+    }
+  },
+  {
+    "step": "create part",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/parts",
+    "status": 201,
+    "body": {
+      "id": "c47a1090-0000-4000-8000-000000000001",
+      "name": "Kiste Eins",
+      "category": "Test",
+      "latestRevision": 1,
+      "archived": false,
+      "favourite": false,
+      "variants": [
+        {
+          "key": "klein",
+          "label": "Klein"
+        },
+        {
+          "key": "gross",
+          "label": "Groß"
+        }
+      ],
+      "stock": "item",
+      "updatedAt": "<time>",
+      "definition": {
+        "id": "c47a1090-0000-4000-8000-000000000001",
+        "revision": 1,
+        "name": "Kiste Eins",
+        "category": "Test",
+        "parameters": [
+          {
+            "key": "B",
+            "label": "Breite",
+            "type": "length",
+            "default": 600,
+            "scope": "variant",
+            "range": {
+              "min": 300,
+              "max": 1200
+            }
+          }
+        ],
+        "variants": [
+          {
+            "key": "klein",
+            "label": "Klein",
+            "values": {
+              "B": 400
+            }
+          },
+          {
+            "key": "gross",
+            "label": "Groß",
+            "values": {
+              "B": 900
+            }
+          }
+        ],
+        "bodies": [
+          {
+            "key": "latte",
+            "material": "latte-40x40",
+            "kind": "beam",
+            "from": [
+              0,
+              0,
+              0
+            ],
+            "to": [
+              "B",
+              0,
+              0
+            ]
+          }
+        ],
+        "traits": {
+          "stock": "item"
+        }
+      },
+      "revisions": [
+        {
+          "revision": 1,
+          "createdAt": "<time>",
+          "authorName": "<author>"
+        }
+      ]
+    }
+  },
+  {
+    "step": "create part again",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/parts",
+    "status": 409,
+    "body": {
+      "message": "Ein Bauteil mit dieser ID gibt es bereits."
+    }
+  },
+  {
+    "step": "create part as viewer",
+    "role": "viewer",
+    "request": "POST /api/workspaces/<workspace>/parts",
+    "status": 403,
+    "body": {
+      "message": "Dafür fehlen Ihnen die Berechtigungen."
+    }
+  },
+  {
+    "step": "create part with an extra field",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/parts",
+    "status": 400,
+    "body": {
+      "message": "Ungültige Anfrage."
+    }
+  },
+  {
+    "step": "create part without a definition",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/parts",
+    "status": 400,
+    "body": {
+      "message": "Ungültige Anfrage."
+    }
+  },
+  {
+    "step": "create part that is not a definition",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/parts",
+    "status": 422,
+    "body": {
+      "message": "Das Bauteil ist nicht gültig.",
+      "issues": [
+        {
+          "severity": "error",
+          "code": "schema",
+          "message": "id: Ungültige Eingabe: erwartet string, erhalten undefined",
+          "field": "id"
+        },
+        {
+          "severity": "error",
+          "code": "schema",
+          "message": "name: Ungültige Eingabe: erwartet string, erhalten Zahl",
+          "field": "name"
+        },
+        {
+          "severity": "error",
+          "code": "schema",
+          "message": "category: Ungültige Eingabe: erwartet string, erhalten undefined",
+          "field": "category"
+        },
+        {
+          "severity": "error",
+          "code": "schema",
+          "message": "parameters: Ungültige Eingabe: erwartet Array, erhalten undefined",
+          "field": "parameters"
+        },
+        {
+          "severity": "error",
+          "code": "schema",
+          "message": "bodies: Ungültige Eingabe: erwartet Array, erhalten undefined",
+          "field": "bodies"
+        },
+        {
+          "severity": "error",
+          "code": "schema",
+          "message": "traits: Ungültige Eingabe: erwartet object, erhalten undefined",
+          "field": "traits"
+        }
+      ]
+    }
+  },
+  {
+    "step": "create part with an unknown material",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/parts",
+    "status": 422,
+    "body": {
+      "message": "Das Bauteil ist nicht gültig.",
+      "issues": [
+        {
+          "severity": "error",
+          "code": "unknown-material",
+          "message": "Körper „latte“: Das Material „gibt-es-nicht“ ist nicht vorhanden.",
+          "body": "latte",
+          "material": "gibt-es-nicht"
+        }
+      ]
+    }
+  },
+  {
+    "step": "create part below its minimum",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/parts",
+    "status": 422,
+    "body": {
+      "message": "Das Bauteil ist nicht gültig.",
+      "issues": [
+        {
+          "severity": "error",
+          "code": "body-too-small",
+          "message": "Körper „latte“: Länge 0 mm unterschreitet das Mindestmaß von 1 mm. Tritt auf bei B = 0.",
+          "parameter": "B",
+          "body": "latte",
+          "field": "to"
+        }
+      ]
+    }
+  },
+  {
+    "step": "get created part",
+    "role": "viewer",
+    "request": "GET /api/workspaces/<workspace>/parts/c47a1090-0000-4000-8000-000000000001",
+    "status": 200,
+    "body": {
+      "id": "c47a1090-0000-4000-8000-000000000001",
+      "name": "Kiste Eins",
+      "category": "Test",
+      "latestRevision": 1,
+      "archived": false,
+      "favourite": false,
+      "variants": [
+        {
+          "key": "klein",
+          "label": "Klein"
+        },
+        {
+          "key": "gross",
+          "label": "Groß"
+        }
+      ],
+      "stock": "item",
+      "updatedAt": "<time>",
+      "definition": {
+        "id": "c47a1090-0000-4000-8000-000000000001",
+        "revision": 1,
+        "name": "Kiste Eins",
+        "category": "Test",
+        "parameters": [
+          {
+            "key": "B",
+            "label": "Breite",
+            "type": "length",
+            "default": 600,
+            "scope": "variant",
+            "range": {
+              "min": 300,
+              "max": 1200
+            }
+          }
+        ],
+        "variants": [
+          {
+            "key": "klein",
+            "label": "Klein",
+            "values": {
+              "B": 400
+            }
+          },
+          {
+            "key": "gross",
+            "label": "Groß",
+            "values": {
+              "B": 900
+            }
+          }
+        ],
+        "bodies": [
+          {
+            "key": "latte",
+            "material": "latte-40x40",
+            "kind": "beam",
+            "from": [
+              0,
+              0,
+              0
+            ],
+            "to": [
+              "B",
+              0,
+              0
+            ]
+          }
+        ],
+        "traits": {
+          "stock": "item"
+        }
+      },
+      "revisions": [
+        {
+          "revision": 1,
+          "createdAt": "<time>",
+          "authorName": "<author>"
+        }
+      ]
+    }
+  },
+  {
+    "step": "save part",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/parts/c47a1090-0000-4000-8000-000000000001/revisions",
+    "status": 201,
+    "body": {
+      "id": "c47a1090-0000-4000-8000-000000000001",
+      "name": "Kiste Eins, neu",
+      "category": "Test",
+      "latestRevision": 2,
+      "archived": false,
+      "favourite": false,
+      "variants": [
+        {
+          "key": "klein",
+          "label": "Klein"
+        },
+        {
+          "key": "gross",
+          "label": "Groß"
+        }
+      ],
+      "stock": "item",
+      "updatedAt": "<time>",
+      "definition": {
+        "id": "c47a1090-0000-4000-8000-000000000001",
+        "revision": 2,
+        "name": "Kiste Eins, neu",
+        "category": "Test",
+        "description": "Zweite Fassung",
+        "parameters": [
+          {
+            "key": "B",
+            "label": "Breite",
+            "type": "length",
+            "default": 600,
+            "scope": "variant",
+            "range": {
+              "min": 300,
+              "max": 1200
+            }
+          }
+        ],
+        "variants": [
+          {
+            "key": "klein",
+            "label": "Klein",
+            "values": {
+              "B": 400
+            }
+          },
+          {
+            "key": "gross",
+            "label": "Groß",
+            "values": {
+              "B": 900
+            }
+          }
+        ],
+        "bodies": [
+          {
+            "key": "latte",
+            "material": "latte-40x40",
+            "kind": "beam",
+            "from": [
+              0,
+              0,
+              0
+            ],
+            "to": [
+              "B",
+              0,
+              0
+            ]
+          }
+        ],
+        "traits": {
+          "stock": "item"
+        }
+      },
+      "revisions": [
+        {
+          "revision": 1,
+          "createdAt": "<time>",
+          "authorName": "<author>"
+        },
+        {
+          "revision": 2,
+          "createdAt": "<time>",
+          "authorName": "<author>"
+        }
+      ]
+    }
+  },
+  {
+    "step": "save part from a stale revision",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/parts/c47a1090-0000-4000-8000-000000000001/revisions",
+    "status": 409,
+    "body": {
+      "message": "Das Bauteil wurde inzwischen geändert (jetzt Revision 2). Bitte neu laden."
+    }
+  },
+  {
+    "step": "save part with another id",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/parts/c47a1090-0000-4000-8000-000000000001/revisions",
+    "status": 400,
+    "body": {
+      "message": "Die ID im Bauteil stimmt nicht mit dem Bauteil überein."
+    }
+  },
+  {
+    "step": "save part as viewer",
+    "role": "viewer",
+    "request": "POST /api/workspaces/<workspace>/parts/c47a1090-0000-4000-8000-000000000001/revisions",
+    "status": 403,
+    "body": {
+      "message": "Dafür fehlen Ihnen die Berechtigungen."
+    }
+  },
+  {
+    "step": "save unknown part",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/parts/c47a1090-0000-4000-8000-000000000404/revisions",
+    "status": 404,
+    "body": {
+      "message": "Bauteil nicht verfügbar."
+    }
+  },
+  {
+    "step": "save invalid revision",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/parts/c47a1090-0000-4000-8000-000000000001/revisions",
+    "status": 422,
+    "body": {
+      "message": "Das Bauteil ist nicht gültig.",
+      "issues": [
+        {
+          "severity": "error",
+          "code": "empty-part",
+          "message": "Bauteil: Ein Bauteil braucht mindestens einen Körper oder ein Unterbauteil."
+        }
+      ]
+    }
+  },
+  {
+    "step": "get revision one after a save",
+    "role": "viewer",
+    "request": "GET /api/workspaces/<workspace>/parts/c47a1090-0000-4000-8000-000000000001/revisions/1",
+    "status": 200,
+    "body": {
+      "revision": 1,
+      "createdAt": "<time>",
+      "authorName": "<author>",
+      "partId": "c47a1090-0000-4000-8000-000000000001",
+      "definition": {
+        "id": "c47a1090-0000-4000-8000-000000000001",
+        "revision": 1,
+        "name": "Kiste Eins",
+        "category": "Test",
+        "parameters": [
+          {
+            "key": "B",
+            "label": "Breite",
+            "type": "length",
+            "default": 600,
+            "scope": "variant",
+            "range": {
+              "min": 300,
+              "max": 1200
+            }
+          }
+        ],
+        "variants": [
+          {
+            "key": "klein",
+            "label": "Klein",
+            "values": {
+              "B": 400
+            }
+          },
+          {
+            "key": "gross",
+            "label": "Groß",
+            "values": {
+              "B": 900
+            }
+          }
+        ],
+        "bodies": [
+          {
+            "key": "latte",
+            "material": "latte-40x40",
+            "kind": "beam",
+            "from": [
+              0,
+              0,
+              0
+            ],
+            "to": [
+              "B",
+              0,
+              0
+            ]
+          }
+        ],
+        "traits": {
+          "stock": "item"
+        }
+      }
+    }
+  },
+  {
+    "step": "get revision two",
+    "role": "viewer",
+    "request": "GET /api/workspaces/<workspace>/parts/c47a1090-0000-4000-8000-000000000001/revisions/2",
+    "status": 200,
+    "body": {
+      "revision": 2,
+      "createdAt": "<time>",
+      "authorName": "<author>",
+      "partId": "c47a1090-0000-4000-8000-000000000001",
+      "definition": {
+        "id": "c47a1090-0000-4000-8000-000000000001",
+        "revision": 2,
+        "name": "Kiste Eins, neu",
+        "category": "Test",
+        "description": "Zweite Fassung",
+        "parameters": [
+          {
+            "key": "B",
+            "label": "Breite",
+            "type": "length",
+            "default": 600,
+            "scope": "variant",
+            "range": {
+              "min": 300,
+              "max": 1200
+            }
+          }
+        ],
+        "variants": [
+          {
+            "key": "klein",
+            "label": "Klein",
+            "values": {
+              "B": 400
+            }
+          },
+          {
+            "key": "gross",
+            "label": "Groß",
+            "values": {
+              "B": 900
+            }
+          }
+        ],
+        "bodies": [
+          {
+            "key": "latte",
+            "material": "latte-40x40",
+            "kind": "beam",
+            "from": [
+              0,
+              0,
+              0
+            ],
+            "to": [
+              "B",
+              0,
+              0
+            ]
+          }
+        ],
+        "traits": {
+          "stock": "item"
+        }
+      }
+    }
+  },
+  {
+    "step": "favourite part",
+    "role": "editor",
+    "request": "PUT /api/workspaces/<workspace>/parts/c47a1090-0000-4000-8000-000000000001/favourite",
+    "status": 200,
+    "body": {
+      "id": "c47a1090-0000-4000-8000-000000000001",
+      "name": "Kiste Eins, neu",
+      "category": "Test",
+      "latestRevision": 2,
+      "archived": false,
+      "favourite": true,
+      "variants": [
+        {
+          "key": "klein",
+          "label": "Klein"
+        },
+        {
+          "key": "gross",
+          "label": "Groß"
+        }
+      ],
+      "stock": "item",
+      "updatedAt": "<time>"
+    }
+  },
+  {
+    "step": "favourite with a bad body",
+    "role": "editor",
+    "request": "PUT /api/workspaces/<workspace>/parts/c47a1090-0000-4000-8000-000000000001/favourite",
+    "status": 400,
+    "body": {
+      "message": "Ungültige Anfrage."
+    }
+  },
+  {
+    "step": "favourite as viewer",
+    "role": "viewer",
+    "request": "PUT /api/workspaces/<workspace>/parts/c47a1090-0000-4000-8000-000000000001/favourite",
+    "status": 403,
+    "body": {
+      "message": "Dafür fehlen Ihnen die Berechtigungen."
+    }
+  },
+  {
+    "step": "archive part",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/parts/c47a1090-0000-4000-8000-000000000001/archive",
+    "status": 200,
+    "body": {
+      "id": "c47a1090-0000-4000-8000-000000000001",
+      "name": "Kiste Eins, neu",
+      "category": "Test",
+      "latestRevision": 2,
+      "archived": true,
+      "favourite": true,
+      "variants": [
+        {
+          "key": "klein",
+          "label": "Klein"
+        },
+        {
+          "key": "gross",
+          "label": "Groß"
+        }
+      ],
+      "stock": "item",
+      "updatedAt": "<time>"
+    }
+  },
+  {
+    "step": "archive part again",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/parts/c47a1090-0000-4000-8000-000000000001/archive",
+    "status": 200,
+    "body": {
+      "id": "c47a1090-0000-4000-8000-000000000001",
+      "name": "Kiste Eins, neu",
+      "category": "Test",
+      "latestRevision": 2,
+      "archived": true,
+      "favourite": true,
+      "variants": [
+        {
+          "key": "klein",
+          "label": "Klein"
+        },
+        {
+          "key": "gross",
+          "label": "Groß"
+        }
+      ],
+      "stock": "item",
+      "updatedAt": "<time>"
+    }
+  },
+  {
+    "step": "archive as viewer",
+    "role": "viewer",
+    "request": "POST /api/workspaces/<workspace>/parts/c47a1090-0000-4000-8000-000000000001/archive",
+    "status": 403,
+    "body": {
+      "message": "Dafür fehlen Ihnen die Berechtigungen."
+    }
+  },
+  {
+    "step": "archive unknown part",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/parts/c47a1090-0000-4000-8000-000000000404/archive",
+    "status": 404,
+    "body": {
+      "message": "Bauteil nicht verfügbar."
+    }
+  },
+  {
+    "step": "list without the archived part",
+    "role": "viewer",
+    "request": "GET /api/workspaces/<workspace>/parts",
+    "status": 200,
+    "body": [
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000003",
+        "name": "Bühnenelement",
+        "category": "Podeste",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [
+          {
+            "key": "2x1",
+            "label": "2 × 1 m"
+          },
+          {
+            "key": "2x05",
+            "label": "2 × 0,5 m"
+          },
+          {
+            "key": "1x1",
+            "label": "1 × 1 m"
+          },
+          {
+            "key": "1x05",
+            "label": "1 × 0,5 m"
+          }
+        ],
+        "stock": "item",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000010",
+        "name": "Kiste",
+        "category": "Requisite",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000009",
+        "name": "Lautsprecher",
+        "category": "Technik",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000013",
+        "name": "Massives Podest",
+        "category": "Podeste",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000008",
+        "name": "Person",
+        "category": "Darsteller",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000012",
+        "name": "Schwebendes Podest",
+        "category": "Podeste",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000002",
+        "name": "Steckfuß",
+        "category": "Podeste",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [
+          {
+            "key": "200",
+            "label": "20 cm"
+          },
+          {
+            "key": "400",
+            "label": "40 cm"
+          },
+          {
+            "key": "600",
+            "label": "60 cm"
+          },
+          {
+            "key": "800",
+            "label": "80 cm"
+          },
+          {
+            "key": "1000",
+            "label": "100 cm"
+          },
+          {
+            "key": "1200",
+            "label": "120 cm"
+          }
+        ],
+        "stock": "count",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000007",
+        "name": "Stuhl",
+        "category": "Möbel",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000001",
+        "name": "Stützdreieck",
+        "category": "Stützen",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [
+          {
+            "key": "standard",
+            "label": "50 × 120 cm"
+          },
+          {
+            "key": "niedrig",
+            "label": "40 × 90 cm"
+          },
+          {
+            "key": "hoch",
+            "label": "80 × 240 cm"
+          }
+        ],
+        "stock": "count",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000005",
+        "name": "Tisch",
+        "category": "Möbel",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000011",
+        "name": "Treppe",
+        "category": "Podeste",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000006",
+        "name": "Tür",
+        "category": "Wände",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000004",
+        "name": "Wandelement",
+        "category": "Wände",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [
+          {
+            "key": "plain",
+            "label": "Glattwand"
+          },
+          {
+            "key": "doorLeft",
+            "label": "Tür · Scharnier links"
+          },
+          {
+            "key": "doorRight",
+            "label": "Tür · Scharnier rechts"
+          },
+          {
+            "key": "window",
+            "label": "Fensterwand"
+          },
+          {
+            "key": "arch",
+            "label": "Bogen"
+          },
+          {
+            "key": "half",
+            "label": "Halbe Wand"
+          }
+        ],
+        "stock": "item",
+        "updatedAt": "<time>"
+      }
+    ]
+  },
+  {
+    "step": "list with the archived part",
+    "role": "viewer",
+    "request": "GET /api/workspaces/<workspace>/parts?includeArchived=true",
+    "status": 200,
+    "body": [
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000003",
+        "name": "Bühnenelement",
+        "category": "Podeste",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [
+          {
+            "key": "2x1",
+            "label": "2 × 1 m"
+          },
+          {
+            "key": "2x05",
+            "label": "2 × 0,5 m"
+          },
+          {
+            "key": "1x1",
+            "label": "1 × 1 m"
+          },
+          {
+            "key": "1x05",
+            "label": "1 × 0,5 m"
+          }
+        ],
+        "stock": "item",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000010",
+        "name": "Kiste",
+        "category": "Requisite",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "c47a1090-0000-4000-8000-000000000001",
+        "name": "Kiste Eins, neu",
+        "category": "Test",
+        "latestRevision": 2,
+        "archived": true,
+        "favourite": true,
+        "variants": [
+          {
+            "key": "klein",
+            "label": "Klein"
+          },
+          {
+            "key": "gross",
+            "label": "Groß"
+          }
+        ],
+        "stock": "item",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000009",
+        "name": "Lautsprecher",
+        "category": "Technik",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000013",
+        "name": "Massives Podest",
+        "category": "Podeste",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000008",
+        "name": "Person",
+        "category": "Darsteller",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000012",
+        "name": "Schwebendes Podest",
+        "category": "Podeste",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000002",
+        "name": "Steckfuß",
+        "category": "Podeste",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [
+          {
+            "key": "200",
+            "label": "20 cm"
+          },
+          {
+            "key": "400",
+            "label": "40 cm"
+          },
+          {
+            "key": "600",
+            "label": "60 cm"
+          },
+          {
+            "key": "800",
+            "label": "80 cm"
+          },
+          {
+            "key": "1000",
+            "label": "100 cm"
+          },
+          {
+            "key": "1200",
+            "label": "120 cm"
+          }
+        ],
+        "stock": "count",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000007",
+        "name": "Stuhl",
+        "category": "Möbel",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000001",
+        "name": "Stützdreieck",
+        "category": "Stützen",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [
+          {
+            "key": "standard",
+            "label": "50 × 120 cm"
+          },
+          {
+            "key": "niedrig",
+            "label": "40 × 90 cm"
+          },
+          {
+            "key": "hoch",
+            "label": "80 × 240 cm"
+          }
+        ],
+        "stock": "count",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000005",
+        "name": "Tisch",
+        "category": "Möbel",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000011",
+        "name": "Treppe",
+        "category": "Podeste",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000006",
+        "name": "Tür",
+        "category": "Wände",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000004",
+        "name": "Wandelement",
+        "category": "Wände",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [
+          {
+            "key": "plain",
+            "label": "Glattwand"
+          },
+          {
+            "key": "doorLeft",
+            "label": "Tür · Scharnier links"
+          },
+          {
+            "key": "doorRight",
+            "label": "Tür · Scharnier rechts"
+          },
+          {
+            "key": "window",
+            "label": "Fensterwand"
+          },
+          {
+            "key": "arch",
+            "label": "Bogen"
+          },
+          {
+            "key": "half",
+            "label": "Halbe Wand"
+          }
+        ],
+        "stock": "item",
+        "updatedAt": "<time>"
+      }
+    ]
+  },
+  {
+    "step": "unarchive part",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/parts/c47a1090-0000-4000-8000-000000000001/unarchive",
+    "status": 200,
+    "body": {
+      "id": "c47a1090-0000-4000-8000-000000000001",
+      "name": "Kiste Eins, neu",
+      "category": "Test",
+      "latestRevision": 2,
+      "archived": false,
+      "favourite": true,
+      "variants": [
+        {
+          "key": "klein",
+          "label": "Klein"
+        },
+        {
+          "key": "gross",
+          "label": "Groß"
+        }
+      ],
+      "stock": "item",
+      "updatedAt": "<time>"
+    }
+  },
+  {
+    "step": "duplicate part",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/parts/c47a1090-0000-4000-8000-000000000001/duplicate",
+    "status": 201,
+    "body": {
+      "id": "<id2>",
+      "name": "Kiste Eins, neu Kopie",
+      "category": "Test",
+      "latestRevision": 1,
+      "archived": false,
+      "favourite": false,
+      "variants": [
+        {
+          "key": "klein",
+          "label": "Klein"
+        },
+        {
+          "key": "gross",
+          "label": "Groß"
+        }
+      ],
+      "stock": "item",
+      "updatedAt": "<time>",
+      "definition": {
+        "id": "<id2>",
+        "revision": 1,
+        "name": "Kiste Eins, neu Kopie",
+        "category": "Test",
+        "description": "Zweite Fassung",
+        "parameters": [
+          {
+            "key": "B",
+            "label": "Breite",
+            "type": "length",
+            "default": 600,
+            "scope": "variant",
+            "range": {
+              "min": 300,
+              "max": 1200
+            }
+          }
+        ],
+        "variants": [
+          {
+            "key": "klein",
+            "label": "Klein",
+            "values": {
+              "B": 400
+            }
+          },
+          {
+            "key": "gross",
+            "label": "Groß",
+            "values": {
+              "B": 900
+            }
+          }
+        ],
+        "bodies": [
+          {
+            "key": "latte",
+            "material": "latte-40x40",
+            "kind": "beam",
+            "from": [
+              0,
+              0,
+              0
+            ],
+            "to": [
+              "B",
+              0,
+              0
+            ]
+          }
+        ],
+        "traits": {
+          "stock": "item"
+        }
+      },
+      "revisions": [
+        {
+          "revision": 1,
+          "createdAt": "<time>",
+          "authorName": "<author>"
+        }
+      ]
+    }
+  },
+  {
+    "step": "duplicate part again",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/parts/c47a1090-0000-4000-8000-000000000001/duplicate",
+    "status": 201,
+    "body": {
+      "id": "<id3>",
+      "name": "Kiste Eins, neu Kopie 2",
+      "category": "Test",
+      "latestRevision": 1,
+      "archived": false,
+      "favourite": false,
+      "variants": [
+        {
+          "key": "klein",
+          "label": "Klein"
+        },
+        {
+          "key": "gross",
+          "label": "Groß"
+        }
+      ],
+      "stock": "item",
+      "updatedAt": "<time>",
+      "definition": {
+        "id": "<id3>",
+        "revision": 1,
+        "name": "Kiste Eins, neu Kopie 2",
+        "category": "Test",
+        "description": "Zweite Fassung",
+        "parameters": [
+          {
+            "key": "B",
+            "label": "Breite",
+            "type": "length",
+            "default": 600,
+            "scope": "variant",
+            "range": {
+              "min": 300,
+              "max": 1200
+            }
+          }
+        ],
+        "variants": [
+          {
+            "key": "klein",
+            "label": "Klein",
+            "values": {
+              "B": 400
+            }
+          },
+          {
+            "key": "gross",
+            "label": "Groß",
+            "values": {
+              "B": 900
+            }
+          }
+        ],
+        "bodies": [
+          {
+            "key": "latte",
+            "material": "latte-40x40",
+            "kind": "beam",
+            "from": [
+              0,
+              0,
+              0
+            ],
+            "to": [
+              "B",
+              0,
+              0
+            ]
+          }
+        ],
+        "traits": {
+          "stock": "item"
+        }
+      },
+      "revisions": [
+        {
+          "revision": 1,
+          "createdAt": "<time>",
+          "authorName": "<author>"
+        }
+      ]
+    }
+  },
+  {
+    "step": "duplicate as viewer",
+    "role": "viewer",
+    "request": "POST /api/workspaces/<workspace>/parts/c47a1090-0000-4000-8000-000000000001/duplicate",
+    "status": 403,
+    "body": {
+      "message": "Dafür fehlen Ihnen die Berechtigungen."
+    }
+  },
+  {
+    "step": "duplicate unknown part",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/parts/c47a1090-0000-4000-8000-000000000404/duplicate",
+    "status": 404,
+    "body": {
+      "message": "Bauteil nicht verfügbar."
+    }
+  },
+  {
+    "step": "resolve refs",
+    "role": "viewer",
+    "request": "POST /api/workspaces/<workspace>/parts/resolve",
+    "status": 200,
+    "body": {
+      "definitions": [
+        {
+          "id": "c47a1090-0000-4000-8000-000000000001",
+          "revision": 1,
+          "name": "Kiste Eins",
+          "category": "Test",
+          "parameters": [
+            {
+              "key": "B",
+              "label": "Breite",
+              "type": "length",
+              "default": 600,
+              "scope": "variant",
+              "range": {
+                "min": 300,
+                "max": 1200
+              }
+            }
+          ],
+          "variants": [
+            {
+              "key": "klein",
+              "label": "Klein",
+              "values": {
+                "B": 400
+              }
+            },
+            {
+              "key": "gross",
+              "label": "Groß",
+              "values": {
+                "B": 900
+              }
+            }
+          ],
+          "bodies": [
+            {
+              "key": "latte",
+              "material": "latte-40x40",
+              "kind": "beam",
+              "from": [
+                0,
+                0,
+                0
+              ],
+              "to": [
+                "B",
+                0,
+                0
+              ]
+            }
+          ],
+          "traits": {
+            "stock": "item"
+          }
+        },
+        {
+          "id": "c47a1090-0000-4000-8000-000000000001",
+          "revision": 2,
+          "name": "Kiste Eins, neu",
+          "category": "Test",
+          "description": "Zweite Fassung",
+          "parameters": [
+            {
+              "key": "B",
+              "label": "Breite",
+              "type": "length",
+              "default": 600,
+              "scope": "variant",
+              "range": {
+                "min": 300,
+                "max": 1200
+              }
+            }
+          ],
+          "variants": [
+            {
+              "key": "klein",
+              "label": "Klein",
+              "values": {
+                "B": 400
+              }
+            },
+            {
+              "key": "gross",
+              "label": "Groß",
+              "values": {
+                "B": 900
+              }
+            }
+          ],
+          "bodies": [
+            {
+              "key": "latte",
+              "material": "latte-40x40",
+              "kind": "beam",
+              "from": [
+                0,
+                0,
+                0
+              ],
+              "to": [
+                "B",
+                0,
+                0
+              ]
+            }
+          ],
+          "traits": {
+            "stock": "item"
+          }
+        }
+      ],
+      "missing": [
+        {
+          "id": "c47a1090-0000-4000-8000-000000000404",
+          "revision": 1
+        },
+        {
+          "id": "c47a1090-0000-4000-8000-000000000001",
+          "revision": 3
+        }
+      ]
+    }
+  },
+  {
+    "step": "resolve no refs",
+    "role": "viewer",
+    "request": "POST /api/workspaces/<workspace>/parts/resolve",
+    "status": 400,
+    "body": {
+      "message": "Ungültige Anfrage."
+    }
+  },
+  {
+    "step": "list materials",
+    "role": "viewer",
+    "request": "GET /api/workspaces/<workspace>/materials",
+    "status": 200,
+    "body": [
+      {
+        "kind": "hardware",
+        "key": "aluminium-koerper",
+        "name": "Aluminiumkörper",
+        "color": "#c4c8cd",
+        "weightKgPerPiece": 0
+      },
+      {
+        "kind": "hardware",
+        "key": "betonplatte-400",
+        "name": "Betonplatte 400 × 400 × 50 mm",
+        "color": "#9a9a94",
+        "weightKgPerPiece": 18
+      },
+      {
+        "kind": "hardware",
+        "key": "stoff-koerper",
+        "name": "Darstellungskörper",
+        "color": "#8fa07a",
+        "weightKgPerPiece": 0
+      },
+      {
+        "kind": "hardware",
+        "key": "gummifuss-50",
+        "name": "Gummifuß 50 × 50 mm",
+        "color": "#1a1a1a",
+        "weightKgPerPiece": 0.05
+      },
+      {
+        "kind": "hardware",
+        "key": "holz-koerper",
+        "name": "Holzkörper",
+        "color": "#9a7959",
+        "weightKgPerPiece": 0
+      },
+      {
+        "kind": "hardware",
+        "key": "phenol-koerper",
+        "name": "Phenolharz-Körper",
+        "color": "#4a3426",
+        "weightKgPerPiece": 0
+      },
+      {
+        "kind": "hardware",
+        "key": "spanngurt-25",
+        "name": "Spanngurt 25 mm",
+        "color": "#c0392b",
+        "weightKgPerPiece": 0.3
+      },
+      {
+        "kind": "profile",
+        "key": "buehnenrahmen-40x68",
+        "name": "Bühnenrahmen-Profil 40 × 68 mm (Aluminium)",
+        "color": "#b8bcc0",
+        "section": {
+          "width": 40,
+          "height": 68
+        },
+        "weightKgPerM": 1.6
+      },
+      {
+        "kind": "profile",
+        "key": "latte-40x40",
+        "name": "Latte 40 × 40 mm (Fichte)",
+        "color": "#d9c6a1",
+        "section": {
+          "width": 40,
+          "height": 40
+        },
+        "weightKgPerM": 0.75
+      },
+      {
+        "kind": "profile",
+        "key": "steckfuss-rohr-50",
+        "name": "Steckfuß-Rohr 50 × 50 mm (Aluminium)",
+        "color": "#b8bcc0",
+        "section": {
+          "width": 50,
+          "height": 50
+        },
+        "weightKgPerM": 1.5
+      },
+      {
+        "kind": "profile",
+        "key": "tuerrahmen-25x50",
+        "name": "Türzarge 25 × 50 mm",
+        "color": "#e8e2d6",
+        "section": {
+          "width": 25,
+          "height": 50
+        },
+        "weightKgPerM": 0.7
+      },
+      {
+        "kind": "sheet",
+        "key": "sperrholz-12",
+        "name": "Sperrholz 12 mm (Birke)",
+        "color": "#c9a877",
+        "thickness": 12,
+        "weightKgPerM2": 8
+      },
+      {
+        "kind": "sheet",
+        "key": "tischlerplatte-28",
+        "name": "Tischlerplatte 28 mm",
+        "color": "#315d49",
+        "thickness": 28,
+        "weightKgPerM2": 12.5
+      },
+      {
+        "kind": "sheet",
+        "key": "tuerblatt-40",
+        "name": "Türblatt 40 mm",
+        "color": "#f7f7f4",
+        "thickness": 40,
+        "weightKgPerM2": 10
+      }
+    ]
+  },
+  {
+    "step": "add material",
+    "role": "editor",
+    "request": "PUT /api/workspaces/<workspace>/materials/platte-9",
+    "status": 200,
+    "body": {
+      "kind": "sheet",
+      "key": "platte-9",
+      "name": "Platte 9 mm",
+      "color": "#c8a46e",
+      "thickness": 9,
+      "weightKgPerM2": 6
+    }
+  },
+  {
+    "step": "replace material",
+    "role": "editor",
+    "request": "PUT /api/workspaces/<workspace>/materials/platte-9",
+    "status": 200,
+    "body": {
+      "kind": "sheet",
+      "key": "platte-9",
+      "name": "Platte 9 mm, Birke",
+      "color": "#c8a46e",
+      "thickness": 9,
+      "weightKgPerM2": 6
+    }
+  },
+  {
+    "step": "material key differs from the address",
+    "role": "editor",
+    "request": "PUT /api/workspaces/<workspace>/materials/andere-platte",
+    "status": 400,
+    "body": {
+      "message": "Der Schlüssel im Material stimmt nicht mit der Adresse überein."
+    }
+  },
+  {
+    "step": "material as viewer",
+    "role": "viewer",
+    "request": "PUT /api/workspaces/<workspace>/materials/platte-9",
+    "status": 403,
+    "body": {
+      "message": "Dafür fehlen Ihnen die Berechtigungen."
+    }
+  },
+  {
+    "step": "material with a bad body",
+    "role": "editor",
+    "request": "PUT /api/workspaces/<workspace>/materials/platte-9",
+    "status": 400,
+    "body": {
+      "message": "Ungültige Anfrage."
+    }
+  },
+  {
+    "step": "change the kind of a material in use",
+    "role": "editor",
+    "request": "PUT /api/workspaces/<workspace>/materials/latte-40x40",
+    "status": 409,
+    "body": {
+      "message": "Das Material wird von Bauteilen verwendet und kann seine Art nicht ändern: „Kiste Eins, neu“, „Kiste Eins, neu Kopie“, „Kiste Eins, neu Kopie 2“, „Stützdreieck“, „Tisch“."
+    }
+  },
+  {
+    "step": "delete material in use",
+    "role": "editor",
+    "request": "DELETE /api/workspaces/<workspace>/materials/latte-40x40",
+    "status": 409,
+    "body": {
+      "message": "Das Material wird noch von Bauteilen verwendet: „Kiste Eins, neu“, „Kiste Eins, neu Kopie“, „Kiste Eins, neu Kopie 2“, „Stützdreieck“, „Tisch“."
+    }
+  },
+  {
+    "step": "delete unknown material",
+    "role": "editor",
+    "request": "DELETE /api/workspaces/<workspace>/materials/gibt-es-nicht",
+    "status": 404,
+    "body": {
+      "message": "Material nicht verfügbar."
+    }
+  },
+  {
+    "step": "delete material as viewer",
+    "role": "viewer",
+    "request": "DELETE /api/workspaces/<workspace>/materials/platte-9",
+    "status": 403,
+    "body": {
+      "message": "Dafür fehlen Ihnen die Berechtigungen."
+    }
+  },
+  {
+    "step": "export library",
+    "role": "viewer",
+    "request": "POST /api/workspaces/<workspace>/library/export",
+    "status": 200,
+    "body": {
+      "filename": "bauteile-<workspace>-<date>.stageharbour-parts.json",
+      "library": {
+        "schemaVersion": 1,
+        "materials": [
+          {
+            "kind": "hardware",
+            "key": "betonplatte-400",
+            "name": "Betonplatte 400 × 400 × 50 mm",
+            "color": "#9a9a94",
+            "weightKgPerPiece": 18
+          },
+          {
+            "kind": "profile",
+            "key": "buehnenrahmen-40x68",
+            "name": "Bühnenrahmen-Profil 40 × 68 mm (Aluminium)",
+            "color": "#b8bcc0",
+            "section": {
+              "width": 40,
+              "height": 68
+            },
+            "weightKgPerM": 1.6
+          },
+          {
+            "kind": "hardware",
+            "key": "gummifuss-50",
+            "name": "Gummifuß 50 × 50 mm",
+            "color": "#1a1a1a",
+            "weightKgPerPiece": 0.05
+          },
+          {
+            "kind": "hardware",
+            "key": "holz-koerper",
+            "name": "Holzkörper",
+            "color": "#9a7959",
+            "weightKgPerPiece": 0
+          },
+          {
+            "kind": "profile",
+            "key": "latte-40x40",
+            "name": "Latte 40 × 40 mm (Fichte)",
+            "color": "#d9c6a1",
+            "section": {
+              "width": 40,
+              "height": 40
+            },
+            "weightKgPerM": 0.75
+          },
+          {
+            "kind": "hardware",
+            "key": "spanngurt-25",
+            "name": "Spanngurt 25 mm",
+            "color": "#c0392b",
+            "weightKgPerPiece": 0.3
+          },
+          {
+            "kind": "sheet",
+            "key": "sperrholz-12",
+            "name": "Sperrholz 12 mm (Birke)",
+            "color": "#c9a877",
+            "thickness": 12,
+            "weightKgPerM2": 8
+          },
+          {
+            "kind": "profile",
+            "key": "steckfuss-rohr-50",
+            "name": "Steckfuß-Rohr 50 × 50 mm (Aluminium)",
+            "color": "#b8bcc0",
+            "section": {
+              "width": 50,
+              "height": 50
+            },
+            "weightKgPerM": 1.5
+          },
+          {
+            "kind": "hardware",
+            "key": "stoff-koerper",
+            "name": "Darstellungskörper",
+            "color": "#8fa07a",
+            "weightKgPerPiece": 0
+          },
+          {
+            "kind": "sheet",
+            "key": "tischlerplatte-28",
+            "name": "Tischlerplatte 28 mm",
+            "color": "#315d49",
+            "thickness": 28,
+            "weightKgPerM2": 12.5
+          },
+          {
+            "kind": "profile",
+            "key": "tuerrahmen-25x50",
+            "name": "Türzarge 25 × 50 mm",
+            "color": "#e8e2d6",
+            "section": {
+              "width": 25,
+              "height": 50
+            },
+            "weightKgPerM": 0.7
+          }
+        ],
+        "parts": [
+          {
+            "id": "5a17e9a0-0000-4000-8000-000000000003",
+            "revision": 1,
+            "name": "Bühnenelement",
+            "category": "Podeste",
+            "description": "Bühnenelement mit Aluminiumrahmen, Deckplatte und vier Steckfüßen.",
+            "parameters": [
+              {
+                "key": "B",
+                "label": "Breite",
+                "type": "length",
+                "default": 2000,
+                "scope": "variant",
+                "values": [
+                  1000,
+                  2000
+                ]
+              },
+              {
+                "key": "T",
+                "label": "Tiefe",
+                "type": "length",
+                "default": 1000,
+                "scope": "variant",
+                "values": [
+                  500,
+                  1000
+                ]
+              },
+              {
+                "key": "BO",
+                "label": "Breite Altbestand",
+                "type": "count",
+                "default": 0,
+                "scope": "placement",
+                "range": {
+                  "min": 0,
+                  "max": 20000
+                }
+              },
+              {
+                "key": "TO",
+                "label": "Tiefe Altbestand",
+                "type": "count",
+                "default": 0,
+                "scope": "placement",
+                "range": {
+                  "min": 0,
+                  "max": 20000
+                }
+              },
+              {
+                "key": "H",
+                "label": "Podesthöhe",
+                "type": "length",
+                "default": 600,
+                "scope": "placement",
+                "values": [
+                  200,
+                  400,
+                  600,
+                  800,
+                  1000,
+                  1200
+                ]
+              },
+              {
+                "key": "HO",
+                "label": "Höhe Altbestand",
+                "type": "count",
+                "default": 0,
+                "scope": "placement",
+                "range": {
+                  "min": 0,
+                  "max": 10000
+                }
+              }
+            ],
+            "variants": [
+              {
+                "key": "2x1",
+                "label": "2 × 1 m",
+                "values": {
+                  "B": 2000,
+                  "T": 1000
+                }
+              },
+              {
+                "key": "2x05",
+                "label": "2 × 0,5 m",
+                "values": {
+                  "B": 2000,
+                  "T": 500
+                }
+              },
+              {
+                "key": "1x1",
+                "label": "1 × 1 m",
+                "values": {
+                  "B": 1000,
+                  "T": 1000
+                }
+              },
+              {
+                "key": "1x05",
+                "label": "1 × 0,5 m",
+                "values": {
+                  "B": 1000,
+                  "T": 500
+                }
+              }
+            ],
+            "derived": [
+              {
+                "key": "W",
+                "label": "Wirksame Breite",
+                "formula": "if(BO > 0, BO, B)"
+              },
+              {
+                "key": "D",
+                "label": "Wirksame Tiefe",
+                "formula": "if(TO > 0, TO, T)"
+              },
+              {
+                "key": "E",
+                "label": "Wirksame Höhe",
+                "formula": "if(HO > 0, HO, H)"
+              },
+              {
+                "key": "einzug",
+                "label": "Fußachse ab Kante",
+                "formula": 33
+              },
+              {
+                "key": "staerke",
+                "label": "Stärke Deckplatte",
+                "formula": 12
+              },
+              {
+                "key": "rahmenB",
+                "label": "Rahmenbreite",
+                "formula": 40
+              },
+              {
+                "key": "rahmenH",
+                "label": "Rahmenhöhe",
+                "formula": 68
+              },
+              {
+                "key": "rahmenY",
+                "label": "Achse Rahmen",
+                "formula": "E - staerke - rahmenH / 2"
+              },
+              {
+                "key": "unten",
+                "label": "Unterkante Rahmen",
+                "formula": "E - staerke - rahmenH"
+              },
+              {
+                "key": "fussX",
+                "label": "Fußachse quer",
+                "formula": "W / 2 - einzug"
+              },
+              {
+                "key": "fussZ",
+                "label": "Fußachse längs",
+                "formula": "D / 2 - einzug"
+              }
+            ],
+            "bodies": [
+              {
+                "key": "platte",
+                "label": "Deckplatte",
+                "material": "sperrholz-12",
+                "kind": "sheet",
+                "plane": "xz",
+                "at": [
+                  0,
+                  "E",
+                  0
+                ],
+                "outline": {
+                  "shape": "rect",
+                  "x": "-W / 2",
+                  "y": "-D / 2",
+                  "width": "W",
+                  "height": "D"
+                }
+              },
+              {
+                "key": "rahmen-lang",
+                "label": "Rahmen längs",
+                "material": "buehnenrahmen-40x68",
+                "repeat": {
+                  "count": 2,
+                  "step": [
+                    0,
+                    0,
+                    "D - rahmenB"
+                  ]
+                },
+                "kind": "beam",
+                "from": [
+                  "-W / 2",
+                  "rahmenY",
+                  "-(D - rahmenB) / 2"
+                ],
+                "to": [
+                  "W / 2",
+                  "rahmenY",
+                  "-(D - rahmenB) / 2"
+                ]
+              },
+              {
+                "key": "rahmen-quer",
+                "label": "Rahmen quer",
+                "material": "buehnenrahmen-40x68",
+                "repeat": {
+                  "count": 2,
+                  "step": [
+                    "W - rahmenB",
+                    0,
+                    0
+                  ]
+                },
+                "kind": "beam",
+                "from": [
+                  "-(W - rahmenB) / 2",
+                  "rahmenY",
+                  "-D / 2 + rahmenB"
+                ],
+                "to": [
+                  "-(W - rahmenB) / 2",
+                  "rahmenY",
+                  "D / 2 - rahmenB"
+                ]
+              }
+            ],
+            "children": [
+              {
+                "key": "fuss",
+                "label": "Steckfuß",
+                "part": {
+                  "id": "5a17e9a0-0000-4000-8000-000000000002",
+                  "revision": 1
+                },
+                "values": {
+                  "H": "H",
+                  "HO": "HO"
+                },
+                "at": [
+                  "-fussX",
+                  0,
+                  "-fussZ"
+                ],
+                "repeat": [
+                  {
+                    "count": 2,
+                    "step": [
+                      "2 * fussX",
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "count": 2,
+                    "step": [
+                      0,
+                      0,
+                      "2 * fussZ"
+                    ]
+                  }
+                ]
+              }
+            ],
+            "connectors": [
+              {
+                "key": "kante-vorn",
+                "label": "Kante vorn",
+                "kind": "deck-edge",
+                "at": [
+                  "-W / 2",
+                  "E",
+                  "-D / 2"
+                ],
+                "axis": [
+                  1,
+                  0,
+                  0
+                ],
+                "length": "W"
+              },
+              {
+                "key": "kante-hinten",
+                "label": "Kante hinten",
+                "kind": "deck-edge",
+                "at": [
+                  "-W / 2",
+                  "E",
+                  "D / 2"
+                ],
+                "axis": [
+                  1,
+                  0,
+                  0
+                ],
+                "length": "W"
+              },
+              {
+                "key": "kante-links",
+                "label": "Kante links",
+                "kind": "deck-edge",
+                "at": [
+                  "-W / 2",
+                  "E",
+                  "-D / 2"
+                ],
+                "axis": [
+                  0,
+                  0,
+                  1
+                ],
+                "length": "D"
+              },
+              {
+                "key": "kante-rechts",
+                "label": "Kante rechts",
+                "kind": "deck-edge",
+                "at": [
+                  "W / 2",
+                  "E",
+                  "-D / 2"
+                ],
+                "axis": [
+                  0,
+                  0,
+                  1
+                ],
+                "length": "D"
+              },
+              {
+                "key": "fuss-vl",
+                "label": "Fuß vorn links",
+                "kind": "leg-socket",
+                "at": [
+                  "-fussX",
+                  "unten",
+                  "-fussZ"
+                ],
+                "axis": [
+                  0,
+                  -1,
+                  0
+                ]
+              },
+              {
+                "key": "fuss-vr",
+                "label": "Fuß vorn rechts",
+                "kind": "leg-socket",
+                "at": [
+                  "fussX",
+                  "unten",
+                  "-fussZ"
+                ],
+                "axis": [
+                  0,
+                  -1,
+                  0
+                ]
+              },
+              {
+                "key": "fuss-hl",
+                "label": "Fuß hinten links",
+                "kind": "leg-socket",
+                "at": [
+                  "-fussX",
+                  "unten",
+                  "fussZ"
+                ],
+                "axis": [
+                  0,
+                  -1,
+                  0
+                ]
+              },
+              {
+                "key": "fuss-hr",
+                "label": "Fuß hinten rechts",
+                "kind": "leg-socket",
+                "at": [
+                  "fussX",
+                  "unten",
+                  "fussZ"
+                ],
+                "axis": [
+                  0,
+                  -1,
+                  0
+                ]
+              }
+            ],
+            "traits": {
+              "surface": {
+                "body": "platte"
+              },
+              "faces": [
+                {
+                  "key": "belag",
+                  "label": "Belag",
+                  "body": "platte",
+                  "side": "front"
+                }
+              ],
+              "stock": "item"
+            }
+          },
+          {
+            "id": "5a17e9a0-0000-4000-8000-000000000010",
+            "revision": 1,
+            "name": "Kiste",
+            "category": "Requisite",
+            "parameters": [
+              {
+                "key": "B",
+                "label": "Breite",
+                "type": "length",
+                "default": 600,
+                "scope": "placement",
+                "range": {
+                  "min": 50,
+                  "max": 10000,
+                  "step": 10
+                }
+              },
+              {
+                "key": "T",
+                "label": "Tiefe",
+                "type": "length",
+                "default": 600,
+                "scope": "placement",
+                "range": {
+                  "min": 50,
+                  "max": 10000,
+                  "step": 10
+                }
+              },
+              {
+                "key": "H",
+                "label": "Höhe",
+                "type": "length",
+                "default": 600,
+                "scope": "placement",
+                "range": {
+                  "min": 50,
+                  "max": 10000,
+                  "step": 10
+                }
+              }
+            ],
+            "bodies": [
+              {
+                "key": "koerper",
+                "material": "stoff-koerper",
+                "kind": "box",
+                "size": [
+                  "B",
+                  "H",
+                  "T"
+                ],
+                "at": [
+                  0,
+                  "H / 2",
+                  0
+                ]
+              }
+            ],
+            "traits": {
+              "stock": "none"
+            }
+          },
+          {
+            "id": "c47a1090-0000-4000-8000-000000000001",
+            "revision": 2,
+            "name": "Kiste Eins, neu",
+            "category": "Test",
+            "description": "Zweite Fassung",
+            "parameters": [
+              {
+                "key": "B",
+                "label": "Breite",
+                "type": "length",
+                "default": 600,
+                "scope": "variant",
+                "range": {
+                  "min": 300,
+                  "max": 1200
+                }
+              }
+            ],
+            "variants": [
+              {
+                "key": "klein",
+                "label": "Klein",
+                "values": {
+                  "B": 400
+                }
+              },
+              {
+                "key": "gross",
+                "label": "Groß",
+                "values": {
+                  "B": 900
+                }
+              }
+            ],
+            "bodies": [
+              {
+                "key": "latte",
+                "material": "latte-40x40",
+                "kind": "beam",
+                "from": [
+                  0,
+                  0,
+                  0
+                ],
+                "to": [
+                  "B",
+                  0,
+                  0
+                ]
+              }
+            ],
+            "traits": {
+              "stock": "item"
+            }
+          },
+          {
+            "id": "<id2>",
+            "revision": 1,
+            "name": "Kiste Eins, neu Kopie",
+            "category": "Test",
+            "description": "Zweite Fassung",
+            "parameters": [
+              {
+                "key": "B",
+                "label": "Breite",
+                "type": "length",
+                "default": 600,
+                "scope": "variant",
+                "range": {
+                  "min": 300,
+                  "max": 1200
+                }
+              }
+            ],
+            "variants": [
+              {
+                "key": "klein",
+                "label": "Klein",
+                "values": {
+                  "B": 400
+                }
+              },
+              {
+                "key": "gross",
+                "label": "Groß",
+                "values": {
+                  "B": 900
+                }
+              }
+            ],
+            "bodies": [
+              {
+                "key": "latte",
+                "material": "latte-40x40",
+                "kind": "beam",
+                "from": [
+                  0,
+                  0,
+                  0
+                ],
+                "to": [
+                  "B",
+                  0,
+                  0
+                ]
+              }
+            ],
+            "traits": {
+              "stock": "item"
+            }
+          },
+          {
+            "id": "<id3>",
+            "revision": 1,
+            "name": "Kiste Eins, neu Kopie 2",
+            "category": "Test",
+            "description": "Zweite Fassung",
+            "parameters": [
+              {
+                "key": "B",
+                "label": "Breite",
+                "type": "length",
+                "default": 600,
+                "scope": "variant",
+                "range": {
+                  "min": 300,
+                  "max": 1200
+                }
+              }
+            ],
+            "variants": [
+              {
+                "key": "klein",
+                "label": "Klein",
+                "values": {
+                  "B": 400
+                }
+              },
+              {
+                "key": "gross",
+                "label": "Groß",
+                "values": {
+                  "B": 900
+                }
+              }
+            ],
+            "bodies": [
+              {
+                "key": "latte",
+                "material": "latte-40x40",
+                "kind": "beam",
+                "from": [
+                  0,
+                  0,
+                  0
+                ],
+                "to": [
+                  "B",
+                  0,
+                  0
+                ]
+              }
+            ],
+            "traits": {
+              "stock": "item"
+            }
+          },
+          {
+            "id": "5a17e9a0-0000-4000-8000-000000000009",
+            "revision": 1,
+            "name": "Lautsprecher",
+            "category": "Technik",
+            "parameters": [
+              {
+                "key": "B",
+                "label": "Breite",
+                "type": "length",
+                "default": 400,
+                "scope": "placement",
+                "range": {
+                  "min": 50,
+                  "max": 10000,
+                  "step": 10
+                }
+              },
+              {
+                "key": "T",
+                "label": "Tiefe",
+                "type": "length",
+                "default": 350,
+                "scope": "placement",
+                "range": {
+                  "min": 50,
+                  "max": 10000,
+                  "step": 10
+                }
+              },
+              {
+                "key": "H",
+                "label": "Höhe",
+                "type": "length",
+                "default": 600,
+                "scope": "placement",
+                "range": {
+                  "min": 50,
+                  "max": 10000,
+                  "step": 10
+                }
+              }
+            ],
+            "bodies": [
+              {
+                "key": "koerper",
+                "material": "stoff-koerper",
+                "kind": "box",
+                "size": [
+                  "B",
+                  "H",
+                  "T"
+                ],
+                "at": [
+                  0,
+                  "H / 2",
+                  0
+                ]
+              }
+            ],
+            "traits": {
+              "stock": "none"
+            }
+          },
+          {
+            "id": "5a17e9a0-0000-4000-8000-000000000013",
+            "revision": 1,
+            "name": "Massives Podest",
+            "category": "Podeste",
+            "parameters": [
+              {
+                "key": "B",
+                "label": "Breite",
+                "type": "length",
+                "default": 2000,
+                "scope": "placement",
+                "range": {
+                  "min": 100,
+                  "max": 20000
+                }
+              },
+              {
+                "key": "T",
+                "label": "Tiefe",
+                "type": "length",
+                "default": 1000,
+                "scope": "placement",
+                "range": {
+                  "min": 100,
+                  "max": 20000
+                }
+              },
+              {
+                "key": "H",
+                "label": "Höhe",
+                "type": "length",
+                "default": 400,
+                "scope": "placement",
+                "range": {
+                  "min": 1,
+                  "max": 5000
+                }
+              }
+            ],
+            "bodies": [
+              {
+                "key": "block",
+                "material": "holz-koerper",
+                "kind": "box",
+                "size": [
+                  "B",
+                  "H",
+                  "T"
+                ],
+                "at": [
+                  0,
+                  "H / 2",
+                  0
+                ]
+              }
+            ],
+            "connectors": [
+              {
+                "key": "kante-vorn",
+                "kind": "deck-edge",
+                "at": [
+                  "-B / 2",
+                  "H",
+                  "-T / 2"
+                ],
+                "axis": [
+                  1,
+                  0,
+                  0
+                ],
+                "length": "B"
+              }
+            ],
+            "traits": {
+              "surface": {
+                "body": "block"
+              },
+              "faces": [
+                {
+                  "key": "top",
+                  "label": "Belag",
+                  "body": "block",
+                  "side": "top"
+                },
+                {
+                  "key": "sides",
+                  "label": "Seiten",
+                  "body": "block",
+                  "side": "all"
+                }
+              ],
+              "stock": "none"
+            }
+          },
+          {
+            "id": "5a17e9a0-0000-4000-8000-000000000008",
+            "revision": 1,
+            "name": "Person",
+            "category": "Darsteller",
+            "parameters": [
+              {
+                "key": "B",
+                "label": "Breite",
+                "type": "length",
+                "default": 500,
+                "scope": "placement",
+                "range": {
+                  "min": 50,
+                  "max": 10000,
+                  "step": 10
+                }
+              },
+              {
+                "key": "T",
+                "label": "Tiefe",
+                "type": "length",
+                "default": 400,
+                "scope": "placement",
+                "range": {
+                  "min": 50,
+                  "max": 10000,
+                  "step": 10
+                }
+              },
+              {
+                "key": "H",
+                "label": "Höhe",
+                "type": "length",
+                "default": 1750,
+                "scope": "placement",
+                "range": {
+                  "min": 50,
+                  "max": 10000,
+                  "step": 10
+                }
+              }
+            ],
+            "bodies": [
+              {
+                "key": "koerper",
+                "material": "stoff-koerper",
+                "kind": "box",
+                "size": [
+                  "B",
+                  "H",
+                  "T"
+                ],
+                "at": [
+                  0,
+                  "H / 2",
+                  0
+                ]
+              }
+            ],
+            "traits": {
+              "stock": "none"
+            }
+          },
+          {
+            "id": "5a17e9a0-0000-4000-8000-000000000012",
+            "revision": 1,
+            "name": "Schwebendes Podest",
+            "category": "Podeste",
+            "parameters": [
+              {
+                "key": "B",
+                "label": "Breite",
+                "type": "length",
+                "default": 2000,
+                "scope": "placement",
+                "range": {
+                  "min": 100,
+                  "max": 20000
+                }
+              },
+              {
+                "key": "T",
+                "label": "Tiefe",
+                "type": "length",
+                "default": 1000,
+                "scope": "placement",
+                "range": {
+                  "min": 100,
+                  "max": 20000
+                }
+              },
+              {
+                "key": "H",
+                "label": "Höhe",
+                "type": "length",
+                "default": 400,
+                "scope": "placement",
+                "range": {
+                  "min": 40,
+                  "max": 5000
+                }
+              }
+            ],
+            "bodies": [
+              {
+                "key": "platte",
+                "material": "holz-koerper",
+                "kind": "box",
+                "size": [
+                  "B",
+                  40,
+                  "T"
+                ],
+                "at": [
+                  0,
+                  "H - 20",
+                  0
+                ]
+              }
+            ],
+            "connectors": [
+              {
+                "key": "kante-vorn",
+                "kind": "deck-edge",
+                "at": [
+                  "-B / 2",
+                  "H",
+                  "-T / 2"
+                ],
+                "axis": [
+                  1,
+                  0,
+                  0
+                ],
+                "length": "B"
+              }
+            ],
+            "traits": {
+              "surface": {
+                "body": "platte"
+              },
+              "faces": [
+                {
+                  "key": "top",
+                  "label": "Belag",
+                  "body": "platte",
+                  "side": "top"
+                },
+                {
+                  "key": "sides",
+                  "label": "Seiten",
+                  "body": "platte",
+                  "side": "all"
+                }
+              ],
+              "stock": "none"
+            }
+          },
+          {
+            "id": "5a17e9a0-0000-4000-8000-000000000002",
+            "revision": 1,
+            "name": "Steckfuß",
+            "category": "Podeste",
+            "description": "Steckfuß 50 × 50 mm mit Gummifuß. Die Höhe nennt die Podesthöhe, die er mit einem 80 mm hohen Bühnenelement ergibt.",
+            "parameters": [
+              {
+                "key": "H",
+                "label": "Podesthöhe",
+                "type": "length",
+                "default": 600,
+                "scope": "variant",
+                "values": [
+                  200,
+                  400,
+                  600,
+                  800,
+                  1000,
+                  1200
+                ]
+              },
+              {
+                "key": "HO",
+                "label": "Höhe Altbestand",
+                "type": "count",
+                "default": 0,
+                "scope": "placement",
+                "range": {
+                  "min": 0,
+                  "max": 10000
+                }
+              }
+            ],
+            "variants": [
+              {
+                "key": "200",
+                "label": "20 cm",
+                "values": {
+                  "H": 200
+                }
+              },
+              {
+                "key": "400",
+                "label": "40 cm",
+                "values": {
+                  "H": 400
+                }
+              },
+              {
+                "key": "600",
+                "label": "60 cm",
+                "values": {
+                  "H": 600
+                }
+              },
+              {
+                "key": "800",
+                "label": "80 cm",
+                "values": {
+                  "H": 800
+                }
+              },
+              {
+                "key": "1000",
+                "label": "100 cm",
+                "values": {
+                  "H": 1000
+                }
+              },
+              {
+                "key": "1200",
+                "label": "120 cm",
+                "values": {
+                  "H": 1200
+                }
+              }
+            ],
+            "derived": [
+              {
+                "key": "E",
+                "label": "Wirksame Podesthöhe",
+                "formula": "if(HO > 0, HO, H)"
+              },
+              {
+                "key": "aufbau",
+                "label": "Aufbauhöhe Bühnenelement",
+                "formula": 80
+              },
+              {
+                "key": "gummi",
+                "label": "Höhe Gummifuß",
+                "formula": 12
+              },
+              {
+                "key": "kopf",
+                "label": "Oberkante Rohr",
+                "formula": "E - aufbau"
+              }
+            ],
+            "bodies": [
+              {
+                "key": "gummifuss",
+                "label": "Gummifuß",
+                "material": "gummifuss-50",
+                "kind": "box",
+                "size": [
+                  50,
+                  "gummi",
+                  50
+                ],
+                "at": [
+                  0,
+                  "gummi / 2",
+                  0
+                ]
+              },
+              {
+                "key": "rohr",
+                "label": "Rohr",
+                "material": "steckfuss-rohr-50",
+                "kind": "beam",
+                "from": [
+                  0,
+                  "gummi",
+                  0
+                ],
+                "to": [
+                  0,
+                  "kopf",
+                  0
+                ]
+              }
+            ],
+            "connectors": [
+              {
+                "key": "kopf",
+                "label": "Kopf",
+                "kind": "leg-socket",
+                "at": [
+                  0,
+                  "kopf",
+                  0
+                ],
+                "axis": [
+                  0,
+                  1,
+                  0
+                ]
+              },
+              {
+                "key": "boden",
+                "label": "Standfläche",
+                "kind": "floor",
+                "at": [
+                  0,
+                  0,
+                  0
+                ],
+                "axis": [
+                  0,
+                  -1,
+                  0
+                ]
+              }
+            ],
+            "traits": {
+              "stock": "count"
+            }
+          },
+          {
+            "id": "5a17e9a0-0000-4000-8000-000000000007",
+            "revision": 1,
+            "name": "Stuhl",
+            "category": "Möbel",
+            "parameters": [
+              {
+                "key": "B",
+                "label": "Breite",
+                "type": "length",
+                "default": 450,
+                "scope": "placement",
+                "range": {
+                  "min": 100,
+                  "max": 2000,
+                  "step": 10
+                }
+              },
+              {
+                "key": "T",
+                "label": "Tiefe",
+                "type": "length",
+                "default": 450,
+                "scope": "placement",
+                "range": {
+                  "min": 100,
+                  "max": 2000,
+                  "step": 10
+                }
+              },
+              {
+                "key": "H",
+                "label": "Höhe",
+                "type": "length",
+                "default": 900,
+                "scope": "placement",
+                "range": {
+                  "min": 200,
+                  "max": 3000,
+                  "step": 10
+                }
+              },
+              {
+                "key": "seated",
+                "label": "Sitzfigur",
+                "type": "toggle",
+                "default": 0,
+                "scope": "state"
+              }
+            ],
+            "derived": [
+              {
+                "key": "seatH",
+                "formula": "H * 0.48"
+              },
+              {
+                "key": "seatT",
+                "formula": "max(20, H * 0.06)"
+              },
+              {
+                "key": "backT",
+                "formula": "max(20, T * 0.08)"
+              },
+              {
+                "key": "leg",
+                "formula": "max(18, min(B, T) * 0.08)"
+              }
+            ],
+            "bodies": [
+              {
+                "key": "sitz",
+                "material": "holz-koerper",
+                "kind": "box",
+                "size": [
+                  "B * 0.92",
+                  "seatT",
+                  "T * 0.75"
+                ],
+                "at": [
+                  0,
+                  "seatH",
+                  0
+                ]
+              },
+              {
+                "key": "lehne",
+                "material": "holz-koerper",
+                "kind": "box",
+                "size": [
+                  "B * 0.92",
+                  "H - seatH",
+                  "backT"
+                ],
+                "at": [
+                  0,
+                  "seatH + (H - seatH) / 2",
+                  "-T * 0.32"
+                ]
+              },
+              {
+                "key": "bein",
+                "material": "holz-koerper",
+                "repeat": [
+                  {
+                    "count": 2,
+                    "step": [
+                      "B * 0.76",
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "count": 2,
+                    "step": [
+                      0,
+                      0,
+                      "T * 0.56"
+                    ]
+                  }
+                ],
+                "kind": "box",
+                "size": [
+                  "leg",
+                  "seatH",
+                  "leg"
+                ],
+                "at": [
+                  "-B * 0.38",
+                  "seatH / 2",
+                  "-T * 0.28"
+                ]
+              },
+              {
+                "key": "figur-rumpf",
+                "material": "stoff-koerper",
+                "when": "seated",
+                "kind": "box",
+                "size": [
+                  "B * 0.35",
+                  "H * 0.28",
+                  "T * 0.28"
+                ],
+                "at": [
+                  0,
+                  "seatH + seatT / 2 + H * 0.18",
+                  "T * 0.02"
+                ]
+              },
+              {
+                "key": "figur-beine",
+                "material": "stoff-koerper",
+                "when": "seated",
+                "kind": "box",
+                "size": [
+                  "B * 0.32",
+                  "H * 0.12",
+                  "T * 0.35"
+                ],
+                "at": [
+                  0,
+                  "seatH + seatT / 2 + H * 0.06",
+                  "T * 0.14"
+                ],
+                "rotation": [
+                  22.9183,
+                  0,
+                  0
+                ]
+              },
+              {
+                "key": "figur-kopf",
+                "material": "stoff-koerper",
+                "when": "seated",
+                "kind": "box",
+                "size": [
+                  "min(B, T) * 0.24",
+                  "min(B, T) * 0.24",
+                  "min(B, T) * 0.24"
+                ],
+                "at": [
+                  0,
+                  "seatH + seatT / 2 + H * 0.38",
+                  "T * 0.02"
+                ]
+              }
+            ],
+            "traits": {
+              "stock": "none",
+              "planSymbol": "solids"
+            }
+          },
+          {
+            "id": "5a17e9a0-0000-4000-8000-000000000001",
+            "revision": 1,
+            "name": "Stützdreieck",
+            "category": "Stützen",
+            "description": "Dreieck aus Latte 40 × 40: Wandstiel, Bodenschwelle und Strebe. Beschwerung als Zubehör.",
+            "parameters": [
+              {
+                "key": "B",
+                "label": "Breite",
+                "type": "length",
+                "default": 40,
+                "scope": "placement",
+                "range": {
+                  "min": 1,
+                  "max": 10000
+                }
+              },
+              {
+                "key": "T",
+                "label": "Tiefe",
+                "type": "length",
+                "default": 500,
+                "scope": "variant",
+                "range": {
+                  "min": 200,
+                  "max": 1500
+                }
+              },
+              {
+                "key": "H",
+                "label": "Höhe",
+                "type": "length",
+                "default": 1200,
+                "scope": "variant",
+                "range": {
+                  "min": 300,
+                  "max": 3000
+                }
+              },
+              {
+                "key": "TO",
+                "label": "Tiefe Altbestand",
+                "type": "count",
+                "default": 0,
+                "scope": "placement",
+                "range": {
+                  "min": 0,
+                  "max": 10000
+                }
+              },
+              {
+                "key": "HO",
+                "label": "Höhe Altbestand",
+                "type": "count",
+                "default": 0,
+                "scope": "placement",
+                "range": {
+                  "min": 0,
+                  "max": 10000
+                }
+              },
+              {
+                "key": "ballast",
+                "label": "Betonplatten",
+                "type": "count",
+                "default": 0,
+                "scope": "placement",
+                "values": [
+                  0,
+                  1,
+                  2
+                ]
+              }
+            ],
+            "variants": [
+              {
+                "key": "standard",
+                "label": "50 × 120 cm",
+                "values": {
+                  "H": 1200,
+                  "T": 500
+                }
+              },
+              {
+                "key": "niedrig",
+                "label": "40 × 90 cm",
+                "values": {
+                  "H": 900,
+                  "T": 400
+                }
+              },
+              {
+                "key": "hoch",
+                "label": "80 × 240 cm",
+                "values": {
+                  "H": 2400,
+                  "T": 800
+                }
+              }
+            ],
+            "derived": [
+              {
+                "key": "D",
+                "label": "Wirksame Tiefe",
+                "formula": "if(TO > 0, TO, T)"
+              },
+              {
+                "key": "L",
+                "label": "Wirksame Höhe",
+                "formula": "if(HO > 0, HO, H)"
+              },
+              {
+                "key": "s",
+                "label": "Lattenstärke",
+                "formula": 40
+              },
+              {
+                "key": "wandZ",
+                "label": "Achse Wandstiel",
+                "formula": "-D / 2 + s / 2"
+              },
+              {
+                "key": "spitzeZ",
+                "label": "Achse Schwellenende",
+                "formula": "D / 2 - s / 2"
+              }
+            ],
+            "bodies": [
+              {
+                "key": "stiel",
+                "label": "Wandstiel",
+                "material": "latte-40x40",
+                "kind": "beam",
+                "from": [
+                  0,
+                  0,
+                  "wandZ"
+                ],
+                "to": [
+                  0,
+                  "L",
+                  "wandZ"
+                ],
+                "section": [
+                  "B",
+                  "s"
+                ]
+              },
+              {
+                "key": "schwelle",
+                "label": "Bodenschwelle",
+                "material": "latte-40x40",
+                "kind": "beam",
+                "from": [
+                  0,
+                  "s / 2",
+                  "-D / 2"
+                ],
+                "to": [
+                  0,
+                  "s / 2",
+                  "D / 2"
+                ],
+                "section": [
+                  "B",
+                  "s"
+                ]
+              },
+              {
+                "key": "strebe",
+                "label": "Strebe",
+                "material": "latte-40x40",
+                "kind": "beam",
+                "from": [
+                  0,
+                  "s / 2",
+                  "spitzeZ"
+                ],
+                "to": [
+                  0,
+                  "L - s / 2",
+                  "wandZ"
+                ],
+                "section": [
+                  "B",
+                  "s"
+                ]
+              }
+            ],
+            "connectors": [
+              {
+                "key": "wand",
+                "label": "Wandseite",
+                "kind": "brace-mount",
+                "at": [
+                  0,
+                  0,
+                  "-D / 2"
+                ],
+                "axis": [
+                  0,
+                  0,
+                  -1
+                ]
+              }
+            ],
+            "traits": {
+              "stock": "count"
+            },
+            "hardware": [
+              {
+                "material": "betonplatte-400",
+                "quantity": "ballast"
+              },
+              {
+                "material": "spanngurt-25",
+                "quantity": 1,
+                "when": "ballast >= 2"
+              }
+            ]
+          },
+          {
+            "id": "5a17e9a0-0000-4000-8000-000000000005",
+            "revision": 1,
+            "name": "Tisch",
+            "category": "Möbel",
+            "description": "Tisch mit Platte aus 28 mm Tischlerplatte auf vier Beinen aus Latte 40 × 40.",
+            "parameters": [
+              {
+                "key": "B",
+                "label": "Breite",
+                "type": "length",
+                "default": 1200,
+                "scope": "placement",
+                "range": {
+                  "min": 600,
+                  "max": 2400,
+                  "step": 10
+                }
+              },
+              {
+                "key": "T",
+                "label": "Tiefe",
+                "type": "length",
+                "default": 800,
+                "scope": "placement",
+                "range": {
+                  "min": 400,
+                  "max": 1200,
+                  "step": 10
+                }
+              },
+              {
+                "key": "H",
+                "label": "Höhe",
+                "type": "length",
+                "default": 750,
+                "scope": "placement",
+                "range": {
+                  "min": 500,
+                  "max": 1100,
+                  "step": 10
+                }
+              }
+            ],
+            "derived": [
+              {
+                "key": "staerke",
+                "label": "Plattenstärke",
+                "formula": 28
+              },
+              {
+                "key": "beinX",
+                "label": "Beinachse quer",
+                "formula": "B / 2 - 60"
+              },
+              {
+                "key": "beinZ",
+                "label": "Beinachse längs",
+                "formula": "T / 2 - 60"
+              }
+            ],
+            "bodies": [
+              {
+                "key": "platte",
+                "label": "Tischplatte",
+                "material": "tischlerplatte-28",
+                "kind": "sheet",
+                "plane": "xz",
+                "at": [
+                  0,
+                  "H",
+                  0
+                ],
+                "outline": {
+                  "shape": "rect",
+                  "x": "-B / 2",
+                  "y": "-T / 2",
+                  "width": "B",
+                  "height": "T"
+                }
+              },
+              {
+                "key": "bein",
+                "label": "Bein",
+                "material": "latte-40x40",
+                "repeat": [
+                  {
+                    "count": 2,
+                    "step": [
+                      "2 * beinX",
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "count": 2,
+                    "step": [
+                      0,
+                      0,
+                      "2 * beinZ"
+                    ]
+                  }
+                ],
+                "kind": "beam",
+                "from": [
+                  "-beinX",
+                  0,
+                  "-beinZ"
+                ],
+                "to": [
+                  "-beinX",
+                  "H - staerke",
+                  "-beinZ"
+                ]
+              }
+            ],
+            "traits": {
+              "faces": [
+                {
+                  "key": "platte",
+                  "label": "Tischplatte",
+                  "body": "platte",
+                  "side": "front"
+                }
+              ],
+              "stock": "none"
+            }
+          },
+          {
+            "id": "5a17e9a0-0000-4000-8000-000000000011",
+            "revision": 1,
+            "name": "Treppe",
+            "category": "Podeste",
+            "parameters": [
+              {
+                "key": "B",
+                "label": "Breite",
+                "type": "length",
+                "default": 1200,
+                "scope": "placement",
+                "range": {
+                  "min": 200,
+                  "max": 5000
+                }
+              },
+              {
+                "key": "T",
+                "label": "Lauflänge",
+                "type": "length",
+                "default": 2000,
+                "scope": "placement",
+                "range": {
+                  "min": 200,
+                  "max": 10000
+                }
+              },
+              {
+                "key": "H",
+                "label": "Steighöhe",
+                "type": "length",
+                "default": 400,
+                "scope": "placement",
+                "range": {
+                  "min": 1,
+                  "max": 5000
+                }
+              },
+              {
+                "key": "R",
+                "label": "bevorzugte Stufenhöhe",
+                "type": "length",
+                "default": 160,
+                "scope": "placement",
+                "range": {
+                  "min": 50,
+                  "max": 500
+                }
+              }
+            ],
+            "derived": [
+              {
+                "key": "n",
+                "label": "Stufen",
+                "formula": "max(1, round(H / R))"
+              },
+              {
+                "key": "stepH",
+                "formula": "H / n"
+              },
+              {
+                "key": "stepT",
+                "formula": "T / n"
+              }
+            ],
+            "bodies": [
+              {
+                "key": "stufe",
+                "material": "holz-koerper",
+                "repeat": {
+                  "count": "n",
+                  "step": [
+                    0,
+                    "stepH",
+                    "stepT"
+                  ]
+                },
+                "kind": "box",
+                "size": [
+                  "B",
+                  "stepH",
+                  "stepT"
+                ],
+                "at": [
+                  0,
+                  "stepH / 2",
+                  "-T / 2 + stepT / 2"
+                ]
+              }
+            ],
+            "connectors": [
+              {
+                "key": "unten",
+                "label": "Unterer Anschluss",
+                "kind": "deck-edge",
+                "at": [
+                  "-B / 2",
+                  0,
+                  "-T / 2"
+                ],
+                "axis": [
+                  1,
+                  0,
+                  0
+                ],
+                "length": "B"
+              },
+              {
+                "key": "oben",
+                "label": "Oberer Anschluss",
+                "kind": "deck-edge",
+                "at": [
+                  "-B / 2",
+                  "H",
+                  "T / 2"
+                ],
+                "axis": [
+                  1,
+                  0,
+                  0
+                ],
+                "length": "B"
+              }
+            ],
+            "traits": {
+              "stock": "none",
+              "planSymbol": "stair"
+            }
+          },
+          {
+            "id": "5a17e9a0-0000-4000-8000-000000000006",
+            "revision": 1,
+            "name": "Tür",
+            "category": "Wände",
+            "description": "Türblatt mit Zarge; der Zustand „offen“ schwenkt das Blatt bis 90°.",
+            "parameters": [
+              {
+                "key": "B",
+                "label": "lichte Breite",
+                "type": "length",
+                "default": 800,
+                "scope": "placement",
+                "range": {
+                  "min": 300,
+                  "max": 2000
+                }
+              },
+              {
+                "key": "H",
+                "label": "lichte Höhe",
+                "type": "length",
+                "default": 2000,
+                "scope": "placement",
+                "range": {
+                  "min": 300,
+                  "max": 4000
+                }
+              },
+              {
+                "key": "hinge",
+                "label": "Anschlag",
+                "type": "count",
+                "default": -1,
+                "scope": "placement",
+                "values": [
+                  -1,
+                  1
+                ]
+              },
+              {
+                "key": "open",
+                "label": "Öffnung",
+                "type": "percent",
+                "default": 0,
+                "scope": "state",
+                "range": {
+                  "min": 0,
+                  "max": 100,
+                  "step": 1
+                }
+              }
+            ],
+            "derived": [
+              {
+                "key": "face",
+                "label": "Zargenbreite",
+                "formula": 25
+              },
+              {
+                "key": "depth",
+                "label": "Zargentiefe",
+                "formula": 50
+              },
+              {
+                "key": "leafD",
+                "label": "Türblattstärke",
+                "formula": 40
+              },
+              {
+                "key": "angle",
+                "label": "Öffnungswinkel",
+                "formula": "open * 0.9"
+              }
+            ],
+            "bodies": [
+              {
+                "key": "zarge-unten",
+                "material": "tuerrahmen-25x50",
+                "kind": "beam",
+                "from": [
+                  "-B / 2 - face",
+                  "-face / 2",
+                  "-depth / 2"
+                ],
+                "to": [
+                  "B / 2 + face",
+                  "-face / 2",
+                  "-depth / 2"
+                ],
+                "section": [
+                  "face",
+                  "depth"
+                ],
+                "roll": 90
+              },
+              {
+                "key": "zarge-oben",
+                "material": "tuerrahmen-25x50",
+                "kind": "beam",
+                "from": [
+                  "-B / 2 - face",
+                  "H + face / 2",
+                  "-depth / 2"
+                ],
+                "to": [
+                  "B / 2 + face",
+                  "H + face / 2",
+                  "-depth / 2"
+                ],
+                "section": [
+                  "face",
+                  "depth"
+                ],
+                "roll": 90
+              },
+              {
+                "key": "zarge-links",
+                "material": "holz-koerper",
+                "kind": "box",
+                "size": [
+                  "face",
+                  "H",
+                  "depth"
+                ],
+                "at": [
+                  "-B / 2 - face / 2",
+                  "H / 2",
+                  "-depth / 2"
+                ]
+              },
+              {
+                "key": "zarge-rechts",
+                "material": "holz-koerper",
+                "kind": "box",
+                "size": [
+                  "face",
+                  "H",
+                  "depth"
+                ],
+                "at": [
+                  "B / 2 + face / 2",
+                  "H / 2",
+                  "-depth / 2"
+                ]
+              },
+              {
+                "key": "blatt",
+                "label": "Türblatt",
+                "material": "stoff-koerper",
+                "kind": "box",
+                "size": [
+                  "B",
+                  "H",
+                  "leafD"
+                ],
+                "at": [
+                  0,
+                  "H / 2",
+                  "-leafD / 2"
+                ],
+                "rotation": [
+                  0,
+                  "if(hinge < 0, angle, -angle)",
+                  0
+                ],
+                "pivot": [
+                  "if(hinge < 0, -B / 2, B / 2)",
+                  "H / 2",
+                  0
+                ]
+              }
+            ],
+            "connectors": [
+              {
+                "key": "band",
+                "label": "Türband",
+                "kind": "hinge-edge",
+                "at": [
+                  "if(hinge < 0, -B / 2, B / 2)",
+                  0,
+                  0
+                ],
+                "axis": [
+                  0,
+                  1,
+                  0
+                ],
+                "length": "H"
+              }
+            ],
+            "traits": {
+              "faces": [
+                {
+                  "key": "blatt",
+                  "label": "Türblatt",
+                  "body": "blatt",
+                  "side": "front"
+                }
+              ],
+              "stock": "none"
+            }
+          },
+          {
+            "id": "5a17e9a0-0000-4000-8000-000000000004",
+            "revision": 1,
+            "name": "Wandelement",
+            "category": "Wände",
+            "description": "Wandelement mit Voll-, Tür-, Fenster-, Bogen- und Halbwand-Varianten.",
+            "parameters": [
+              {
+                "key": "B",
+                "label": "Breite",
+                "type": "length",
+                "default": 1200,
+                "scope": "placement",
+                "range": {
+                  "min": 100,
+                  "max": 10000
+                }
+              },
+              {
+                "key": "H",
+                "label": "Höhe",
+                "type": "length",
+                "default": 2400,
+                "scope": "placement",
+                "range": {
+                  "min": 100,
+                  "max": 10000
+                }
+              },
+              {
+                "key": "D",
+                "label": "Stärke",
+                "type": "length",
+                "default": 28,
+                "scope": "placement",
+                "range": {
+                  "min": 1,
+                  "max": 1000
+                }
+              },
+              {
+                "key": "shape",
+                "label": "Bauart",
+                "type": "count",
+                "default": 0,
+                "scope": "variant",
+                "values": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              },
+              {
+                "key": "openingLeft",
+                "label": "Öffnung links",
+                "type": "length",
+                "default": 200,
+                "scope": "placement",
+                "range": {
+                  "min": 0,
+                  "max": 9000
+                }
+              },
+              {
+                "key": "openingSill",
+                "label": "Brüstung",
+                "type": "length",
+                "default": 1,
+                "scope": "placement",
+                "range": {
+                  "min": 1,
+                  "max": 9000
+                }
+              },
+              {
+                "key": "openingB",
+                "label": "Öffnungsbreite",
+                "type": "length",
+                "default": 800,
+                "scope": "placement",
+                "range": {
+                  "min": 1,
+                  "max": 9000
+                }
+              },
+              {
+                "key": "openingH",
+                "label": "Öffnungshöhe",
+                "type": "length",
+                "default": 2000,
+                "scope": "placement",
+                "range": {
+                  "min": 1,
+                  "max": 9000
+                }
+              },
+              {
+                "key": "open",
+                "label": "Türöffnung",
+                "type": "percent",
+                "default": 0,
+                "scope": "state",
+                "range": {
+                  "min": 0,
+                  "max": 100,
+                  "step": 1
+                }
+              }
+            ],
+            "variants": [
+              {
+                "key": "plain",
+                "label": "Glattwand",
+                "values": {
+                  "shape": 0
+                }
+              },
+              {
+                "key": "doorLeft",
+                "label": "Tür · Scharnier links",
+                "values": {
+                  "shape": 1
+                }
+              },
+              {
+                "key": "doorRight",
+                "label": "Tür · Scharnier rechts",
+                "values": {
+                  "shape": 2
+                }
+              },
+              {
+                "key": "window",
+                "label": "Fensterwand",
+                "values": {
+                  "shape": 3
+                }
+              },
+              {
+                "key": "arch",
+                "label": "Bogen",
+                "values": {
+                  "shape": 4
+                }
+              },
+              {
+                "key": "half",
+                "label": "Halbe Wand",
+                "values": {
+                  "shape": 5
+                }
+              }
+            ],
+            "derived": [
+              {
+                "key": "W",
+                "label": "Wirksame Breite",
+                "formula": "if(shape == 5, min(B, 600), B)"
+              }
+            ],
+            "bodies": [
+              {
+                "key": "platte",
+                "label": "Wandplatte",
+                "material": "tischlerplatte-28",
+                "kind": "sheet",
+                "plane": "xy",
+                "at": [
+                  0,
+                  0,
+                  0
+                ],
+                "anchor": "centre",
+                "thickness": "D",
+                "outline": {
+                  "shape": "rect",
+                  "x": "-W / 2",
+                  "y": 0,
+                  "width": "W",
+                  "height": "H"
+                },
+                "holes": [
+                  {
+                    "shape": "rect",
+                    "key": "tuer",
+                    "when": "shape == 1",
+                    "x": "-W / 2 + max(0, min(openingLeft, W - 1))",
+                    "y": 0,
+                    "width": "max(1, min(openingB, W - max(0, min(openingLeft, W - 1))))",
+                    "height": "max(1, min(openingH, H - 1))"
+                  },
+                  {
+                    "shape": "rect",
+                    "key": "tuer-rechts",
+                    "when": "shape == 2",
+                    "x": "-W / 2 + max(0, min(openingLeft, W - 1))",
+                    "y": 0,
+                    "width": "max(1, min(openingB, W - max(0, min(openingLeft, W - 1))))",
+                    "height": "max(1, min(openingH, H - 1))"
+                  },
+                  {
+                    "shape": "rect",
+                    "key": "fenster",
+                    "when": "shape == 3",
+                    "x": "-W / 2 + max(1, min(openingLeft, W - 2))",
+                    "y": "max(1, min(openingSill, H - 2))",
+                    "width": "max(1, min(openingB, W - max(1, min(openingLeft, W - 2)) - 1))",
+                    "height": "max(1, min(openingH, H - max(1, min(openingSill, H - 2)) - 1))"
+                  },
+                  {
+                    "shape": "arch",
+                    "key": "bogen",
+                    "when": "shape == 4",
+                    "x": "-W / 2 + max(1, min(openingLeft, W - 2))",
+                    "y": 1,
+                    "width": "max(1, min(openingB, W - max(1, min(openingLeft, W - 2)) - 1, 2 * max(1, min(openingH, H - 2))))",
+                    "height": "max(1, min(openingH, H - 2))"
+                  }
+                ]
+              }
+            ],
+            "children": [
+              {
+                "key": "tuer",
+                "label": "Tür",
+                "part": {
+                  "id": "5a17e9a0-0000-4000-8000-000000000006",
+                  "revision": 1
+                },
+                "values": {
+                  "B": "openingB",
+                  "H": "openingH",
+                  "open": "open",
+                  "hinge": "if(shape == 1, -1, 1)"
+                },
+                "at": [
+                  "-W / 2 + openingLeft + openingB / 2",
+                  0,
+                  "-D / 2"
+                ],
+                "when": "if(shape == 1, 1, shape == 2)"
+              }
+            ],
+            "connectors": [
+              {
+                "key": "links",
+                "label": "Linke Kante",
+                "kind": "hinge-edge",
+                "at": [
+                  "-W / 2",
+                  0,
+                  0
+                ],
+                "axis": [
+                  0,
+                  1,
+                  0
+                ],
+                "length": "H"
+              },
+              {
+                "key": "rechts",
+                "label": "Rechte Kante",
+                "kind": "hinge-edge",
+                "at": [
+                  "W / 2",
+                  0,
+                  0
+                ],
+                "axis": [
+                  0,
+                  1,
+                  0
+                ],
+                "length": "H"
+              },
+              {
+                "key": "stuetze",
+                "label": "Rückseite",
+                "kind": "brace-mount",
+                "at": [
+                  0,
+                  0,
+                  "D / 2"
+                ],
+                "axis": [
+                  0,
+                  0,
+                  1
+                ]
+              }
+            ],
+            "traits": {
+              "faces": [
+                {
+                  "key": "front",
+                  "label": "Vorderseite",
+                  "body": "platte",
+                  "side": "front"
+                },
+                {
+                  "key": "back",
+                  "label": "Rückseite",
+                  "body": "platte",
+                  "side": "back"
+                },
+                {
+                  "key": "edge",
+                  "label": "Kanten",
+                  "body": "platte",
+                  "side": "edge"
+                }
+              ],
+              "stock": "item"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "step": "export selected parts",
+    "role": "viewer",
+    "request": "POST /api/workspaces/<workspace>/library/export",
+    "status": 200,
+    "body": {
+      "filename": "bauteile-<workspace>-<date>.stageharbour-parts.json",
+      "library": {
+        "schemaVersion": 1,
+        "materials": [
+          {
+            "kind": "profile",
+            "key": "latte-40x40",
+            "name": "Latte 40 × 40 mm (Fichte)",
+            "color": "#d9c6a1",
+            "section": {
+              "width": 40,
+              "height": 40
+            },
+            "weightKgPerM": 0.75
+          },
+          {
+            "kind": "sheet",
+            "key": "tischlerplatte-28",
+            "name": "Tischlerplatte 28 mm",
+            "color": "#315d49",
+            "thickness": 28,
+            "weightKgPerM2": 12.5
+          }
+        ],
+        "parts": [
+          {
+            "id": "c47a1090-0000-4000-8000-000000000001",
+            "revision": 2,
+            "name": "Kiste Eins, neu",
+            "category": "Test",
+            "description": "Zweite Fassung",
+            "parameters": [
+              {
+                "key": "B",
+                "label": "Breite",
+                "type": "length",
+                "default": 600,
+                "scope": "variant",
+                "range": {
+                  "min": 300,
+                  "max": 1200
+                }
+              }
+            ],
+            "variants": [
+              {
+                "key": "klein",
+                "label": "Klein",
+                "values": {
+                  "B": 400
+                }
+              },
+              {
+                "key": "gross",
+                "label": "Groß",
+                "values": {
+                  "B": 900
+                }
+              }
+            ],
+            "bodies": [
+              {
+                "key": "latte",
+                "material": "latte-40x40",
+                "kind": "beam",
+                "from": [
+                  0,
+                  0,
+                  0
+                ],
+                "to": [
+                  "B",
+                  0,
+                  0
+                ]
+              }
+            ],
+            "traits": {
+              "stock": "item"
+            }
+          },
+          {
+            "id": "5a17e9a0-0000-4000-8000-000000000005",
+            "revision": 1,
+            "name": "Tisch",
+            "category": "Möbel",
+            "description": "Tisch mit Platte aus 28 mm Tischlerplatte auf vier Beinen aus Latte 40 × 40.",
+            "parameters": [
+              {
+                "key": "B",
+                "label": "Breite",
+                "type": "length",
+                "default": 1200,
+                "scope": "placement",
+                "range": {
+                  "min": 600,
+                  "max": 2400,
+                  "step": 10
+                }
+              },
+              {
+                "key": "T",
+                "label": "Tiefe",
+                "type": "length",
+                "default": 800,
+                "scope": "placement",
+                "range": {
+                  "min": 400,
+                  "max": 1200,
+                  "step": 10
+                }
+              },
+              {
+                "key": "H",
+                "label": "Höhe",
+                "type": "length",
+                "default": 750,
+                "scope": "placement",
+                "range": {
+                  "min": 500,
+                  "max": 1100,
+                  "step": 10
+                }
+              }
+            ],
+            "derived": [
+              {
+                "key": "staerke",
+                "label": "Plattenstärke",
+                "formula": 28
+              },
+              {
+                "key": "beinX",
+                "label": "Beinachse quer",
+                "formula": "B / 2 - 60"
+              },
+              {
+                "key": "beinZ",
+                "label": "Beinachse längs",
+                "formula": "T / 2 - 60"
+              }
+            ],
+            "bodies": [
+              {
+                "key": "platte",
+                "label": "Tischplatte",
+                "material": "tischlerplatte-28",
+                "kind": "sheet",
+                "plane": "xz",
+                "at": [
+                  0,
+                  "H",
+                  0
+                ],
+                "outline": {
+                  "shape": "rect",
+                  "x": "-B / 2",
+                  "y": "-T / 2",
+                  "width": "B",
+                  "height": "T"
+                }
+              },
+              {
+                "key": "bein",
+                "label": "Bein",
+                "material": "latte-40x40",
+                "repeat": [
+                  {
+                    "count": 2,
+                    "step": [
+                      "2 * beinX",
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "count": 2,
+                    "step": [
+                      0,
+                      0,
+                      "2 * beinZ"
+                    ]
+                  }
+                ],
+                "kind": "beam",
+                "from": [
+                  "-beinX",
+                  0,
+                  "-beinZ"
+                ],
+                "to": [
+                  "-beinX",
+                  "H - staerke",
+                  "-beinZ"
+                ]
+              }
+            ],
+            "traits": {
+              "faces": [
+                {
+                  "key": "platte",
+                  "label": "Tischplatte",
+                  "body": "platte",
+                  "side": "front"
+                }
+              ],
+              "stock": "none"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "step": "export unknown part",
+    "role": "viewer",
+    "request": "POST /api/workspaces/<workspace>/library/export",
+    "status": 404,
+    "body": {
+      "message": "Bauteil nicht verfügbar."
+    }
+  },
+  {
+    "step": "export with a bad body",
+    "role": "viewer",
+    "request": "POST /api/workspaces/<workspace>/library/export",
+    "status": 400,
+    "body": {
+      "message": "Ungültige Anfrage."
+    }
+  },
+  {
+    "step": "import what was exported",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/library/import",
+    "status": 200,
+    "body": {
+      "created": [],
+      "revised": [],
+      "skipped": [
+        {
+          "id": "5a17e9a0-0000-4000-8000-000000000005",
+          "name": "Tisch",
+          "fileRevision": 1,
+          "revision": 1
+        },
+        {
+          "id": "c47a1090-0000-4000-8000-000000000001",
+          "name": "Kiste Eins, neu",
+          "fileRevision": 2,
+          "revision": 2
+        }
+      ],
+      "rejected": [],
+      "materials": {
+        "created": [],
+        "overwritten": [],
+        "skipped": [
+          "latte-40x40",
+          "tischlerplatte-28"
+        ]
+      }
+    }
+  },
+  {
+    "step": "import with a change, keeping materials",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/library/import",
+    "status": 200,
+    "body": {
+      "created": [],
+      "revised": [
+        {
+          "id": "c47a1090-0000-4000-8000-000000000001",
+          "name": "Kiste Eins, importiert",
+          "fileRevision": 2,
+          "revision": 3
+        }
+      ],
+      "skipped": [
+        {
+          "id": "5a17e9a0-0000-4000-8000-000000000005",
+          "name": "Tisch",
+          "fileRevision": 1,
+          "revision": 1
+        }
+      ],
+      "rejected": [],
+      "materials": {
+        "created": [],
+        "overwritten": [],
+        "skipped": [
+          "latte-40x40",
+          "tischlerplatte-28"
+        ]
+      }
+    }
+  },
+  {
+    "step": "import with a change, overwriting materials",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/library/import",
+    "status": 200,
+    "body": {
+      "created": [],
+      "revised": [],
+      "skipped": [
+        {
+          "id": "5a17e9a0-0000-4000-8000-000000000005",
+          "name": "Tisch",
+          "fileRevision": 1,
+          "revision": 1
+        },
+        {
+          "id": "c47a1090-0000-4000-8000-000000000001",
+          "name": "Kiste Eins, importiert",
+          "fileRevision": 2,
+          "revision": 3
+        }
+      ],
+      "rejected": [],
+      "materials": {
+        "created": [],
+        "overwritten": [
+          "latte-40x40"
+        ],
+        "skipped": [
+          "tischlerplatte-28"
+        ]
+      }
+    }
+  },
+  {
+    "step": "import a new part with a missing material",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/library/import",
+    "status": 200,
+    "body": {
+      "created": [],
+      "revised": [],
+      "skipped": [],
+      "rejected": [
+        {
+          "id": "c47a1090-0000-4000-8000-000000000005",
+          "name": "Kiste Fünf",
+          "fileRevision": 1,
+          "issues": [
+            {
+              "severity": "error",
+              "code": "unknown-material",
+              "message": "Bauteil „Kiste Fünf“: Körper „latte“: Das Material „gibt-es-nicht“ ist nicht vorhanden.",
+              "body": "latte",
+              "material": "gibt-es-nicht",
+              "part": {
+                "id": "c47a1090-0000-4000-8000-000000000005",
+                "revision": 1
+              },
+              "partName": "Kiste Fünf"
+            }
+          ]
+        }
+      ],
+      "materials": {
+        "created": [],
+        "overwritten": [],
+        "skipped": []
+      }
+    }
+  },
+  {
+    "step": "import a new part",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/library/import",
+    "status": 200,
+    "body": {
+      "created": [
+        {
+          "id": "c47a1090-0000-4000-8000-000000000005",
+          "name": "Kiste Fünf",
+          "fileRevision": 1,
+          "revision": 1
+        }
+      ],
+      "revised": [],
+      "skipped": [],
+      "rejected": [],
+      "materials": {
+        "created": [],
+        "overwritten": [],
+        "skipped": [
+          "latte-40x40"
+        ]
+      }
+    }
+  },
+  {
+    "step": "import a document that is not a library",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/library/import",
+    "status": 422,
+    "body": {
+      "message": "Die Datei ist keine gültige Bauteilbibliothek.",
+      "issues": [
+        {
+          "severity": "error",
+          "code": "schema",
+          "message": "materials: Ungültige Eingabe: erwartet Array, erhalten Zahl",
+          "field": "materials"
+        },
+        {
+          "severity": "error",
+          "code": "schema",
+          "message": "parts: Ungültige Eingabe: erwartet Array, erhalten undefined",
+          "field": "parts"
+        }
+      ]
+    }
+  },
+  {
+    "step": "import without a library",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/library/import",
+    "status": 400,
+    "body": {
+      "message": "Ungültige Anfrage."
+    }
+  },
+  {
+    "step": "import as viewer",
+    "role": "viewer",
+    "request": "POST /api/workspaces/<workspace>/library/import",
+    "status": 403,
+    "body": {
+      "message": "Dafür fehlen Ihnen die Berechtigungen."
+    }
+  },
+  {
+    "step": "get imported part",
+    "role": "viewer",
+    "request": "GET /api/workspaces/<workspace>/parts/c47a1090-0000-4000-8000-000000000005",
+    "status": 200,
+    "body": {
+      "id": "c47a1090-0000-4000-8000-000000000005",
+      "name": "Kiste Fünf",
+      "category": "Test",
+      "latestRevision": 1,
+      "archived": false,
+      "favourite": false,
+      "variants": [
+        {
+          "key": "klein",
+          "label": "Klein"
+        },
+        {
+          "key": "gross",
+          "label": "Groß"
+        }
+      ],
+      "stock": "item",
+      "updatedAt": "<time>",
+      "definition": {
+        "id": "c47a1090-0000-4000-8000-000000000005",
+        "revision": 1,
+        "name": "Kiste Fünf",
+        "category": "Test",
+        "parameters": [
+          {
+            "key": "B",
+            "label": "Breite",
+            "type": "length",
+            "default": 600,
+            "scope": "variant",
+            "range": {
+              "min": 300,
+              "max": 1200
+            }
+          }
+        ],
+        "variants": [
+          {
+            "key": "klein",
+            "label": "Klein",
+            "values": {
+              "B": 400
+            }
+          },
+          {
+            "key": "gross",
+            "label": "Groß",
+            "values": {
+              "B": 900
+            }
+          }
+        ],
+        "bodies": [
+          {
+            "key": "latte",
+            "material": "latte-40x40",
+            "kind": "beam",
+            "from": [
+              0,
+              0,
+              0
+            ],
+            "to": [
+              "B",
+              0,
+              0
+            ]
+          }
+        ],
+        "traits": {
+          "stock": "item"
+        }
+      },
+      "revisions": [
+        {
+          "revision": 1,
+          "createdAt": "<time>",
+          "authorName": "<author>"
+        }
+      ]
+    }
+  },
+  {
+    "step": "get part after imports",
+    "role": "viewer",
+    "request": "GET /api/workspaces/<workspace>/parts/c47a1090-0000-4000-8000-000000000001",
+    "status": 200,
+    "body": {
+      "id": "c47a1090-0000-4000-8000-000000000001",
+      "name": "Kiste Eins, importiert",
+      "category": "Test",
+      "latestRevision": 3,
+      "archived": false,
+      "favourite": true,
+      "variants": [
+        {
+          "key": "klein",
+          "label": "Klein"
+        },
+        {
+          "key": "gross",
+          "label": "Groß"
+        }
+      ],
+      "stock": "item",
+      "updatedAt": "<time>",
+      "definition": {
+        "id": "c47a1090-0000-4000-8000-000000000001",
+        "revision": 3,
+        "name": "Kiste Eins, importiert",
+        "category": "Test",
+        "description": "Zweite Fassung",
+        "parameters": [
+          {
+            "key": "B",
+            "label": "Breite",
+            "type": "length",
+            "default": 600,
+            "scope": "variant",
+            "range": {
+              "min": 300,
+              "max": 1200
+            }
+          }
+        ],
+        "variants": [
+          {
+            "key": "klein",
+            "label": "Klein",
+            "values": {
+              "B": 400
+            }
+          },
+          {
+            "key": "gross",
+            "label": "Groß",
+            "values": {
+              "B": 900
+            }
+          }
+        ],
+        "bodies": [
+          {
+            "key": "latte",
+            "material": "latte-40x40",
+            "kind": "beam",
+            "from": [
+              0,
+              0,
+              0
+            ],
+            "to": [
+              "B",
+              0,
+              0
+            ]
+          }
+        ],
+        "traits": {
+          "stock": "item"
+        }
+      },
+      "revisions": [
+        {
+          "revision": 1,
+          "createdAt": "<time>",
+          "authorName": "<author>"
+        },
+        {
+          "revision": 2,
+          "createdAt": "<time>",
+          "authorName": "<author>"
+        },
+        {
+          "revision": 3,
+          "createdAt": "<time>",
+          "authorName": "<author>"
+        }
+      ]
+    }
+  },
+  {
+    "step": "delete unused material",
+    "role": "editor",
+    "request": "DELETE /api/workspaces/<workspace>/materials/platte-9",
+    "status": 200,
+    "body": {
+      "ok": true
+    }
+  },
+  {
+    "step": "list stock items",
+    "role": "viewer",
+    "request": "GET /api/workspaces/<workspace>/stock/items",
+    "status": 200,
+    "body": []
+  },
+  {
+    "step": "create stock item",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/stock/items",
+    "status": 201,
+    "body": {
+      "id": "<id4>",
+      "label": "K-01",
+      "partId": "c47a1090-0000-4000-8000-000000000001",
+      "partName": "Kiste Eins, importiert",
+      "variantKey": "klein",
+      "variantLabel": "Klein",
+      "values": {},
+      "usable": true,
+      "notes": "Linke Kante bestoßen",
+      "cutouts": [
+        {
+          "id": "c47a1090-0000-4000-8000-000000000700",
+          "left": 100,
+          "sill": 200,
+          "width": 80,
+          "height": 80
+        }
+      ],
+      "finish": null,
+      "archived": false,
+      "createdAt": "<time>",
+      "updatedAt": "<time>"
+    }
+  },
+  {
+    "step": "create second stock item",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/stock/items",
+    "status": 201,
+    "body": {
+      "id": "<id5>",
+      "label": "K-02",
+      "partId": "c47a1090-0000-4000-8000-000000000001",
+      "partName": "Kiste Eins, importiert",
+      "variantKey": "gross",
+      "variantLabel": "Groß",
+      "values": {},
+      "usable": true,
+      "notes": null,
+      "cutouts": [],
+      "finish": null,
+      "archived": false,
+      "createdAt": "<time>",
+      "updatedAt": "<time>"
+    }
+  },
+  {
+    "step": "create stock item with a taken label",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/stock/items",
+    "status": 409,
+    "body": {
+      "message": "Dieses Etikett ist bereits vergeben."
+    }
+  },
+  {
+    "step": "create stock item without its variant",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/stock/items",
+    "status": 422,
+    "body": {
+      "message": "„Kiste Eins, importiert“ hat Varianten; bitte eine Variante wählen."
+    }
+  },
+  {
+    "step": "create stock item with an unknown variant",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/stock/items",
+    "status": 422,
+    "body": {
+      "message": "„Kiste Eins, importiert“ hat keine Variante „riesig“."
+    }
+  },
+  {
+    "step": "create stock item for an unknown part",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/stock/items",
+    "status": 422,
+    "body": {
+      "message": "Das Bauteil ist nicht vorhanden."
+    }
+  },
+  {
+    "step": "create stock item for a part stocked by count",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/stock/items",
+    "status": 422,
+    "body": {
+      "message": "„Steckfuß“ wird als Zählbestand geführt, hier ist einzelne Bestandsstücke gefragt."
+    }
+  },
+  {
+    "step": "create stock item with an unknown value",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/stock/items",
+    "status": 422,
+    "body": {
+      "message": "„Bühnenelement“ hat keinen Parameter „zzz“."
+    }
+  },
+  {
+    "step": "create stock item as viewer",
+    "role": "viewer",
+    "request": "POST /api/workspaces/<workspace>/stock/items",
+    "status": 403,
+    "body": {
+      "message": "Dafür fehlen Ihnen die Berechtigungen."
+    }
+  },
+  {
+    "step": "create stock item with a bad body",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/stock/items",
+    "status": 400,
+    "body": {
+      "message": "Ungültige Anfrage."
+    }
+  },
+  {
+    "step": "update stock item",
+    "role": "editor",
+    "request": "PATCH /api/workspaces/<workspace>/stock/items/<id5>",
+    "status": 200,
+    "body": {
+      "id": "<id5>",
+      "label": "K-02",
+      "partId": "c47a1090-0000-4000-8000-000000000001",
+      "partName": "Kiste Eins, importiert",
+      "variantKey": "klein",
+      "variantLabel": "Klein",
+      "values": {},
+      "usable": false,
+      "notes": "Verliehen",
+      "cutouts": [],
+      "finish": {
+        "surfaces": {
+          "front": {
+            "full": {
+              "kind": "paint",
+              "ral": "9010"
+            }
+          }
+        },
+        "description": "Weiß gestrichen",
+        "confirmedAt": "<time>"
+      },
+      "archived": false,
+      "createdAt": "<time>",
+      "updatedAt": "<time>"
+    }
+  },
+  {
+    "step": "update stock item to a taken label",
+    "role": "editor",
+    "request": "PATCH /api/workspaces/<workspace>/stock/items/<id5>",
+    "status": 409,
+    "body": {
+      "message": "Dieses Etikett ist bereits vergeben."
+    }
+  },
+  {
+    "step": "update stock item to an unknown variant",
+    "role": "editor",
+    "request": "PATCH /api/workspaces/<workspace>/stock/items/<id5>",
+    "status": 422,
+    "body": {
+      "message": "„Kiste Eins, importiert“ hat keine Variante „riesig“."
+    }
+  },
+  {
+    "step": "update stock item with nothing",
+    "role": "editor",
+    "request": "PATCH /api/workspaces/<workspace>/stock/items/<id5>",
+    "status": 400,
+    "body": {
+      "message": "Ungültige Anfrage."
+    }
+  },
+  {
+    "step": "update unknown stock item",
+    "role": "editor",
+    "request": "PATCH /api/workspaces/<workspace>/stock/items/c47a1090-0000-4000-8000-000000000404",
+    "status": 404,
+    "body": {
+      "message": "Bestandsstück nicht verfügbar."
+    }
+  },
+  {
+    "step": "update stock item as viewer",
+    "role": "viewer",
+    "request": "PATCH /api/workspaces/<workspace>/stock/items/<id5>",
+    "status": 403,
+    "body": {
+      "message": "Dafür fehlen Ihnen die Berechtigungen."
+    }
+  },
+  {
+    "step": "clear finish and cutouts",
+    "role": "editor",
+    "request": "PATCH /api/workspaces/<workspace>/stock/items/<id5>",
+    "status": 200,
+    "body": {
+      "id": "<id5>",
+      "label": "K-02",
+      "partId": "c47a1090-0000-4000-8000-000000000001",
+      "partName": "Kiste Eins, importiert",
+      "variantKey": "klein",
+      "variantLabel": "Klein",
+      "values": {},
+      "usable": false,
+      "notes": "Verliehen",
+      "cutouts": [],
+      "finish": null,
+      "archived": false,
+      "createdAt": "<time>",
+      "updatedAt": "<time>"
+    }
+  },
+  {
+    "step": "archive stock item",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/stock/items/<id5>/archive",
+    "status": 200,
+    "body": {
+      "id": "<id5>",
+      "label": "K-02",
+      "partId": "c47a1090-0000-4000-8000-000000000001",
+      "partName": "Kiste Eins, importiert",
+      "variantKey": "klein",
+      "variantLabel": "Klein",
+      "values": {},
+      "usable": false,
+      "notes": "Verliehen",
+      "cutouts": [],
+      "finish": null,
+      "archived": true,
+      "createdAt": "<time>",
+      "updatedAt": "<time>"
+    }
+  },
+  {
+    "step": "archive unknown stock item",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/stock/items/c47a1090-0000-4000-8000-000000000404/archive",
+    "status": 404,
+    "body": {
+      "message": "Bestandsstück nicht verfügbar."
+    }
+  },
+  {
+    "step": "list stock items without the archived one",
+    "role": "viewer",
+    "request": "GET /api/workspaces/<workspace>/stock/items",
+    "status": 200,
+    "body": [
+      {
+        "id": "<id4>",
+        "label": "K-01",
+        "partId": "c47a1090-0000-4000-8000-000000000001",
+        "partName": "Kiste Eins, importiert",
+        "variantKey": "klein",
+        "variantLabel": "Klein",
+        "values": {},
+        "usable": true,
+        "notes": "Linke Kante bestoßen",
+        "cutouts": [
+          {
+            "id": "c47a1090-0000-4000-8000-000000000700",
+            "left": 100,
+            "sill": 200,
+            "width": 80,
+            "height": 80
+          }
+        ],
+        "finish": null,
+        "archived": false,
+        "createdAt": "<time>",
+        "updatedAt": "<time>"
+      }
+    ]
+  },
+  {
+    "step": "list stock items with the archived one",
+    "role": "viewer",
+    "request": "GET /api/workspaces/<workspace>/stock/items?includeArchived=true",
+    "status": 200,
+    "body": [
+      {
+        "id": "<id4>",
+        "label": "K-01",
+        "partId": "c47a1090-0000-4000-8000-000000000001",
+        "partName": "Kiste Eins, importiert",
+        "variantKey": "klein",
+        "variantLabel": "Klein",
+        "values": {},
+        "usable": true,
+        "notes": "Linke Kante bestoßen",
+        "cutouts": [
+          {
+            "id": "c47a1090-0000-4000-8000-000000000700",
+            "left": 100,
+            "sill": 200,
+            "width": 80,
+            "height": 80
+          }
+        ],
+        "finish": null,
+        "archived": false,
+        "createdAt": "<time>",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "<id5>",
+        "label": "K-02",
+        "partId": "c47a1090-0000-4000-8000-000000000001",
+        "partName": "Kiste Eins, importiert",
+        "variantKey": "klein",
+        "variantLabel": "Klein",
+        "values": {},
+        "usable": false,
+        "notes": "Verliehen",
+        "cutouts": [],
+        "finish": null,
+        "archived": true,
+        "createdAt": "<time>",
+        "updatedAt": "<time>"
+      }
+    ]
+  },
+  {
+    "step": "reuse the label of an archived item",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/stock/items",
+    "status": 201,
+    "body": {
+      "id": "<id6>",
+      "label": "K-02",
+      "partId": "c47a1090-0000-4000-8000-000000000001",
+      "partName": "Kiste Eins, importiert",
+      "variantKey": "klein",
+      "variantLabel": "Klein",
+      "values": {},
+      "usable": true,
+      "notes": null,
+      "cutouts": [],
+      "finish": null,
+      "archived": false,
+      "createdAt": "<time>",
+      "updatedAt": "<time>"
+    }
+  },
+  {
+    "step": "unarchive stock item with a taken label",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/stock/items/<id5>/unarchive",
+    "status": 409,
+    "body": {
+      "message": "Dieses Etikett ist bereits vergeben."
+    }
+  },
+  {
+    "step": "unarchive unknown stock item",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/stock/items/c47a1090-0000-4000-8000-000000000404/unarchive",
+    "status": 404,
+    "body": {
+      "message": "Bestandsstück nicht verfügbar."
+    }
+  },
+  {
+    "step": "unarchive as viewer",
+    "role": "viewer",
+    "request": "POST /api/workspaces/<workspace>/stock/items/<id5>/unarchive",
+    "status": 403,
+    "body": {
+      "message": "Dafür fehlen Ihnen die Berechtigungen."
+    }
+  },
+  {
+    "step": "archive the item that holds the label",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/stock/items/<id6>/archive",
+    "status": 200,
+    "body": {
+      "id": "<id6>",
+      "label": "K-02",
+      "partId": "c47a1090-0000-4000-8000-000000000001",
+      "partName": "Kiste Eins, importiert",
+      "variantKey": "klein",
+      "variantLabel": "Klein",
+      "values": {},
+      "usable": true,
+      "notes": null,
+      "cutouts": [],
+      "finish": null,
+      "archived": true,
+      "createdAt": "<time>",
+      "updatedAt": "<time>"
+    }
+  },
+  {
+    "step": "unarchive stock item",
+    "role": "editor",
+    "request": "POST /api/workspaces/<workspace>/stock/items/<id5>/unarchive",
+    "status": 200,
+    "body": {
+      "id": "<id5>",
+      "label": "K-02",
+      "partId": "c47a1090-0000-4000-8000-000000000001",
+      "partName": "Kiste Eins, importiert",
+      "variantKey": "klein",
+      "variantLabel": "Klein",
+      "values": {},
+      "usable": false,
+      "notes": "Verliehen",
+      "cutouts": [],
+      "finish": null,
+      "archived": false,
+      "createdAt": "<time>",
+      "updatedAt": "<time>"
+    }
+  },
+  {
+    "step": "list stock items after unarchiving",
+    "role": "viewer",
+    "request": "GET /api/workspaces/<workspace>/stock/items?includeArchived=true",
+    "status": 200,
+    "body": [
+      {
+        "id": "<id4>",
+        "label": "K-01",
+        "partId": "c47a1090-0000-4000-8000-000000000001",
+        "partName": "Kiste Eins, importiert",
+        "variantKey": "klein",
+        "variantLabel": "Klein",
+        "values": {},
+        "usable": true,
+        "notes": "Linke Kante bestoßen",
+        "cutouts": [
+          {
+            "id": "c47a1090-0000-4000-8000-000000000700",
+            "left": 100,
+            "sill": 200,
+            "width": 80,
+            "height": 80
+          }
+        ],
+        "finish": null,
+        "archived": false,
+        "createdAt": "<time>",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "<id5>",
+        "label": "K-02",
+        "partId": "c47a1090-0000-4000-8000-000000000001",
+        "partName": "Kiste Eins, importiert",
+        "variantKey": "klein",
+        "variantLabel": "Klein",
+        "values": {},
+        "usable": false,
+        "notes": "Verliehen",
+        "cutouts": [],
+        "finish": null,
+        "archived": false,
+        "createdAt": "<time>",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "<id6>",
+        "label": "K-02",
+        "partId": "c47a1090-0000-4000-8000-000000000001",
+        "partName": "Kiste Eins, importiert",
+        "variantKey": "klein",
+        "variantLabel": "Klein",
+        "values": {},
+        "usable": true,
+        "notes": null,
+        "cutouts": [],
+        "finish": null,
+        "archived": true,
+        "createdAt": "<time>",
+        "updatedAt": "<time>"
+      }
+    ]
+  },
+  {
+    "step": "archive as viewer",
+    "role": "viewer",
+    "request": "POST /api/workspaces/<workspace>/stock/items/<id5>/archive",
+    "status": 403,
+    "body": {
+      "message": "Dafür fehlen Ihnen die Berechtigungen."
+    }
+  },
+  {
+    "step": "list stock counts",
+    "role": "viewer",
+    "request": "GET /api/workspaces/<workspace>/stock/counts",
+    "status": 200,
+    "body": []
+  },
+  {
+    "step": "count a material",
+    "role": "editor",
+    "request": "PUT /api/workspaces/<workspace>/stock/counts",
+    "status": 200,
+    "body": {
+      "id": "<id7>",
+      "materialKey": "gummifuss-50",
+      "partId": null,
+      "variantKey": null,
+      "name": "Gummifuß 50 × 50 mm",
+      "variantLabel": null,
+      "quantity": 40,
+      "updatedAt": "<time>"
+    }
+  },
+  {
+    "step": "count a material again",
+    "role": "editor",
+    "request": "PUT /api/workspaces/<workspace>/stock/counts",
+    "status": 200,
+    "body": {
+      "id": "<id7>",
+      "materialKey": "gummifuss-50",
+      "partId": null,
+      "variantKey": null,
+      "name": "Gummifuß 50 × 50 mm",
+      "variantLabel": null,
+      "quantity": 35,
+      "updatedAt": "<time>"
+    }
+  },
+  {
+    "step": "count a part variant",
+    "role": "editor",
+    "request": "PUT /api/workspaces/<workspace>/stock/counts",
+    "status": 200,
+    "body": {
+      "id": "<id8>",
+      "materialKey": null,
+      "partId": "5a17e9a0-0000-4000-8000-000000000002",
+      "variantKey": "600",
+      "name": "Steckfuß",
+      "variantLabel": "60 cm",
+      "quantity": 12,
+      "updatedAt": "<time>"
+    }
+  },
+  {
+    "step": "count a part without its variant",
+    "role": "editor",
+    "request": "PUT /api/workspaces/<workspace>/stock/counts",
+    "status": 422,
+    "body": {
+      "message": "„Steckfuß“ hat Varianten; bitte eine Variante wählen."
+    }
+  },
+  {
+    "step": "count an unknown variant",
+    "role": "editor",
+    "request": "PUT /api/workspaces/<workspace>/stock/counts",
+    "status": 422,
+    "body": {
+      "message": "„Steckfuß“ hat keine Variante „1“."
+    }
+  },
+  {
+    "step": "count a part with variants",
+    "role": "editor",
+    "request": "PUT /api/workspaces/<workspace>/stock/counts",
+    "status": 200,
+    "body": {
+      "id": "<id9>",
+      "materialKey": null,
+      "partId": "5a17e9a0-0000-4000-8000-000000000001",
+      "variantKey": "standard",
+      "name": "Stützdreieck",
+      "variantLabel": "50 × 120 cm",
+      "quantity": 3,
+      "updatedAt": "<time>"
+    }
+  },
+  {
+    "step": "count a profile material",
+    "role": "editor",
+    "request": "PUT /api/workspaces/<workspace>/stock/counts",
+    "status": 422,
+    "body": {
+      "message": "„Latte 40 × 40 mm (Fichte)“ ist Profil; gezählt wird nur Zubehör."
+    }
+  },
+  {
+    "step": "count an unknown material",
+    "role": "editor",
+    "request": "PUT /api/workspaces/<workspace>/stock/counts",
+    "status": 422,
+    "body": {
+      "message": "Das Material ist nicht vorhanden."
+    }
+  },
+  {
+    "step": "count an unknown part",
+    "role": "editor",
+    "request": "PUT /api/workspaces/<workspace>/stock/counts",
+    "status": 422,
+    "body": {
+      "message": "Das Bauteil ist nicht vorhanden."
+    }
+  },
+  {
+    "step": "count a part stocked as items",
+    "role": "editor",
+    "request": "PUT /api/workspaces/<workspace>/stock/counts",
+    "status": 422,
+    "body": {
+      "message": "„Kiste Eins, importiert“ wird als einzelne Bestandsstücke geführt, hier ist Zählbestand gefragt."
+    }
+  },
+  {
+    "step": "count a negative quantity",
+    "role": "editor",
+    "request": "PUT /api/workspaces/<workspace>/stock/counts",
+    "status": 400,
+    "body": {
+      "message": "Ungültige Anfrage."
+    }
+  },
+  {
+    "step": "count with both targets",
+    "role": "editor",
+    "request": "PUT /api/workspaces/<workspace>/stock/counts",
+    "status": 400,
+    "body": {
+      "message": "Ungültige Anfrage."
+    }
+  },
+  {
+    "step": "count as viewer",
+    "role": "viewer",
+    "request": "PUT /api/workspaces/<workspace>/stock/counts",
+    "status": 403,
+    "body": {
+      "message": "Dafür fehlen Ihnen die Berechtigungen."
+    }
+  },
+  {
+    "step": "list stock counts after counting",
+    "role": "viewer",
+    "request": "GET /api/workspaces/<workspace>/stock/counts",
+    "status": 200,
+    "body": [
+      {
+        "id": "<id7>",
+        "materialKey": "gummifuss-50",
+        "partId": null,
+        "variantKey": null,
+        "name": "Gummifuß 50 × 50 mm",
+        "variantLabel": null,
+        "quantity": 35,
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "<id8>",
+        "materialKey": null,
+        "partId": "5a17e9a0-0000-4000-8000-000000000002",
+        "variantKey": "600",
+        "name": "Steckfuß",
+        "variantLabel": "60 cm",
+        "quantity": 12,
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "<id9>",
+        "materialKey": null,
+        "partId": "5a17e9a0-0000-4000-8000-000000000001",
+        "variantKey": "standard",
+        "name": "Stützdreieck",
+        "variantLabel": "50 × 120 cm",
+        "quantity": 3,
+        "updatedAt": "<time>"
+      }
+    ]
+  },
+  {
+    "step": "add a material to count",
+    "role": "administrator",
+    "request": "PUT /api/workspaces/<workspace>/materials/schraube-test",
+    "status": 200,
+    "body": {
+      "kind": "hardware",
+      "key": "schraube-test",
+      "name": "Schraube",
+      "color": "#888888",
+      "weightKgPerPiece": 0.01
+    }
+  },
+  {
+    "step": "count the new material",
+    "role": "administrator",
+    "request": "PUT /api/workspaces/<workspace>/stock/counts",
+    "status": 200,
+    "body": {
+      "id": "<id10>",
+      "materialKey": "schraube-test",
+      "partId": null,
+      "variantKey": null,
+      "name": "Schraube",
+      "variantLabel": null,
+      "quantity": 200,
+      "updatedAt": "<time>"
+    }
+  },
+  {
+    "step": "delete the counted material",
+    "role": "administrator",
+    "request": "DELETE /api/workspaces/<workspace>/materials/schraube-test",
+    "status": 200,
+    "body": {
+      "ok": true
+    }
+  },
+  {
+    "step": "list stock counts after deleting a material",
+    "role": "viewer",
+    "request": "GET /api/workspaces/<workspace>/stock/counts",
+    "status": 200,
+    "body": [
+      {
+        "id": "<id7>",
+        "materialKey": "gummifuss-50",
+        "partId": null,
+        "variantKey": null,
+        "name": "Gummifuß 50 × 50 mm",
+        "variantLabel": null,
+        "quantity": 35,
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "<id8>",
+        "materialKey": null,
+        "partId": "5a17e9a0-0000-4000-8000-000000000002",
+        "variantKey": "600",
+        "name": "Steckfuß",
+        "variantLabel": "60 cm",
+        "quantity": 12,
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "<id9>",
+        "materialKey": null,
+        "partId": "5a17e9a0-0000-4000-8000-000000000001",
+        "variantKey": "standard",
+        "name": "Stützdreieck",
+        "variantLabel": "50 × 120 cm",
+        "quantity": 3,
+        "updatedAt": "<time>"
+      }
+    ]
+  },
+  {
+    "step": "library schema",
+    "role": "viewer",
+    "request": "GET /api/schemas/part-library.schema.json",
+    "status": 200,
+    "body": {
+      "sha256": "fbba6986fe3687111b16a33924721c9ffc3b2db2fdaef3d38486e67fe423c199"
+    }
+  },
+  {
+    "step": "final part list",
+    "role": "viewer",
+    "request": "GET /api/workspaces/<workspace>/parts?includeArchived=true",
+    "status": 200,
+    "body": [
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000003",
+        "name": "Bühnenelement",
+        "category": "Podeste",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [
+          {
+            "key": "2x1",
+            "label": "2 × 1 m"
+          },
+          {
+            "key": "2x05",
+            "label": "2 × 0,5 m"
+          },
+          {
+            "key": "1x1",
+            "label": "1 × 1 m"
+          },
+          {
+            "key": "1x05",
+            "label": "1 × 0,5 m"
+          }
+        ],
+        "stock": "item",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000010",
+        "name": "Kiste",
+        "category": "Requisite",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "c47a1090-0000-4000-8000-000000000001",
+        "name": "Kiste Eins, importiert",
+        "category": "Test",
+        "latestRevision": 3,
+        "archived": false,
+        "favourite": true,
+        "variants": [
+          {
+            "key": "klein",
+            "label": "Klein"
+          },
+          {
+            "key": "gross",
+            "label": "Groß"
+          }
+        ],
+        "stock": "item",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "<id2>",
+        "name": "Kiste Eins, neu Kopie",
+        "category": "Test",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [
+          {
+            "key": "klein",
+            "label": "Klein"
+          },
+          {
+            "key": "gross",
+            "label": "Groß"
+          }
+        ],
+        "stock": "item",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "<id3>",
+        "name": "Kiste Eins, neu Kopie 2",
+        "category": "Test",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [
+          {
+            "key": "klein",
+            "label": "Klein"
+          },
+          {
+            "key": "gross",
+            "label": "Groß"
+          }
+        ],
+        "stock": "item",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "c47a1090-0000-4000-8000-000000000005",
+        "name": "Kiste Fünf",
+        "category": "Test",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [
+          {
+            "key": "klein",
+            "label": "Klein"
+          },
+          {
+            "key": "gross",
+            "label": "Groß"
+          }
+        ],
+        "stock": "item",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000009",
+        "name": "Lautsprecher",
+        "category": "Technik",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000013",
+        "name": "Massives Podest",
+        "category": "Podeste",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000008",
+        "name": "Person",
+        "category": "Darsteller",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000012",
+        "name": "Schwebendes Podest",
+        "category": "Podeste",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000002",
+        "name": "Steckfuß",
+        "category": "Podeste",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [
+          {
+            "key": "200",
+            "label": "20 cm"
+          },
+          {
+            "key": "400",
+            "label": "40 cm"
+          },
+          {
+            "key": "600",
+            "label": "60 cm"
+          },
+          {
+            "key": "800",
+            "label": "80 cm"
+          },
+          {
+            "key": "1000",
+            "label": "100 cm"
+          },
+          {
+            "key": "1200",
+            "label": "120 cm"
+          }
+        ],
+        "stock": "count",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000007",
+        "name": "Stuhl",
+        "category": "Möbel",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000001",
+        "name": "Stützdreieck",
+        "category": "Stützen",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [
+          {
+            "key": "standard",
+            "label": "50 × 120 cm"
+          },
+          {
+            "key": "niedrig",
+            "label": "40 × 90 cm"
+          },
+          {
+            "key": "hoch",
+            "label": "80 × 240 cm"
+          }
+        ],
+        "stock": "count",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000005",
+        "name": "Tisch",
+        "category": "Möbel",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000011",
+        "name": "Treppe",
+        "category": "Podeste",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000006",
+        "name": "Tür",
+        "category": "Wände",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [],
+        "stock": "none",
+        "updatedAt": "<time>"
+      },
+      {
+        "id": "5a17e9a0-0000-4000-8000-000000000004",
+        "name": "Wandelement",
+        "category": "Wände",
+        "latestRevision": 1,
+        "archived": false,
+        "favourite": false,
+        "variants": [
+          {
+            "key": "plain",
+            "label": "Glattwand"
+          },
+          {
+            "key": "doorLeft",
+            "label": "Tür · Scharnier links"
+          },
+          {
+            "key": "doorRight",
+            "label": "Tür · Scharnier rechts"
+          },
+          {
+            "key": "window",
+            "label": "Fensterwand"
+          },
+          {
+            "key": "arch",
+            "label": "Bogen"
+          },
+          {
+            "key": "half",
+            "label": "Halbe Wand"
+          }
+        ],
+        "stock": "item",
+        "updatedAt": "<time>"
+      }
+    ]
+  }
+]

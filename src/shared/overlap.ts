@@ -2,6 +2,7 @@ import { braceCorners } from './braceTransforms.js';
 import { wallCorners } from './wallPlan.js';
 import { placeholderCorners } from './placeholders.js';
 import { stairCorners } from './levels.js';
+import type { ResolvedLayoutObject } from './layoutObjects.js';
 
 type PlanPoint = { x: number; y: number };
 
@@ -192,4 +193,54 @@ export function placeholderFootprint(item: { id: string; label: string; x: numbe
 
 export function platformFootprint(platform: { id: string; label: string; outline: PlanPoint[] }): Footprint {
   return { id: platform.id, label: platform.label, kind: 'Podest', polygon: platform.outline };
+}
+
+/** Generic v2 overlap check. Walkable parts may carry other objects and only collide with peers. */
+export function resolvedObjectOverlapWarnings(
+  objects: readonly ResolvedLayoutObject[],
+  ignoreIds: ReadonlySet<string> = new Set(),
+): ObjectOverlap[] {
+  const found: ObjectOverlap[] = [];
+  const items = objects.filter(item => !ignoreIds.has(item.object.id));
+  for (let i = 0; i < items.length; i++) {
+    for (let j = i + 1; j < items.length; j++) {
+      const a = items[i]!, b = items[j]!;
+      const aSurface = a.resolved.surfaces.length > 0, bSurface = b.resolved.surfaces.length > 0;
+      if ((aSurface || bSurface) && !(aSurface && bSurface)) continue;
+      if (!polygonsInteriorOverlap(a.footprint, b.footprint)) continue;
+      found.push({
+        aId: a.object.id,
+        aLabel: a.object.label,
+        bId: b.object.id,
+        bLabel: b.object.label,
+        message: `Bauteil „${a.object.label}“ überschneidet „${b.object.label}“.`,
+      });
+    }
+  }
+  return found;
+}
+
+export function overlappingResolvedObjectIds(
+  objects: readonly ResolvedLayoutObject[],
+  ignoreIds: ReadonlySet<string> = new Set(),
+): Set<string> {
+  const ids = new Set<string>();
+  for (const warning of resolvedObjectOverlapWarnings(objects, ignoreIds)) {
+    ids.add(warning.aId);
+    ids.add(warning.bId);
+  }
+  return ids;
+}
+
+export function resolvedPlacementOverlaps(
+  objects: readonly ResolvedLayoutObject[],
+  candidate: Pick<ResolvedLayoutObject, 'object' | 'footprint' | 'resolved'>,
+): boolean {
+  const candidateSurface = candidate.resolved.surfaces.length > 0;
+  return objects.some(other => {
+    if (other.object.id === candidate.object.id) return false;
+    const otherSurface = other.resolved.surfaces.length > 0;
+    if ((candidateSurface || otherSurface) && !(candidateSurface && otherSurface)) return false;
+    return polygonsInteriorOverlap(candidate.footprint, other.footprint);
+  });
 }

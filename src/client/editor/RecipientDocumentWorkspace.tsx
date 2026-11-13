@@ -10,8 +10,11 @@ import {
   newStudioFrame, newStudioPage, studioLayout, studioSpec, type PageLayoutId,
 } from '../../shared/documentStudio.js';
 import { EXPORT_LAYER_OPTIONS, resolveExportLayers } from '../../shared/exportLayers.js';
-import { sceneListSchema, sceneSchema, type Scene } from '../../shared/layout.js';
-import { inventorySchema, type Inventory } from '../../shared/inventory.js';
+import { sceneListSchema, sceneSchema, type Layout, type Scene } from '../../shared/layout.js';
+import type { LayoutPartIndex } from '../../shared/layoutObjects.js';
+import { inventoryOf, type StockInventory } from '../../shared/partLists.js';
+import { listStockCounts, listStockItems } from '../partsApi.js';
+import { useLayoutParts } from './useLayoutParts.js';
 import type { PaperSize } from '../../shared/tiling.js';
 import { request } from '../api.js';
 import { askConfirm } from '../ConfirmDialog.js';
@@ -31,7 +34,7 @@ type Props = {
   workspaceId: string; productionId: string; seedSceneId: string; seedVenueId: string; liveScene?: Scene;
   defaultScope?: Scope; freezeDisabled?: boolean; onClose: () => void;
 };
-type Loaded = { scenes: Scene[]; assets: Asset[]; draft: DocumentDraft; inventory: Inventory };
+type Loaded = { scenes: Scene[]; assets: Asset[]; draft: DocumentDraft; stock: StockInventory };
 
 function scopeIds(scenes: readonly Scene[], scope: Scope, sceneId: string, venueId: string) {
   return scenes.filter(scene => scope === 'production' || (scope === 'venue' ? scene.venueId === venueId : scene.id === sceneId)).map(scene => scene.id);
@@ -48,12 +51,14 @@ export function RecipientDocumentWorkspace(props: Props) {
     setError('');
     void (async () => {
       try {
-        const [summaries, assets, rawDraft, inventory] = await Promise.all([
+        const [summaries, assets, rawDraft, stockItems, stockCounts] = await Promise.all([
           request(`/api/workspaces/${workspaceId}/scenes`).then(value => sceneListSchema.parse(value)),
           request(`/api/workspaces/${workspaceId}/assets`).then(value => assetListSchema.parse(value)),
           request(`/api/workspaces/${workspaceId}/productions/${productionId}/document-draft`),
-          request(`/api/workspaces/${workspaceId}/inventory`).then(value => inventorySchema.parse(value)),
+          listStockItems(workspaceId, { includeArchived: true }),
+          listStockCounts(workspaceId),
         ]);
+        const stock = inventoryOf(stockItems, stockCounts);
         const scenes = await Promise.all(summaries.filter(scene => scene.productionId === productionId).map(scene =>
           request(`/api/workspaces/${workspaceId}/scenes/${scene.id}`).then(value => sceneSchema.parse(value))));
         const stored = rawDraft ? documentDraftSchema.parse(rawDraft) : null;
@@ -63,23 +68,29 @@ export function RecipientDocumentWorkspace(props: Props) {
           spec: { ...studioSpec('technical', scopeIds(scenes, defaultScope, seedSceneId, seedVenueId)), ...(defaultScope !== 'scene' ? { kind: 'package' as const } : {}) },
         };
         if (!draft.spec.scenes.length) throw new Error('Für dieses Dokument ist kein Bühnenbild verfügbar.');
-        if (!stopped) setLoaded({ scenes, assets, draft, inventory });
+        if (!stopped) setLoaded({ scenes, assets, draft, stock });
       } catch (caught) {
         if (!stopped) setError(caught instanceof Error ? caught.message : 'Dokumentdaten konnten nicht geladen werden.');
       }
     })();
     return () => { stopped = true; };
   }, [workspaceId, productionId, seedSceneId, seedVenueId, defaultScope, attempt]);
-  if (!loaded) return <section className="recipient-document-workspace document-studio studio-loading" aria-label="Dokument erstellen">
+  const partsLayout = useMemo<Layout>(() => ({
+    schemaVersion: 2, joints: [],
+    objects: [...loaded?.scenes ?? [], ...props.liveScene ? [props.liveScene] : []].flatMap(scene => scene.layout.objects),
+  }), [loaded?.scenes, props.liveScene]);
+  const parts = useLayoutParts(workspaceId, partsLayout);
+  const partsReady = !parts.loading || parts.definitions.length > 0;
+  if (!loaded || !partsReady) return <section className="recipient-document-workspace document-studio studio-loading" aria-label="Dokument erstellen">
     <button type="button" className="quiet" onClick={props.onClose}>Zurück zum Editor</button>
     <div><ToolIcon name="library" /><h2>Dokumentstudio</h2>{error
       ? <><p role="alert">{error}</p><button type="button" onClick={() => setAttempt(value => value + 1)}>Erneut versuchen</button></>
       : <p role="status">Bühnenbilder und Dokument werden geladen …</p>}</div>
   </section>;
-  return <DocumentStudio {...props} loaded={loaded} />;
+  return <DocumentStudio {...props} loaded={loaded} partIndex={parts.index} />;
 }
 
-function DocumentStudio({ loaded, workspaceId, productionId, seedSceneId, seedVenueId, liveScene, freezeDisabled = false, onClose }: Props & { loaded: Loaded }) {
+function DocumentStudio({ loaded, partIndex, workspaceId, productionId, seedSceneId, seedVenueId, liveScene, freezeDisabled = false, onClose }: Props & { loaded: Loaded; partIndex: LayoutPartIndex }) {
   const draft = useDocumentDraft(loaded.draft);
   const value = draft.value;
   const spec = value.spec;
@@ -132,9 +143,13 @@ function DocumentStudio({ loaded, workspaceId, productionId, seedSceneId, seedVe
     };
   }, [fontReady]);
   const layoutResult = useMemo(() => {
-    try { return { layout: studioLayout({ ...spec, revisionName: spec.revisionName.trim() || 'Entwurf' }, scenes, issuedAt, measure, loaded.inventory), error: '' }; }
-    catch (caught) { return { layout: undefined, error: caught instanceof Error ? caught.message : 'Das Layout konnte nicht erstellt werden.' }; }
-  }, [spec, scenes, issuedAt, measure, loaded.inventory]);
+    try {
+      return {
+        layout: studioLayout({ ...spec, revisionName: spec.revisionName.trim() || 'Entwurf' }, scenes, issuedAt, measure, { index: partIndex, stock: loaded.stock }),
+        error: '',
+      };
+    } catch (caught) { return { layout: undefined, error: caught instanceof Error ? caught.message : 'Das Layout konnte nicht erstellt werden.' }; }
+  }, [spec, scenes, issuedAt, measure, partIndex, loaded.stock]);
   const layout = layoutResult.layout;
   const pages = useMemo(() => spec.customPages?.length ? spec.customPages : layout ? arrangedPages(layout) : [], [spec.customPages, layout]);
   const pageIndex = Math.min(activePage, Math.max(0, pages.length - 1));

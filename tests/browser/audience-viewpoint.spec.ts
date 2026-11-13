@@ -63,11 +63,12 @@ test('venue audience viewpoint places in front of chairs, persists, and drives P
   expect((await saved).ok()).toBeTruthy();
   await expect(page.getByText('Spielstättenfassung gespeichert', { exact: true })).toBeVisible({ timeout: 15_000 });
 
-  await revealEditorCommand(page, 'Spielstätte schließen');
-  await page.getByRole('button', { name: 'Spielstätte schließen' }).click({ force: true });
+  await revealEditorCommand(page, 'Zur Spielstättenübersicht');
+  await page.locator('.editor-menu-panel').getByRole('button', { name: 'Zur Spielstättenübersicht' }).click();
   await expect(page.getByRole('heading', { name: 'BlickSzene' })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Raumansicht', exact: true }).click();
+  await revealEditorCommand(page, 'Raumsicht');
+  await page.getByRole('button', { name: 'Raumsicht', exact: true }).click();
   await page.getByRole('button', { name: 'Publikumssicht' }).click();
   await expect(page.getByTestId('stage-view')).toHaveAttribute('data-view', 'audience');
   await showProperties(page);

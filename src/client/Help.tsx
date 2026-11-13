@@ -8,6 +8,7 @@ const HELP_TOPICS = [
   { topic: 'oberflaechen', label: 'Wandoberflächen' },
   { topic: 'raumsicht', label: 'Raumsicht' },
   { topic: 'bestand', label: 'Bestand' },
+  { topic: 'designer', label: 'Bühnentechnik' },
 ] as const;
 
 function sectionId(topic: string) {
@@ -42,6 +43,7 @@ export function Help({ topic }: { topic?: string }) {
         <li><strong>Produktion / Bühnenbild</strong> öffnen: bewegliche Wände und Requisiten auf dem Grundriss platzieren.</li>
         <li>In den <strong>Eigenschaften</strong> Maße übernehmen (Übernehmen), in der <strong>Raumsicht</strong> prüfen.</li>
         <li>Unter <strong>Datei → PDF gestalten</strong> öffnet sich das Dokumentstudio mit fertig zusammengestellten Seiten. Zweck und Inhalt anpassen, Seiten ordnen oder ein Layout ergänzen. In der Druckvorschau prüfen und das PDF exportieren; der Entwurf wird automatisch gespeichert.</li>
+        <li>Für Lichtplanung und Visualisierung: <strong>Datei → Export als glTF</strong> (.glb, ein 3D-Modell in Metern) oder <strong>Export als MVR</strong> (My Virtual Rig nach DIN SPEC 15801, Millimeter) lädt das gespeicherte Bühnenbild samt Spielstätte herunter; Leuchten (GDTF) und Oberflächenbilder sind nicht enthalten.</li>
       </ol>
       <p className="muted">Der Status neben dem Bühnenbildnamen zeigt „Gespeichert“ oder Konflikte. Entwürfe mit offenen Änderungen blockieren das Verlassen des Bühnenbilds.</p>
     </section>
@@ -111,7 +113,7 @@ export function Help({ topic }: { topic?: string }) {
         <li><strong>Alle Seiten gleich</strong> (Standard) — ein Material für Vorderseite, Rückseite und Kante.</li>
         <li><strong>Pro Seite</strong> — Vorderseite / Rückseite / Kante getrennt; optional <strong>Zwei Streifen</strong> (Teilungshöhe von unten, Standard 1200&nbsp;mm).</li>
         <li><strong>RAL-Wandfarbe</strong> — matte Theaterfarbe aus den Swatches.</li>
-        <li><strong>Bibliothek</strong> — Holz, Stoff, Stein, … aus dem Pascal-Katalog (ohne flache Farb-Presets).</li>
+        <li><strong>Bibliothek</strong> — Holz, Stoff, Stein, … aus der Materialbibliothek (ohne flache Farb-Presets). Die Texturen stammen aus der öffentlichen Bibliothek von Pascal und werden von deren Servern geladen.</li>
         <li><strong>Mustermaß</strong> — ungefähre Kachelbreite auf der Fläche in mm.</li>
         <li><strong>Faserrichtung</strong> — 0° / 90° / 180° / 270° für Maserung und Muster.</li>
       </ul>
@@ -124,10 +126,11 @@ export function Help({ topic }: { topic?: string }) {
       <p>Unter <strong>Licht</strong> rechts finden Sie Grundlicht und Lichtlooks.
         Das <strong>Lichtpult</strong> öffnen Sie in der Raumsicht-Toolbar — es erscheint unter der 3D-Ansicht
         (Master, Grundlicht, Blackout, Fader je Scheinwerfer; Look laden/speichern).
-        Unter <strong>Anzeige</strong> schalten Sie Beschriftungen, Traversen und Scheinwerfer ein oder aus und stellen die Renderqualität ein.</p>
+        Unter <strong>Anzeige</strong> schalten Sie Beschriftungen, Traversen und Scheinwerfer ein oder aus, wählen die Umgebung und schalten die hohe Renderqualität zu.</p>
       <ul>
         <li>Ansichten: Von oben, vorne, Seite, Publikum, Umlauf — und Bühne einpassen.</li>
-        <li><strong>Erweiterte Darstellung</strong> nutzt Pascal-Beleuchtung und Texturen; dort wirken Oberflächen.</li>
+        <li><strong>Erweiterte Darstellung</strong> zeigt Texturen und Materialeigenschaften; dort wirken Oberflächen. Die <strong>einfache Darstellung</strong> zeichnet nur Farbflächen ohne Texturen und Schatten und ist am schnellsten.</li>
+        <li><strong>Hohe Renderqualität</strong> (nur in der erweiterten Darstellung) ergänzt weiche Schatten des Hauptlichts und rechnet auf hochauflösenden Bildschirmen schärfer. Das kostet Rechenleistung.</li>
         <li>Klick in freien Raum hebt die Auswahl auf (wie im Grundriss).</li>
       </ul>
     </section>
@@ -141,9 +144,31 @@ export function Help({ topic }: { topic?: string }) {
         <li><strong>Zuweisung später</strong> — physische Platten weisen Sie im Bühnenbild an Wände zu, nicht im Bestand.</li>
         <li><strong>Kopie gehört dem Bühnenbild</strong> — beim Kopieren/Übernehmen in eine andere Spielstätte werden Platten-IDs gelöscht
           (clone-and-own). Es gibt keine Live-Synchronisation mit einem Master-Layout.</li>
-        <li><strong>Oberflächen</strong> bleiben am Wand-Inspektor (Pascal/RAL), nicht im Bestand.</li>
+        <li><strong>Oberflächen</strong> bleiben am Wand-Inspektor (Materialbibliothek/RAL), nicht im Bestand.</li>
       </ul>
       <p className="muted">Einmalige Wandtypen dürfen weiter nur im Bühnenbild existieren; Bestand speichert die Katalogtypen für Platten.</p>
+    </section>
+
+    <section id="hilfe-designer">
+      <h2>Bühnentechnik</h2>
+      <p>Unter <strong>Bühnentechnik</strong> entwerfen Sie parametrische Bauteile wie Stützdreiecke, Bühnenelemente oder Tische.
+        Maße stehen als <strong>Parameter</strong> bereit; Körper, Verbinder und Zubehör beschreiben Sie mit Formeln wie <code>H - 28</code>.</p>
+      <ul>
+        <li><strong>Bibliothek</strong> — links öffnen, suchen, als Favorit markieren, archivieren, duplizieren. Die <strong>Beispielbibliothek</strong>
+          liefert fertige Bauteile; mit <strong>Als Kopie anlegen</strong> entsteht eine eigene Fassung.</li>
+        <li><strong>Aufbau</strong> — Körper (Platte, Profil, Quader), Unterbauteile, Verbinder und Zubehör links hinzufügen, ordnen und wählen.
+          Ein Klick auf einen Körper in einer Ansicht wählt ihn ebenfalls.</li>
+        <li><strong>Formeln</strong> — neben jedem Feld steht der aktuelle Wert oder die Fehlermeldung mit der Stelle des Fehlers.
+          Wiederholte Körper verwenden die Zähler <code>i</code>, <code>j</code>, <code>k</code>.</li>
+        <li><strong>Vorschau</strong> — 3D-Ansicht sowie Draufsicht (Publikum unten), Vorderansicht (aus dem Publikum) und Seitenansicht.
+          Die Varianten- und Vorschauwerte ändern nur die Anzeige, nicht das Bauteil.</li>
+        <li><strong>Zuschnittliste und Gewicht</strong> — werden mit jeder Änderung neu berechnet. Fehler in der Prüfung verhindern das Speichern.</li>
+        <li><strong>Revisionen</strong> — jedes Speichern legt eine neue Revision an; Bühnenbilder behalten die Revision, die sie verwenden.
+          Hat jemand anderes inzwischen gespeichert, laden Sie die neueste Revision neu.</li>
+        <li><strong>Austausch</strong> — Exportieren lädt eine <code>.stageharbour-parts.json</code>-Datei herunter; Importieren legt neue Bauteile an
+          oder ergänzt bekannte um eine Revision und zeigt einen Bericht.</li>
+      </ul>
+      <p className="muted">Mit der Rolle Ansicht lassen sich Bauteile ansehen und exportieren, aber nicht ändern.</p>
     </section>
 
     <p className="help-footer muted">Kurzhilfe im Editor: Schaltfläche <strong>Bedienung</strong> in der Statusleiste · diese Seite jederzeit unter Hilfe im Arbeitsbereich.</p>

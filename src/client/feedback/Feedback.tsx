@@ -87,7 +87,7 @@ export function FeedbackProvider({ me, children }: { me?: Me; children: ReactNod
     if (snapshot && !snapshotFits) setNotice('Der Entwurf ist zu groß zum Anhängen (maximal 2 MiB).');
     const report: FeedbackReport = {
       category: 'issue', message: '', capturedAt: new Date().toISOString(),
-      page: { section: page.section, ...('sceneId' in page ? { sceneId: page.sceneId } : {}), ...('venueId' in page ? { venueId: page.venueId } : {}) },
+      page: { section: page.section, ...('sceneId' in page ? { sceneId: page.sceneId } : {}), ...('venueId' in page ? { venueId: page.venueId } : {}), ...('partId' in page && /^[0-9a-f-]{36}$/i.test(page.partId) ? { partId: page.partId } : {}) },
       browser: navigator.userAgent.slice(0, 500), viewport: { width: innerWidth, height: innerHeight },
       work: adapter?.work ? structuredClone(adapter.work) : undefined, activity: feedbackActivity(), images: [],
     };

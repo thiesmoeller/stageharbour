@@ -41,13 +41,12 @@ test('pending deletion can be cancelled and modal shortcuts cannot edit the scen
   await placeWallAt(page);
   await expect(page.locator('.save-status')).toHaveText('Gespeichert');
   await page.getByLabel('X (mm)', { exact: true }).fill('4500');
-  await page.getByRole('button', { name: 'Wand löschen', exact: true }).click();
+  await page.getByRole('button', { name: 'Bauteil löschen', exact: true }).click();
   await page.getByRole('button', { name: 'Weiter bearbeiten', exact: true }).click();
   await expect(planWalls(page)).toHaveCount(1);
   await expect(page.getByLabel('X (mm)', { exact: true })).toHaveValue('4500');
-  await page.getByRole('button', { name: 'Verwerfen', exact: true }).click();
-  await page.getByRole('button', { name: 'Wandtypen wählen', exact: true }).click();
-  await expect(page.getByRole('dialog', { name: 'Wandtypen', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Bauteil löschen', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Eingaben verwerfen?', exact: true })).toBeVisible();
   await page.keyboard.press('Delete');
   await page.keyboard.press('Control+z');
   await expect(planWalls(page)).toHaveCount(1);

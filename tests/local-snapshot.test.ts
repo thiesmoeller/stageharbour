@@ -6,6 +6,8 @@ import { createLocalTransport } from '../src/client/local/transport.js';
 import type { LocalStore } from '../src/client/local/store.js';
 import { materialRequirementsSchema } from '../src/shared/ballast.js';
 import { groupWallType } from '../src/shared/inventory.js';
+import { buildListsSchema } from '../src/shared/partLists.js';
+import { productionStockDemandSchema } from '../src/shared/stockDemand.js';
 import { venueRecordSchema } from '../src/shared/venueLibrary.js';
 
 function memoryStore(initial = createSeedSnapshot()): LocalStore {
@@ -36,7 +38,7 @@ test('seed snapshot parses and survives serialize roundtrip', () => {
   assert.equal(parsed.workspace.id, LOCAL_SEED_IDS.workspace);
   assert.equal(parsed.inventory.panels.length, 2);
   const again = serializeSnapshot(parsed);
-  assert.equal(again.schemaVersion, 1);
+  assert.equal(again.schemaVersion, 2);
   assert.equal(again.inventory.types.length, 2);
 });
 
@@ -85,6 +87,18 @@ test('local transport requirements endpoint returns schema-valid data', async ()
   assert.equal(typeof parsed.required.slabs, 'number');
   assert.equal(typeof parsed.available.straps, 'number');
   assert.equal(typeof parsed.shortage.slabs, 'number');
+});
+
+test('local transport stock demand endpoints return schema-valid lists', async () => {
+  const transport = createLocalTransport(memoryStore());
+  const production = `/api/workspaces/${LOCAL_SEED_IDS.workspace}/productions/${LOCAL_SEED_IDS.production}`;
+  const visit = buildListsSchema.parse(await transport.request(`${production}/venues/${LOCAL_SEED_IDS.venue}/stock-demand`));
+  assert.ok(visit.scenes.length >= 1);
+  assert.ok(visit.objects.length > 0);
+  const tour = productionStockDemandSchema.parse(await transport.request(`${production}/stock-demand`));
+  assert.deepEqual(tour.visits.map(item => item.venueId), [LOCAL_SEED_IDS.venue]);
+  const scene = buildListsSchema.parse(await transport.request(`/api/workspaces/${LOCAL_SEED_IDS.workspace}/scenes/${visit.scenes[0]!.id}/stock-demand`));
+  assert.deepEqual(scene.scenes, [visit.scenes[0]]);
 });
 
 test('local transport venue PUT creates a new version', async () => {

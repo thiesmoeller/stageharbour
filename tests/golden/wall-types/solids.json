@@ -1,0 +1,2053 @@
+{
+  "elements": {
+    "01030000-0000-4000-8000-000000000001": {
+      "bbox": {"max": {"x": 2100, "y": 2400, "z": 1014}, "min": {"x": 900, "y": 0, "z": 986}},
+      "boxes": [
+        {
+          "center": {"x": 1500, "y": 1200, "z": 1000},
+          "part": "panel",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1200, "y": 2400, "z": 28}
+        }
+      ],
+      "details": {
+        "doorOpenPercent": 0,
+        "mesh": {
+          "bbox": {"max": [600, 1200, 14], "min": [-600, -1200, -14]},
+          "groups": [
+            {"areaMm2": 201600, "materialIndex": 0, "triangles": 8},
+            {"areaMm2": 2880000, "materialIndex": 1, "triangles": 2},
+            {"areaMm2": 0, "materialIndex": 2, "triangles": 0},
+            {"areaMm2": 2880000, "materialIndex": 3, "triangles": 2},
+            {"areaMm2": 0, "materialIndex": 4, "triangles": 0}
+          ],
+          "triangleCount": 12,
+          "vertexCount": 36
+        },
+        "openings": []
+      },
+      "elevation": 0,
+      "height": 2400,
+      "label": "Glattwand 0 %",
+      "source": "layout",
+      "v1Kind": "wall"
+    },
+    "01030000-0000-4000-8000-000000000002": {
+      "bbox": {"max": {"x": 2100, "y": 2400, "z": 2814}, "min": {"x": 900, "y": -25, "z": 2736}},
+      "boxes": [
+        {
+          "center": {"x": 1500, "y": 1200, "z": 2800},
+          "part": "panel",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1200, "y": 2400, "z": 28}
+        },
+        {
+          "center": {"x": 1500, "y": -12.5, "z": 2761},
+          "part": "door.frame.bottom.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 850, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 1500, "y": 2012.5, "z": 2761},
+          "part": "door.frame.top.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 850, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 1087.5, "y": 1000, "z": 2761},
+          "part": "door.frame.left.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 25, "y": 2000, "z": 50}
+        },
+        {
+          "center": {"x": 1912.5, "y": 1000, "z": 2761},
+          "part": "door.frame.right.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 25, "y": 2000, "z": 50}
+        },
+        {
+          "center": {"x": 1500, "y": 1000, "z": 2766},
+          "part": "door.leaf.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 800, "y": 2000, "z": 40}
+        }
+      ],
+      "details": {
+        "doorOpenPercent": 0,
+        "mesh": {
+          "bbox": {"max": [600, 1200, 14], "min": [-600, -1200, -14]},
+          "groups": [
+            {"areaMm2": 313600, "materialIndex": 0, "triangles": 16},
+            {"areaMm2": 1280000, "materialIndex": 1, "triangles": 6},
+            {"areaMm2": 0, "materialIndex": 2, "triangles": 0},
+            {"areaMm2": 1280000, "materialIndex": 3, "triangles": 6},
+            {"areaMm2": 0, "materialIndex": 4, "triangles": 0}
+          ],
+          "triangleCount": 28,
+          "vertexCount": 84
+        },
+        "openings": [
+          {
+            "hinge": "left",
+            "id": "07030000-0000-4000-8000-000000000001",
+            "outline": [{"x": 200, "y": 0}, {"x": 1000, "y": 0}, {"x": 1000, "y": 2000}, {"x": 200, "y": 2000}]
+          }
+        ]
+      },
+      "elevation": 0,
+      "height": 2425,
+      "label": "Türwand · Scharnier links 0 %",
+      "source": "layout",
+      "v1Kind": "wall"
+    },
+    "01030000-0000-4000-8000-000000000003": {
+      "bbox": {"max": {"x": 5100, "y": 2400, "z": 2814}, "min": {"x": 3900, "y": -25, "z": 2441.376}},
+      "boxes": [
+        {
+          "center": {"x": 4500, "y": 1200, "z": 2800},
+          "part": "panel",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1200, "y": 2400, "z": 28}
+        },
+        {
+          "center": {"x": 4500, "y": -12.5, "z": 2761},
+          "part": "door.frame.bottom.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 850, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 4500, "y": 2012.5, "z": 2761},
+          "part": "door.frame.top.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 850, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 4087.5, "y": 1000, "z": 2761},
+          "part": "door.frame.left.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 25, "y": 2000, "z": 50}
+        },
+        {
+          "center": {"x": 4912.5, "y": 1000, "z": 2761},
+          "part": "door.frame.right.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 25, "y": 2000, "z": 50}
+        },
+        {
+          "center": {"x": 4469.552, "y": 1000, "z": 2612.927},
+          "part": "door.leaf.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 0, "y": 22.5, "z": 0},
+          "size": {"x": 800, "y": 2000, "z": 40}
+        }
+      ],
+      "details": {
+        "doorOpenPercent": 25,
+        "mesh": {
+          "bbox": {"max": [600, 1200, 14], "min": [-600, -1200, -14]},
+          "groups": [
+            {"areaMm2": 313600, "materialIndex": 0, "triangles": 16},
+            {"areaMm2": 1280000, "materialIndex": 1, "triangles": 6},
+            {"areaMm2": 0, "materialIndex": 2, "triangles": 0},
+            {"areaMm2": 1280000, "materialIndex": 3, "triangles": 6},
+            {"areaMm2": 0, "materialIndex": 4, "triangles": 0}
+          ],
+          "triangleCount": 28,
+          "vertexCount": 84
+        },
+        "openings": [
+          {
+            "hinge": "left",
+            "id": "07030000-0000-4000-8000-000000000001",
+            "outline": [{"x": 200, "y": 0}, {"x": 1000, "y": 0}, {"x": 1000, "y": 2000}, {"x": 200, "y": 2000}]
+          }
+        ]
+      },
+      "elevation": 0,
+      "height": 2425,
+      "label": "Türwand · Scharnier links 25 %",
+      "source": "layout",
+      "v1Kind": "wall"
+    },
+    "01030000-0000-4000-8000-000000000004": {
+      "bbox": {"max": {"x": 8100, "y": 2400, "z": 2814}, "min": {"x": 6900, "y": -25, "z": 2186.172}},
+      "boxes": [
+        {
+          "center": {"x": 7500, "y": 1200, "z": 2800},
+          "part": "panel",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1200, "y": 2400, "z": 28}
+        },
+        {
+          "center": {"x": 7500, "y": -12.5, "z": 2761},
+          "part": "door.frame.bottom.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 850, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 7500, "y": 2012.5, "z": 2761},
+          "part": "door.frame.top.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 850, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 7087.5, "y": 1000, "z": 2761},
+          "part": "door.frame.left.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 25, "y": 2000, "z": 50}
+        },
+        {
+          "center": {"x": 7912.5, "y": 1000, "z": 2761},
+          "part": "door.frame.right.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 25, "y": 2000, "z": 50}
+        },
+        {
+          "center": {"x": 7382.843, "y": 1000, "z": 2483.157},
+          "part": "door.leaf.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 0, "y": 45, "z": 0},
+          "size": {"x": 800, "y": 2000, "z": 40}
+        }
+      ],
+      "details": {
+        "doorOpenPercent": 50,
+        "mesh": {
+          "bbox": {"max": [600, 1200, 14], "min": [-600, -1200, -14]},
+          "groups": [
+            {"areaMm2": 313600, "materialIndex": 0, "triangles": 16},
+            {"areaMm2": 1280000, "materialIndex": 1, "triangles": 6},
+            {"areaMm2": 0, "materialIndex": 2, "triangles": 0},
+            {"areaMm2": 1280000, "materialIndex": 3, "triangles": 6},
+            {"areaMm2": 0, "materialIndex": 4, "triangles": 0}
+          ],
+          "triangleCount": 28,
+          "vertexCount": 84
+        },
+        "openings": [
+          {
+            "hinge": "left",
+            "id": "07030000-0000-4000-8000-000000000001",
+            "outline": [{"x": 200, "y": 0}, {"x": 1000, "y": 0}, {"x": 1000, "y": 2000}, {"x": 200, "y": 2000}]
+          }
+        ]
+      },
+      "elevation": 0,
+      "height": 2425,
+      "label": "Türwand · Scharnier links 50 %",
+      "source": "layout",
+      "v1Kind": "wall"
+    },
+    "01030000-0000-4000-8000-000000000005": {
+      "bbox": {"max": {"x": 11100, "y": 2400, "z": 2814}, "min": {"x": 9900, "y": -25, "z": 1966}},
+      "boxes": [
+        {
+          "center": {"x": 10500, "y": 1200, "z": 2800},
+          "part": "panel",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1200, "y": 2400, "z": 28}
+        },
+        {
+          "center": {"x": 10500, "y": -12.5, "z": 2761},
+          "part": "door.frame.bottom.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 850, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 10500, "y": 2012.5, "z": 2761},
+          "part": "door.frame.top.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 850, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 10087.5, "y": 1000, "z": 2761},
+          "part": "door.frame.left.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 25, "y": 2000, "z": 50}
+        },
+        {
+          "center": {"x": 10912.5, "y": 1000, "z": 2761},
+          "part": "door.frame.right.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 25, "y": 2000, "z": 50}
+        },
+        {
+          "center": {"x": 10100, "y": 1000, "z": 2366},
+          "part": "door.leaf.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 0, "y": 90, "z": 0},
+          "size": {"x": 800, "y": 2000, "z": 40}
+        }
+      ],
+      "details": {
+        "doorOpenPercent": 100,
+        "mesh": {
+          "bbox": {"max": [600, 1200, 14], "min": [-600, -1200, -14]},
+          "groups": [
+            {"areaMm2": 313600, "materialIndex": 0, "triangles": 16},
+            {"areaMm2": 1280000, "materialIndex": 1, "triangles": 6},
+            {"areaMm2": 0, "materialIndex": 2, "triangles": 0},
+            {"areaMm2": 1280000, "materialIndex": 3, "triangles": 6},
+            {"areaMm2": 0, "materialIndex": 4, "triangles": 0}
+          ],
+          "triangleCount": 28,
+          "vertexCount": 84
+        },
+        "openings": [
+          {
+            "hinge": "left",
+            "id": "07030000-0000-4000-8000-000000000001",
+            "outline": [{"x": 200, "y": 0}, {"x": 1000, "y": 0}, {"x": 1000, "y": 2000}, {"x": 200, "y": 2000}]
+          }
+        ]
+      },
+      "elevation": 0,
+      "height": 2425,
+      "label": "Türwand · Scharnier links 100 %",
+      "source": "layout",
+      "v1Kind": "wall"
+    },
+    "01030000-0000-4000-8000-000000000006": {
+      "bbox": {"max": {"x": 2100, "y": 2400, "z": 4614}, "min": {"x": 900, "y": -25, "z": 4536}},
+      "boxes": [
+        {
+          "center": {"x": 1500, "y": 1200, "z": 4600},
+          "part": "panel",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1200, "y": 2400, "z": 28}
+        },
+        {
+          "center": {"x": 1500, "y": -12.5, "z": 4561},
+          "part": "door.frame.bottom.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 850, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 1500, "y": 2012.5, "z": 4561},
+          "part": "door.frame.top.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 850, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 1087.5, "y": 1000, "z": 4561},
+          "part": "door.frame.left.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 25, "y": 2000, "z": 50}
+        },
+        {
+          "center": {"x": 1912.5, "y": 1000, "z": 4561},
+          "part": "door.frame.right.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 25, "y": 2000, "z": 50}
+        },
+        {
+          "center": {"x": 1500, "y": 1000, "z": 4566},
+          "part": "door.leaf.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 800, "y": 2000, "z": 40}
+        }
+      ],
+      "details": {
+        "doorOpenPercent": 0,
+        "mesh": {
+          "bbox": {"max": [600, 1200, 14], "min": [-600, -1200, -14]},
+          "groups": [
+            {"areaMm2": 313600, "materialIndex": 0, "triangles": 16},
+            {"areaMm2": 1280000, "materialIndex": 1, "triangles": 6},
+            {"areaMm2": 0, "materialIndex": 2, "triangles": 0},
+            {"areaMm2": 1280000, "materialIndex": 3, "triangles": 6},
+            {"areaMm2": 0, "materialIndex": 4, "triangles": 0}
+          ],
+          "triangleCount": 28,
+          "vertexCount": 84
+        },
+        "openings": [
+          {
+            "hinge": "right",
+            "id": "07030000-0000-4000-8000-000000000002",
+            "outline": [{"x": 200, "y": 0}, {"x": 1000, "y": 0}, {"x": 1000, "y": 2000}, {"x": 200, "y": 2000}]
+          }
+        ]
+      },
+      "elevation": 0,
+      "height": 2425,
+      "label": "Türwand · Scharnier rechts 0 %",
+      "source": "layout",
+      "v1Kind": "wall"
+    },
+    "01030000-0000-4000-8000-000000000007": {
+      "bbox": {"max": {"x": 5100, "y": 2400, "z": 4614}, "min": {"x": 3900, "y": -25, "z": 4241.376}},
+      "boxes": [
+        {
+          "center": {"x": 4500, "y": 1200, "z": 4600},
+          "part": "panel",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1200, "y": 2400, "z": 28}
+        },
+        {
+          "center": {"x": 4500, "y": -12.5, "z": 4561},
+          "part": "door.frame.bottom.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 850, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 4500, "y": 2012.5, "z": 4561},
+          "part": "door.frame.top.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 850, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 4087.5, "y": 1000, "z": 4561},
+          "part": "door.frame.left.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 25, "y": 2000, "z": 50}
+        },
+        {
+          "center": {"x": 4912.5, "y": 1000, "z": 4561},
+          "part": "door.frame.right.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 25, "y": 2000, "z": 50}
+        },
+        {
+          "center": {"x": 4530.448, "y": 1000, "z": 4412.927},
+          "part": "door.leaf.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 0, "y": -22.5, "z": 0},
+          "size": {"x": 800, "y": 2000, "z": 40}
+        }
+      ],
+      "details": {
+        "doorOpenPercent": 25,
+        "mesh": {
+          "bbox": {"max": [600, 1200, 14], "min": [-600, -1200, -14]},
+          "groups": [
+            {"areaMm2": 313600, "materialIndex": 0, "triangles": 16},
+            {"areaMm2": 1280000, "materialIndex": 1, "triangles": 6},
+            {"areaMm2": 0, "materialIndex": 2, "triangles": 0},
+            {"areaMm2": 1280000, "materialIndex": 3, "triangles": 6},
+            {"areaMm2": 0, "materialIndex": 4, "triangles": 0}
+          ],
+          "triangleCount": 28,
+          "vertexCount": 84
+        },
+        "openings": [
+          {
+            "hinge": "right",
+            "id": "07030000-0000-4000-8000-000000000002",
+            "outline": [{"x": 200, "y": 0}, {"x": 1000, "y": 0}, {"x": 1000, "y": 2000}, {"x": 200, "y": 2000}]
+          }
+        ]
+      },
+      "elevation": 0,
+      "height": 2425,
+      "label": "Türwand · Scharnier rechts 25 %",
+      "source": "layout",
+      "v1Kind": "wall"
+    },
+    "01030000-0000-4000-8000-000000000008": {
+      "bbox": {"max": {"x": 8100, "y": 2400, "z": 4614}, "min": {"x": 6900, "y": -25, "z": 3986.172}},
+      "boxes": [
+        {
+          "center": {"x": 7500, "y": 1200, "z": 4600},
+          "part": "panel",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1200, "y": 2400, "z": 28}
+        },
+        {
+          "center": {"x": 7500, "y": -12.5, "z": 4561},
+          "part": "door.frame.bottom.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 850, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 7500, "y": 2012.5, "z": 4561},
+          "part": "door.frame.top.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 850, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 7087.5, "y": 1000, "z": 4561},
+          "part": "door.frame.left.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 25, "y": 2000, "z": 50}
+        },
+        {
+          "center": {"x": 7912.5, "y": 1000, "z": 4561},
+          "part": "door.frame.right.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 25, "y": 2000, "z": 50}
+        },
+        {
+          "center": {"x": 7617.157, "y": 1000, "z": 4283.157},
+          "part": "door.leaf.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 800, "y": 2000, "z": 40}
+        }
+      ],
+      "details": {
+        "doorOpenPercent": 50,
+        "mesh": {
+          "bbox": {"max": [600, 1200, 14], "min": [-600, -1200, -14]},
+          "groups": [
+            {"areaMm2": 313600, "materialIndex": 0, "triangles": 16},
+            {"areaMm2": 1280000, "materialIndex": 1, "triangles": 6},
+            {"areaMm2": 0, "materialIndex": 2, "triangles": 0},
+            {"areaMm2": 1280000, "materialIndex": 3, "triangles": 6},
+            {"areaMm2": 0, "materialIndex": 4, "triangles": 0}
+          ],
+          "triangleCount": 28,
+          "vertexCount": 84
+        },
+        "openings": [
+          {
+            "hinge": "right",
+            "id": "07030000-0000-4000-8000-000000000002",
+            "outline": [{"x": 200, "y": 0}, {"x": 1000, "y": 0}, {"x": 1000, "y": 2000}, {"x": 200, "y": 2000}]
+          }
+        ]
+      },
+      "elevation": 0,
+      "height": 2425,
+      "label": "Türwand · Scharnier rechts 50 %",
+      "source": "layout",
+      "v1Kind": "wall"
+    },
+    "01030000-0000-4000-8000-000000000009": {
+      "bbox": {"max": {"x": 11100, "y": 2400, "z": 4614}, "min": {"x": 9900, "y": -25, "z": 3766}},
+      "boxes": [
+        {
+          "center": {"x": 10500, "y": 1200, "z": 4600},
+          "part": "panel",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1200, "y": 2400, "z": 28}
+        },
+        {
+          "center": {"x": 10500, "y": -12.5, "z": 4561},
+          "part": "door.frame.bottom.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 850, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 10500, "y": 2012.5, "z": 4561},
+          "part": "door.frame.top.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 850, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 10087.5, "y": 1000, "z": 4561},
+          "part": "door.frame.left.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 25, "y": 2000, "z": 50}
+        },
+        {
+          "center": {"x": 10912.5, "y": 1000, "z": 4561},
+          "part": "door.frame.right.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 25, "y": 2000, "z": 50}
+        },
+        {
+          "center": {"x": 10900, "y": 1000, "z": 4166},
+          "part": "door.leaf.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 800, "y": 2000, "z": 40}
+        }
+      ],
+      "details": {
+        "doorOpenPercent": 100,
+        "mesh": {
+          "bbox": {"max": [600, 1200, 14], "min": [-600, -1200, -14]},
+          "groups": [
+            {"areaMm2": 313600, "materialIndex": 0, "triangles": 16},
+            {"areaMm2": 1280000, "materialIndex": 1, "triangles": 6},
+            {"areaMm2": 0, "materialIndex": 2, "triangles": 0},
+            {"areaMm2": 1280000, "materialIndex": 3, "triangles": 6},
+            {"areaMm2": 0, "materialIndex": 4, "triangles": 0}
+          ],
+          "triangleCount": 28,
+          "vertexCount": 84
+        },
+        "openings": [
+          {
+            "hinge": "right",
+            "id": "07030000-0000-4000-8000-000000000002",
+            "outline": [{"x": 200, "y": 0}, {"x": 1000, "y": 0}, {"x": 1000, "y": 2000}, {"x": 200, "y": 2000}]
+          }
+        ]
+      },
+      "elevation": 0,
+      "height": 2425,
+      "label": "Türwand · Scharnier rechts 100 %",
+      "source": "layout",
+      "v1Kind": "wall"
+    },
+    "01030000-0000-4000-8000-000000000010": {
+      "bbox": {"max": {"x": 2100, "y": 2400, "z": 6414}, "min": {"x": 900, "y": 0, "z": 6386}},
+      "boxes": [
+        {
+          "center": {"x": 1500, "y": 1200, "z": 6400},
+          "part": "panel",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1200, "y": 2400, "z": 28}
+        }
+      ],
+      "details": {
+        "doorOpenPercent": 0,
+        "mesh": {
+          "bbox": {"max": [600, 1200, 14], "min": [-600, -1200, -14]},
+          "groups": [
+            {"areaMm2": 275520, "materialIndex": 0, "triangles": 16},
+            {"areaMm2": 2502000, "materialIndex": 1, "triangles": 8},
+            {"areaMm2": 0, "materialIndex": 2, "triangles": 0},
+            {"areaMm2": 2502000, "materialIndex": 3, "triangles": 8},
+            {"areaMm2": 0, "materialIndex": 4, "triangles": 0}
+          ],
+          "triangleCount": 32,
+          "vertexCount": 96
+        },
+        "openings": [
+          {
+            "id": "07030000-0000-4000-8000-000000000003",
+            "outline": [{"x": 390, "y": 1100}, {"x": 810, "y": 1100}, {"x": 810, "y": 2000}, {"x": 390, "y": 2000}]
+          }
+        ]
+      },
+      "elevation": 0,
+      "height": 2400,
+      "label": "Fensterwand 0 %",
+      "source": "layout",
+      "v1Kind": "wall"
+    },
+    "01030000-0000-4000-8000-000000000011": {
+      "bbox": {"max": {"x": 2100, "y": 2400, "z": 8325}, "min": {"x": 900, "y": 0, "z": 8075}},
+      "boxes": [
+        {
+          "center": {"x": 1500, "y": 1200, "z": 8200},
+          "part": "panel",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1200, "y": 2400, "z": 250}
+        }
+      ],
+      "details": {
+        "doorOpenPercent": 0,
+        "mesh": {
+          "bbox": {"max": [600, 1200, 125], "min": [-600, -1200, -125]},
+          "groups": [
+            {"areaMm2": 2800000, "materialIndex": 0, "triangles": 216},
+            {"areaMm2": 1343902, "materialIndex": 1, "triangles": 106},
+            {"areaMm2": 0, "materialIndex": 2, "triangles": 0},
+            {"areaMm2": 1343902, "materialIndex": 3, "triangles": 106},
+            {"areaMm2": 0, "materialIndex": 4, "triangles": 0}
+          ],
+          "triangleCount": 428,
+          "vertexCount": 1284
+        },
+        "openings": [
+          {
+            "id": "07030000-0000-4000-8000-000000000004",
+            "outline": [
+              {"x": 200, "y": 0},
+              {"x": 1000, "y": 0},
+              {"x": 1000, "y": 1600},
+              {"x": 992.314, "y": 1678.036},
+              {"x": 969.552, "y": 1753.073},
+              {"x": 932.588, "y": 1822.228},
+              {"x": 882.843, "y": 1882.843},
+              {"x": 822.228, "y": 1932.588},
+              {"x": 753.073, "y": 1969.552},
+              {"x": 678.036, "y": 1992.314},
+              {"x": 600, "y": 2000},
+              {"x": 521.964, "y": 1992.314},
+              {"x": 446.927, "y": 1969.552},
+              {"x": 377.772, "y": 1932.588},
+              {"x": 317.157, "y": 1882.843},
+              {"x": 267.412, "y": 1822.228},
+              {"x": 230.448, "y": 1753.073},
+              {"x": 207.686, "y": 1678.036},
+              {"x": 200, "y": 1600}
+            ],
+            "profile": "arch"
+          }
+        ]
+      },
+      "elevation": 0,
+      "height": 2400,
+      "label": "Bogen 0 %",
+      "source": "layout",
+      "v1Kind": "wall"
+    },
+    "01030000-0000-4000-8000-000000000012": {
+      "bbox": {"max": {"x": 1800, "y": 2400, "z": 10125}, "min": {"x": 1200, "y": 0, "z": 9875}},
+      "boxes": [
+        {
+          "center": {"x": 1500, "y": 1200, "z": 10000},
+          "part": "panel",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 600, "y": 2400, "z": 250}
+        }
+      ],
+      "details": {
+        "doorOpenPercent": 0,
+        "mesh": {
+          "bbox": {"max": [300, 1200, 125], "min": [-300, -1200, -125]},
+          "groups": [
+            {"areaMm2": 1500000, "materialIndex": 0, "triangles": 8},
+            {"areaMm2": 1440000, "materialIndex": 1, "triangles": 2},
+            {"areaMm2": 0, "materialIndex": 2, "triangles": 0},
+            {"areaMm2": 1440000, "materialIndex": 3, "triangles": 2},
+            {"areaMm2": 0, "materialIndex": 4, "triangles": 0}
+          ],
+          "triangleCount": 12,
+          "vertexCount": 36
+        },
+        "openings": []
+      },
+      "elevation": 0,
+      "height": 2400,
+      "label": "Halbe Wand 0 %",
+      "source": "layout",
+      "v1Kind": "wall"
+    },
+    "01030000-0000-4000-8000-000000000013": {
+      "bbox": {"max": {"x": 2725, "y": 2600, "z": 11820}, "min": {"x": 300, "y": -25, "z": 11730}},
+      "boxes": [
+        {
+          "center": {"x": 1500, "y": 1300, "z": 11800},
+          "part": "panel",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2400, "y": 2600, "z": 40}
+        },
+        {
+          "center": {"x": 2250, "y": -12.5, "z": 11755},
+          "part": "door.frame.bottom.07030000-0000-4000-8000-000000000005",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 950, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 2250, "y": 2112.5, "z": 11755},
+          "part": "door.frame.top.07030000-0000-4000-8000-000000000005",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 950, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 1787.5, "y": 1050, "z": 11755},
+          "part": "door.frame.left.07030000-0000-4000-8000-000000000005",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 25, "y": 2100, "z": 50}
+        },
+        {
+          "center": {"x": 2712.5, "y": 1050, "z": 11755},
+          "part": "door.frame.right.07030000-0000-4000-8000-000000000005",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 25, "y": 2100, "z": 50}
+        },
+        {
+          "center": {"x": 2300, "y": 1050, "z": 11760},
+          "part": "door.leaf.07030000-0000-4000-8000-000000000005",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 800, "y": 2000, "z": 40}
+        }
+      ],
+      "details": {
+        "doorOpenPercent": 0,
+        "mesh": {
+          "bbox": {"max": [1200, 1300, 20], "min": [-1200, -1300, -20]},
+          "groups": [
+            {"areaMm2": 649115, "materialIndex": 0, "triangles": 74},
+            {"areaMm2": 3367347, "materialIndex": 1, "triangles": 39},
+            {"areaMm2": 0, "materialIndex": 2, "triangles": 0},
+            {"areaMm2": 3367347, "materialIndex": 3, "triangles": 39},
+            {"areaMm2": 0, "materialIndex": 4, "triangles": 0}
+          ],
+          "triangleCount": 152,
+          "vertexCount": 456
+        },
+        "openings": [
+          {
+            "hinge": "right",
+            "id": "07030000-0000-4000-8000-000000000005",
+            "outline": [{"x": 1500, "y": 0}, {"x": 2400, "y": 0}, {"x": 2400, "y": 2100}, {"x": 1500, "y": 2100}]
+          },
+          {
+            "id": "07030000-0000-4000-8000-000000000006",
+            "outline": [{"x": 300, "y": 1000}, {"x": 800, "y": 1000}, {"x": 800, "y": 1800}, {"x": 300, "y": 1800}]
+          },
+          {
+            "id": "07030000-0000-4000-8000-000000000007",
+            "outline": [
+              {"x": 900, "y": 300},
+              {"x": 1300, "y": 300},
+              {"x": 1300, "y": 1600},
+              {"x": 1296.157, "y": 1639.018},
+              {"x": 1284.776, "y": 1676.537},
+              {"x": 1266.294, "y": 1711.114},
+              {"x": 1241.421, "y": 1741.421},
+              {"x": 1211.114, "y": 1766.294},
+              {"x": 1176.537, "y": 1784.776},
+              {"x": 1139.018, "y": 1796.157},
+              {"x": 1100, "y": 1800},
+              {"x": 1060.982, "y": 1796.157},
+              {"x": 1023.463, "y": 1784.776},
+              {"x": 988.886, "y": 1766.294},
+              {"x": 958.579, "y": 1741.421},
+              {"x": 933.706, "y": 1711.114},
+              {"x": 915.224, "y": 1676.537},
+              {"x": 903.843, "y": 1639.018},
+              {"x": 900, "y": 1600}
+            ],
+            "profile": "arch"
+          }
+        ]
+      },
+      "elevation": 0,
+      "height": 2625,
+      "label": "Breite Mehrfachwand 0 %",
+      "source": "layout",
+      "v1Kind": "wall"
+    },
+    "01030000-0000-4000-8000-000000000014": {
+      "bbox": {"max": {"x": 5725, "y": 2600, "z": 11820}, "min": {"x": 3300, "y": -25, "z": 11435.376}},
+      "boxes": [
+        {
+          "center": {"x": 4500, "y": 1300, "z": 11800},
+          "part": "panel",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2400, "y": 2600, "z": 40}
+        },
+        {
+          "center": {"x": 5250, "y": -12.5, "z": 11755},
+          "part": "door.frame.bottom.07030000-0000-4000-8000-000000000005",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 950, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 5250, "y": 2112.5, "z": 11755},
+          "part": "door.frame.top.07030000-0000-4000-8000-000000000005",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 950, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 4787.5, "y": 1050, "z": 11755},
+          "part": "door.frame.left.07030000-0000-4000-8000-000000000005",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 25, "y": 2100, "z": 50}
+        },
+        {
+          "center": {"x": 5712.5, "y": 1050, "z": 11755},
+          "part": "door.frame.right.07030000-0000-4000-8000-000000000005",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 25, "y": 2100, "z": 50}
+        },
+        {
+          "center": {"x": 5330.448, "y": 1050, "z": 11606.927},
+          "part": "door.leaf.07030000-0000-4000-8000-000000000005",
+          "rotation": {"x": 0, "y": -22.5, "z": 0},
+          "size": {"x": 800, "y": 2000, "z": 40}
+        }
+      ],
+      "details": {
+        "doorOpenPercent": 25,
+        "mesh": {
+          "bbox": {"max": [1200, 1300, 20], "min": [-1200, -1300, -20]},
+          "groups": [
+            {"areaMm2": 649115, "materialIndex": 0, "triangles": 74},
+            {"areaMm2": 3367347, "materialIndex": 1, "triangles": 39},
+            {"areaMm2": 0, "materialIndex": 2, "triangles": 0},
+            {"areaMm2": 3367347, "materialIndex": 3, "triangles": 39},
+            {"areaMm2": 0, "materialIndex": 4, "triangles": 0}
+          ],
+          "triangleCount": 152,
+          "vertexCount": 456
+        },
+        "openings": [
+          {
+            "hinge": "right",
+            "id": "07030000-0000-4000-8000-000000000005",
+            "outline": [{"x": 1500, "y": 0}, {"x": 2400, "y": 0}, {"x": 2400, "y": 2100}, {"x": 1500, "y": 2100}]
+          },
+          {
+            "id": "07030000-0000-4000-8000-000000000006",
+            "outline": [{"x": 300, "y": 1000}, {"x": 800, "y": 1000}, {"x": 800, "y": 1800}, {"x": 300, "y": 1800}]
+          },
+          {
+            "id": "07030000-0000-4000-8000-000000000007",
+            "outline": [
+              {"x": 900, "y": 300},
+              {"x": 1300, "y": 300},
+              {"x": 1300, "y": 1600},
+              {"x": 1296.157, "y": 1639.018},
+              {"x": 1284.776, "y": 1676.537},
+              {"x": 1266.294, "y": 1711.114},
+              {"x": 1241.421, "y": 1741.421},
+              {"x": 1211.114, "y": 1766.294},
+              {"x": 1176.537, "y": 1784.776},
+              {"x": 1139.018, "y": 1796.157},
+              {"x": 1100, "y": 1800},
+              {"x": 1060.982, "y": 1796.157},
+              {"x": 1023.463, "y": 1784.776},
+              {"x": 988.886, "y": 1766.294},
+              {"x": 958.579, "y": 1741.421},
+              {"x": 933.706, "y": 1711.114},
+              {"x": 915.224, "y": 1676.537},
+              {"x": 903.843, "y": 1639.018},
+              {"x": 900, "y": 1600}
+            ],
+            "profile": "arch"
+          }
+        ]
+      },
+      "elevation": 0,
+      "height": 2625,
+      "label": "Breite Mehrfachwand 25 %",
+      "source": "layout",
+      "v1Kind": "wall"
+    },
+    "01030000-0000-4000-8000-000000000015": {
+      "bbox": {"max": {"x": 8725, "y": 2600, "z": 11820}, "min": {"x": 6300, "y": -25, "z": 11180.172}},
+      "boxes": [
+        {
+          "center": {"x": 7500, "y": 1300, "z": 11800},
+          "part": "panel",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2400, "y": 2600, "z": 40}
+        },
+        {
+          "center": {"x": 8250, "y": -12.5, "z": 11755},
+          "part": "door.frame.bottom.07030000-0000-4000-8000-000000000005",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 950, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 8250, "y": 2112.5, "z": 11755},
+          "part": "door.frame.top.07030000-0000-4000-8000-000000000005",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 950, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 7787.5, "y": 1050, "z": 11755},
+          "part": "door.frame.left.07030000-0000-4000-8000-000000000005",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 25, "y": 2100, "z": 50}
+        },
+        {
+          "center": {"x": 8712.5, "y": 1050, "z": 11755},
+          "part": "door.frame.right.07030000-0000-4000-8000-000000000005",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 25, "y": 2100, "z": 50}
+        },
+        {
+          "center": {"x": 8417.157, "y": 1050, "z": 11477.157},
+          "part": "door.leaf.07030000-0000-4000-8000-000000000005",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 800, "y": 2000, "z": 40}
+        }
+      ],
+      "details": {
+        "doorOpenPercent": 50,
+        "mesh": {
+          "bbox": {"max": [1200, 1300, 20], "min": [-1200, -1300, -20]},
+          "groups": [
+            {"areaMm2": 649115, "materialIndex": 0, "triangles": 74},
+            {"areaMm2": 3367347, "materialIndex": 1, "triangles": 39},
+            {"areaMm2": 0, "materialIndex": 2, "triangles": 0},
+            {"areaMm2": 3367347, "materialIndex": 3, "triangles": 39},
+            {"areaMm2": 0, "materialIndex": 4, "triangles": 0}
+          ],
+          "triangleCount": 152,
+          "vertexCount": 456
+        },
+        "openings": [
+          {
+            "hinge": "right",
+            "id": "07030000-0000-4000-8000-000000000005",
+            "outline": [{"x": 1500, "y": 0}, {"x": 2400, "y": 0}, {"x": 2400, "y": 2100}, {"x": 1500, "y": 2100}]
+          },
+          {
+            "id": "07030000-0000-4000-8000-000000000006",
+            "outline": [{"x": 300, "y": 1000}, {"x": 800, "y": 1000}, {"x": 800, "y": 1800}, {"x": 300, "y": 1800}]
+          },
+          {
+            "id": "07030000-0000-4000-8000-000000000007",
+            "outline": [
+              {"x": 900, "y": 300},
+              {"x": 1300, "y": 300},
+              {"x": 1300, "y": 1600},
+              {"x": 1296.157, "y": 1639.018},
+              {"x": 1284.776, "y": 1676.537},
+              {"x": 1266.294, "y": 1711.114},
+              {"x": 1241.421, "y": 1741.421},
+              {"x": 1211.114, "y": 1766.294},
+              {"x": 1176.537, "y": 1784.776},
+              {"x": 1139.018, "y": 1796.157},
+              {"x": 1100, "y": 1800},
+              {"x": 1060.982, "y": 1796.157},
+              {"x": 1023.463, "y": 1784.776},
+              {"x": 988.886, "y": 1766.294},
+              {"x": 958.579, "y": 1741.421},
+              {"x": 933.706, "y": 1711.114},
+              {"x": 915.224, "y": 1676.537},
+              {"x": 903.843, "y": 1639.018},
+              {"x": 900, "y": 1600}
+            ],
+            "profile": "arch"
+          }
+        ]
+      },
+      "elevation": 0,
+      "height": 2625,
+      "label": "Breite Mehrfachwand 50 %",
+      "source": "layout",
+      "v1Kind": "wall"
+    },
+    "01030000-0000-4000-8000-000000000016": {
+      "bbox": {"max": {"x": 11725, "y": 2600, "z": 11820}, "min": {"x": 9300, "y": -25, "z": 10960}},
+      "boxes": [
+        {
+          "center": {"x": 10500, "y": 1300, "z": 11800},
+          "part": "panel",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2400, "y": 2600, "z": 40}
+        },
+        {
+          "center": {"x": 11250, "y": -12.5, "z": 11755},
+          "part": "door.frame.bottom.07030000-0000-4000-8000-000000000005",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 950, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 11250, "y": 2112.5, "z": 11755},
+          "part": "door.frame.top.07030000-0000-4000-8000-000000000005",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 950, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 10787.5, "y": 1050, "z": 11755},
+          "part": "door.frame.left.07030000-0000-4000-8000-000000000005",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 25, "y": 2100, "z": 50}
+        },
+        {
+          "center": {"x": 11712.5, "y": 1050, "z": 11755},
+          "part": "door.frame.right.07030000-0000-4000-8000-000000000005",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 25, "y": 2100, "z": 50}
+        },
+        {
+          "center": {"x": 11700, "y": 1050, "z": 11360},
+          "part": "door.leaf.07030000-0000-4000-8000-000000000005",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 800, "y": 2000, "z": 40}
+        }
+      ],
+      "details": {
+        "doorOpenPercent": 100,
+        "mesh": {
+          "bbox": {"max": [1200, 1300, 20], "min": [-1200, -1300, -20]},
+          "groups": [
+            {"areaMm2": 649115, "materialIndex": 0, "triangles": 74},
+            {"areaMm2": 3367347, "materialIndex": 1, "triangles": 39},
+            {"areaMm2": 0, "materialIndex": 2, "triangles": 0},
+            {"areaMm2": 3367347, "materialIndex": 3, "triangles": 39},
+            {"areaMm2": 0, "materialIndex": 4, "triangles": 0}
+          ],
+          "triangleCount": 152,
+          "vertexCount": 456
+        },
+        "openings": [
+          {
+            "hinge": "right",
+            "id": "07030000-0000-4000-8000-000000000005",
+            "outline": [{"x": 1500, "y": 0}, {"x": 2400, "y": 0}, {"x": 2400, "y": 2100}, {"x": 1500, "y": 2100}]
+          },
+          {
+            "id": "07030000-0000-4000-8000-000000000006",
+            "outline": [{"x": 300, "y": 1000}, {"x": 800, "y": 1000}, {"x": 800, "y": 1800}, {"x": 300, "y": 1800}]
+          },
+          {
+            "id": "07030000-0000-4000-8000-000000000007",
+            "outline": [
+              {"x": 900, "y": 300},
+              {"x": 1300, "y": 300},
+              {"x": 1300, "y": 1600},
+              {"x": 1296.157, "y": 1639.018},
+              {"x": 1284.776, "y": 1676.537},
+              {"x": 1266.294, "y": 1711.114},
+              {"x": 1241.421, "y": 1741.421},
+              {"x": 1211.114, "y": 1766.294},
+              {"x": 1176.537, "y": 1784.776},
+              {"x": 1139.018, "y": 1796.157},
+              {"x": 1100, "y": 1800},
+              {"x": 1060.982, "y": 1796.157},
+              {"x": 1023.463, "y": 1784.776},
+              {"x": 988.886, "y": 1766.294},
+              {"x": 958.579, "y": 1741.421},
+              {"x": 933.706, "y": 1711.114},
+              {"x": 915.224, "y": 1676.537},
+              {"x": 903.843, "y": 1639.018},
+              {"x": 900, "y": 1600}
+            ],
+            "profile": "arch"
+          }
+        ]
+      },
+      "elevation": 0,
+      "height": 2625,
+      "label": "Breite Mehrfachwand 100 %",
+      "source": "layout",
+      "v1Kind": "wall"
+    },
+    "01030000-0000-4000-8000-000000000017": {
+      "bbox": {"max": {"x": 2600, "y": 2400, "z": 14514}, "min": {"x": 1400, "y": -25, "z": 13807.031}},
+      "boxes": [
+        {
+          "center": {"x": 2000, "y": 1200, "z": 14500},
+          "part": "panel",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1200, "y": 2400, "z": 28}
+        },
+        {
+          "center": {"x": 2000, "y": -12.5, "z": 14461},
+          "part": "door.frame.bottom.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 850, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 2000, "y": 2012.5, "z": 14461},
+          "part": "door.frame.top.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 850, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 1587.5, "y": 1000, "z": 14461},
+          "part": "door.frame.left.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 25, "y": 2000, "z": 50}
+        },
+        {
+          "center": {"x": 2412.5, "y": 1000, "z": 14461},
+          "part": "door.frame.right.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 25, "y": 2000, "z": 50}
+        },
+        {
+          "center": {"x": 1835.114, "y": 1000, "z": 14142.393},
+          "part": "door.leaf.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 0, "y": 54, "z": 0},
+          "size": {"x": 800, "y": 2000, "z": 40}
+        }
+      ],
+      "details": {
+        "doorOpenPercent": 60,
+        "mesh": {
+          "bbox": {"max": [600, 1200, 14], "min": [-600, -1200, -14]},
+          "groups": [
+            {"areaMm2": 313600, "materialIndex": 0, "triangles": 16},
+            {"areaMm2": 1280000, "materialIndex": 1, "triangles": 6},
+            {"areaMm2": 0, "materialIndex": 2, "triangles": 0},
+            {"areaMm2": 1280000, "materialIndex": 3, "triangles": 6},
+            {"areaMm2": 0, "materialIndex": 4, "triangles": 0}
+          ],
+          "triangleCount": 28,
+          "vertexCount": 84
+        },
+        "openings": [
+          {
+            "hinge": "left",
+            "id": "07030000-0000-4000-8000-000000000001",
+            "outline": [{"x": 200, "y": 0}, {"x": 1000, "y": 0}, {"x": 1000, "y": 2000}, {"x": 200, "y": 2000}]
+          }
+        ]
+      },
+      "elevation": 0,
+      "height": 2425,
+      "label": "Tür 0°",
+      "source": "layout",
+      "v1Kind": "wall"
+    },
+    "01030000-0000-4000-8000-000000000018": {
+      "bbox": {"max": {"x": 4383.179, "y": 2400, "z": 14668.814}, "min": {"x": 3216.821, "y": -25, "z": 13816.654}},
+      "boxes": [
+        {
+          "center": {"x": 3800, "y": 1200, "z": 14500},
+          "part": "panel",
+          "rotation": {"x": 0, "y": -15, "z": 0},
+          "size": {"x": 1200, "y": 2400, "z": 28}
+        },
+        {
+          "center": {"x": 3810.094, "y": -12.5, "z": 14462.329},
+          "part": "door.frame.bottom.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 0, "y": -15, "z": 0},
+          "size": {"x": 850, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 3810.094, "y": 2012.5, "z": 14462.329},
+          "part": "door.frame.top.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 0, "y": -15, "z": 0},
+          "size": {"x": 850, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 3411.65, "y": 1000, "z": 14355.566},
+          "part": "door.frame.left.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 0, "y": -15, "z": 0},
+          "size": {"x": 25, "y": 2000, "z": 50}
+        },
+        {
+          "center": {"x": 4208.538, "y": 1000, "z": 14569.092},
+          "part": "door.frame.right.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 0, "y": -15, "z": 0},
+          "size": {"x": 25, "y": 2000, "z": 50}
+        },
+        {
+          "center": {"x": 4051.823, "y": 1000, "z": 14197.254},
+          "part": "door.leaf.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 0, "y": -69, "z": 0},
+          "size": {"x": 800, "y": 2000, "z": 40}
+        }
+      ],
+      "details": {
+        "doorOpenPercent": 60,
+        "mesh": {
+          "bbox": {"max": [600, 1200, 14], "min": [-600, -1200, -14]},
+          "groups": [
+            {"areaMm2": 313600, "materialIndex": 0, "triangles": 16},
+            {"areaMm2": 1280000, "materialIndex": 1, "triangles": 6},
+            {"areaMm2": 0, "materialIndex": 2, "triangles": 0},
+            {"areaMm2": 1280000, "materialIndex": 3, "triangles": 6},
+            {"areaMm2": 0, "materialIndex": 4, "triangles": 0}
+          ],
+          "triangleCount": 28,
+          "vertexCount": 84
+        },
+        "openings": [
+          {
+            "hinge": "right",
+            "id": "07030000-0000-4000-8000-000000000002",
+            "outline": [{"x": 200, "y": 0}, {"x": 1000, "y": 0}, {"x": 1000, "y": 2000}, {"x": 200, "y": 2000}]
+          }
+        ]
+      },
+      "elevation": 0,
+      "height": 2425,
+      "label": "Tür 15°",
+      "source": "layout",
+      "v1Kind": "wall"
+    },
+    "01030000-0000-4000-8000-000000000019": {
+      "bbox": {"max": {"x": 6134.478, "y": 2400, "z": 14934.164}, "min": {"x": 5165.836, "y": -25, "z": 14048.214}},
+      "boxes": [
+        {
+          "center": {"x": 5600, "y": 1200, "z": 14500},
+          "part": "panel",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 1200, "y": 2400, "z": 28}
+        },
+        {
+          "center": {"x": 5627.577, "y": -12.5, "z": 14472.423},
+          "part": "door.frame.bottom.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 850, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 5627.577, "y": 2012.5, "z": 14472.423},
+          "part": "door.frame.top.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 850, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 5335.896, "y": 1000, "z": 14180.741},
+          "part": "door.frame.left.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 25, "y": 2000, "z": 50}
+        },
+        {
+          "center": {"x": 5919.259, "y": 1000, "z": 14764.104},
+          "part": "door.frame.right.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 0, "y": -45, "z": 0},
+          "size": {"x": 25, "y": 2000, "z": 50}
+        },
+        {
+          "center": {"x": 5736.274, "y": 1000, "z": 14130.542},
+          "part": "door.leaf.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 0, "y": 9, "z": 0},
+          "size": {"x": 800, "y": 2000, "z": 40}
+        }
+      ],
+      "details": {
+        "doorOpenPercent": 60,
+        "mesh": {
+          "bbox": {"max": [600, 1200, 14], "min": [-600, -1200, -14]},
+          "groups": [
+            {"areaMm2": 313600, "materialIndex": 0, "triangles": 16},
+            {"areaMm2": 1280000, "materialIndex": 1, "triangles": 6},
+            {"areaMm2": 0, "materialIndex": 2, "triangles": 0},
+            {"areaMm2": 1280000, "materialIndex": 3, "triangles": 6},
+            {"areaMm2": 0, "materialIndex": 4, "triangles": 0}
+          ],
+          "triangleCount": 28,
+          "vertexCount": 84
+        },
+        "openings": [
+          {
+            "hinge": "left",
+            "id": "07030000-0000-4000-8000-000000000001",
+            "outline": [{"x": 200, "y": 0}, {"x": 1000, "y": 0}, {"x": 1000, "y": 2000}, {"x": 200, "y": 2000}]
+          }
+        ]
+      },
+      "elevation": 0,
+      "height": 2425,
+      "label": "Tür 45°",
+      "source": "layout",
+      "v1Kind": "wall"
+    },
+    "01030000-0000-4000-8000-000000000020": {
+      "bbox": {"max": {"x": 8092.969, "y": 2400, "z": 15100}, "min": {"x": 7386, "y": -25, "z": 13900}},
+      "boxes": [
+        {
+          "center": {"x": 7400, "y": 1200, "z": 14500},
+          "part": "panel",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 1200, "y": 2400, "z": 28}
+        },
+        {
+          "center": {"x": 7439, "y": -12.5, "z": 14500},
+          "part": "door.frame.bottom.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 850, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 7439, "y": 2012.5, "z": 14500},
+          "part": "door.frame.top.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 850, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 7439, "y": 1000, "z": 14087.5},
+          "part": "door.frame.left.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 25, "y": 2000, "z": 50}
+        },
+        {
+          "center": {"x": 7439, "y": 1000, "z": 14912.5},
+          "part": "door.frame.right.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 0, "y": -90, "z": 0},
+          "size": {"x": 25, "y": 2000, "z": 50}
+        },
+        {
+          "center": {"x": 7757.607, "y": 1000, "z": 14664.886},
+          "part": "door.leaf.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 180, "y": -36, "z": 180},
+          "size": {"x": 800, "y": 2000, "z": 40}
+        }
+      ],
+      "details": {
+        "doorOpenPercent": 60,
+        "mesh": {
+          "bbox": {"max": [600, 1200, 14], "min": [-600, -1200, -14]},
+          "groups": [
+            {"areaMm2": 313600, "materialIndex": 0, "triangles": 16},
+            {"areaMm2": 1280000, "materialIndex": 1, "triangles": 6},
+            {"areaMm2": 0, "materialIndex": 2, "triangles": 0},
+            {"areaMm2": 1280000, "materialIndex": 3, "triangles": 6},
+            {"areaMm2": 0, "materialIndex": 4, "triangles": 0}
+          ],
+          "triangleCount": 28,
+          "vertexCount": 84
+        },
+        "openings": [
+          {
+            "hinge": "right",
+            "id": "07030000-0000-4000-8000-000000000002",
+            "outline": [{"x": 200, "y": 0}, {"x": 1000, "y": 0}, {"x": 1000, "y": 2000}, {"x": 200, "y": 2000}]
+          }
+        ]
+      },
+      "elevation": 0,
+      "height": 2425,
+      "label": "Tür 90°",
+      "source": "layout",
+      "v1Kind": "wall"
+    },
+    "01030000-0000-4000-8000-000000000021": {
+      "bbox": {"max": {"x": 9651.786, "y": 2400, "z": 15034.478}, "min": {"x": 8765.836, "y": -25, "z": 14065.836}},
+      "boxes": [
+        {
+          "center": {"x": 9200, "y": 1200, "z": 14500},
+          "part": "panel",
+          "rotation": {"x": 180, "y": -45, "z": 180},
+          "size": {"x": 1200, "y": 2400, "z": 28}
+        },
+        {
+          "center": {"x": 9227.577, "y": -12.5, "z": 14527.577},
+          "part": "door.frame.bottom.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 180, "y": -45, "z": 180},
+          "size": {"x": 850, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 9227.577, "y": 2012.5, "z": 14527.577},
+          "part": "door.frame.top.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 180, "y": -45, "z": 180},
+          "size": {"x": 850, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 9519.259, "y": 1000, "z": 14235.896},
+          "part": "door.frame.left.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 180, "y": -45, "z": 180},
+          "size": {"x": 25, "y": 2000, "z": 50}
+        },
+        {
+          "center": {"x": 8935.896, "y": 1000, "z": 14819.259},
+          "part": "door.frame.right.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 180, "y": -45, "z": 180},
+          "size": {"x": 25, "y": 2000, "z": 50}
+        },
+        {
+          "center": {"x": 9569.458, "y": 1000, "z": 14636.274},
+          "part": "door.leaf.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 0, "y": -81, "z": 0},
+          "size": {"x": 800, "y": 2000, "z": 40}
+        }
+      ],
+      "details": {
+        "doorOpenPercent": 60,
+        "mesh": {
+          "bbox": {"max": [600, 1200, 14], "min": [-600, -1200, -14]},
+          "groups": [
+            {"areaMm2": 313600, "materialIndex": 0, "triangles": 16},
+            {"areaMm2": 1280000, "materialIndex": 1, "triangles": 6},
+            {"areaMm2": 0, "materialIndex": 2, "triangles": 0},
+            {"areaMm2": 1280000, "materialIndex": 3, "triangles": 6},
+            {"areaMm2": 0, "materialIndex": 4, "triangles": 0}
+          ],
+          "triangleCount": 28,
+          "vertexCount": 84
+        },
+        "openings": [
+          {
+            "hinge": "left",
+            "id": "07030000-0000-4000-8000-000000000001",
+            "outline": [{"x": 200, "y": 0}, {"x": 1000, "y": 0}, {"x": 1000, "y": 2000}, {"x": 200, "y": 2000}]
+          }
+        ]
+      },
+      "elevation": 0,
+      "height": 2425,
+      "label": "Tür 135°",
+      "source": "layout",
+      "v1Kind": "wall"
+    },
+    "01030000-0000-4000-8000-000000000022": {
+      "bbox": {"max": {"x": 11600, "y": 2400, "z": 15192.969}, "min": {"x": 10400, "y": -25, "z": 14486}},
+      "boxes": [
+        {
+          "center": {"x": 11000, "y": 1200, "z": 14500},
+          "part": "panel",
+          "rotation": {"x": 180, "y": 0, "z": 180},
+          "size": {"x": 1200, "y": 2400, "z": 28}
+        },
+        {
+          "center": {"x": 11000, "y": -12.5, "z": 14539},
+          "part": "door.frame.bottom.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 180, "y": 0, "z": 180},
+          "size": {"x": 850, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 11000, "y": 2012.5, "z": 14539},
+          "part": "door.frame.top.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 180, "y": 0, "z": 180},
+          "size": {"x": 850, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 11412.5, "y": 1000, "z": 14539},
+          "part": "door.frame.left.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 180, "y": 0, "z": 180},
+          "size": {"x": 25, "y": 2000, "z": 50}
+        },
+        {
+          "center": {"x": 10587.5, "y": 1000, "z": 14539},
+          "part": "door.frame.right.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 180, "y": 0, "z": 180},
+          "size": {"x": 25, "y": 2000, "z": 50}
+        },
+        {
+          "center": {"x": 10835.114, "y": 1000, "z": 14857.607},
+          "part": "door.leaf.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 180, "y": 54, "z": 180},
+          "size": {"x": 800, "y": 2000, "z": 40}
+        }
+      ],
+      "details": {
+        "doorOpenPercent": 60,
+        "mesh": {
+          "bbox": {"max": [600, 1200, 14], "min": [-600, -1200, -14]},
+          "groups": [
+            {"areaMm2": 313600, "materialIndex": 0, "triangles": 16},
+            {"areaMm2": 1280000, "materialIndex": 1, "triangles": 6},
+            {"areaMm2": 0, "materialIndex": 2, "triangles": 0},
+            {"areaMm2": 1280000, "materialIndex": 3, "triangles": 6},
+            {"areaMm2": 0, "materialIndex": 4, "triangles": 0}
+          ],
+          "triangleCount": 28,
+          "vertexCount": 84
+        },
+        "openings": [
+          {
+            "hinge": "right",
+            "id": "07030000-0000-4000-8000-000000000002",
+            "outline": [{"x": 200, "y": 0}, {"x": 1000, "y": 0}, {"x": 1000, "y": 2000}, {"x": 200, "y": 2000}]
+          }
+        ]
+      },
+      "elevation": 0,
+      "height": 2425,
+      "label": "Tür 180°",
+      "source": "layout",
+      "v1Kind": "wall"
+    },
+    "01030000-0000-4000-8000-000000000023": {
+      "bbox": {"max": {"x": 12814, "y": 2400, "z": 15100}, "min": {"x": 12107.031, "y": -25, "z": 13900}},
+      "boxes": [
+        {
+          "center": {"x": 12800, "y": 1200, "z": 14500},
+          "part": "panel",
+          "rotation": {"x": 0, "y": 90, "z": 0},
+          "size": {"x": 1200, "y": 2400, "z": 28}
+        },
+        {
+          "center": {"x": 12761, "y": -12.5, "z": 14500},
+          "part": "door.frame.bottom.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 0, "y": 90, "z": 0},
+          "size": {"x": 850, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 12761, "y": 2012.5, "z": 14500},
+          "part": "door.frame.top.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 0, "y": 90, "z": 0},
+          "size": {"x": 850, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 12761, "y": 1000, "z": 14912.5},
+          "part": "door.frame.left.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 0, "y": 90, "z": 0},
+          "size": {"x": 25, "y": 2000, "z": 50}
+        },
+        {
+          "center": {"x": 12761, "y": 1000, "z": 14087.5},
+          "part": "door.frame.right.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 0, "y": 90, "z": 0},
+          "size": {"x": 25, "y": 2000, "z": 50}
+        },
+        {
+          "center": {"x": 12442.393, "y": 1000, "z": 14664.886},
+          "part": "door.leaf.07030000-0000-4000-8000-000000000001",
+          "rotation": {"x": 180, "y": 36, "z": 180},
+          "size": {"x": 800, "y": 2000, "z": 40}
+        }
+      ],
+      "details": {
+        "doorOpenPercent": 60,
+        "mesh": {
+          "bbox": {"max": [600, 1200, 14], "min": [-600, -1200, -14]},
+          "groups": [
+            {"areaMm2": 313600, "materialIndex": 0, "triangles": 16},
+            {"areaMm2": 1280000, "materialIndex": 1, "triangles": 6},
+            {"areaMm2": 0, "materialIndex": 2, "triangles": 0},
+            {"areaMm2": 1280000, "materialIndex": 3, "triangles": 6},
+            {"areaMm2": 0, "materialIndex": 4, "triangles": 0}
+          ],
+          "triangleCount": 28,
+          "vertexCount": 84
+        },
+        "openings": [
+          {
+            "hinge": "left",
+            "id": "07030000-0000-4000-8000-000000000001",
+            "outline": [{"x": 200, "y": 0}, {"x": 1000, "y": 0}, {"x": 1000, "y": 2000}, {"x": 200, "y": 2000}]
+          }
+        ]
+      },
+      "elevation": 0,
+      "height": 2425,
+      "label": "Tür 270°",
+      "source": "layout",
+      "v1Kind": "wall"
+    },
+    "01030000-0000-4000-8000-000000000024": {
+      "bbox": {"max": {"x": 15034.164, "y": 2400, "z": 14934.164}, "min": {"x": 14065.522, "y": -25, "z": 14048.214}},
+      "boxes": [
+        {
+          "center": {"x": 14600, "y": 1200, "z": 14500},
+          "part": "panel",
+          "rotation": {"x": 0, "y": 45, "z": 0},
+          "size": {"x": 1200, "y": 2400, "z": 28}
+        },
+        {
+          "center": {"x": 14572.423, "y": -12.5, "z": 14472.423},
+          "part": "door.frame.bottom.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 0, "y": 45, "z": 0},
+          "size": {"x": 850, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 14572.423, "y": 2012.5, "z": 14472.423},
+          "part": "door.frame.top.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 0, "y": 45, "z": 0},
+          "size": {"x": 850, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 14280.741, "y": 1000, "z": 14764.104},
+          "part": "door.frame.left.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 0, "y": 45, "z": 0},
+          "size": {"x": 25, "y": 2000, "z": 50}
+        },
+        {
+          "center": {"x": 14864.104, "y": 1000, "z": 14180.741},
+          "part": "door.frame.right.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 0, "y": 45, "z": 0},
+          "size": {"x": 25, "y": 2000, "z": 50}
+        },
+        {
+          "center": {"x": 14463.726, "y": 1000, "z": 14130.542},
+          "part": "door.leaf.07030000-0000-4000-8000-000000000002",
+          "rotation": {"x": 0, "y": -9, "z": 0},
+          "size": {"x": 800, "y": 2000, "z": 40}
+        }
+      ],
+      "details": {
+        "doorOpenPercent": 60,
+        "mesh": {
+          "bbox": {"max": [600, 1200, 14], "min": [-600, -1200, -14]},
+          "groups": [
+            {"areaMm2": 313600, "materialIndex": 0, "triangles": 16},
+            {"areaMm2": 1280000, "materialIndex": 1, "triangles": 6},
+            {"areaMm2": 0, "materialIndex": 2, "triangles": 0},
+            {"areaMm2": 1280000, "materialIndex": 3, "triangles": 6},
+            {"areaMm2": 0, "materialIndex": 4, "triangles": 0}
+          ],
+          "triangleCount": 28,
+          "vertexCount": 84
+        },
+        "openings": [
+          {
+            "hinge": "right",
+            "id": "07030000-0000-4000-8000-000000000002",
+            "outline": [{"x": 200, "y": 0}, {"x": 1000, "y": 0}, {"x": 1000, "y": 2000}, {"x": 200, "y": 2000}]
+          }
+        ]
+      },
+      "elevation": 0,
+      "height": 2425,
+      "label": "Tür -45°",
+      "source": "layout",
+      "v1Kind": "wall"
+    },
+    "01030000-0000-4000-8000-000000000025": {
+      "bbox": {"max": {"x": 3225, "y": 2600, "z": 17020}, "min": {"x": 800, "y": -25, "z": 16930}},
+      "boxes": [
+        {
+          "center": {"x": 2000, "y": 1300, "z": 17000},
+          "part": "panel",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2400, "y": 2600, "z": 40}
+        },
+        {
+          "center": {"x": 2750, "y": -12.5, "z": 16955},
+          "part": "door.frame.bottom.07030000-0000-4000-8000-000000000005",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 950, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 2750, "y": 2112.5, "z": 16955},
+          "part": "door.frame.top.07030000-0000-4000-8000-000000000005",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 950, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 2287.5, "y": 1050, "z": 16955},
+          "part": "door.frame.left.07030000-0000-4000-8000-000000000005",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 25, "y": 2100, "z": 50}
+        },
+        {
+          "center": {"x": 3212.5, "y": 1050, "z": 16955},
+          "part": "door.frame.right.07030000-0000-4000-8000-000000000005",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 25, "y": 2100, "z": 50}
+        },
+        {
+          "center": {"x": 2800, "y": 1050, "z": 16960},
+          "part": "door.leaf.07030000-0000-4000-8000-000000000005",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 800, "y": 2000, "z": 40}
+        }
+      ],
+      "details": {
+        "doorOpenPercent": 0,
+        "mesh": {
+          "bbox": {"max": [1200, 1300, 20], "min": [-1200, -1300, -20]},
+          "groups": [
+            {"areaMm2": 649115, "materialIndex": 0, "triangles": 74},
+            {"areaMm2": 3367347, "materialIndex": 1, "triangles": 39},
+            {"areaMm2": 0, "materialIndex": 2, "triangles": 0},
+            {"areaMm2": 3367347, "materialIndex": 3, "triangles": 39},
+            {"areaMm2": 0, "materialIndex": 4, "triangles": 0}
+          ],
+          "triangleCount": 152,
+          "vertexCount": 456
+        },
+        "openings": [
+          {
+            "hinge": "right",
+            "id": "07030000-0000-4000-8000-000000000005",
+            "outline": [{"x": 1500, "y": 0}, {"x": 2400, "y": 0}, {"x": 2400, "y": 2100}, {"x": 1500, "y": 2100}]
+          },
+          {
+            "id": "07030000-0000-4000-8000-000000000006",
+            "outline": [{"x": 300, "y": 1000}, {"x": 800, "y": 1000}, {"x": 800, "y": 1800}, {"x": 300, "y": 1800}]
+          },
+          {
+            "id": "07030000-0000-4000-8000-000000000007",
+            "outline": [
+              {"x": 900, "y": 300},
+              {"x": 1300, "y": 300},
+              {"x": 1300, "y": 1600},
+              {"x": 1296.157, "y": 1639.018},
+              {"x": 1284.776, "y": 1676.537},
+              {"x": 1266.294, "y": 1711.114},
+              {"x": 1241.421, "y": 1741.421},
+              {"x": 1211.114, "y": 1766.294},
+              {"x": 1176.537, "y": 1784.776},
+              {"x": 1139.018, "y": 1796.157},
+              {"x": 1100, "y": 1800},
+              {"x": 1060.982, "y": 1796.157},
+              {"x": 1023.463, "y": 1784.776},
+              {"x": 988.886, "y": 1766.294},
+              {"x": 958.579, "y": 1741.421},
+              {"x": 933.706, "y": 1711.114},
+              {"x": 915.224, "y": 1676.537},
+              {"x": 903.843, "y": 1639.018},
+              {"x": 900, "y": 1600}
+            ],
+            "profile": "arch"
+          }
+        ]
+      },
+      "elevation": 0,
+      "height": 2625,
+      "label": "Beflächung 1",
+      "source": "layout",
+      "v1Kind": "wall"
+    },
+    "01030000-0000-4000-8000-000000000026": {
+      "bbox": {"max": {"x": 5600, "y": 2400, "z": 17125}, "min": {"x": 4400, "y": 0, "z": 16875}},
+      "boxes": [
+        {
+          "center": {"x": 5000, "y": 1200, "z": 17000},
+          "part": "panel",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1200, "y": 2400, "z": 250}
+        }
+      ],
+      "details": {
+        "doorOpenPercent": 0,
+        "mesh": {
+          "bbox": {"max": [600, 1200, 125], "min": [-600, -1200, -125]},
+          "groups": [
+            {"areaMm2": 2800000, "materialIndex": 0, "triangles": 216},
+            {"areaMm2": 320000, "materialIndex": 1, "triangles": 8},
+            {"areaMm2": 1023902, "materialIndex": 2, "triangles": 110},
+            {"areaMm2": 863902, "materialIndex": 3, "triangles": 156},
+            {"areaMm2": 480000, "materialIndex": 4, "triangles": 56}
+          ],
+          "triangleCount": 546,
+          "vertexCount": 1812
+        },
+        "openings": [
+          {
+            "id": "07030000-0000-4000-8000-000000000004",
+            "outline": [
+              {"x": 200, "y": 0},
+              {"x": 1000, "y": 0},
+              {"x": 1000, "y": 1600},
+              {"x": 992.314, "y": 1678.036},
+              {"x": 969.552, "y": 1753.073},
+              {"x": 932.588, "y": 1822.228},
+              {"x": 882.843, "y": 1882.843},
+              {"x": 822.228, "y": 1932.588},
+              {"x": 753.073, "y": 1969.552},
+              {"x": 678.036, "y": 1992.314},
+              {"x": 600, "y": 2000},
+              {"x": 521.964, "y": 1992.314},
+              {"x": 446.927, "y": 1969.552},
+              {"x": 377.772, "y": 1932.588},
+              {"x": 317.157, "y": 1882.843},
+              {"x": 267.412, "y": 1822.228},
+              {"x": 230.448, "y": 1753.073},
+              {"x": 207.686, "y": 1678.036},
+              {"x": 200, "y": 1600}
+            ],
+            "profile": "arch"
+          }
+        ]
+      },
+      "elevation": 0,
+      "height": 2400,
+      "label": "Beflächung 2",
+      "source": "layout",
+      "v1Kind": "wall"
+    },
+    "01030000-0000-4000-8000-000000000027": {
+      "bbox": {"max": {"x": 9225, "y": 2600, "z": 17020}, "min": {"x": 6800, "y": -25, "z": 16930}},
+      "boxes": [
+        {
+          "center": {"x": 8000, "y": 1300, "z": 17000},
+          "part": "panel",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 2400, "y": 2600, "z": 40}
+        },
+        {
+          "center": {"x": 8750, "y": -12.5, "z": 16955},
+          "part": "door.frame.bottom.07030000-0000-4000-8000-000000000005",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 950, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 8750, "y": 2112.5, "z": 16955},
+          "part": "door.frame.top.07030000-0000-4000-8000-000000000005",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 950, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 8287.5, "y": 1050, "z": 16955},
+          "part": "door.frame.left.07030000-0000-4000-8000-000000000005",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 25, "y": 2100, "z": 50}
+        },
+        {
+          "center": {"x": 9212.5, "y": 1050, "z": 16955},
+          "part": "door.frame.right.07030000-0000-4000-8000-000000000005",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 25, "y": 2100, "z": 50}
+        },
+        {
+          "center": {"x": 8800, "y": 1050, "z": 16960},
+          "part": "door.leaf.07030000-0000-4000-8000-000000000005",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 800, "y": 2000, "z": 40}
+        }
+      ],
+      "details": {
+        "doorOpenPercent": 0,
+        "mesh": {
+          "bbox": {"max": [1200, 1300, 20], "min": [-1200, -1300, -20]},
+          "groups": [
+            {"areaMm2": 649115, "materialIndex": 0, "triangles": 74},
+            {"areaMm2": 2884947, "materialIndex": 1, "triangles": 43},
+            {"areaMm2": 482400, "materialIndex": 2, "triangles": 6},
+            {"areaMm2": 1500, "materialIndex": 3, "triangles": 9},
+            {"areaMm2": 3365847, "materialIndex": 4, "triangles": 46}
+          ],
+          "triangleCount": 178,
+          "vertexCount": 573
+        },
+        "openings": [
+          {
+            "hinge": "right",
+            "id": "07030000-0000-4000-8000-000000000005",
+            "outline": [{"x": 1500, "y": 0}, {"x": 2400, "y": 0}, {"x": 2400, "y": 2100}, {"x": 1500, "y": 2100}]
+          },
+          {
+            "id": "07030000-0000-4000-8000-000000000006",
+            "outline": [{"x": 300, "y": 1000}, {"x": 800, "y": 1000}, {"x": 800, "y": 1800}, {"x": 300, "y": 1800}]
+          },
+          {
+            "id": "07030000-0000-4000-8000-000000000007",
+            "outline": [
+              {"x": 900, "y": 300},
+              {"x": 1300, "y": 300},
+              {"x": 1300, "y": 1600},
+              {"x": 1296.157, "y": 1639.018},
+              {"x": 1284.776, "y": 1676.537},
+              {"x": 1266.294, "y": 1711.114},
+              {"x": 1241.421, "y": 1741.421},
+              {"x": 1211.114, "y": 1766.294},
+              {"x": 1176.537, "y": 1784.776},
+              {"x": 1139.018, "y": 1796.157},
+              {"x": 1100, "y": 1800},
+              {"x": 1060.982, "y": 1796.157},
+              {"x": 1023.463, "y": 1784.776},
+              {"x": 988.886, "y": 1766.294},
+              {"x": 958.579, "y": 1741.421},
+              {"x": 933.706, "y": 1711.114},
+              {"x": 915.224, "y": 1676.537},
+              {"x": 903.843, "y": 1639.018},
+              {"x": 900, "y": 1600}
+            ],
+            "profile": "arch"
+          }
+        ]
+      },
+      "elevation": 0,
+      "height": 2625,
+      "label": "Beflächung 3",
+      "source": "layout",
+      "v1Kind": "wall"
+    },
+    "01030000-0000-4000-8000-000000000028": {
+      "bbox": {"max": {"x": 12100, "y": 2400, "z": 17014}, "min": {"x": 10900, "y": 0, "z": 16986}},
+      "boxes": [
+        {
+          "center": {"x": 11500, "y": 1200, "z": 17000},
+          "part": "panel",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1200, "y": 2400, "z": 28}
+        }
+      ],
+      "details": {
+        "doorOpenPercent": 40,
+        "mesh": {
+          "bbox": {"max": [600, 1200, 14], "min": [-600, -1200, -14]},
+          "groups": [
+            {"areaMm2": 201600, "materialIndex": 0, "triangles": 8},
+            {"areaMm2": 2880000, "materialIndex": 1, "triangles": 2},
+            {"areaMm2": 0, "materialIndex": 2, "triangles": 0},
+            {"areaMm2": 2880000, "materialIndex": 3, "triangles": 2},
+            {"areaMm2": 0, "materialIndex": 4, "triangles": 0}
+          ],
+          "triangleCount": 12,
+          "vertexCount": 36
+        },
+        "openings": []
+      },
+      "elevation": 0,
+      "height": 2400,
+      "label": "Veraltete Maße",
+      "source": "layout",
+      "v1Kind": "wall"
+    },
+    "01030000-0000-4000-8000-000000000080": {
+      "bbox": {"max": {"x": 10000, "y": 3500, "z": 18625}, "min": {"x": 4000, "y": -25, "z": 17561.721}},
+      "boxes": [
+        {
+          "center": {"x": 7000, "y": 1750, "z": 18500},
+          "part": "panel",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 6000, "y": 3500, "z": 250}
+        },
+        {
+          "center": {"x": 4950, "y": -12.5, "z": 18350},
+          "part": "door.frame.bottom.07030000-0000-4000-8000-000000000080",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 950, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 4950, "y": 2112.5, "z": 18350},
+          "part": "door.frame.top.07030000-0000-4000-8000-000000000080",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 950, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 4487.5, "y": 1050, "z": 18350},
+          "part": "door.frame.left.07030000-0000-4000-8000-000000000080",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 25, "y": 2100, "z": 50}
+        },
+        {
+          "center": {"x": 5412.5, "y": 1050, "z": 18350},
+          "part": "door.frame.right.07030000-0000-4000-8000-000000000080",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 25, "y": 2100, "z": 50}
+        },
+        {
+          "center": {"x": 4562.574, "y": 1050, "z": 17959.925},
+          "part": "door.leaf.07030000-0000-4000-8000-000000000080",
+          "rotation": {"x": 0, "y": 81, "z": 0},
+          "size": {"x": 800, "y": 2000, "z": 40}
+        },
+        {
+          "center": {"x": 7500, "y": -12.5, "z": 18350},
+          "part": "door.frame.bottom.07030000-0000-4000-8000-000000000081",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1050, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 7500, "y": 2212.5, "z": 18350},
+          "part": "door.frame.top.07030000-0000-4000-8000-000000000081",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 1050, "y": 25, "z": 50}
+        },
+        {
+          "center": {"x": 6987.5, "y": 1100, "z": 18350},
+          "part": "door.frame.left.07030000-0000-4000-8000-000000000081",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 25, "y": 2200, "z": 50}
+        },
+        {
+          "center": {"x": 8012.5, "y": 1100, "z": 18350},
+          "part": "door.frame.right.07030000-0000-4000-8000-000000000081",
+          "rotation": {"x": 0, "y": 0, "z": 0},
+          "size": {"x": 25, "y": 2200, "z": 50}
+        },
+        {
+          "center": {"x": 7937.426, "y": 1100, "z": 17959.925},
+          "part": "door.leaf.07030000-0000-4000-8000-000000000081",
+          "rotation": {"x": 0, "y": -81, "z": 0},
+          "size": {"x": 800, "y": 2000, "z": 40}
+        }
+      ],
+      "details": {
+        "doorOpenPercent": 90,
+        "mesh": {
+          "bbox": {"max": [3000, 1750, 125], "min": [-3000, -1750, -125]},
+          "groups": [
+            {"areaMm2": 6900000, "materialIndex": 0, "triangles": 272},
+            {"areaMm2": 17011466, "materialIndex": 1, "triangles": 134},
+            {"areaMm2": 0, "materialIndex": 2, "triangles": 0},
+            {"areaMm2": 17011466, "materialIndex": 3, "triangles": 134},
+            {"areaMm2": 0, "materialIndex": 4, "triangles": 0}
+          ],
+          "triangleCount": 540,
+          "vertexCount": 1620
+        },
+        "openings": [
+          {
+            "hinge": "left",
+            "id": "07030000-0000-4000-8000-000000000080",
+            "outline": [{"x": 500, "y": 0}, {"x": 1400, "y": 0}, {"x": 1400, "y": 2100}, {"x": 500, "y": 2100}]
+          },
+          {
+            "hinge": "right",
+            "id": "07030000-0000-4000-8000-000000000081",
+            "outline": [
+              {"x": 3000, "y": 0},
+              {"x": 4000, "y": 0},
+              {"x": 4000, "y": 1700},
+              {"x": 3990.393, "y": 1797.545},
+              {"x": 3961.94, "y": 1891.342},
+              {"x": 3915.735, "y": 1977.785},
+              {"x": 3853.553, "y": 2053.553},
+              {"x": 3777.785, "y": 2115.735},
+              {"x": 3691.342, "y": 2161.94},
+              {"x": 3597.545, "y": 2190.393},
+              {"x": 3500, "y": 2200},
+              {"x": 3402.455, "y": 2190.393},
+              {"x": 3308.658, "y": 2161.94},
+              {"x": 3222.215, "y": 2115.735},
+              {"x": 3146.447, "y": 2053.553},
+              {"x": 3084.265, "y": 1977.785},
+              {"x": 3038.06, "y": 1891.342},
+              {"x": 3009.607, "y": 1797.545},
+              {"x": 3000, "y": 1700}
+            ],
+            "profile": "arch"
+          }
+        ]
+      },
+      "elevation": 0,
+      "height": 3525,
+      "label": "Hallenwand mit Tür",
+      "source": "venue",
+      "v1Kind": "wall"
+    }
+  },
+  "units": {
+    "angle": "degrees",
+    "frame": "x = plan x (audience-right), y = up, z = plan y (away from audience); unmirrored model space",
+    "length": "mm",
+    "rotation": "Euler XYZ, Three.js convention"
+  }
+}

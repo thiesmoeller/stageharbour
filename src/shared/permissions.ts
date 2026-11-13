@@ -5,6 +5,7 @@ export const capabilityRoles = {
   scenes: ['administrator', 'editor'],
   venues: ['administrator', 'editor'],
   inventory: ['administrator', 'editor'],
+  parts: ['administrator', 'editor'],
   exports: ['administrator', 'editor'],
   members: ['administrator'],
   branding: ['administrator'],

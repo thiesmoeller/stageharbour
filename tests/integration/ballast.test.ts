@@ -5,7 +5,8 @@ import { eq } from 'drizzle-orm';
 import { createApp } from '../../src/server/app.js';
 import { bootstrapAdministrator } from '../../src/server/identity/bootstrap.js';
 import { membership } from '../../src/server/db/schema.js';
-import { newBrace, type Scene } from '../../src/shared/layout.js';
+import type { LayoutObject, Scene } from '../../src/shared/layout.js';
+import { STARTER_PART_IDS } from '../../src/shared/parts/starter/index.js';
 import { testAdministrator, testDatabase } from '../helpers/database.js';
 
 let fixture: Awaited<ReturnType<typeof testDatabase>>;
@@ -43,9 +44,12 @@ test('requirements count maxima across saved scenes and separate venues', async 
   assert.equal(response.statusCode, 201, response.body);
   const scene = response.json<Scene>();
   await app.inject({ method: 'POST', url: `${base}/scenes/${scene.id}/lease`, headers });
-  const brace = { ...newBrace(randomUUID(), 2000, 2000), ballast: { mode: 'heavy' } };
+  const brace: LayoutObject = {
+    id: randomUUID(), label: 'Stützdreieck', part: { id: STARTER_PART_IDS.brace, revision: 1 },
+    values: { ballast: 2 }, x: 2000, y: 2000, rotation: 0,
+  };
   const saved = await app.inject({ method: 'PUT', url: `${base}/scenes/${scene.id}/layout`, headers,
-    payload: { revision: 0, layout: { schemaVersion: 1, walls: [], braces: [brace] } } });
+    payload: { revision: 0, layout: { schemaVersion: 2, objects: [brace], joints: [] } } });
   assert.equal(saved.statusCode, 200, saved.body);
   const second = await app.inject({ method: 'POST', url: `${base}/scenes`, headers, payload: {
     productionId: scene.productionId, venueVersionId: scene.venueVersionId, sceneName: 'B',
@@ -54,7 +58,7 @@ test('requirements count maxima across saved scenes and separate venues', async 
   const b = second.json<Scene>();
   await app.inject({ method: 'POST', url: `${base}/scenes/${b.id}/lease`, headers });
   const savedB = await app.inject({ method: 'PUT', url: `${base}/scenes/${b.id}/layout`, headers,
-    payload: { revision: 0, layout: { schemaVersion: 1, walls: [], braces: [brace, { ...brace, id: randomUUID() }] } } });
+    payload: { revision: 0, layout: { schemaVersion: 2, objects: [brace, { ...brace, id: randomUUID() }], joints: [] } } });
   assert.equal(savedB.statusCode, 200, savedB.body);
   const result = await app.inject({ url: `${base}/productions/${scene.productionId}/venues/${scene.venueId}/requirements`, headers });
   assert.equal(result.statusCode, 200, result.body);

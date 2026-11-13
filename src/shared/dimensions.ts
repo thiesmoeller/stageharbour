@@ -1,6 +1,6 @@
-import { braceCorners } from './braceTransforms.js';
 import { type DimensionAnchor, type PlayDimension } from './dimensionSchema.js';
 import { wallCorners, type Layout, type VenueGeometry } from './layout.js';
+import type { ResolvedLayoutObject } from './layoutObjects.js';
 import { resolveWall } from './wall-types.js';
 import { measuredOutline, type PlanPoint } from './venue.js';
 
@@ -20,16 +20,19 @@ function pushClosedEdgeMids(points: readonly PlanPoint[], into: SnapAnchor[], an
   }
 }
 
-export function dimensionSnapPoints(venue: VenueGeometry, layout: Layout): SnapAnchor[] {
+export function dimensionSnapPoints(
+  venue: VenueGeometry,
+  _layout: Layout,
+  objects: readonly ResolvedLayoutObject[] = [],
+): SnapAnchor[] {
   const points: SnapAnchor[] = [];
   const outline = measuredOutline(venue);
   outline.forEach((point, index) => points.push({ point, anchor: { kind: 'outline', index } }));
   pushClosedEdgeMids(outline, points, (edge, t) => ({ kind: 'outlineEdge', edge, t }));
-  const sceneTypes = layout.wallTypes ?? [];
-  for (const wall of layout.walls) {
-    wallCorners(resolveWall(wall, sceneTypes)).forEach((point, corner) => {
+  for (const object of objects) {
+    object.footprint.slice(0, 4).forEach((point, corner) => {
       if (corner > 3) return;
-      points.push({ point, anchor: { kind: 'wall', scope: 'scene', wallId: wall.id, corner: corner as 0 | 1 | 2 | 3 } });
+      points.push({ point, anchor: { kind: 'wall', scope: 'scene', wallId: object.object.id, corner: corner as 0 | 1 | 2 | 3 } });
     });
   }
   const venueTypes = venue.wallTypes ?? [];
@@ -40,18 +43,9 @@ export function dimensionSnapPoints(venue: VenueGeometry, layout: Layout): SnapA
     });
     pushClosedEdgeMids(corners, points, (edge, t) => ({ kind: 'wallEdge', scope: 'venue', wallId: wall.id, edge: edge as 0 | 1 | 2 | 3, t }));
   }
-  for (const platform of layout.platforms ?? []) {
-    platform.outline.forEach((point, index) => points.push({ point, anchor: { kind: 'platform', scope: 'scene', platformId: platform.id, index } }));
-  }
   for (const platform of venue.platforms ?? []) {
     platform.outline.forEach((point, index) => points.push({ point, anchor: { kind: 'platform', scope: 'venue', platformId: platform.id, index } }));
     pushClosedEdgeMids(platform.outline, points, (edge, t) => ({ kind: 'platformEdge', scope: 'venue', platformId: platform.id, edge, t }));
-  }
-  for (const brace of layout.braces) {
-    braceCorners(brace).forEach((point, corner) => {
-      if (corner > 3) return;
-      points.push({ point, anchor: { kind: 'brace', braceId: brace.id, corner: corner as 0 | 1 | 2 | 3 } });
-    });
   }
   return points;
 }
@@ -66,7 +60,12 @@ export function nearestSnap(points: readonly SnapAnchor[], at: PlanPoint, maxDis
   return best;
 }
 
-export function resolveAnchor(anchor: DimensionAnchor, venue: VenueGeometry, layout: Layout): PlanPoint | undefined {
+export function resolveAnchor(
+  anchor: DimensionAnchor,
+  venue: VenueGeometry,
+  _layout: Layout,
+  objects: readonly ResolvedLayoutObject[] = [],
+): PlanPoint | undefined {
   if (anchor.kind === 'outline') return measuredOutline(venue)[anchor.index];
   if (anchor.kind === 'outlineEdge') {
     const outline = measuredOutline(venue);
@@ -76,8 +75,16 @@ export function resolveAnchor(anchor: DimensionAnchor, venue: VenueGeometry, lay
     return edgePoint(start, end, anchor.t);
   }
   if (anchor.kind === 'wall' || anchor.kind === 'wallEdge') {
-    const walls = anchor.scope === 'scene' ? layout.walls : (venue.walls ?? []);
-    const types = anchor.scope === 'scene' ? (layout.wallTypes ?? []) : (venue.wallTypes ?? []);
+    if (anchor.scope === 'scene') {
+      const object = objects.find(item => item.object.id === anchor.wallId);
+      if (!object) return undefined;
+      const corners = object.footprint.slice(0, 4);
+      if (anchor.kind === 'wall') return corners[anchor.corner];
+      const start = corners[anchor.edge], end = corners[(anchor.edge + 1) % corners.length];
+      return start && end ? edgePoint(start, end, anchor.t) : undefined;
+    }
+    const walls = venue.walls ?? [];
+    const types = venue.wallTypes ?? [];
     const wall = walls.find(item => item.id === anchor.wallId);
     if (!wall) return undefined;
     const corners = wallCorners(resolveWall(wall, types)).slice(0, 4);
@@ -88,7 +95,14 @@ export function resolveAnchor(anchor: DimensionAnchor, venue: VenueGeometry, lay
     return edgePoint(start, end, anchor.t);
   }
   if (anchor.kind === 'platform' || anchor.kind === 'platformEdge') {
-    const platforms = anchor.scope === 'scene' ? (layout.platforms ?? []) : (venue.platforms ?? []);
+    if (anchor.scope === 'scene') {
+      const object = objects.find(item => item.object.id === anchor.platformId);
+      if (!object) return undefined;
+      if (anchor.kind === 'platform') return object.footprint[anchor.index];
+      const start = object.footprint[anchor.edge], end = object.footprint[(anchor.edge + 1) % object.footprint.length];
+      return start && end ? edgePoint(start, end, anchor.t) : undefined;
+    }
+    const platforms = venue.platforms ?? [];
     const platform = platforms.find(item => item.id === anchor.platformId);
     if (!platform) return undefined;
     if (anchor.kind === 'platform') return platform.outline[anchor.index];
@@ -97,8 +111,7 @@ export function resolveAnchor(anchor: DimensionAnchor, venue: VenueGeometry, lay
     if (!start || !end) return undefined;
     return edgePoint(start, end, anchor.t);
   }
-  const brace = layout.braces.find(item => item.id === anchor.braceId);
-  return brace ? braceCorners(brace)[anchor.corner] : undefined;
+  return objects.find(item => item.object.id === anchor.braceId)?.footprint[anchor.corner];
 }
 
 export type ResolvedDimension = {
@@ -120,9 +133,14 @@ export type DimensionFigure = ResolvedDimension & {
 };
 
 /** Drop the dimension when either referenced point has left the scene. */
-export function resolveDimension(dimension: PlayDimension, venue: VenueGeometry, layout: Layout): ResolvedDimension | undefined {
-  const a = resolveAnchor(dimension.a, venue, layout);
-  const b = resolveAnchor(dimension.b, venue, layout);
+export function resolveDimension(
+  dimension: PlayDimension,
+  venue: VenueGeometry,
+  layout: Layout,
+  objects: readonly ResolvedLayoutObject[] = [],
+): ResolvedDimension | undefined {
+  const a = resolveAnchor(dimension.a, venue, layout, objects);
+  const b = resolveAnchor(dimension.b, venue, layout, objects);
   if (!a || !b) return undefined;
   return { id: dimension.id, orientation: dimension.orientation, a, b, offset: dimension.offset, valueMm: dimensionValue(dimension.orientation, a, b) };
 }

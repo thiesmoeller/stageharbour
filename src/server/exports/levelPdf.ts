@@ -10,8 +10,8 @@ export function strokeLevelFeatures(
   toPage: (x: number, y: number) => { x: number; y: number },
 ) {
   const layers = resolveExportLayers(snapshot.layers);
-  const platforms = [...snapshot.venue.platforms ?? [], ...snapshot.layout.platforms ?? []];
-  const stairs = [...snapshot.venue.stairs ?? [], ...snapshot.layout.stairs ?? []];
+  const platforms = snapshot.venue.platforms ?? [];
+  const stairs = snapshot.venue.stairs ?? [];
   for (const platform of platforms) {
     const start = toPage(platform.outline[0]!.x, platform.outline[0]!.y);
     doc.moveTo(start.x, start.y);

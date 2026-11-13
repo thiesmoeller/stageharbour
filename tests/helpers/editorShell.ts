@@ -10,7 +10,7 @@ export function editorMenu(page: Page, name: string) {
 }
 
 export async function enterVenue(page: Page) {
-  await editorMenu(page, 'Datei').click();
+  await editorMenu(page, 'Ansicht').click();
   await page.getByRole('button', { name: 'Spielstätte bearbeiten', exact: true }).click();
   await expect(page.getByRole('img', { name: 'Umriss der Spielstätte', exact: true })).toBeVisible();
 }
@@ -35,7 +35,9 @@ export async function expectActiveDock(page: Page, active: DockPanel | null) {
     else await expect(pane).toBeHidden();
   }
   await expect(page.locator('.dock-pane:visible')).toHaveCount(active ? 1 : 0);
-  await expect(page.getByRole('button', { name: 'Seitenleiste schließen' })).toHaveCount(active ? 1 : 0);
+  const close = page.getByRole('button', { name: 'Seitenleiste schließen', includeHidden: true });
+  if (active) await expect(close).toBeVisible();
+  else await expect(close).toBeHidden();
 }
 
 export async function bounds(locator: Locator) {
