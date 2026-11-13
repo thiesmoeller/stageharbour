@@ -121,6 +121,9 @@ test('a schema v1 database row is converted once on read and persisted as v2', a
   assert.equal(layout.schemaVersion, 2);
   assert.equal(layout.objects[0]?.id, wallId);
   assert.equal(layout.objects[0]?.variant, 'doorLeft');
+  assert.deepEqual(layout.objects[0]?.values, {
+    B: 1200, H: 2400, D: 28, tuerLeft: 200, tuerSill: 0, tuerB: 800, tuerH: 2000,
+  });
   assert.equal(layout.objects[0]?.stockItemId, stockItemId);
   assert.equal(layout.objects[0]?.assemblyNumber, 4);
   assert.deepEqual(layout.objects[0]?.state, { open: 50 });
