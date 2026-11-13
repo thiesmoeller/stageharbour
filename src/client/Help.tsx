@@ -158,6 +158,7 @@ export function Help({ topic }: { topic?: string }) {
           liefert fertige Bauteile; mit <strong>Als Kopie anlegen</strong> entsteht eine eigene Fassung.</li>
         <li><strong>Aufbau</strong> — Körper (Platte, Profil, Quader), Unterbauteile, Verbinder und Zubehör links hinzufügen, ordnen und wählen.
           Ein Klick auf einen Körper in einer Ansicht wählt ihn ebenfalls.</li>
+        <li><strong>Öffnungen</strong> — einen Plattenkörper wählen und Fenster, Türen oder freie Ausschnitte direkt in der Flächenansicht zeichnen.</li>
         <li><strong>Formeln</strong> — neben jedem Feld steht der aktuelle Wert oder die Fehlermeldung mit der Stelle des Fehlers.
           Wiederholte Körper verwenden die Zähler <code>i</code>, <code>j</code>, <code>k</code>.</li>
         <li><strong>Vorschau</strong> — 3D-Ansicht sowie Draufsicht (Publikum unten), Vorderansicht (aus dem Publikum) und Seitenansicht.

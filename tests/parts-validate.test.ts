@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { PART_LIMITS, createPartContext, type PartDefinition, type PartParameter } from '../src/shared/parts/definition.js';
 import type { PartIssue } from '../src/shared/parts/issues.js';
-import { STARTER_BRACE, STARTER_CONTEXT, STARTER_LIBRARY, STARTER_MATERIALS, STARTER_PARTS, STARTER_TABLE } from '../src/shared/parts/starter/index.js';
+import {
+  STARTER_BRACE, STARTER_CONTEXT, STARTER_LIBRARY, STARTER_MATERIALS, STARTER_PARTS, STARTER_TABLE, STARTER_WALL,
+} from '../src/shared/parts/starter/index.js';
 import { validateDefinition, validateLibrary } from '../src/shared/parts/validate.js';
 import {
   CHAIR, DECK_ROW, DOOR_LEAF, DOOR_WALL, FIXTURE_CONTEXT, FIXTURE_MATERIALS, FIXTURE_PARTS, STAIR, WIDE_BRACE,
@@ -27,7 +29,7 @@ test('the starter parts and the fixtures pass', () => {
     assert.deepEqual(result.issues, [], definition.name);
     assert.equal(result.ok, true);
     assert.deepEqual(result.definition, definition);
-    assert.equal(result.sampled, false);
+    assert.equal(result.sampled, definition === STARTER_WALL);
   }
   for (const definition of [WIDE_BRACE, DOOR_LEAF, DOOR_WALL, STAIR, DECK_ROW, CHAIR, panel()]) {
     const result = validateDefinition(definition, FIXTURE_CONTEXT);

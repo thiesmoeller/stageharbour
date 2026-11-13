@@ -4,8 +4,10 @@ import type { PartIssue } from '../../shared/parts/issues.js';
 import type { PartSummary } from '../../shared/parts/catalog.js';
 import type { ResolvedPart } from '../../shared/parts/resolve.js';
 import { CutListPanel, IssueList } from './CutListPanel.js';
+import { CoreMeasures } from './CoreMeasures.js';
 import { ElementEditor, TraitsEditor, type EditorIssue } from './ElementEditor.js';
 import { FormulaField, IssueLines } from './FormulaField.js';
+import { OpeningInspector } from './OpeningInspector.js';
 import { ParameterTable } from './ParameterTable.js';
 import { VariantTable } from './VariantTable.js';
 import { moveItem, newDerived, removeAt, replaceAt, selectionOfIssue, type DesignerSelection } from './draft.js';
@@ -43,14 +45,21 @@ export type PartEditorProps = {
   onPreviewValue: (key: string, value: number | undefined) => void;
   favourite: boolean | undefined;
   onFavourite: ((favourite: boolean) => void) | undefined;
+  /** Sheet body key when the face sketcher is active. */
+  sketchBodyKey?: string;
+  /** Hole selected on the face sketcher. */
+  openingKey?: string;
 };
 
-/** Right-hand inspector: part data, parameters, variants, derived values, the selected element, traits and results. */
+/** Right-hand inspector: essentials first; formulas and full parameter chrome under Erweitert. */
 export function PartEditor(props: PartEditorProps) {
   const { definition, onChange, resolved, issues, materials, disabled, selection, onSelect } = props;
   const editorIssues = issues as readonly EditorIssue[];
   const derived = definition.derived ?? [];
   const metaIssues = (field: string) => issues.filter(item => item.field === field && !item.parameter && !item.body && !item.child);
+  const sketching = !!props.sketchBodyKey;
+  const showOpening = sketching && !!props.openingKey;
+
   return <div className="designer-inspector" data-testid="designer-inspector">
     <Section title="Bauteil">
       <label className="designer-field">Name
@@ -61,6 +70,35 @@ export function PartEditor(props: PartEditorProps) {
         <input value={definition.category} disabled={disabled} data-testid="part-category" onChange={event => onChange({ ...definition, category: event.target.value })} />
       </label>
       <IssueLines issues={metaIssues('category')} />
+      {props.favourite !== undefined && <label className="checkbox-line">
+        <input type="checkbox" checked={props.favourite} disabled={!props.onFavourite} onChange={event => props.onFavourite?.(event.target.checked)} />Favorit
+      </label>}
+    </Section>
+
+    <Section title="Maße" testId="designer-section-measures">
+      <p className="muted">Die üblichen Größen dieses Bauteils. Öffnungen zeichnest du auf der Fläche.</p>
+      <CoreMeasures definition={definition} onChange={onChange} disabled={disabled} />
+    </Section>
+
+    {!!definition.variants?.length && <Section title="Varianten" testId="designer-section-variants">
+      <VariantTable definition={definition} onChange={onChange} issues={issues} disabled={disabled}
+        previewVariant={props.previewVariant} onPreviewVariant={props.onPreviewVariant} />
+    </Section>}
+
+    {sketching && <Section title="Öffnung" testId="designer-section-opening">
+      {showOpening && props.sketchBodyKey && props.openingKey
+        ? <OpeningInspector definition={definition} bodyKey={props.sketchBodyKey} holeKey={props.openingKey}
+          activeVariant={props.previewVariant} disabled={disabled} onChange={onChange} />
+        : <p className="muted">Öffnung auf der Fläche anklicken oder neu aufziehen.</p>}
+    </Section>}
+
+    <Section title="Auswahl" open={!sketching} testId="designer-section-selection">
+      <ElementEditor definition={definition} onChange={onChange} resolved={resolved} issues={editorIssues} materials={materials} disabled={disabled}
+        selection={selection} library={props.library} childDefinition={props.childDefinition} onUpgradeChild={props.onUpgradeChild} />
+    </Section>
+
+    <Section title="Erweitert · Parameter und Formeln" open={false} testId="designer-section-advanced">
+      <p className="muted">Schlüssel, Bereiche, abgeleitete Werte und Formeln — für den Feinschliff.</p>
       <label className="designer-field">Beschreibung
         <textarea rows={2} value={definition.description ?? ''} disabled={disabled} onChange={event => {
           const { description: _old, ...rest } = definition;
@@ -84,20 +122,11 @@ export function PartEditor(props: PartEditorProps) {
           </select>
         </label>
       </div>
-      {props.favourite !== undefined && <label className="checkbox-line">
-        <input type="checkbox" checked={props.favourite} disabled={!props.onFavourite} onChange={event => props.onFavourite?.(event.target.checked)} />Favorit
-      </label>}
-    </Section>
-    <Section title="Parameter" testId="designer-section-parameters">
+      <h3 className="designer-subsection-title">Alle Parameter</h3>
       <ParameterTable definition={definition} onChange={onChange} issues={issues} disabled={disabled}
-        preview={props.previewValues} onPreview={props.onPreviewValue} resolvedValues={resolved?.values} />
-    </Section>
-    <Section title="Varianten" open={!!definition.variants?.length}>
-      <VariantTable definition={definition} onChange={onChange} issues={issues} disabled={disabled}
-        previewVariant={props.previewVariant} onPreviewVariant={props.onPreviewVariant} />
-    </Section>
-    <Section title="Abgeleitete Werte" open={derived.length > 0}>
-      <p className="muted">Formeln, die in dieser Reihenfolge berechnet werden und überall wie Parameter verwendbar sind.</p>
+        preview={props.previewValues} onPreview={props.onPreviewValue} resolvedValues={resolved?.values}
+        defaultTestIdPrefix="parameter-advanced" />
+      <h3 className="designer-subsection-title">Abgeleitete Werte</h3>
       <div data-testid="designer-derived">
         {derived.map((item, index) => {
           const own = issues.filter(entry => entry.derived === item.key && !entry.path);
@@ -122,15 +151,11 @@ export function PartEditor(props: PartEditorProps) {
         <button type="button" className="quiet" disabled={disabled}
           onClick={() => onChange({ ...definition, derived: [...derived, newDerived(definition)] })}>Wert hinzufügen</button>
       </div>
-    </Section>
-    <Section title="Auswahl" testId="designer-section-selection">
-      <ElementEditor definition={definition} onChange={onChange} resolved={resolved} issues={editorIssues} materials={materials} disabled={disabled}
-        selection={selection} library={props.library} childDefinition={props.childDefinition} onUpgradeChild={props.onUpgradeChild} />
-    </Section>
-    <Section title="Eigenschaften" open={false}>
+      <h3 className="designer-subsection-title">Eigenschaften</h3>
       <TraitsEditor definition={definition} onChange={onChange} issues={editorIssues} disabled={disabled} />
     </Section>
-    <Section title="Zuschnittliste und Gewicht" testId="designer-section-cutlist">
+
+    <Section title="Zuschnittliste und Gewicht" open={false} testId="designer-section-cutlist">
       <CutListPanel resolved={resolved} materials={materials} />
     </Section>
     <Section title="Prüfung" testId="designer-section-issues">

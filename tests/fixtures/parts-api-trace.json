@@ -951,10 +951,10 @@
     "request": "GET /api/workspaces/<workspace>/parts/5a17e9a0-0000-4000-8000-000000000003/revisions/1",
     "status": 200,
     "body": {
+      "partId": "5a17e9a0-0000-4000-8000-000000000003",
       "revision": 1,
       "createdAt": "<time>",
       "authorName": null,
-      "partId": "5a17e9a0-0000-4000-8000-000000000003",
       "definition": {
         "id": "5a17e9a0-0000-4000-8000-000000000003",
         "revision": 1,
@@ -1610,9 +1610,9 @@
           "severity": "error",
           "code": "body-too-small",
           "message": "Körper „latte“: Länge 0 mm unterschreitet das Mindestmaß von 1 mm. Tritt auf bei B = 0.",
-          "parameter": "B",
           "body": "latte",
-          "field": "to"
+          "field": "to",
+          "parameter": "B"
         }
       ]
     }
@@ -1857,10 +1857,10 @@
     "request": "GET /api/workspaces/<workspace>/parts/c47a1090-0000-4000-8000-000000000001/revisions/1",
     "status": 200,
     "body": {
+      "partId": "c47a1090-0000-4000-8000-000000000001",
       "revision": 1,
       "createdAt": "<time>",
       "authorName": "<author>",
-      "partId": "c47a1090-0000-4000-8000-000000000001",
       "definition": {
         "id": "c47a1090-0000-4000-8000-000000000001",
         "revision": 1,
@@ -1924,10 +1924,10 @@
     "request": "GET /api/workspaces/<workspace>/parts/c47a1090-0000-4000-8000-000000000001/revisions/2",
     "status": 200,
     "body": {
+      "partId": "c47a1090-0000-4000-8000-000000000001",
       "revision": 2,
       "createdAt": "<time>",
       "authorName": "<author>",
-      "partId": "c47a1090-0000-4000-8000-000000000001",
       "definition": {
         "id": "c47a1090-0000-4000-8000-000000000001",
         "revision": 2,
@@ -4674,24 +4674,24 @@
                 "key": "standard",
                 "label": "50 × 120 cm",
                 "values": {
-                  "H": 1200,
-                  "T": 500
+                  "T": 500,
+                  "H": 1200
                 }
               },
               {
                 "key": "niedrig",
                 "label": "40 × 90 cm",
                 "values": {
-                  "H": 900,
-                  "T": 400
+                  "T": 400,
+                  "H": 900
                 }
               },
               {
                 "key": "hoch",
                 "label": "80 × 240 cm",
                 "values": {
-                  "H": 2400,
-                  "T": 800
+                  "T": 800,
+                  "H": 2400
                 }
               }
             ],
@@ -5333,8 +5333,8 @@
                 ]
               },
               {
-                "key": "openingLeft",
-                "label": "Öffnung links",
+                "key": "tuerLeft",
+                "label": "Tür links · Linke Kante",
                 "type": "length",
                 "default": 200,
                 "scope": "placement",
@@ -5344,19 +5344,18 @@
                 }
               },
               {
-                "key": "openingSill",
-                "label": "Brüstung",
+                "key": "tuerSill",
+                "label": "Tür links · Brüstung",
                 "type": "length",
-                "default": 1,
+                "default": 0,
                 "scope": "placement",
-                "range": {
-                  "min": 1,
-                  "max": 9000
-                }
+                "values": [
+                  0
+                ]
               },
               {
-                "key": "openingB",
-                "label": "Öffnungsbreite",
+                "key": "tuerB",
+                "label": "Tür links · Breite",
                 "type": "length",
                 "default": 800,
                 "scope": "placement",
@@ -5366,8 +5365,139 @@
                 }
               },
               {
-                "key": "openingH",
-                "label": "Öffnungshöhe",
+                "key": "tuerH",
+                "label": "Tür links · Höhe",
+                "type": "length",
+                "default": 2000,
+                "scope": "placement",
+                "range": {
+                  "min": 1,
+                  "max": 9000
+                }
+              },
+              {
+                "key": "tuer_hrechtsLeft",
+                "label": "Tür rechts · Linke Kante",
+                "type": "length",
+                "default": 200,
+                "scope": "placement",
+                "range": {
+                  "min": 0,
+                  "max": 9000
+                }
+              },
+              {
+                "key": "tuer_hrechtsSill",
+                "label": "Tür rechts · Brüstung",
+                "type": "length",
+                "default": 0,
+                "scope": "placement",
+                "values": [
+                  0
+                ]
+              },
+              {
+                "key": "tuer_hrechtsB",
+                "label": "Tür rechts · Breite",
+                "type": "length",
+                "default": 800,
+                "scope": "placement",
+                "range": {
+                  "min": 1,
+                  "max": 9000
+                }
+              },
+              {
+                "key": "tuer_hrechtsH",
+                "label": "Tür rechts · Höhe",
+                "type": "length",
+                "default": 2000,
+                "scope": "placement",
+                "range": {
+                  "min": 1,
+                  "max": 9000
+                }
+              },
+              {
+                "key": "fensterLeft",
+                "label": "Fenster · Linke Kante",
+                "type": "length",
+                "default": 200,
+                "scope": "placement",
+                "range": {
+                  "min": 0,
+                  "max": 9000
+                }
+              },
+              {
+                "key": "fensterSill",
+                "label": "Fenster · Brüstung",
+                "type": "length",
+                "default": 1,
+                "scope": "placement",
+                "range": {
+                  "min": 1,
+                  "max": 9000
+                }
+              },
+              {
+                "key": "fensterB",
+                "label": "Fenster · Breite",
+                "type": "length",
+                "default": 800,
+                "scope": "placement",
+                "range": {
+                  "min": 1,
+                  "max": 9000
+                }
+              },
+              {
+                "key": "fensterH",
+                "label": "Fenster · Höhe",
+                "type": "length",
+                "default": 2000,
+                "scope": "placement",
+                "range": {
+                  "min": 1,
+                  "max": 9000
+                }
+              },
+              {
+                "key": "bogenLeft",
+                "label": "Bogen · Linke Kante",
+                "type": "length",
+                "default": 200,
+                "scope": "placement",
+                "range": {
+                  "min": 0,
+                  "max": 9000
+                }
+              },
+              {
+                "key": "bogenSill",
+                "label": "Bogen · Brüstung",
+                "type": "length",
+                "default": 1,
+                "scope": "placement",
+                "range": {
+                  "min": 1,
+                  "max": 9000
+                }
+              },
+              {
+                "key": "bogenB",
+                "label": "Bogen · Breite",
+                "type": "length",
+                "default": 800,
+                "scope": "placement",
+                "range": {
+                  "min": 1,
+                  "max": 9000
+                }
+              },
+              {
+                "key": "bogenH",
+                "label": "Bogen · Höhe",
                 "type": "length",
                 "default": 2000,
                 "scope": "placement",
@@ -5466,37 +5596,37 @@
                     "shape": "rect",
                     "key": "tuer",
                     "when": "shape == 1",
-                    "x": "-W / 2 + max(0, min(openingLeft, W - 1))",
-                    "y": 0,
-                    "width": "max(1, min(openingB, W - max(0, min(openingLeft, W - 1))))",
-                    "height": "max(1, min(openingH, H - 1))"
+                    "x": "-W / 2 + max(0, min(tuerLeft, W - 1))",
+                    "y": "max(0, min(tuerSill, H - 1))",
+                    "width": "max(1, min(tuerB, W - max(0, min(tuerLeft, W - 1))))",
+                    "height": "max(1, min(tuerH, H - max(0, min(tuerSill, H - 1)) - 1))"
                   },
                   {
                     "shape": "rect",
                     "key": "tuer-rechts",
                     "when": "shape == 2",
-                    "x": "-W / 2 + max(0, min(openingLeft, W - 1))",
-                    "y": 0,
-                    "width": "max(1, min(openingB, W - max(0, min(openingLeft, W - 1))))",
-                    "height": "max(1, min(openingH, H - 1))"
+                    "x": "-W / 2 + max(0, min(tuer_hrechtsLeft, W - 1))",
+                    "y": "max(0, min(tuer_hrechtsSill, H - 1))",
+                    "width": "max(1, min(tuer_hrechtsB, W - max(0, min(tuer_hrechtsLeft, W - 1))))",
+                    "height": "max(1, min(tuer_hrechtsH, H - max(0, min(tuer_hrechtsSill, H - 1)) - 1))"
                   },
                   {
                     "shape": "rect",
                     "key": "fenster",
                     "when": "shape == 3",
-                    "x": "-W / 2 + max(1, min(openingLeft, W - 2))",
-                    "y": "max(1, min(openingSill, H - 2))",
-                    "width": "max(1, min(openingB, W - max(1, min(openingLeft, W - 2)) - 1))",
-                    "height": "max(1, min(openingH, H - max(1, min(openingSill, H - 2)) - 1))"
+                    "x": "-W / 2 + max(1, min(fensterLeft, W - 2))",
+                    "y": "max(1, min(fensterSill, H - 2))",
+                    "width": "max(1, min(fensterB, W - max(1, min(fensterLeft, W - 2)) - 1))",
+                    "height": "max(1, min(fensterH, H - max(1, min(fensterSill, H - 2)) - 1))"
                   },
                   {
                     "shape": "arch",
                     "key": "bogen",
                     "when": "shape == 4",
-                    "x": "-W / 2 + max(1, min(openingLeft, W - 2))",
-                    "y": 1,
-                    "width": "max(1, min(openingB, W - max(1, min(openingLeft, W - 2)) - 1, 2 * max(1, min(openingH, H - 2))))",
-                    "height": "max(1, min(openingH, H - 2))"
+                    "x": "-W / 2 + max(1, min(bogenLeft, W - 2))",
+                    "y": "max(1, min(bogenSill, H - 2))",
+                    "width": "max(1, min(bogenB, W - max(1, min(bogenLeft, W - 2)) - 1, 2 * max(1, min(bogenH, H - max(1, min(bogenSill, H - 2)) - 1))))",
+                    "height": "max(1, min(bogenH, H - max(1, min(bogenSill, H - 2)) - 1))"
                   }
                 ]
               }
@@ -5510,14 +5640,14 @@
                   "revision": 1
                 },
                 "values": {
-                  "B": "openingB",
-                  "H": "openingH",
-                  "open": "open",
-                  "hinge": "if(shape == 1, -1, 1)"
+                  "B": "if(shape == 1, tuerB, tuer_hrechtsB)",
+                  "H": "if(shape == 1, tuerH, tuer_hrechtsH)",
+                  "hinge": "if(shape == 1, -1, 1)",
+                  "open": "open"
                 },
                 "at": [
-                  "-W / 2 + openingLeft + openingB / 2",
-                  0,
+                  "-W / 2 + if(shape == 1, tuerLeft + tuerB / 2, tuer_hrechtsLeft + tuer_hrechtsB / 2)",
+                  "if(shape == 1, tuerSill, tuer_hrechtsSill)",
                   "-D / 2"
                 ],
                 "when": "if(shape == 1, 1, shape == 2)"
@@ -6252,11 +6382,9 @@
     "status": 201,
     "body": {
       "id": "<id4>",
-      "label": "K-01",
       "partId": "c47a1090-0000-4000-8000-000000000001",
-      "partName": "Kiste Eins, importiert",
+      "label": "K-01",
       "variantKey": "klein",
-      "variantLabel": "Klein",
       "values": {},
       "usable": true,
       "notes": "Linke Kante bestoßen",
@@ -6270,9 +6398,11 @@
         }
       ],
       "finish": null,
-      "archived": false,
       "createdAt": "<time>",
-      "updatedAt": "<time>"
+      "updatedAt": "<time>",
+      "partName": "Kiste Eins, importiert",
+      "variantLabel": "Klein",
+      "archived": false
     }
   },
   {
@@ -6282,19 +6412,19 @@
     "status": 201,
     "body": {
       "id": "<id5>",
-      "label": "K-02",
       "partId": "c47a1090-0000-4000-8000-000000000001",
-      "partName": "Kiste Eins, importiert",
+      "label": "K-02",
       "variantKey": "gross",
-      "variantLabel": "Groß",
       "values": {},
       "usable": true,
       "notes": null,
       "cutouts": [],
       "finish": null,
-      "archived": false,
       "createdAt": "<time>",
-      "updatedAt": "<time>"
+      "updatedAt": "<time>",
+      "partName": "Kiste Eins, importiert",
+      "variantLabel": "Groß",
+      "archived": false
     }
   },
   {
@@ -6378,9 +6508,7 @@
       "id": "<id5>",
       "label": "K-02",
       "partId": "c47a1090-0000-4000-8000-000000000001",
-      "partName": "Kiste Eins, importiert",
       "variantKey": "klein",
-      "variantLabel": "Klein",
       "values": {},
       "usable": false,
       "notes": "Verliehen",
@@ -6397,9 +6525,11 @@
         "description": "Weiß gestrichen",
         "confirmedAt": "<time>"
       },
-      "archived": false,
       "createdAt": "<time>",
-      "updatedAt": "<time>"
+      "updatedAt": "<time>",
+      "partName": "Kiste Eins, importiert",
+      "variantLabel": "Klein",
+      "archived": false
     }
   },
   {
@@ -6456,17 +6586,17 @@
       "id": "<id5>",
       "label": "K-02",
       "partId": "c47a1090-0000-4000-8000-000000000001",
-      "partName": "Kiste Eins, importiert",
       "variantKey": "klein",
-      "variantLabel": "Klein",
       "values": {},
       "usable": false,
       "notes": "Verliehen",
       "cutouts": [],
       "finish": null,
-      "archived": false,
       "createdAt": "<time>",
-      "updatedAt": "<time>"
+      "updatedAt": "<time>",
+      "partName": "Kiste Eins, importiert",
+      "variantLabel": "Klein",
+      "archived": false
     }
   },
   {
@@ -6478,17 +6608,17 @@
       "id": "<id5>",
       "label": "K-02",
       "partId": "c47a1090-0000-4000-8000-000000000001",
-      "partName": "Kiste Eins, importiert",
       "variantKey": "klein",
-      "variantLabel": "Klein",
       "values": {},
       "usable": false,
       "notes": "Verliehen",
       "cutouts": [],
       "finish": null,
-      "archived": true,
       "createdAt": "<time>",
-      "updatedAt": "<time>"
+      "updatedAt": "<time>",
+      "partName": "Kiste Eins, importiert",
+      "variantLabel": "Klein",
+      "archived": true
     }
   },
   {
@@ -6510,9 +6640,7 @@
         "id": "<id4>",
         "label": "K-01",
         "partId": "c47a1090-0000-4000-8000-000000000001",
-        "partName": "Kiste Eins, importiert",
         "variantKey": "klein",
-        "variantLabel": "Klein",
         "values": {},
         "usable": true,
         "notes": "Linke Kante bestoßen",
@@ -6526,9 +6654,11 @@
           }
         ],
         "finish": null,
-        "archived": false,
         "createdAt": "<time>",
-        "updatedAt": "<time>"
+        "updatedAt": "<time>",
+        "partName": "Kiste Eins, importiert",
+        "variantLabel": "Klein",
+        "archived": false
       }
     ]
   },
@@ -6542,9 +6672,7 @@
         "id": "<id4>",
         "label": "K-01",
         "partId": "c47a1090-0000-4000-8000-000000000001",
-        "partName": "Kiste Eins, importiert",
         "variantKey": "klein",
-        "variantLabel": "Klein",
         "values": {},
         "usable": true,
         "notes": "Linke Kante bestoßen",
@@ -6558,25 +6686,27 @@
           }
         ],
         "finish": null,
-        "archived": false,
         "createdAt": "<time>",
-        "updatedAt": "<time>"
+        "updatedAt": "<time>",
+        "partName": "Kiste Eins, importiert",
+        "variantLabel": "Klein",
+        "archived": false
       },
       {
         "id": "<id5>",
         "label": "K-02",
         "partId": "c47a1090-0000-4000-8000-000000000001",
-        "partName": "Kiste Eins, importiert",
         "variantKey": "klein",
-        "variantLabel": "Klein",
         "values": {},
         "usable": false,
         "notes": "Verliehen",
         "cutouts": [],
         "finish": null,
-        "archived": true,
         "createdAt": "<time>",
-        "updatedAt": "<time>"
+        "updatedAt": "<time>",
+        "partName": "Kiste Eins, importiert",
+        "variantLabel": "Klein",
+        "archived": true
       }
     ]
   },
@@ -6587,19 +6717,19 @@
     "status": 201,
     "body": {
       "id": "<id6>",
-      "label": "K-02",
       "partId": "c47a1090-0000-4000-8000-000000000001",
-      "partName": "Kiste Eins, importiert",
+      "label": "K-02",
       "variantKey": "klein",
-      "variantLabel": "Klein",
       "values": {},
       "usable": true,
       "notes": null,
       "cutouts": [],
       "finish": null,
-      "archived": false,
       "createdAt": "<time>",
-      "updatedAt": "<time>"
+      "updatedAt": "<time>",
+      "partName": "Kiste Eins, importiert",
+      "variantLabel": "Klein",
+      "archived": false
     }
   },
   {
@@ -6638,17 +6768,17 @@
       "id": "<id6>",
       "label": "K-02",
       "partId": "c47a1090-0000-4000-8000-000000000001",
-      "partName": "Kiste Eins, importiert",
       "variantKey": "klein",
-      "variantLabel": "Klein",
       "values": {},
       "usable": true,
       "notes": null,
       "cutouts": [],
       "finish": null,
-      "archived": true,
       "createdAt": "<time>",
-      "updatedAt": "<time>"
+      "updatedAt": "<time>",
+      "partName": "Kiste Eins, importiert",
+      "variantLabel": "Klein",
+      "archived": true
     }
   },
   {
@@ -6660,17 +6790,17 @@
       "id": "<id5>",
       "label": "K-02",
       "partId": "c47a1090-0000-4000-8000-000000000001",
-      "partName": "Kiste Eins, importiert",
       "variantKey": "klein",
-      "variantLabel": "Klein",
       "values": {},
       "usable": false,
       "notes": "Verliehen",
       "cutouts": [],
       "finish": null,
-      "archived": false,
       "createdAt": "<time>",
-      "updatedAt": "<time>"
+      "updatedAt": "<time>",
+      "partName": "Kiste Eins, importiert",
+      "variantLabel": "Klein",
+      "archived": false
     }
   },
   {
@@ -6683,9 +6813,7 @@
         "id": "<id4>",
         "label": "K-01",
         "partId": "c47a1090-0000-4000-8000-000000000001",
-        "partName": "Kiste Eins, importiert",
         "variantKey": "klein",
-        "variantLabel": "Klein",
         "values": {},
         "usable": true,
         "notes": "Linke Kante bestoßen",
@@ -6699,41 +6827,43 @@
           }
         ],
         "finish": null,
-        "archived": false,
         "createdAt": "<time>",
-        "updatedAt": "<time>"
+        "updatedAt": "<time>",
+        "partName": "Kiste Eins, importiert",
+        "variantLabel": "Klein",
+        "archived": false
       },
       {
         "id": "<id5>",
         "label": "K-02",
         "partId": "c47a1090-0000-4000-8000-000000000001",
-        "partName": "Kiste Eins, importiert",
         "variantKey": "klein",
-        "variantLabel": "Klein",
         "values": {},
         "usable": false,
         "notes": "Verliehen",
         "cutouts": [],
         "finish": null,
-        "archived": false,
         "createdAt": "<time>",
-        "updatedAt": "<time>"
+        "updatedAt": "<time>",
+        "partName": "Kiste Eins, importiert",
+        "variantLabel": "Klein",
+        "archived": false
       },
       {
         "id": "<id6>",
         "label": "K-02",
         "partId": "c47a1090-0000-4000-8000-000000000001",
-        "partName": "Kiste Eins, importiert",
         "variantKey": "klein",
-        "variantLabel": "Klein",
         "values": {},
         "usable": true,
         "notes": null,
         "cutouts": [],
         "finish": null,
-        "archived": true,
         "createdAt": "<time>",
-        "updatedAt": "<time>"
+        "updatedAt": "<time>",
+        "partName": "Kiste Eins, importiert",
+        "variantLabel": "Klein",
+        "archived": true
       }
     ]
   },
@@ -6763,10 +6893,10 @@
       "materialKey": "gummifuss-50",
       "partId": null,
       "variantKey": null,
-      "name": "Gummifuß 50 × 50 mm",
-      "variantLabel": null,
       "quantity": 40,
-      "updatedAt": "<time>"
+      "updatedAt": "<time>",
+      "name": "Gummifuß 50 × 50 mm",
+      "variantLabel": null
     }
   },
   {
@@ -6779,10 +6909,10 @@
       "materialKey": "gummifuss-50",
       "partId": null,
       "variantKey": null,
-      "name": "Gummifuß 50 × 50 mm",
-      "variantLabel": null,
       "quantity": 35,
-      "updatedAt": "<time>"
+      "updatedAt": "<time>",
+      "name": "Gummifuß 50 × 50 mm",
+      "variantLabel": null
     }
   },
   {
@@ -6795,10 +6925,10 @@
       "materialKey": null,
       "partId": "5a17e9a0-0000-4000-8000-000000000002",
       "variantKey": "600",
-      "name": "Steckfuß",
-      "variantLabel": "60 cm",
       "quantity": 12,
-      "updatedAt": "<time>"
+      "updatedAt": "<time>",
+      "name": "Steckfuß",
+      "variantLabel": "60 cm"
     }
   },
   {
@@ -6829,10 +6959,10 @@
       "materialKey": null,
       "partId": "5a17e9a0-0000-4000-8000-000000000001",
       "variantKey": "standard",
-      "name": "Stützdreieck",
-      "variantLabel": "50 × 120 cm",
       "quantity": 3,
-      "updatedAt": "<time>"
+      "updatedAt": "<time>",
+      "name": "Stützdreieck",
+      "variantLabel": "50 × 120 cm"
     }
   },
   {
@@ -6909,30 +7039,30 @@
         "materialKey": "gummifuss-50",
         "partId": null,
         "variantKey": null,
-        "name": "Gummifuß 50 × 50 mm",
-        "variantLabel": null,
         "quantity": 35,
-        "updatedAt": "<time>"
+        "updatedAt": "<time>",
+        "name": "Gummifuß 50 × 50 mm",
+        "variantLabel": null
       },
       {
         "id": "<id8>",
         "materialKey": null,
         "partId": "5a17e9a0-0000-4000-8000-000000000002",
         "variantKey": "600",
-        "name": "Steckfuß",
-        "variantLabel": "60 cm",
         "quantity": 12,
-        "updatedAt": "<time>"
+        "updatedAt": "<time>",
+        "name": "Steckfuß",
+        "variantLabel": "60 cm"
       },
       {
         "id": "<id9>",
         "materialKey": null,
         "partId": "5a17e9a0-0000-4000-8000-000000000001",
         "variantKey": "standard",
-        "name": "Stützdreieck",
-        "variantLabel": "50 × 120 cm",
         "quantity": 3,
-        "updatedAt": "<time>"
+        "updatedAt": "<time>",
+        "name": "Stützdreieck",
+        "variantLabel": "50 × 120 cm"
       }
     ]
   },
@@ -6959,10 +7089,10 @@
       "materialKey": "schraube-test",
       "partId": null,
       "variantKey": null,
-      "name": "Schraube",
-      "variantLabel": null,
       "quantity": 200,
-      "updatedAt": "<time>"
+      "updatedAt": "<time>",
+      "name": "Schraube",
+      "variantLabel": null
     }
   },
   {
@@ -6985,30 +7115,30 @@
         "materialKey": "gummifuss-50",
         "partId": null,
         "variantKey": null,
-        "name": "Gummifuß 50 × 50 mm",
-        "variantLabel": null,
         "quantity": 35,
-        "updatedAt": "<time>"
+        "updatedAt": "<time>",
+        "name": "Gummifuß 50 × 50 mm",
+        "variantLabel": null
       },
       {
         "id": "<id8>",
         "materialKey": null,
         "partId": "5a17e9a0-0000-4000-8000-000000000002",
         "variantKey": "600",
-        "name": "Steckfuß",
-        "variantLabel": "60 cm",
         "quantity": 12,
-        "updatedAt": "<time>"
+        "updatedAt": "<time>",
+        "name": "Steckfuß",
+        "variantLabel": "60 cm"
       },
       {
         "id": "<id9>",
         "materialKey": null,
         "partId": "5a17e9a0-0000-4000-8000-000000000001",
         "variantKey": "standard",
-        "name": "Stützdreieck",
-        "variantLabel": "50 × 120 cm",
         "quantity": 3,
-        "updatedAt": "<time>"
+        "updatedAt": "<time>",
+        "name": "Stützdreieck",
+        "variantLabel": "50 × 120 cm"
       }
     ]
   },

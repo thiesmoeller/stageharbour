@@ -62,7 +62,7 @@ test('capture stores a detached v2 object layout and later source edits do not m
         id: first, label: 'Türwand',
         part: { id: STARTER_PART_IDS.wall, revision: 1 },
         variant: 'doorLeft',
-        values: { B: 1200, H: 2400, D: 28, openingLeft: 200, openingB: 800, openingH: 2000 },
+        values: { B: 1200, H: 2400, D: 28, tuerLeft: 200, tuerB: 800, tuerH: 2000 },
         x: 1000, y: 2000, rotation: 0, support: AUDIENCE_FLOOR_ID,
         stockItemId, assemblyNumber: 1,
       },

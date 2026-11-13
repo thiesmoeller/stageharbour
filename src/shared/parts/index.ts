@@ -6,6 +6,7 @@ export * from './formula.js';
 export * from './issues.js';
 export * from './definition.js';
 export * from './sites.js';
+export * from './openingParams.js';
 export * from './resolve.js';
 export * from './place.js';
 export * from './validate.js';

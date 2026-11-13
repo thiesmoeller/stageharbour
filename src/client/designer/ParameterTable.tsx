@@ -25,7 +25,7 @@ function ValueListInput({ values, onChange, label, disabled }: { values: number[
  * Parameters of the open definition. The preview column sets values for parameters the
  * variant does not set; they are not saved.
  */
-export function ParameterTable({ definition, onChange, issues, disabled, preview, onPreview, resolvedValues }: {
+export function ParameterTable({ definition, onChange, issues, disabled, preview, onPreview, resolvedValues, defaultTestIdPrefix = 'parameter-default' }: {
   definition: PartDefinition;
   onChange: (definition: PartDefinition) => void;
   issues: readonly Issue[];
@@ -33,6 +33,8 @@ export function ParameterTable({ definition, onChange, issues, disabled, preview
   preview: Readonly<Record<string, number>>;
   onPreview: (key: string, value: number | undefined) => void;
   resolvedValues: Readonly<Record<string, number>> | undefined;
+  /** Avoid colliding with CoreMeasures when both are mounted. */
+  defaultTestIdPrefix?: string;
 }) {
   const hasVariants = !!definition.variants?.length;
   const set = (index: number, next: PartParameter) => onChange(updateParameter(definition, index, next));
@@ -59,7 +61,7 @@ export function ParameterTable({ definition, onChange, issues, disabled, preview
                 <option value={0}>Nein</option><option value={1}>Ja</option>
               </select>
               : <NumberInput label={`Standardwert von ${parameter.key}`} value={parameter.default} disabled={disabled}
-                testId={`parameter-default-${parameter.key}`} onChange={value => set(index, { ...parameter, default: value })} />}</td>
+                testId={`${defaultTestIdPrefix}-${parameter.key}`} onChange={value => set(index, { ...parameter, default: value })} />}</td>
             <td>{setByVariant
               ? <span className="muted-inline" title="Wird von der gewählten Variante bestimmt">{resolvedValues?.[parameter.key] ?? parameter.default} (Variante)</span>
               : <input type="number" aria-label={`Vorschauwert von ${parameter.key}`} placeholder={String(parameter.default)}

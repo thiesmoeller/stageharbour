@@ -15,7 +15,9 @@ import { wallPicturesSchema } from './wallPictures.js';
 import { wallTypeSchema, resolveWall, type Opening, type WallElementType } from './wall-types.js';
 import { migrateWallSurfaces, type WallSurfaces } from './surfaces.js';
 import { orientedPlatformBox, surfaceElevation } from './levels.js';
-import { STARTER_PART_IDS, STARTER_WALL, type PartDefinition, type PartRef } from './parts/index.js';
+import {
+  STARTER_PART_IDS, STARTER_WALL, openingParameterKeys, type PartDefinition, type PartRef,
+} from './parts/index.js';
 
 const legacyMemberSchema = z.strictObject({
   kind: z.enum(['wall', 'brace', 'stair', 'placeholder']),
@@ -79,17 +81,22 @@ function wallVariant(type: Pick<WallElementType, 'name' | 'width' | 'thickness' 
   return 'plain';
 }
 
-function wallValues(type: Pick<WallElementType, 'width' | 'height' | 'thickness' | 'openings'>) {
+function wallValues(type: Pick<WallElementType, 'name' | 'width' | 'height' | 'thickness' | 'openings'>) {
   const opening = type.openings[0];
+  const variant = wallVariant(type);
+  const holeKey = variant === 'doorLeft' ? 'tuer'
+    : variant === 'doorRight' ? 'tuer-rechts'
+      : variant === 'arch' ? 'bogen' : 'fenster';
+  const keys = openingParameterKeys(holeKey);
   return {
     B: type.width,
     H: type.height,
     D: type.thickness,
     ...(opening ? {
-      openingLeft: opening.left,
-      openingSill: Math.max(1, opening.sill),
-      openingB: opening.width,
-      openingH: opening.height,
+      [keys.left]: opening.left,
+      [keys.sill]: variant === 'doorLeft' || variant === 'doorRight' ? 0 : Math.max(1, opening.sill),
+      [keys.width]: opening.width,
+      [keys.height]: opening.height,
     } : {}),
   };
 }

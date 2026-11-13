@@ -13,6 +13,7 @@ import { askConfirm } from '../ConfirmDialog.js';
 import { catalogIssues, createPart, duplicatePart, getPart, listMaterials, listParts, resolveParts, savePart, setPartFavourite } from '../partsApi.js';
 import { writeWorkspaceLocation, type WorkspaceLocation } from '../workspaceRoutes.js';
 import { BodyList } from './BodyList.js';
+import { FaceOpeningsSketcher } from './FaceOpeningsSketcher.js';
 import { LibrarySidebar } from './LibrarySidebar.js';
 import { PartEditor } from './PartEditor.js';
 import { PartPreview3D } from './PartPreview3D.js';
@@ -78,6 +79,7 @@ export function Designer({ me, onDirty, partId }: { me: Me; onDirty: (dirty: boo
   const [isNew, setIsNew] = useState(false);
   const [childDefinitions, setChildDefinitions] = useState<ReadonlyMap<string, PartDefinition>>(new Map());
   const [selection, setSelection] = useState<DesignerSelection>();
+  const [openingKey, setOpeningKey] = useState<string>();
   const [previewVariant, setPreviewVariant] = useState<string>();
   const [previewValues, setPreviewValues] = useState<Record<string, number>>({});
   const [saveState, setSaveState] = useState<SaveState>({ kind: 'idle' });
@@ -99,6 +101,7 @@ export function Designer({ me, onDirty, partId }: { me: Me; onDirty: (dirty: boo
     lastResolved.current = undefined;
     setSaved(detail); setDraft(definition); setIsNew(!detail); setChildDefinitions(children);
     setSelection(definition.bodies[0] ? { kind: 'body', key: definition.bodies[0].key } : undefined);
+    setOpeningKey(undefined);
     setPreviewVariant(definition.variants?.[0]?.key); setPreviewValues({});
     setSaveState({ kind: 'idle' }); setSaveIssues(undefined);
   }, []);
@@ -156,6 +159,10 @@ export function Designer({ me, onDirty, partId }: { me: Me; onDirty: (dirty: boo
   const issues = saveIssues ?? live?.issues ?? [];
   const stale = deferredDraft !== draft;
   const blocking = hasErrors(live?.issues ?? []);
+
+  const sketchBody = selection?.kind === 'body' ? draft?.bodies.find(body => body.key === selection.key) : undefined;
+  const sketchBodyKey = sketchBody?.kind === 'sheet' ? sketchBody.key : undefined;
+  useEffect(() => { setOpeningKey(undefined); }, [sketchBodyKey]);
 
   function change(next: PartDefinition, select?: DesignerSelection) {
     if (readOnly) return;
@@ -334,6 +341,9 @@ export function Designer({ me, onDirty, partId }: { me: Me; onDirty: (dirty: boo
             </>}
           </div>
           <PartPreview3D resolved={resolved} materials={materials} selection={selection} label={`3D-Vorschau von ${draft.name}`} />
+          {sketchBodyKey && <FaceOpeningsSketcher definition={draft} bodyKey={sketchBodyKey} resolved={resolved}
+            activeVariant={previewVariant} materials={materials} disabled={readOnly} onChange={definition => change(definition)}
+            selectedKey={openingKey} onSelectOpening={setOpeningKey} />}
           <PartViewsSvg resolved={resolved} materials={materials} selection={selection} onSelect={setSelection} />
         </>}
       </div>
@@ -348,7 +358,8 @@ export function Designer({ me, onDirty, partId }: { me: Me; onDirty: (dirty: boo
             else next[key] = value;
             return next;
           })}
-          favourite={summary?.favourite} onFavourite={readOnly || !summary ? undefined : favourite => void toggleFavourite(favourite)} />}
+          favourite={summary?.favourite} onFavourite={readOnly || !summary ? undefined : favourite => void toggleFavourite(favourite)}
+          sketchBodyKey={sketchBodyKey} openingKey={openingKey} />}
       </div>
     </div>
   </section>;
