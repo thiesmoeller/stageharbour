@@ -13,6 +13,7 @@ import { askConfirm } from '../ConfirmDialog.js';
 import { catalogIssues, createPart, duplicatePart, getPart, listMaterials, listParts, resolveParts, savePart, setPartFavourite } from '../partsApi.js';
 import { writeWorkspaceLocation, type WorkspaceLocation } from '../workspaceRoutes.js';
 import { BodyList } from './BodyList.js';
+import { FaceOpeningsSketcher } from './FaceOpeningsSketcher.js';
 import { LibrarySidebar } from './LibrarySidebar.js';
 import { PartEditor } from './PartEditor.js';
 import { PartPreview3D } from './PartPreview3D.js';
@@ -156,6 +157,9 @@ export function Designer({ me, onDirty, partId }: { me: Me; onDirty: (dirty: boo
   const issues = saveIssues ?? live?.issues ?? [];
   const stale = deferredDraft !== draft;
   const blocking = hasErrors(live?.issues ?? []);
+
+  const sketchBody = selection?.kind === 'body' ? draft?.bodies.find(body => body.key === selection.key) : undefined;
+  const sketchBodyKey = sketchBody?.kind === 'sheet' ? sketchBody.key : undefined;
 
   function change(next: PartDefinition, select?: DesignerSelection) {
     if (readOnly) return;
@@ -334,6 +338,8 @@ export function Designer({ me, onDirty, partId }: { me: Me; onDirty: (dirty: boo
             </>}
           </div>
           <PartPreview3D resolved={resolved} materials={materials} selection={selection} label={`3D-Vorschau von ${draft.name}`} />
+          {sketchBodyKey && <FaceOpeningsSketcher definition={draft} bodyKey={sketchBodyKey} resolved={resolved} materials={materials}
+            disabled={readOnly} onChange={definition => change(definition)} />}
           <PartViewsSvg resolved={resolved} materials={materials} selection={selection} onSelect={setSelection} />
         </>}
       </div>

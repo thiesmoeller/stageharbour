@@ -18,6 +18,18 @@ async function copyStarter(page: Page, name: string) {
   return decodeURIComponent(page.url().split('/').pop()!);
 }
 
+/** Drags on the face sketcher between two fractions (0..1, top-left origin) of the sheet outline. */
+async function dragOnSheet(page: Page, from: [number, number], to: [number, number]) {
+  const sheet = (await page.locator('.designer-face-sketcher .face-sheet').boundingBox())!;
+  const at = ([fx, fy]: [number, number]) => ({ x: sheet.x + sheet.width * fx, y: sheet.y + sheet.height * fy });
+  const start = at(from), end = at(to);
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move((start.x + end.x) / 2, (start.y + end.y) / 2, { steps: 4 });
+  await page.mouse.move(end.x, end.y, { steps: 4 });
+  await page.mouse.up();
+}
+
 test('designer copies a starter part, edits a parameter live and saves a new revision', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -63,6 +75,88 @@ test('designer copies a starter part, edits a parameter live and saves a new rev
   await expect(page).toHaveURL(/#\/designer$/);
   await expect(page.getByTestId('designer-empty')).toBeVisible();
   expect(errors).toEqual([]);
+});
+
+test('face sketcher draws, moves and deletes an opening on a sheet and saves it as parameters', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await signInToPlans(page);
+  await openDesigner(page);
+  await copyStarter(page, 'Tisch');
+
+  const sketcher = page.getByTestId('designer-face-sketcher');
+  await expect(sketcher).toBeVisible();
+  await expect(sketcher).toHaveAttribute('data-openings', '0');
+  await expect(page.getByTestId('face-sketcher-count')).toHaveText('0 Öffnungen');
+  await expect(page.getByTestId('designer-save')).toBeDisabled();
+
+  await page.getByTestId('face-sketcher-tool-rect').click();
+  await dragOnSheet(page, [0.4, 0.4], [0.6, 0.6]);
+  await expect(sketcher).toHaveAttribute('data-openings', '1');
+  const opening = page.getByTestId('face-sketcher-opening-oeffnung');
+  await expect(opening).toHaveAttribute('data-selected', 'true');
+  await expect(page.getByTestId('face-sketcher-tool-select')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('face-sketcher-readout')).toContainText('Rechteck „oeffnung“');
+  await expect(page.getByTestId('parameter-default-oeffnungB')).toHaveValue(/^2[0-9]0$/);
+  await expect(page.getByTestId('designer-save')).toBeEnabled();
+  await expect(page.getByTestId('designer-issues')).toContainText('Keine Fehler');
+  const widthBefore = await page.getByTestId('parameter-default-oeffnungB').inputValue();
+
+  const handle = page.getByTestId('face-sketcher-handle-e');
+  const box = (await handle.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 40, box.y + box.height / 2, { steps: 4 });
+  await page.mouse.up();
+  await expect(page.getByTestId('parameter-default-oeffnungB')).not.toHaveValue(widthBefore);
+
+  await page.getByTestId('face-sketcher-tool-arch').click();
+  await dragOnSheet(page, [0.1, 0.1], [0.25, 0.35]);
+  await expect(sketcher).toHaveAttribute('data-openings', '2');
+  await expect(page.getByTestId('face-sketcher-opening-oeffnung-2')).toHaveAttribute('data-shape', 'arch');
+
+  await page.getByTestId('face-sketcher-delete').click();
+  await expect(sketcher).toHaveAttribute('data-openings', '1');
+  await expect(page.getByTestId('parameter-default-oeffnung_h2B')).toHaveCount(0);
+
+  await page.getByTestId('face-sketcher-more').click();
+  await page.getByTestId('face-sketcher-tool-polygon').click();
+  for (const [fx, fy] of [[0.7, 0.2], [0.9, 0.2], [0.8, 0.45]] as const) {
+    const sheet = (await page.locator('.designer-face-sketcher .face-sheet').boundingBox())!;
+    await page.mouse.click(sheet.x + sheet.width * fx, sheet.y + sheet.height * fy);
+  }
+  await page.getByTestId('face-sketcher-polygon-done').click();
+  await expect(sketcher).toHaveAttribute('data-openings', '2');
+  await expect(page.getByTestId('face-sketcher-opening-oeffnung-2')).toHaveAttribute('data-shape', 'polygon');
+
+  await page.getByTestId('face-sketcher-surface').focus();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('face-sketcher-opening-oeffnung-2')).not.toHaveAttribute('data-selected', 'true');
+  await page.getByTestId('face-sketcher-opening-oeffnung-2').click();
+  await page.keyboard.press('Delete');
+  await expect(sketcher).toHaveAttribute('data-openings', '1');
+
+  await page.getByTestId('designer-save').click();
+  await expect(page.getByTestId('designer-status')).toContainText('Gespeichert als Revision 2');
+  await page.reload();
+  await expect(page.getByTestId('designer-title')).toHaveText(/^Tisch Kopie/);
+  await expect(page.getByTestId('designer-face-sketcher')).toHaveAttribute('data-openings', '1');
+  await expect(page.getByTestId('face-sketcher-opening-oeffnung')).toBeVisible();
+  await expect(page.getByTestId('parameter-default-oeffnungLeft')).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+// TODO(P3): the Wandelement starter also needs a save-valid path. A hole drawn on the plain wall is
+// applied to every variant and clashes with the door / window holes at the ends of B and H.
+test('face sketcher is offered on the Wandelement sheet and draws an opening', async ({ page }) => {
+  await signInToPlans(page);
+  await openDesigner(page);
+  await copyStarter(page, 'Wandelement');
+  await expect(page.getByTestId('designer-face-sketcher')).toBeVisible();
+  await page.getByTestId('face-sketcher-tool-rect').click();
+  await dragOnSheet(page, [0.4, 0.45], [0.6, 0.55]);
+  await expect(page.getByTestId('designer-face-sketcher')).toHaveAttribute('data-openings', '1');
+  await expect(page.getByTestId('parameter-default-oeffnungLeft')).toBeVisible();
 });
 
 test('designer exports a part and imports the edited file as a new revision', async ({ page }) => {
@@ -120,6 +214,9 @@ test('viewers can open parts in the designer but not change or save them', async
     await expect(viewer.getByTestId('designer-cutlist')).toContainText('722 mm');
     await expect(viewer.getByTestId('part-name')).toBeDisabled();
     await expect(viewer.getByTestId('parameter-default-H')).toBeDisabled();
+    await expect(viewer.getByTestId('designer-face-sketcher')).toBeVisible();
+    await expect(viewer.getByTestId('face-sketcher-tool-rect')).toBeDisabled();
+    await expect(viewer.getByTestId('face-sketcher-delete')).toBeDisabled();
     await expect(viewer.getByTestId('designer-save')).toHaveCount(0);
   } finally {
     await setEditorRole('editor');
