@@ -1,7 +1,11 @@
 name: Local demo (GitHub Pages)
+# Two browser-local sites from one Pages deployment:
+#   /                 ← tip of main  (stable production demo)
+#   /preview/         ← tip of dev   (pre-release)
+# CapRover self-hosted production is unrelated and still ships from main.
 on:
   push:
-    branches: [dev]
+    branches: [main, dev]
   workflow_dispatch:
 permissions:
   contents: read
@@ -13,22 +17,47 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7.0.1
+      - name: Check out main
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: main
+          path: main
+      - name: Check out dev
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: dev
+          path: dev
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: 24.22.2
           cache: npm
-      - run: npm ci
-      - name: Build browser-local demo
+          cache-dependency-path: |
+            main/package-lock.json
+            dev/package-lock.json
+      - name: Build production demo from main
+        working-directory: main
         env:
           VITE_LOCAL_MODE: '1'
           VITE_BASE: /${{ github.event.repository.name }}/
-        run: npm run build:local
+        run: npm ci && npm run build:local
+      - name: Build preview from dev
+        working-directory: dev
+        env:
+          VITE_LOCAL_MODE: '1'
+          VITE_BASE: /${{ github.event.repository.name }}/preview/
+        run: npm ci && npm run build:local
+      - name: Assemble site
+        run: |
+          set -euo pipefail
+          mkdir -p site/preview
+          cp -a main/dist/web/. site/
+          cp -a dev/dist/web/. site/preview/
+          ls -la site site/preview | head -40
       - uses: actions/upload-pages-artifact@v4.0.0
         with:
-          path: dist/web
+          path: site
   deploy:
     needs: build
     runs-on: ubuntu-latest
