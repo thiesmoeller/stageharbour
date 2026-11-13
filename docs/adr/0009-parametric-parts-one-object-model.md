@@ -31,6 +31,8 @@ Each group builds different set elements, and a developer cannot add a coded kin
 - **A separate formula list for the cut list.** It could drift from the shape; deriving from bodies cannot.
 - **Real-time co-editing.** Exclusive leases fit small volunteer crews.
 
+Face authoring of sheet openings (sketcher UI over holes and parameters, not a CAD kernel) is decided in [ADR 0011](0011-face-openings-sketcher.md).
+
 ## Consequences
 
 - Layout schema v2 and the per-kind modules change most of `src/shared` and the editor core. Existing per-kind tests cannot serve as the net once their modules go; the golden outputs and browser journeys do.
