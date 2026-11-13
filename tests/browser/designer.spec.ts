@@ -53,6 +53,10 @@ test('designer copies a starter part, edits a parameter live and saves a new rev
   await expect(page.getByTestId('designer-preview')).not.toHaveAttribute('data-geometry', geometryBefore!);
   await expect(page.getByTestId('designer-weight')).not.toHaveText(weightBefore!);
 
+  // Formulas live under Erweitert — open it before editing derived values.
+  await page.getByTestId('designer-section-advanced').evaluate(element => {
+    (element as HTMLDetailsElement).open = true;
+  });
   const thickness = page.getByTestId('derived-staerke');
   await thickness.fill('B +');
   await expect(page.locator('.derived-row .formula-value.error')).toContainText('Zeichen');
@@ -142,6 +146,8 @@ test('face sketcher draws, moves and deletes an opening on a sheet and saves it 
   await expect(page.getByTestId('designer-title')).toHaveText(/^Tisch Kopie/);
   await expect(page.getByTestId('designer-face-sketcher')).toHaveAttribute('data-openings', '1');
   await expect(page.getByTestId('face-sketcher-opening-oeffnung')).toBeVisible();
+  await page.getByTestId('face-sketcher-opening-oeffnung').click();
+  await expect(page.getByTestId('designer-opening-inspector')).toBeVisible();
   await expect(page.getByTestId('parameter-default-oeffnungLeft')).toBeVisible();
   expect(errors).toEqual([]);
 });
@@ -165,6 +171,8 @@ test('face sketcher saves and reloads a window pocket on a Wandelement copy', as
   await expect(page.getByTestId('designer-title')).toHaveText(/^Wandelement Kopie/);
   await expect(page.getByTestId('designer-face-sketcher')).toHaveAttribute('data-openings', '1');
   await expect(page.getByTestId('face-sketcher-opening-oeffnung')).toBeVisible();
+  await page.getByTestId('face-sketcher-opening-oeffnung').click();
+  await expect(page.getByTestId('designer-opening-inspector')).toBeVisible();
   await expect(page.getByTestId('parameter-default-oeffnungB')).toBeVisible();
   expect(errors).toEqual([]);
 });

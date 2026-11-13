@@ -72,6 +72,18 @@ export function openingParameterKeys(holeKey: string): OpeningParameterKeys {
   };
 }
 
+/** Every parameter key that belongs to a sheet hole's rect/arch group on this definition. */
+export function openingOwnedParameterKeys(definition: PartDefinition): Set<string> {
+  const keys = new Set<string>();
+  for (const body of definition.bodies) {
+    if (body.kind !== 'sheet') continue;
+    for (const hole of body.holes ?? []) {
+      for (const key of Object.values(openingParameterKeys(hole.key))) keys.add(key);
+    }
+  }
+  return keys;
+}
+
 function finiteInRange(name: string, value: number, min: number, max: number): void {
   if (!Number.isFinite(value) || value < min || value > max) {
     throw new RangeError(`${name} muss zwischen ${min} und ${max} liegen.`);

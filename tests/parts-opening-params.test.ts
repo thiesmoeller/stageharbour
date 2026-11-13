@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  openingParameterKeys, openingVariantCondition, partDefinitionSchema, removeOpening, upsertArchOpening, upsertOpening,
-  upsertPolygonOpening, upsertRectOpening,
+  openingOwnedParameterKeys, openingParameterKeys, openingVariantCondition, partDefinitionSchema, removeOpening,
+  upsertArchOpening, upsertOpening, upsertPolygonOpening, upsertRectOpening,
   type PartDefinition,
 } from '../src/shared/parts/index.js';
 
@@ -117,6 +117,15 @@ test('deleting an opening retains its parameter group when another formula refer
 
   assert.equal(removed.parameters.length, 4);
   assert.equal(holes(removed).length, 0);
+});
+
+test('openingOwnedParameterKeys lists every rect/arch group on the part', () => {
+  const definition = upsertRectOpening(panel(), 'platte', {
+    key: 'fenster', left: 100, sill: 800, width: 700, height: 900,
+  });
+  const keys = openingOwnedParameterKeys(definition);
+  assert.deepEqual([...keys].sort(), Object.values(openingParameterKeys('fenster')).sort());
+  assert.equal(keys.has('B'), false);
 });
 
 test('an arch uses the same four-parameter contract', () => {

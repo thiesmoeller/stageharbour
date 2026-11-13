@@ -41,7 +41,7 @@ const errorText = (error: unknown) => error instanceof Error && error.message ? 
  * sheet's own u/v frame. Every committed edit is written through the opening-parameter helpers, so
  * the hole formulas and their parameter group stay in sync with the drawing.
  */
-export function FaceOpeningsSketcher({ definition, bodyKey, resolved, activeVariant, materials, disabled, onChange }: {
+export function FaceOpeningsSketcher({ definition, bodyKey, resolved, activeVariant, materials, disabled, onChange, selectedKey, onSelectOpening }: {
   definition: PartDefinition;
   bodyKey: string;
   resolved: Pick<ResolvedPart, 'solids'> | undefined;
@@ -49,6 +49,8 @@ export function FaceOpeningsSketcher({ definition, bodyKey, resolved, activeVari
   materials: readonly PartMaterial[];
   disabled: boolean;
   onChange: (definition: PartDefinition) => void;
+  selectedKey?: string;
+  onSelectOpening?: (key: string | undefined) => void;
 }) {
   const body = definition.bodies.find(candidate => candidate.key === bodyKey);
   const solid = useMemo(
@@ -58,7 +60,12 @@ export function FaceOpeningsSketcher({ definition, bodyKey, resolved, activeVari
   const color = materials.find(material => material.key === body?.material)?.color ?? '#c9cfd2';
   const [tool, setTool] = useState<SketchTool>('select');
   const [moreOpen, setMoreOpen] = useState(false);
-  const [selectedKey, setSelectedKey] = useState<string>();
+  const [internalSelected, setInternalSelected] = useState<string>();
+  const selectedKeyResolved = onSelectOpening ? selectedKey : internalSelected;
+  const setSelectedKey = (key: string | undefined) => {
+    if (onSelectOpening) onSelectOpening(key);
+    else setInternalSelected(key);
+  };
   const [drag, setDrag] = useState<Drag>();
   const [vertices, setVertices] = useState<Vec2[]>([]);
   const [hover, setHover] = useState<Vec2>();
@@ -112,7 +119,7 @@ export function FaceOpeningsSketcher({ definition, bodyKey, resolved, activeVari
 
   const shown = useMemo(() => openings.map(opening =>
     preview?.key === opening.key ? asOpening(opening.key, preview.geometry) : opening), [openings, preview]);
-  const selected = shown.find(opening => opening.key === selectedKey);
+  const selected = shown.find(opening => opening.key === selectedKeyResolved);
 
   function pointer(event: React.PointerEvent): Vec2 {
     const svg = svgRef.current!;
@@ -235,11 +242,11 @@ export function FaceOpeningsSketcher({ definition, bodyKey, resolved, activeVari
       event.preventDefault();
       if (drag) setDrag(undefined);
       else if (vertices.length) { setVertices([]); setHover(undefined); }
-      else if (selectedKey) setSelectedKey(undefined);
+      else if (selectedKeyResolved) setSelectedKey(undefined);
       else if (tool !== 'select') chooseTool('select');
-    } else if ((event.key === 'Delete' || event.key === 'Backspace') && canDraw && selectedKey && !drag) {
+    } else if ((event.key === 'Delete' || event.key === 'Backspace') && canDraw && selectedKeyResolved && !drag) {
       event.preventDefault();
-      remove(selectedKey);
+      remove(selectedKeyResolved);
     } else if (event.key === 'Enter' && tool === 'polygon' && vertices.length >= 3) {
       event.preventDefault();
       finishPolygon(vertices);
@@ -274,8 +281,8 @@ export function FaceOpeningsSketcher({ definition, bodyKey, resolved, activeVari
         </span>
         {tool === 'polygon' && vertices.length >= 3 && <button type="button" className="primary" data-testid="face-sketcher-polygon-done"
           onClick={() => finishPolygon(vertices)}>Fertig</button>}
-        <button type="button" className="quiet" disabled={!canDraw || !selectedKey} data-testid="face-sketcher-delete"
-          onClick={() => selectedKey && remove(selectedKey)}>Löschen</button>
+        <button type="button" className="quiet" disabled={!canDraw || !selectedKeyResolved} data-testid="face-sketcher-delete"
+          onClick={() => selectedKeyResolved && remove(selectedKeyResolved)}>Löschen</button>
       </div>
     </header>
     <p className="muted face-sketcher-help">
@@ -293,7 +300,7 @@ export function FaceOpeningsSketcher({ definition, bodyKey, resolved, activeVari
         <g transform="scale(1,-1)">
           <path className="face-sheet" d={[solid.outline, ...solid.holes].map(loopPath).join('')} fillRule="evenodd" fill={color} />
           {shown.map(opening => {
-            const isSelected = opening.key === selectedKey;
+            const isSelected = opening.key === selectedKeyResolved;
             return <path key={opening.key} d={loopPath(opening.points)} data-testid={`face-sketcher-opening-${opening.key}`}
               data-shape={opening.shape} data-selected={isSelected ? 'true' : undefined}
               className={isSelected ? 'face-opening selected' : 'face-opening'}
