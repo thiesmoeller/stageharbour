@@ -53,7 +53,8 @@ test('designer copies a starter part, edits a parameter live and saves a new rev
   await expect(page.getByTestId('designer-preview')).not.toHaveAttribute('data-geometry', geometryBefore!);
   await expect(page.getByTestId('designer-weight')).not.toHaveText(weightBefore!);
 
-  // Formulas live under Erweitert — open it before editing derived values.
+  // Formulas live under Attribute › Alle Felder — open it before editing derived values.
+  await page.getByTestId('designer-tab-attributes').click();
   await page.getByTestId('designer-section-advanced').evaluate(element => {
     (element as HTMLDetailsElement).open = true;
   });

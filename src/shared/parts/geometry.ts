@@ -2,7 +2,8 @@ import { BufferGeometry, Float32BufferAttribute, Matrix4, ShapeUtils, Vector2 } 
 import type { PartFaceSide } from './definition.js';
 import { add, polygonBounds, rotate, signedArea, type Vec2, type Vec3 } from './math.js';
 import { placementRotationY, type PartPlacement } from './place.js';
-import type { ResolvedPart, ResolvedSheet, ResolvedSolid } from './resolve.js';
+import type { PartMaterial } from './definition.js';
+import type { ResolvedBeam, ResolvedPart, ResolvedSheet, ResolvedSolid } from './resolve.js';
 
 /** Material group index of each side of a box or beam geometry. */
 export const BOX_SIDE_SLOTS = { right: 0, left: 1, top: 2, bottom: 3, back: 4, front: 5 } as const;
@@ -152,8 +153,84 @@ function sheetMesh(solid: ResolvedSheet, options: GeometryOptions): SolidMesh {
   return mesh;
 }
 
+/** Segments around a round or tube profile. */
+export const ROUND_PROFILE_SEGMENTS = 24;
+
+/** Side a direction across a beam belongs to: the box side whose normal it is nearest. */
+function mantleSide(x: number, z: number): SideMesh['side'] {
+  if (Math.abs(x) >= Math.abs(z)) return x >= 0 ? 'right' : 'left';
+  return z >= 0 ? 'back' : 'front';
+}
+
+/**
+ * A round rod or a tube along local +Y, its diameter the section width and height (an ellipse
+ * when they differ). Mantle quads join the box side their normal points to, the end caps are
+ * `top` (at `to`) and `bottom`, so picking and face slots work as for a square beam.
+ */
+function cylinderMesh(solid: ResolvedBeam & { profile: NonNullable<ResolvedBeam['profile']> }, options: GeometryOptions): SolidMesh {
+  const { mesh, vertex } = meshWriter(solid.center, solid);
+  const sides = new Map<SideMesh['side'], number[]>();
+  const side = (name: SideMesh['side']) => {
+    let indices = sides.get(name);
+    if (!indices) {
+      indices = [];
+      sides.set(name, indices);
+      mesh.sides.push({ side: name, indices });
+    }
+    return indices;
+  };
+  const rx = solid.size.x / 2, rz = solid.size.z / 2, hy = solid.size.y / 2;
+  const wall = solid.profile.shape === 'tube' ? solid.profile.wall ?? rx / 5 : undefined;
+  const inner = wall !== undefined && wall < Math.min(rx, rz) ? { x: rx - wall, z: rz - wall } : undefined;
+  const unit = options.uv !== 'mm';
+  const n = ROUND_PROFILE_SEGMENTS;
+  const angle = (i: number) => 2 * Math.PI * i / n;
+  const mantle = (radiusX: number, radiusZ: number, outward: boolean) => {
+    for (let i = 0; i < n; i++) {
+      const a0 = angle(i), a1 = angle(i + 1), mid = (a0 + a1) / 2;
+      const normal = { x: Math.cos(mid) * (outward ? 1 : -1), y: 0, z: Math.sin(mid) * (outward ? 1 : -1) };
+      const u0 = unit ? i / n : a0 * radiusX, u1 = unit ? (i + 1) / n : a1 * radiusX;
+      const v = (y: number) => unit ? (y + hy) / (2 * hy) : y + hy;
+      const point = (a: number, y: number) => ({ x: Math.cos(a) * radiusX, y, z: Math.sin(a) * radiusZ });
+      const p00 = vertex(point(a0, -hy), normal, u0, v(-hy)), p10 = vertex(point(a1, -hy), normal, u1, v(-hy));
+      const p11 = vertex(point(a1, hy), normal, u1, v(hy)), p01 = vertex(point(a0, hy), normal, u0, v(hy));
+      const list = side(mantleSide(normal.x, normal.z));
+      if (outward) list.push(p00, p01, p11, p00, p11, p10);
+      else list.push(p00, p11, p01, p00, p10, p11);
+    }
+  };
+  const cap = (name: 'top' | 'bottom', y: number) => {
+    const normal = { x: 0, y: y > 0 ? 1 : -1, z: 0 };
+    const uv = (x: number, z: number): [number, number] => unit ? [(x + rx) / (2 * rx), (z + rz) / (2 * rz)] : [x + rx, z + rz];
+    const list = side(name);
+    for (let i = 0; i < n; i++) {
+      const a0 = angle(i), a1 = angle(i + 1);
+      const outer0 = { x: Math.cos(a0) * rx, y, z: Math.sin(a0) * rz }, outer1 = { x: Math.cos(a1) * rx, y, z: Math.sin(a1) * rz };
+      const o0 = vertex(outer0, normal, ...uv(outer0.x, outer0.z)), o1 = vertex(outer1, normal, ...uv(outer1.x, outer1.z));
+      const up = y > 0;
+      if (inner) {
+        const inner0 = { x: Math.cos(a0) * inner.x, y, z: Math.sin(a0) * inner.z }, inner1 = { x: Math.cos(a1) * inner.x, y, z: Math.sin(a1) * inner.z };
+        const i0 = vertex(inner0, normal, ...uv(inner0.x, inner0.z)), i1 = vertex(inner1, normal, ...uv(inner1.x, inner1.z));
+        if (up) list.push(i0, o1, o0, i0, i1, o1);
+        else list.push(i0, o0, o1, i0, o1, i1);
+      } else {
+        const c = vertex({ x: 0, y, z: 0 }, normal, ...uv(0, 0));
+        if (up) list.push(c, o1, o0);
+        else list.push(c, o0, o1);
+      }
+    }
+  };
+  mantle(rx, rz, true);
+  if (inner) mantle(inner.x, inner.z, false);
+  cap('top', hy);
+  cap('bottom', -hy);
+  return mesh;
+}
+
 function solidMesh(solid: ResolvedSolid, options: GeometryOptions): SolidMesh {
-  return solid.kind === 'sheet' ? sheetMesh(solid, options) : boxMesh(solid, options);
+  if (solid.kind === 'sheet') return sheetMesh(solid, options);
+  if (solid.kind === 'beam' && solid.profile) return cylinderMesh({ ...solid, profile: solid.profile }, options);
+  return boxMesh(solid, options);
 }
 
 function toGeometry(positions: number[], normals: number[], uvs: number[], groups: { indices: number[]; slot: number }[]): BufferGeometry {
@@ -234,6 +311,20 @@ export function buildPartGeometry(part: Pick<ResolvedPart, 'solids' | 'faces'>, 
     }
   }
   return { geometry: toGeometry(positions, normals, uvs, [...groups.values()]), slots };
+}
+
+/**
+ * Texture repeat of a material's finish on a face of the given size (mm), for geometry with
+ * `uv: 'face'`. A `face` fit shows the artwork once across the face; a tiled finish repeats every
+ * `scaleMm` (or `fallbackScaleMm` when the finish names no pattern size).
+ */
+export function finishRepeat(
+  material: Pick<PartMaterial, 'finish' | 'finishFit'>, face: { width: number; height: number }, fallbackScaleMm = 1000,
+): { x: number; y: number } {
+  if (material.finishFit === 'face') return { x: 1, y: 1 };
+  const finish = material.finish;
+  const scaleMm = finish && finish.kind !== 'paint' && finish.scaleMm !== undefined ? finish.scaleMm : fallbackScaleMm;
+  return { x: face.width / scaleMm, y: face.height / scaleMm };
 }
 
 /** three.js matrix that moves part-local geometry to its placement in the stage (millimetres). */

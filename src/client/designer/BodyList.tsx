@@ -77,7 +77,7 @@ export function BodyList({ definition, onChange, selection, onSelect, materials,
       emptyText="Keine Unterbauteile."
       rows={children.map(child => ({
         selection: { kind: 'child', key: child.key }, title: child.label || child.key,
-        detail: `${library.find(part => part.id === child.part.id)?.name ?? 'Bauteil'} · Rev. ${child.part.revision}`,
+        detail: child.group ? 'Gruppe' : `${library.find(part => part.id === child.part?.id)?.name ?? 'Bauteil'} · Rev. ${child.part?.revision ?? ''}`,
       }))}
       onMove={(index, delta) => onChange({ ...definition, children: moveItem(children, index, delta) })}
       onRemove={index => onChange({ ...definition, children: removeAt(children, index) })}>

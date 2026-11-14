@@ -423,10 +423,86 @@ export const STARTER_SOLID_PLATFORM: PartDefinition = {
   },
 };
 
+/** Painted cloth stretched in a frame of aluminium tube: proof of round profiles and cloth. */
+export const STARTER_PIPE_CLOTH_FLAT: PartDefinition = {
+  id: id(14), revision: 1, name: 'Rohrrahmen mit Stoff', category: 'Wände',
+  description: 'Rahmen aus Aluminiumrohr 30 × 2 mm mit bemaltem Bühnennessel; der Zuschnitt des Stoffs enthält den Saum.',
+  parameters: [
+    { key: 'B', label: 'Breite', type: 'length', default: 2000, scope: 'placement', range: { min: 400, max: 6000, step: 10 } },
+    { key: 'H', label: 'Höhe', type: 'length', default: 2400, scope: 'placement', range: { min: 400, max: 6000, step: 10 } },
+  ],
+  derived: [
+    { key: 'r', label: 'Rohrdurchmesser', formula: 30 },
+    { key: 'achseX', label: 'Achse Stiel', formula: 'B / 2 - r / 2' },
+  ],
+  bodies: [
+    {
+      kind: 'beam', key: 'stiel', label: 'Stiel', material: 'alurohr-30', from: ['-achseX', 0, 0], to: ['-achseX', 'H', 0],
+      repeat: { count: 2, step: ['2 * achseX', 0, 0] },
+    },
+    {
+      kind: 'beam', key: 'riegel', label: 'Riegel', material: 'alurohr-30', from: ['-achseX + r / 2', 'r / 2', 0], to: ['achseX - r / 2', 'r / 2', 0],
+      repeat: { count: 2, step: [0, 'H - r', 0] },
+    },
+    {
+      kind: 'sheet', key: 'stoff', label: 'Stoff', material: 'nessel-bemalt', plane: 'xy', anchor: 'back', at: [0, 0, '-r / 2'],
+      outline: { shape: 'rect', x: '-B / 2', y: 0, width: 'B', height: 'H' },
+    },
+  ],
+  connectors: [
+    { key: 'links', label: 'Linke Kante', kind: 'hinge-edge', at: ['-B / 2', 0, 0], axis: [0, 1, 0], length: 'H' },
+    { key: 'rechts', label: 'Rechte Kante', kind: 'hinge-edge', at: ['B / 2', 0, 0], axis: [0, 1, 0], length: 'H' },
+    { key: 'stuetze', label: 'Rückseite', kind: 'brace-mount', at: [0, 0, 'r / 2'], axis: [0, 0, 1] },
+  ],
+  traits: {
+    faces: [{ key: 'bild', label: 'Bemalung', body: 'stoff', side: 'front' }],
+    stock: 'item',
+  },
+};
+
+/**
+ * Stützdreieck whose ballast is drawn: Betonplatten as stacked hardware boxes (Kopien = ballast)
+ * and the Spanngurt as „nur Darstellung“ bodies. The original Stützdreieck stays unchanged, as
+ * placed braces and the Bühnenbild ballast count refer to it.
+ */
+export const STARTER_BRACE_BALLAST: PartDefinition = {
+  id: id(15), revision: 1, name: 'Stützdreieck mit Beschwerung', category: 'Stützen',
+  description: 'Stützdreieck aus Latte 40 × 40, die Betonplatten liegen sichtbar auf der Bodenschwelle; ab zwei Platten hält sie ein Spanngurt.',
+  parameters: STARTER_BRACE.parameters,
+  variants: STARTER_BRACE.variants,
+  derived: [
+    ...STARTER_BRACE.derived!,
+    { key: 'platte', label: 'Kante Betonplatte', formula: 400 },
+    { key: 'platteH', label: 'Stärke Betonplatte', formula: 50 },
+    { key: 'platteZ', label: 'Mitte der Platten', formula: 'max(-D / 2 + platte / 2, D / 2 - s - platte / 2)' },
+    { key: 'gurtH', label: 'Höhe des Gurts', formula: 's + 2 * platteH' },
+  ],
+  bodies: [
+    ...STARTER_BRACE.bodies,
+    {
+      kind: 'box', key: 'betonplatte', label: 'Betonplatte', material: 'betonplatte-400',
+      size: ['platte', 'platteH', 'platte'], at: [0, 's + platteH / 2', 'platteZ'],
+      repeat: { count: 'ballast', step: [0, 'platteH', 0], index: 'lage' },
+    },
+    {
+      kind: 'box', key: 'gurt-oben', label: 'Spanngurt oben', material: 'spanngurt-25', displayOnly: true, when: 'ballast >= 2',
+      size: ['platte + 4', 2, 25], at: [0, 'gurtH + 1', 'platteZ'],
+    },
+    {
+      kind: 'box', key: 'gurt-seite', label: 'Spanngurt Seite', material: 'spanngurt-25', displayOnly: true, when: 'ballast >= 2',
+      size: [2, 'gurtH + 2', 25], at: ['-platte / 2 - 1', 'gurtH / 2 + 1', 'platteZ'],
+      repeat: { count: 2, step: ['platte + 2', 0, 0] },
+    },
+  ],
+  connectors: STARTER_BRACE.connectors,
+  traits: { stock: 'count' },
+  hardware: [{ material: 'spanngurt-25', quantity: 1, when: 'ballast >= 2' }],
+};
+
 export const STARTER_PARTS: PartDefinition[] = [
   STARTER_BRACE, STARTER_DECK_LEG, STARTER_DECK, STARTER_WALL, STARTER_TABLE, STARTER_DOOR,
   STARTER_CHAIR, STARTER_PERSON, STARTER_SPEAKER, STARTER_BOX, STARTER_STAIR,
-  STARTER_FLOATING_PLATFORM, STARTER_SOLID_PLATFORM,
+  STARTER_FLOATING_PLATFORM, STARTER_SOLID_PLATFORM, STARTER_PIPE_CLOTH_FLAT, STARTER_BRACE_BALLAST,
 ];
 
 export const STARTER_PART_IDS = {
@@ -443,4 +519,6 @@ export const STARTER_PART_IDS = {
   stair: STARTER_STAIR.id,
   floatingPlatform: STARTER_FLOATING_PLATFORM.id,
   solidPlatform: STARTER_SOLID_PLATFORM.id,
+  pipeClothFlat: STARTER_PIPE_CLOTH_FLAT.id,
+  braceBallast: STARTER_BRACE_BALLAST.id,
 } as const;

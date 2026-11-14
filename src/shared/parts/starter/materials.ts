@@ -52,4 +52,12 @@ export const STARTER_MATERIALS: PartMaterial[] = [
     weightKgPerPiece: 18, color: '#9a9a94',
   },
   { kind: 'hardware', key: 'spanngurt-25', name: 'Spanngurt 25 mm', weightKgPerPiece: 0.3, color: '#c0392b' },
+  {
+    kind: 'profile', key: 'alurohr-30', name: 'Aluminiumrohr 30 × 2 mm',
+    section: { width: 30, height: 30, shape: 'tube', wall: 2 }, weightKgPerM: 0.48, color: '#c4c8cd',
+  },
+  {
+    kind: 'fabric', key: 'nessel-bemalt', name: 'Bühnennessel, bemalt (B1)',
+    weightKgPerM2: 0.32, hemMm: 50, finishFit: 'face', color: '#e8dfc9',
+  },
 ];

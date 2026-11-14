@@ -23,6 +23,10 @@ export const MIN_BODY_DIMENSION_MM = 1;
 /** Coordinates and sizes of a resolved part stay within ± this (mm), like `layout.ts`. */
 export const MAX_PART_COORDINATE_MM = 100000;
 
+/** Filled once `partDefinitionSchema` exists, so a nested Gruppe can be checked without a type cycle. */
+let parsePart: (value: unknown) => { success: boolean } = () => ({ success: true });
+let parseDepth = 0;
+
 const name = z.string().trim().min(1).max(120);
 const label = z.string().trim().min(1).max(80);
 const description = z.string().trim().max(1000);
@@ -61,6 +65,13 @@ export const PARAMETER_TYPE_LABELS: Record<ParameterType, string> = {
 export const PARAMETER_SCOPE_LABELS: Record<ParameterScope, string> = {
   variant: 'Variante', placement: 'Platzierung', state: 'Zustand im Bühnenbild',
 };
+/** How the Optionen panel and the placement inspector offer a parameter. */
+export const PARAMETER_DISPLAYS = ['input', 'list', 'readonly', 'hidden'] as const;
+export const parameterDisplaySchema = z.enum(PARAMETER_DISPLAYS);
+export type ParameterDisplay = z.infer<typeof parameterDisplaySchema>;
+export const PARAMETER_DISPLAY_LABELS: Record<ParameterDisplay, string> = {
+  input: 'Eingabefeld', list: 'Auswahlliste', readonly: 'Nur anzeigen', hidden: 'Verborgen',
+};
 
 export const parameterSchema = z.strictObject({
   key: identifierSchema,
@@ -74,8 +85,17 @@ export const parameterSchema = z.strictObject({
   range: z.strictObject({ min: value, max: value, step: z.number().positive().max(1_000_000).optional() }).optional(),
   /** Discrete domain. */
   values: z.array(value).min(1).max(PART_LIMITS.discreteValues).optional(),
+  /** How a placer sees it; defaults to `list` for a value list or toggle, else `input`. */
+  display: parameterDisplaySchema.optional(),
+  /** Labels of the listed values, in the order of `values` (for a toggle: Nein, Ja). */
+  valueLabels: z.array(label).min(1).max(PART_LIMITS.discreteValues).optional(),
 });
 export type PartParameter = z.infer<typeof parameterSchema>;
+
+/** The display a parameter has when the definition leaves it out. */
+export function parameterDisplay(parameter: Pick<PartParameter, 'display' | 'type' | 'values'>): ParameterDisplay {
+  return parameter.display ?? (parameter.type === 'toggle' || parameter.values?.length ? 'list' : 'input');
+}
 
 export const variantSchema = z.strictObject({
   key: partKeySchema,
@@ -108,6 +128,11 @@ const bodyBase = {
   /** The body exists when this is non-zero. */
   when: formulaSchema.optional(),
   repeat: repeatSchema.optional(),
+  /**
+   * „Nur Darstellung“: drawn, but neither cut, counted nor weighed. Illustrates a bought piece
+   * whose count a hardware line of the same material keeps, such as a strap around ballast.
+   */
+  displayOnly: z.boolean().optional(),
 };
 
 export const boxBodySchema = z.strictObject({
@@ -185,10 +210,18 @@ export type SheetBody = z.infer<typeof sheetBodySchema>;
 export type PartBody = z.infer<typeof bodySchema>;
 export type PartBodyKind = PartBody['kind'];
 
+/**
+ * A child is either a library Bauteil (`part`) or an inline Gruppe (`group`).
+ * `group` is stored as unknown because a Gruppe is itself a part definition and can nest.
+ */
 export const childSchema = z.strictObject({
   key: partKeySchema,
   label: label.optional(),
-  part: partRefSchema,
+  /** Library component. Absent when this child is a Gruppe. */
+  part: partRefSchema.optional(),
+  /** Inline Gruppe: its definition lives on the parent and is not a library entry. */
+  /** Inline Gruppe. Validated as a part definition once the schema exists; a Gruppe can nest. */
+  group: z.unknown().optional(),
   /** Variant of the child; without it the first variant is the starting point. */
   variant: partKeySchema.optional(),
   /** Parameter values of the child as formulas over this part's names; any scope may be set. */
@@ -199,8 +232,27 @@ export const childSchema = z.strictObject({
   pivot: vec3Schema.optional(),
   when: formulaSchema.optional(),
   repeat: repeatSchema.optional(),
+}).superRefine((child, context) => {
+  if (!child.part === !child.group) {
+    context.addIssue({
+      code: 'custom',
+      message: child.part ? 'Eine Gruppe verweist nicht zusätzlich auf ein Bibliotheksbauteil.' : 'Ein Unterbauteil ist entweder eine Gruppe oder ein Bibliotheksbauteil.',
+      path: ['part'],
+    });
+  }
+  if (child.group !== undefined) {
+    parseDepth += 1;
+    const nested = parseDepth > PART_LIMITS.depth ? { success: false } : parsePart(child.group);
+    parseDepth -= 1;
+    if (!nested.success) context.addIssue({ code: 'custom', message: 'Die Gruppe ist kein gültiges Bauteil.', path: ['group'] });
+  }
 });
 export type PartChild = z.infer<typeof childSchema>;
+
+/** The library revision a child instances, if it is a Komponente and not a Gruppe. */
+export function libraryRef(child: Pick<PartChild, 'part'>): PartRef | undefined {
+  return child.part;
+}
 
 export const BUILT_IN_CONNECTOR_KINDS = ['hinge-edge', 'brace-mount', 'deck-edge', 'leg-socket', 'floor'] as const;
 export type BuiltInConnectorKind = (typeof BUILT_IN_CONNECTOR_KINDS)[number];
@@ -299,6 +351,11 @@ export const partDefinitionShapeSchema = z.strictObject({
 });
 export type PartDefinition = z.infer<typeof partDefinitionShapeSchema>;
 
+/** The inline Gruppe on a child, when it is one. The schema stores it as unknown so a Gruppe can nest. */
+export function inlineGroup(child: { group?: unknown }): PartDefinition | undefined {
+  return child.group as PartDefinition | undefined;
+}
+
 const dimension = z.number().min(MIN_BODY_DIMENSION_MM).max(10000);
 const weight = z.number().min(0).max(100000);
 const materialBase = {
@@ -308,25 +365,50 @@ const materialBase = {
   /** Display colour where no finish applies, `#rrggbb`. */
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   finish: surfaceFinishSchema.optional(),
+  /** `tile` (default): the finish repeats at its pattern size; `face`: one copy stretched over each face, for painted artwork. */
+  finishFit: z.enum(['tile', 'face']).optional(),
 };
+
+/** `rect` (default) is a solid rectangle; `round` a solid rod and `tube` a pipe, both of diameter `width`. */
+export const PROFILE_SHAPES = ['rect', 'round', 'tube'] as const;
+export type ProfileShape = (typeof PROFILE_SHAPES)[number];
 
 export const materialSchema = z.discriminatedUnion('kind', [
   z.strictObject({
     kind: z.literal('profile'), ...materialBase,
-    /** Cross-section in mm. */
-    section: z.strictObject({ width: dimension, height: dimension }),
+    /** Cross-section in mm; a round or tube section has `width` = `height` = outside diameter. */
+    section: z.strictObject({
+      width: dimension, height: dimension,
+      shape: z.enum(PROFILE_SHAPES).optional(),
+      /** Wall thickness of a tube. */
+      wall: dimension.optional(),
+    }),
     weightKgPerM: weight,
   }),
   z.strictObject({ kind: z.literal('sheet'), ...materialBase, thickness: dimension, weightKgPerM2: weight }),
   z.strictObject({ kind: z.literal('hardware'), ...materialBase, weightKgPerPiece: weight }),
+  z.strictObject({
+    kind: z.literal('fabric'), ...materialBase,
+    /** Drawn thickness; defaults to 1 mm. */
+    thickness: dimension.optional(),
+    weightKgPerM2: weight,
+    /** Allowance added to every side of the finished size when the cloth is cut (hem, seam, tunnel). */
+    hemMm: z.number().min(0).max(1000),
+  }),
 ]);
 export type PartMaterial = z.infer<typeof materialSchema>;
 export type PartMaterialKind = PartMaterial['kind'];
 export const MATERIAL_KIND_LABELS: Record<PartMaterialKind, string> = {
-  profile: 'Profil', sheet: 'Platte', hardware: 'Zubehör',
+  profile: 'Profil', sheet: 'Platte', hardware: 'Zubehör', fabric: 'Stoff',
 };
-/** Material kind each body kind draws from. */
+/** Material kind each body kind draws from first. */
 export const BODY_MATERIAL_KIND: Record<PartBodyKind, PartMaterialKind> = { box: 'hardware', beam: 'profile', sheet: 'sheet' };
+/** Every material kind a body kind accepts: a sheet may also be cloth. */
+export const BODY_MATERIAL_KINDS: Record<PartBodyKind, readonly PartMaterialKind[]> = {
+  box: ['hardware'], beam: ['profile'], sheet: ['sheet', 'fabric'],
+};
+/** Drawn thickness of cloth without one of its own. */
+export const DEFAULT_FABRIC_THICKNESS_MM = 1;
 
 /** Lookups `resolvePart` and `validateDefinition` read materials and child definitions through. */
 export type PartContext = {
@@ -412,8 +494,13 @@ export function definitionConsistencyIssues(definition: PartDefinition): Consist
     if (parameter.type === 'toggle') {
       if (parameter.range || parameter.values) domain('Ein Ja/Nein-Parameter hat weder Bereich noch Werteliste.');
       if (parameter.default !== 0 && parameter.default !== 1) domain('Der Standardwert muss 0 oder 1 sein.');
+      if (parameter.valueLabels && parameter.valueLabels.length !== 2) domain('Ein Ja/Nein-Parameter hat genau zwei Bezeichnungen (für Nein und Ja).');
       return;
     }
+    if (parameter.valueLabels && parameter.valueLabels.length !== parameter.values?.length) {
+      domain('Für jeden Wert der Werteliste ist genau eine Bezeichnung anzugeben.');
+    }
+    if (parameter.display === 'list' && !parameter.values) domain('Eine Auswahlliste braucht eine Werteliste.');
     if (!parameter.range === !parameter.values) {
       domain('Entweder ein Bereich oder eine Werteliste ist anzugeben.');
       return;
@@ -475,6 +562,10 @@ export function definitionConsistencyIssues(definition: PartDefinition): Consist
     report(['traits', 'faces', index, 'key'], issue('error', 'duplicate-key', { face: key }, 'Der Schlüssel ist doppelt vergeben.'));
   }
   definition.bodies.forEach((body, index) => {
+    if (body.displayOnly && body.kind === 'box' && !(definition.hardware ?? []).some(item => item.material === body.material)) {
+      report(['bodies', index, 'displayOnly'], issue('warning', 'display-only-untied', { body: body.key, field: 'displayOnly' },
+        `Der Körper ist „nur Darstellung“, aber keine Zubehörzeile zählt „${body.material}“; so wird das Stück nirgends gezählt.`));
+    }
     if (body.kind !== 'sheet') return;
     for (const [key, holeIndex] of duplicates((body.holes ?? []).map(hole => hole.key))) {
       report(['bodies', index, 'holes', holeIndex, 'key'],
@@ -550,9 +641,11 @@ export function definitionConsistencyIssues(definition: PartDefinition): Consist
 /** A complete part definition: structure plus the cross-field checks. */
 export const partDefinitionSchema = partDefinitionShapeSchema.superRefine((definition, context) => {
   for (const item of definitionConsistencyIssues(definition)) {
+    if (item.severity !== 'error') continue;
     context.addIssue({ code: 'custom', message: item.message, path: item.location });
   }
 });
+parsePart = value => partDefinitionSchema.safeParse(value);
 
 /** The file groups exchange: stock materials and the part definitions that use them. */
 export const partLibrarySchema = z.strictObject({

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import {
-  BODY_MATERIAL_KIND, BUILT_IN_CONNECTOR_KINDS, CONNECTOR_KINDS, PART_FACE_SIDES, SHEET_ANCHORS, faceSidesOf,
+  BODY_MATERIAL_KINDS, BUILT_IN_CONNECTOR_KINDS, CONNECTOR_KINDS, PART_FACE_SIDES, SHEET_ANCHORS, faceSidesOf, inlineGroup,
   type BeamBody, type BoxBody, type FormulaVec2, type PartBody, type PartChild, type PartConnector, type PartDefinition,
   type PartHardware, type PartMaterial, type PartRepeat, type PartRepeatLevel, type PartTraits, type SheetBody, type SheetHole,
 } from '../../shared/parts/definition.js';
@@ -46,10 +46,11 @@ function TextField({ label, value, onChange, disabled, testId, hint }: {
   </label>;
 }
 
-function MaterialSelect({ kind, value, onChange, materials, disabled }: {
-  kind: PartMaterial['kind']; value: string; onChange: (key: string) => void; materials: readonly PartMaterial[]; disabled: boolean;
+export function MaterialSelect({ kind, value, onChange, materials, disabled }: {
+  kind: PartMaterial['kind'] | readonly PartMaterial['kind'][]; value: string; onChange: (key: string) => void; materials: readonly PartMaterial[]; disabled: boolean;
 }) {
-  const options = materials.filter(material => material.kind === kind);
+  const kinds: readonly PartMaterial['kind'][] = typeof kind === 'string' ? [kind] : kind;
+  const options = materials.filter(material => kinds.includes(material.kind));
   return <label className="designer-field">Material
     <select value={value} disabled={disabled} onChange={event => onChange(event.target.value)}>
       {!options.some(material => material.key === value) && <option value={value}>{value} (nicht vorhanden)</option>}
@@ -270,8 +271,10 @@ function BodyEditor({ body, index, definition, onChange, resolved, issues, mater
       <TextField label="Bezeichnung" value={body.label ?? ''} disabled={disabled} testId="body-label"
         onChange={label => set(without(body, 'label', label.trim() ? label : undefined))} />
     </div>
-    <MaterialSelect kind={BODY_MATERIAL_KIND[body.kind]} value={body.material} materials={materials} disabled={disabled}
+    <MaterialSelect kind={BODY_MATERIAL_KINDS[body.kind]} value={body.material} materials={materials} disabled={disabled}
       onChange={material => set({ ...body, material })} />
+    <label className="checkbox-line"><input type="checkbox" checked={!!body.displayOnly} disabled={disabled} data-testid="body-display-only"
+      onChange={event => set(without(body, 'displayOnly', event.target.checked ? true : undefined))} />Nur Darstellung (nicht gezählt, nicht gewogen)</label>
     <OptionalFormulaField label="Nur wenn" hint="Körper entsteht, wenn ungleich 0" value={body.when} fallback="1" scope={scope} disabled={disabled}
       issues={fieldIssues(own, 'when')} onChange={when => set(without(body, 'when', when))} />
     {specific}
@@ -287,7 +290,7 @@ function ChildEditor({ child, index, definition, onChange, resolved, issues, dis
   const indices = repeatLevels(child.repeat).map(level => level.index);
   const scope = previewScope(resolved, indices);
   const own = issuesForSelection(issues, { kind: 'child', key: child.key });
-  const summary = library.find(part => part.id === child.part.id);
+  const summary = child.part ? library.find(part => part.id === child.part?.id) : undefined;
   const set = (next: PartChild) => onChange({ ...definition, children: replaceAt(children, index, next) },
     next.key !== child.key ? { kind: 'child', key: next.key } : undefined);
   const without = <K extends keyof PartChild>(key: K, value: PartChild[K] | undefined): PartChild => {
@@ -303,9 +306,9 @@ function ChildEditor({ child, index, definition, onChange, resolved, issues, dis
       <TextField label="Bezeichnung" value={child.label ?? ''} disabled={disabled} onChange={label => set(without('label', label.trim() ? label : undefined))} />
     </div>
     <p className="designer-child-ref">
-      {summary?.name ?? childDefinition?.name ?? 'Unbekanntes Bauteil'} · Revision {child.part.revision}
-      {summary && summary.latestRevision > child.part.revision && <button type="button" className="quiet" disabled={disabled}
-        onClick={() => onUpgrade(child.part.id)}>Auf Revision {summary.latestRevision} umstellen</button>}
+      {inlineGroup(child) ? `Gruppe „${inlineGroup(child)!.name}“` : `${summary?.name ?? childDefinition?.name ?? 'Unbekanntes Bauteil'} · Revision ${child.part?.revision ?? ''}`}
+      {summary && child.part && summary.latestRevision > child.part.revision && <button type="button" className="quiet" disabled={disabled}
+        onClick={() => onUpgrade(child.part!.id)}>Auf Revision {summary.latestRevision} umstellen</button>}
     </p>
     {childDefinition?.variants?.length ? <label className="designer-field">Variante
       <select value={child.variant ?? ''} disabled={disabled} onChange={event => set(without('variant', event.target.value || undefined))}>

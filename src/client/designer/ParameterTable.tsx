@@ -33,7 +33,7 @@ export function ParameterTable({ definition, onChange, issues, disabled, preview
   preview: Readonly<Record<string, number>>;
   onPreview: (key: string, value: number | undefined) => void;
   resolvedValues: Readonly<Record<string, number>> | undefined;
-  /** Avoid colliding with CoreMeasures when both are mounted. */
+  /** Avoid colliding with the Optionen tab, which uses `parameter-default`. */
   defaultTestIdPrefix?: string;
 }) {
   const hasVariants = !!definition.variants?.length;

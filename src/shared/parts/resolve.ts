@@ -1,9 +1,9 @@
 import {
-  BODY_MATERIAL_KIND, MATERIAL_KIND_LABELS, MAX_PART_COORDINATE_MM, MIN_BODY_DIMENSION_MM, PART_LIMITS,
-  matchVariant, normalizeParameterValue, partRefKey, variantValues,
+  BODY_MATERIAL_KINDS, DEFAULT_FABRIC_THICKNESS_MM, MATERIAL_KIND_LABELS, MAX_PART_COORDINATE_MM, MIN_BODY_DIMENSION_MM, PART_LIMITS,
+  inlineGroup, matchVariant, normalizeParameterValue, partRefKey, variantValues,
   type BeamBody, type BoxBody, type FormulaVec2, type FormulaVec3, type PartBody, type PartChild, type PartContext,
   type PartDefinition, type PartFaceSide, type PartMaterial, type PartRef, type PartRepeat, type PartTraits,
-  type SheetBody, type SheetHole, type StockMode,
+  type ProfileShape, type SheetBody, type SheetHole, type StockMode,
 } from './definition.js';
 import { FormulaError, evaluateFormula, formulaIdentifiers, parseFormula, type Formula } from './formula.js';
 import { formatNumber, formulaIssue, issue, type PartIssue, type PartIssueSubject } from './issues.js';
@@ -42,6 +42,8 @@ type SolidBase = {
   part: PartRef;
   material: string;
   label?: string;
+  /** „Nur Darstellung“: drawn, not cut, counted or weighed. */
+  displayOnly?: true;
 };
 
 /** Oriented box: `size` lies along the axes of `rotation`, centred on `center`. */
@@ -49,10 +51,13 @@ export type ResolvedBox = SolidBase & { kind: 'box'; center: Vec3; size: Vec3; r
 
 /**
  * A beam is an oriented box whose local +Y runs from `from` to `to`; `size.x` is the section
- * width, `size.y` the length and `size.z` the section height.
+ * width, `size.y` the length and `size.z` the section height. A round or tube profile is drawn
+ * as a cylinder inside that box.
  */
 export type ResolvedBeam = SolidBase & {
   kind: 'beam'; center: Vec3; size: Vec3; rotation: Quat; from: Vec3; to: Vec3; length: number;
+  /** Present for a round or tube profile; absent for the rectangular default. */
+  profile?: { shape: Exclude<ProfileShape, 'rect'>; wall?: number };
 };
 
 export type ResolvedOpening = {
@@ -123,6 +128,8 @@ export type ResolvedConnector = {
 
 export type BeamCut = {
   material: string; section: { width: number; height: number };
+  /** Round or tube profile; absent for the rectangular default. */
+  shape?: Exclude<ProfileShape, 'rect'>;
   /** Rounded to whole millimetres; rows group by it. */
   lengthMm: number;
   count: number;
@@ -140,6 +147,10 @@ export type SheetCut = {
   areaMm2: number;
   grossAreaMm2: number;
   weightKg: number;
+  /** Cloth only: allowance on every side, and the size to cut with it. */
+  hemMm?: number;
+  cutWidthMm?: number;
+  cutHeightMm?: number;
 };
 
 export type HardwareTotal = { material: string; quantity: number; weightKg: number };
@@ -200,8 +211,8 @@ export type ResolvedPart = {
 };
 
 type FaceBinding = { key: string; label: string; solid: string; body: string; side: PartFaceSide };
-type RawBeam = { material: string; width: number; height: number; length: number; kgPerM: number };
-type RawSheet = { material: string; thickness: number; width: number; height: number; net: number; gross: number; kgPerM2: number };
+type RawBeam = { material: string; width: number; height: number; length: number; kgPerM: number; shape?: Exclude<ProfileShape, 'rect'> };
+type RawSheet = { material: string; thickness: number; width: number; height: number; net: number; gross: number; kgPerM2: number; hem?: number };
 type RawHardware = { material: string; quantity: number; kgPerPiece: number };
 
 type Node = {
@@ -344,12 +355,12 @@ export function beamRotation(from: Vec3, to: Vec3, rollDegrees = 0): Quat {
   return rollDegrees ? quatMultiply(frame, quatFromAxisAngle({ x: 0, y: 1, z: 0 }, rollDegrees * Math.PI / 180)) : frame;
 }
 
-const PLANE_ROTATION: Record<SheetBody['plane'], Quat> = {
+export const PLANE_ROTATION: Readonly<Record<SheetBody['plane'], Quat>> = {
   xy: QUAT_IDENTITY,
   xz: quatFromEulerDegrees(90, 0, 0),
   yz: quatFromEulerDegrees(0, -90, 0),
 };
-const ANCHOR_OFFSET: Record<NonNullable<SheetBody['anchor']>, number> = { face: 0, centre: -0.5, back: -1 };
+export const ANCHOR_OFFSET: Readonly<Record<NonNullable<SheetBody['anchor']>, number>> = { face: 0, centre: -0.5, back: -1 };
 
 /** Segments of the semicircular crown of an arch cut-out. */
 export function archSegmentCount(radius: number): number {
@@ -472,10 +483,10 @@ function materialFor(
     issues.error('unknown-material', subject, `Das Material „${body.material}“ ist nicht vorhanden.`);
     return undefined;
   }
-  const expected = BODY_MATERIAL_KIND[body.kind];
-  if (material.kind !== expected) {
+  const accepted = BODY_MATERIAL_KINDS[body.kind];
+  if (!accepted.includes(material.kind)) {
     issues.error('material-kind', subject,
-      `Das Material „${material.name}“ ist ${MATERIAL_KIND_LABELS[material.kind]}, gebraucht wird ${MATERIAL_KIND_LABELS[expected]}.`);
+      `Das Material „${material.name}“ ist ${MATERIAL_KIND_LABELS[material.kind]}, gebraucht wird ${accepted.map(kind => MATERIAL_KIND_LABELS[kind]).join(' oder ')}.`);
     return undefined;
   }
   return material;
@@ -485,7 +496,7 @@ function solidBase(node: NodeBuilder, body: PartBody, index: number[]): SolidBas
   const { id, revision } = node.definition;
   return {
     id: instanceId(body.key, index), path: [], body: body.key, index, part: { id, revision },
-    material: body.material, ...(body.label ? { label: body.label } : {}),
+    material: body.material, ...(body.label ? { label: body.label } : {}), ...(body.displayOnly ? { displayOnly: true as const } : {}),
   };
 }
 
@@ -502,7 +513,7 @@ function resolveBox(node: NodeBuilder, body: BoxBody, material: PartMaterial | u
   const center = add(placed.translation, offset);
   if (small.some(Boolean) || !withinReach([center, size], subject, node.issues)) return;
   node.solids.push({ ...solidBase(node, body, index), kind: 'box', center, size, rotation: placed.rotation });
-  if (material?.kind === 'hardware') node.hardware.push({ material: material.key, quantity: 1, kgPerPiece: material.weightKgPerPiece });
+  if (material?.kind === 'hardware' && !body.displayOnly) node.hardware.push({ material: material.key, quantity: 1, kgPerPiece: material.weightKgPerPiece });
 }
 
 function resolveBeam(node: NodeBuilder, body: BeamBody, material: PartMaterial | undefined, scope: Scope, index: number[], offset: Vec3) {
@@ -523,19 +534,28 @@ function resolveBeam(node: NodeBuilder, body: BeamBody, material: PartMaterial |
     tooSmall(section.height, 'Querschnittshöhe', { ...subject, field: 'section[1]' }, node.issues),
   ];
   if (small.some(Boolean) || !withinReach([from, to], subject, node.issues)) return;
+  const shape = profile?.section.shape && profile.section.shape !== 'rect' ? profile.section.shape : undefined;
+  const wall = shape === 'tube' ? Math.min(profile!.section.wall ?? section.width / 10, section.width / 2) : undefined;
   node.solids.push({
     ...solidBase(node, body, index), kind: 'beam',
     center: scale(add(from, to), 0.5), size: { x: section.width, y: span, z: section.height },
     rotation: beamRotation(from, to, roll), from, to, length: span,
+    ...(shape ? { profile: { shape, ...(wall !== undefined ? { wall } : {}) } } : {}),
   });
-  if (profile) node.beams.push({ material: profile.key, width: section.width, height: section.height, length: span, kgPerM: profile.weightKgPerM });
+  if (profile && !body.displayOnly) {
+    node.beams.push({
+      material: profile.key, width: section.width, height: section.height, length: span, kgPerM: profile.weightKgPerM,
+      ...(shape ? { shape } : {}),
+    });
+  }
 }
 
 function resolveSheet(node: NodeBuilder, body: SheetBody, material: PartMaterial | undefined, scope: Scope, index: number[], offset: Vec3) {
   const subject = { body: body.key };
   const issues = node.issues;
-  const stock = material?.kind === 'sheet' ? material : undefined;
-  const thickness = body.thickness === undefined ? stock?.thickness : evaluate(body.thickness, scope, { ...subject, field: 'thickness' }, issues);
+  const stock = material?.kind === 'sheet' || material?.kind === 'fabric' ? material : undefined;
+  const stockThickness = stock?.kind === 'fabric' ? stock.thickness ?? DEFAULT_FABRIC_THICKNESS_MM : stock?.thickness;
+  const thickness = body.thickness === undefined ? stockThickness : evaluate(body.thickness, scope, { ...subject, field: 'thickness' }, issues);
   const placed = pose(body, scope, subject, issues);
   let authored: Vec2[] | undefined;
   if (body.outline.shape === 'rect') {
@@ -594,8 +614,11 @@ function resolveSheet(node: NodeBuilder, body: SheetBody, material: PartMaterial
     }),
     blank: { width: blank.width, height: blank.height }, netAreaMm2: net, grossAreaMm2: gross,
   });
-  if (stock) {
-    node.sheets.push({ material: stock.key, thickness, width: blank.width, height: blank.height, net, gross, kgPerM2: stock.weightKgPerM2 });
+  if (stock && !body.displayOnly) {
+    node.sheets.push({
+      material: stock.key, thickness, width: blank.width, height: blank.height, net, gross, kgPerM2: stock.weightKgPerM2,
+      ...(stock.kind === 'fabric' ? { hem: stock.hemMm } : {}),
+    });
   }
 }
 
@@ -784,9 +807,11 @@ function resolveChild(node: NodeBuilder, child: PartChild, scope: Scope, index: 
     else values[key] = value;
   }
   if (!placed || !complete) return;
-  const definition = run.context.part(child.part);
+  const definition = inlineGroup(child) ?? (child.part ? run.context.part(child.part) : undefined);
   if (!definition) {
-    issues.error('unknown-part', subject, `Das Bauteil ${child.part.id} (Revision ${child.part.revision}) ist nicht vorhanden.`);
+    issues.error('unknown-part', subject, child.part
+      ? `Das Bauteil ${child.part.id} (Revision ${child.part.revision}) ist nicht vorhanden.`
+      : 'Die Gruppe hat keine Definition.');
     return;
   }
   if (stack.includes(definition.id)) {
@@ -925,9 +950,10 @@ function cutList(node: Node) {
   const beams = new Map<string, BeamCut>();
   for (const beam of node.beams) {
     const lengthMm = Math.round(beam.length);
-    const key = JSON.stringify([beam.material, beam.width, beam.height, lengthMm]);
+    const key = JSON.stringify([beam.material, beam.width, beam.height, lengthMm, beam.shape ?? 'rect']);
     const row = beams.get(key) ?? {
-      material: beam.material, section: { width: beam.width, height: beam.height }, lengthMm, count: 0, totalLengthMm: 0, weightKg: 0,
+      material: beam.material, section: { width: beam.width, height: beam.height }, ...(beam.shape ? { shape: beam.shape } : {}),
+      lengthMm, count: 0, totalLengthMm: 0, weightKg: 0,
     };
     row.count++;
     row.totalLengthMm += beam.length;
@@ -937,9 +963,12 @@ function cutList(node: Node) {
   const sheets = new Map<string, SheetCut>();
   for (const sheet of node.sheets) {
     const widthMm = Math.round(sheet.width), heightMm = Math.round(sheet.height);
-    const key = JSON.stringify([sheet.material, sheet.thickness, widthMm, heightMm]);
+    const key = JSON.stringify([sheet.material, sheet.thickness, widthMm, heightMm, sheet.hem ?? null]);
+    const hem = sheet.hem === undefined ? {} : {
+      hemMm: sheet.hem, cutWidthMm: Math.round(sheet.width + 2 * sheet.hem), cutHeightMm: Math.round(sheet.height + 2 * sheet.hem),
+    };
     const row = sheets.get(key) ?? {
-      material: sheet.material, thicknessMm: sheet.thickness, widthMm, heightMm, count: 0, areaMm2: 0, grossAreaMm2: 0, weightKg: 0,
+      material: sheet.material, thicknessMm: sheet.thickness, widthMm, heightMm, count: 0, areaMm2: 0, grossAreaMm2: 0, weightKg: 0, ...hem,
     };
     row.count++;
     row.areaMm2 += sheet.net;
