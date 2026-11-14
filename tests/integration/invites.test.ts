@@ -15,7 +15,7 @@ let mail: ReturnType<typeof createFakeMailTransport>;
 let cookie: string;
 let origin: string;
 let members: string;
-const editor = { email: 'editor@example.test', name: 'Editorin Beispiel', password: 'editor-password-7319' };
+const editor = { email: 'editor@example.test', name: 'Editorin Beispiel' };
 
 before(async () => {
   fixture = await testDatabase();
@@ -79,7 +79,7 @@ test('invitation mail is queued, failed delivery can be retried, and reset mail 
   assert.equal(mail.messages.length, 2);
 });
 
-test('only administrators invite; accept creates membership; expired and replayed tokens are rejected; CSRF holds', async () => {
+test('only administrators invite; accept creates membership and session; expired and replayed tokens are rejected; CSRF holds', async () => {
   const inviteUrl = `/api/workspaces/${fixture.config.WORKSPACE_ID}/invitations`;
   assert.equal((await app.inject({ method: 'POST', url: inviteUrl, headers: { cookie }, payload: { email: 'csrf@example.test', name: 'CSRF', role: 'viewer' } })).statusCode, 403);
   assert.equal((await app.inject({ method: 'POST', url: inviteUrl, headers: { cookie, origin: 'https://other.example' }, payload: { email: 'csrf@example.test', name: 'CSRF', role: 'viewer' } })).statusCode, 403);
@@ -97,22 +97,26 @@ test('only administrators invite; accept creates membership; expired and replaye
   mail.clear();
   const invited = await app.inject({ method: 'POST', url: inviteUrl, headers: auth(), payload: { email: 'neu@example.test', name: 'Neues Mitglied', role: 'editor' } });
   assert.equal(invited.statusCode, 201, invited.body);
+  assert.match(mail.messages[0]?.text ?? '', /ohne Passwort/);
   const token = tokenFrom(mail.messages[0]!.text, 'einladung');
   const preview = await app.inject({ url: `/api/invitations/${token}` });
   assert.equal(preview.statusCode, 200, preview.body);
   assert.equal(preview.json().email, 'neu@example.test');
   assert.equal(preview.json().role, 'editor');
-  assert.equal((await app.inject({ method: 'POST', url: `/api/invitations/${token}/accept`, payload: { password: editor.password } })).statusCode, 403);
-  const accepted = await app.inject({ method: 'POST', url: `/api/invitations/${token}/accept`, headers: { origin }, payload: { password: editor.password } });
+  assert.equal((await app.inject({ method: 'POST', url: `/api/invitations/${token}/accept`, payload: {} })).statusCode, 403);
+  const accepted = await app.inject({ method: 'POST', url: `/api/invitations/${token}/accept`, headers: { origin }, payload: {} });
   assert.equal(accepted.statusCode, 201, accepted.body);
-  const replay = await app.inject({ method: 'POST', url: `/api/invitations/${token}/accept`, headers: { origin }, payload: { password: 'other-password-7319' } });
-  assert.equal(replay.statusCode, 404);
-  const createdCookie = await login('neu@example.test', editor.password);
+  assert.equal(accepted.json().user.email, 'neu@example.test');
+  const createdCookie = accepted.cookies.map(value => `${value.name}=${value.value}`).join('; ');
+  assert(createdCookie.includes('session_token') || createdCookie.includes('better-auth'), createdCookie);
   const me = await app.inject({ url: '/api/me', headers: { cookie: createdCookie } });
+  assert.equal(me.statusCode, 200, me.body);
   assert.equal(me.json().workspace.role, 'editor');
   assert.equal(me.json().user.name, 'Neues Mitglied');
   assert.equal((await app.inject({ url: members, headers: { cookie: createdCookie } })).statusCode, 403);
   assert.equal((await fixture.db.select().from(user)).filter(row => row.email === 'neu@example.test').length, 1);
+  const replay = await app.inject({ method: 'POST', url: `/api/invitations/${token}/accept`, headers: { origin }, payload: {} });
+  assert.equal(replay.statusCode, 404);
 
   mail.clear();
   const expiring = await app.inject({ method: 'POST', url: inviteUrl, headers: auth(), payload: { email: 'spaet@example.test', name: 'Zu spät', role: 'viewer' } });
@@ -120,7 +124,52 @@ test('only administrators invite; accept creates membership; expired and replaye
   const expiredToken = tokenFrom(mail.messages[0]!.text, 'einladung');
   await fixture.db.update(invitation).set({ expiresAt: new Date(0) }).where(eq(invitation.email, 'spaet@example.test'));
   assert.equal((await app.inject({ url: `/api/invitations/${expiredToken}` })).statusCode, 404);
-  assert.equal((await app.inject({ method: 'POST', url: `/api/invitations/${expiredToken}/accept`, headers: { origin }, payload: { password: editor.password } })).statusCode, 404);
+  assert.equal((await app.inject({ method: 'POST', url: `/api/invitations/${expiredToken}/accept`, headers: { origin }, payload: {} })).statusCode, 404);
+});
+
+test('magic link signs in an existing member and rejects unknown addresses', async () => {
+  mail.clear();
+  const unknown = await app.inject({
+    method: 'POST', url: '/api/auth/sign-in/magic-link', headers: { origin },
+    payload: { email: 'nobody@example.test', callbackURL: '/' },
+  });
+  assert.equal(unknown.statusCode, 200, unknown.body);
+  assert.equal(mail.messages.length, 1);
+  const verifyUnknown = mail.messages[0]!.text.match(/magic-link\/verify\?[^\s]+/);
+  assert(verifyUnknown, mail.messages[0]!.text);
+  const bad = await app.inject({ url: `/api/auth/${verifyUnknown![0]!}` });
+  assert.equal(bad.statusCode, 302, bad.body);
+  assert.match(String(bad.headers.location ?? ''), /error=/);
+
+  mail.clear();
+  const invited = await app.inject({
+    method: 'POST', url: `/api/workspaces/${fixture.config.WORKSPACE_ID}/invitations`, headers: auth(),
+    payload: { email: 'magie@example.test', name: 'Magie Mitglied', role: 'viewer' },
+  });
+  assert.equal(invited.statusCode, 201, invited.body);
+  const inviteToken = tokenFrom(mail.messages[0]!.text, 'einladung');
+  assert.equal((await app.inject({
+    method: 'POST', url: `/api/invitations/${inviteToken}/accept`, headers: { origin }, payload: {},
+  })).statusCode, 201);
+
+  mail.clear();
+  const requested = await app.inject({
+    method: 'POST', url: '/api/auth/sign-in/magic-link', headers: { origin },
+    payload: { email: 'magie@example.test', callbackURL: '/' },
+  });
+  assert.equal(requested.statusCode, 200, requested.body);
+  assert.equal(mail.messages.length, 1);
+  const link = mail.messages[0]!.text.match(/https?:\/\/[^\s]+\/api\/auth\/magic-link\/verify\?[^\s]+/);
+  assert(link, mail.messages[0]!.text);
+  const verifyUrl = new URL(link![0]!);
+  const verified = await app.inject({ url: `${verifyUrl.pathname}${verifyUrl.search}` });
+  assert.equal(verified.statusCode, 302, verified.body);
+  assert.equal(verified.headers.location, `${origin}/`);
+  const sessionCookie = verified.cookies.map(value => `${value.name}=${value.value}`).join('; ');
+  const me = await app.inject({ url: '/api/me', headers: { cookie: sessionCookie } });
+  assert.equal(me.statusCode, 200, me.body);
+  assert.equal(me.json().user.email, 'magie@example.test');
+  assert.equal(me.json().workspace.role, 'viewer');
 });
 
 test('administrators can change roles and revoke access; the last administrator is protected', async () => {

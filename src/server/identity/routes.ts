@@ -1,15 +1,21 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import {
-  acceptInvitationSchema, changeRoleSchema, completePasswordResetSchema, errorSchema, invitationPreviewSchema,
-  invitationSchema, inviteMemberSchema, memberParamsSchema, memberSchema, okSchema, passwordResetPreviewSchema,
-  requestPasswordResetSchema, tokenParamsSchema, workspaceParamsSchema,
+  acceptInvitationResultSchema, acceptInvitationSchema, changeRoleSchema, completePasswordResetSchema, errorSchema,
+  invitationPreviewSchema, invitationSchema, inviteMemberSchema, memberParamsSchema, memberSchema, okSchema,
+  passwordResetPreviewSchema, requestPasswordResetSchema, tokenParamsSchema, workspaceParamsSchema,
 } from '../../shared/contracts.js';
 import { AccessError, type createAccess } from './access.js';
+import type { Auth } from './auth.js';
 import type { Membership } from './membership.js';
+import { attachSessionCookie } from './sessionCookie.js';
 
 export function registerIdentityRoutes(
-  app: FastifyInstance, access: ReturnType<typeof createAccess>, membership: Membership, origin: string,
+  app: FastifyInstance,
+  access: ReturnType<typeof createAccess>,
+  membership: Membership,
+  origin: string,
+  auth: Auth,
 ) {
   const api = app.withTypeProvider<ZodTypeProvider>();
   const errors = { 400: errorSchema, 401: errorSchema, 403: errorSchema, 404: errorSchema, 409: errorSchema, 503: errorSchema };
@@ -28,10 +34,15 @@ export function registerIdentityRoutes(
     schema: { params: tokenParamsSchema, response: { 200: invitationPreviewSchema, ...errors } },
   }, async request => membership.previewInvitation(request.params.token));
   api.post('/api/invitations/:token/accept', {
-    schema: { params: tokenParamsSchema, body: acceptInvitationSchema, response: { 201: okSchema, ...errors } },
+    schema: {
+      params: tokenParamsSchema, body: acceptInvitationSchema,
+      response: { 201: acceptInvitationResultSchema, ...errors },
+    },
   }, async (request, reply) => {
     requireOrigin(request);
-    return reply.code(201).send(await membership.acceptInvitation(request.params.token, request.body.password));
+    const accepted = await membership.acceptInvitation(request.params.token);
+    await attachSessionCookie(auth, accepted.user.id, reply);
+    return reply.code(201).send(accepted);
   });
   api.patch('/api/workspaces/:workspaceId/members/:userId', {
     schema: { params: memberParamsSchema, body: changeRoleSchema, response: { 200: memberSchema, ...errors } },

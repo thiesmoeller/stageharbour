@@ -6,6 +6,7 @@ test('German login, failed credentials, workspace, reload, logout and mobile lay
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Willkommen zurück' })).toBeVisible();
+  await page.getByRole('tab', { name: 'Passwort' }).click();
   await page.getByLabel('E-Mail-Adresse').fill(testAdministrator.email);
   await page.getByLabel('Passwort', { exact: true }).fill('wrong-test-password');
   await page.getByRole('button', { name: 'Anmelden', exact: true }).click();
@@ -15,7 +16,7 @@ test('German login, failed credentials, workspace, reload, logout and mobile lay
   await expect(page.getByRole('heading', { name: 'Beispiel-Theatergruppe' })).toBeVisible();
   await page.getByRole('button', { name: /Mein Konto/ }).click();
   await expect(page.getByRole('heading', { name: 'Mein Konto' })).toBeVisible();
-  await expect(page.getByText(/E-Mail-Adresse und Passwort/)).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Passkey', exact: true })).toBeVisible();
   await page.getByRole('button', { name: /Verwaltung/ }).click();
   await expect(page.getByRole('cell', { name: testAdministrator.email })).toBeVisible();
   await page.getByRole('button', { name: 'Zugang entziehen', exact: true }).first().click();
@@ -34,7 +35,8 @@ test('German login, failed credentials, workspace, reload, logout and mobile lay
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Willkommen zurück' })).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.getByRole('button', { name: 'Anmelden', exact: true })).toBeInViewport();
+  await page.getByRole('button', { name: 'Link senden', exact: true }).scrollIntoViewIfNeeded();
+  await expect(page.getByRole('button', { name: 'Link senden', exact: true })).toBeInViewport();
   await page.screenshot({ path: 'test-results/login-mobile.png', fullPage: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(errors).toEqual([]);
@@ -44,7 +46,7 @@ test('Pocket ID sign-in is offered in German when OIDC is configured', async ({ 
   await page.route('**/api/login-options', route => route.fulfill({ json: { oidc: true, version: 'test' } }));
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Mit Pocket ID anmelden' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Anmelden', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Link senden', exact: true })).toBeVisible();
   await expect(page.getByLabel('E-Mail-Adresse')).toBeVisible();
 });
 

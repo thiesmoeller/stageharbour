@@ -7,6 +7,7 @@ import { createRoot } from 'react-dom/client';
 import { z } from 'zod';
 import { invitationSchema, loginOptionsSchema, meSchema, membersSchema, invitationPreviewSchema, passwordResetPreviewSchema, brandingSchema, DEFAULT_BRANDING, type Branding, type Me, type Member, type Role } from '../shared/contracts.js';
 import { ApiError, request, upload } from './api.js';
+import { authClient } from './authClient.js';
 import { Venues } from './editor/Venues.js';
 import { Plans } from './editor/Plans.js';
 import { Bestand } from './editor/Bestand.js';
@@ -170,12 +171,20 @@ function App() {
 }
 
 function Login({ onSuccess }: { onSuccess: () => Promise<void> }) {
+  const searchError = new URLSearchParams(window.location.search).get('error');
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState(() => new URLSearchParams(window.location.search).has('error')
-    ? 'Anmeldung mit Pocket ID fehlgeschlagen. Bitte versuchen Sie es erneut.' : '');
+  const [error, setError] = useState(() => searchError === 'magic-link'
+    ? 'Der Anmeldelink ist ungültig oder abgelaufen. Bitte fordern Sie einen neuen an.'
+    : searchError
+      ? 'Anmeldung mit Pocket ID fehlgeschlagen. Bitte versuchen Sie es erneut.'
+      : '');
   const [oidc, setOidc] = useState(false);
   const [version, setVersion] = useState('');
+  const [mode, setMode] = useState<'magic' | 'password'>('magic');
+  const [magicSent, setMagicSent] = useState(false);
+  const [passkeyAvailable, setPasskeyAvailable] = useState(false);
   useEffect(() => {
+    setPasskeyAvailable(typeof PublicKeyCredential !== 'undefined');
     let cancelled = false;
     void (async () => {
       try {
@@ -189,7 +198,7 @@ function Login({ onSuccess }: { onSuccess: () => Promise<void> }) {
     })();
     return () => { cancelled = true; };
   }, []);
-  async function submit(event: FormEvent<HTMLFormElement>) {
+  async function submitPassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     setPending(true);
@@ -202,6 +211,31 @@ function Login({ onSuccess }: { onSuccess: () => Promise<void> }) {
       setError(error instanceof ApiError && [400, 401, 403].includes(error.status)
         ? 'Anmeldung fehlgeschlagen. Bitte prüfen Sie E-Mail-Adresse und Passwort.'
         : error instanceof Error ? error.message : 'Anmeldung fehlgeschlagen.');
+    } finally { setPending(false); }
+  }
+  async function submitMagic(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    setPending(true); setError(''); setMagicSent(false);
+    try {
+      await request('/api/auth/sign-in/magic-link', {
+        email: data.get('email'), callbackURL: '/', errorCallbackURL: '/?error=magic-link',
+      });
+      setMagicSent(true);
+    } catch (caught) {
+      setError(caught instanceof ApiError && caught.status === 429
+        ? caught.message
+        : 'Der Anmeldelink konnte nicht gesendet werden. Bitte versuchen Sie es erneut.');
+    } finally { setPending(false); }
+  }
+  async function signInPasskey() {
+    setPending(true); setError('');
+    try {
+      const result = await authClient.signIn.passkey({ autoFill: false });
+      if (result.error) throw new Error(result.error.message || 'Passkey-Anmeldung fehlgeschlagen.');
+      await onSuccess();
+    } catch {
+      setError('Passkey-Anmeldung fehlgeschlagen. Bitte nutzen Sie den E-Mail-Link oder Ihr Passwort.');
     } finally { setPending(false); }
   }
   async function signInOidc() {
@@ -220,14 +254,30 @@ function Login({ onSuccess }: { onSuccess: () => Promise<void> }) {
       <span className="card-mark" aria-hidden="true">↗</span><h2 id="login-title">Willkommen zurück</h2>
       <p>Meldet euch mit eurem persönlichen Konto an.</p>
       {oidc && <button className="oidc" type="button" onClick={() => void signInOidc()} disabled={pending}>Mit Pocket ID anmelden</button>}
-      {oidc && <p className="login-divider">oder mit E-Mail und Passwort</p>}
-      <form onSubmit={event => void submit(event)}>
+      {passkeyAvailable && <button className="primary" type="button" onClick={() => void signInPasskey()} disabled={pending}>
+        {pending ? 'Anmeldung läuft …' : 'Mit Passkey anmelden'}<span aria-hidden="true">→</span>
+      </button>}
+      <div className="login-modes" role="tablist" aria-label="Anmeldeweg">
+        <button type="button" role="tab" aria-selected={mode === 'magic'} className={mode === 'magic' ? 'quiet active' : 'quiet'}
+          onClick={() => { setMode('magic'); setError(''); setMagicSent(false); }} disabled={pending}>Link per E-Mail</button>
+        <button type="button" role="tab" aria-selected={mode === 'password'} className={mode === 'password' ? 'quiet active' : 'quiet'}
+          onClick={() => { setMode('password'); setError(''); }} disabled={pending}>Passwort</button>
+      </div>
+      {mode === 'magic' && (magicSent
+        ? <p role="status">Wenn ein Konto mit dieser E-Mail-Adresse existiert, senden wir einen Anmeldelink. Er ist 15 Minuten gültig.</p>
+        : <form onSubmit={event => void submitMagic(event)}>
+          <label htmlFor="email">E-Mail-Adresse</label>
+          <input id="email" name="email" type="email" autoComplete="username webauthn" required disabled={pending} />
+          {error && <p className="error" role="alert">{error}</p>}
+          <button className="primary" type="submit" disabled={pending}>{pending ? 'Wird gesendet …' : 'Link senden'}<span aria-hidden="true">→</span></button>
+        </form>)}
+      {mode === 'password' && <form onSubmit={event => void submitPassword(event)}>
         <label htmlFor="email">E-Mail-Adresse</label><input id="email" name="email" type="email" autoComplete="username" required disabled={pending} />
         <label htmlFor="password">Passwort</label><input id="password" name="password" type="password" autoComplete="current-password" required disabled={pending} />
         {error && <p className="error" role="alert">{error}</p>}
         <button className="primary" type="submit" disabled={pending}>{pending ? 'Anmeldung läuft …' : 'Anmelden'}<span aria-hidden="true">→</span></button>
-      </form>
-      <p className="forgot"><a href="#/passwort-vergessen">Passwort vergessen?</a></p>
+      </form>}
+      {mode === 'password' && <p className="forgot"><a href="#/passwort-vergessen">Passwort vergessen?</a></p>}
       <p className="access-note">Der Zugang wird von eurer Administration eingerichtet. Eine öffentliche Registrierung ist nicht möglich.</p>
       {version && <p className="app-version" title="Git-Version dieser Installation">Version {version}</p>}
     </section>
@@ -250,29 +300,24 @@ function AcceptInvite({ token }: { token: string }) {
       .catch(() => { if (!cancelled) setError('Diese Einladung ist nicht mehr gültig.'); });
     return () => { cancelled = true; };
   }, [token]);
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const password = String(data.get('password') ?? '');
-    if (password !== String(data.get('confirm'))) { setError('Die Passwörter stimmen nicht überein.'); return; }
+  async function join() {
     setPending(true); setError('');
     try {
-      await request(`/api/invitations/${token}/accept`, { password });
+      await request(`/api/invitations/${token}/accept`, {});
       location.hash = '';
     } catch {
-      setError('Das Konto konnte nicht eingerichtet werden. Der Link ist möglicherweise abgelaufen.');
+      setError('Die Einladung konnte nicht angenommen werden. Der Link ist möglicherweise abgelaufen.');
     } finally { setPending(false); }
   }
   if (!preview && !error) return <main className="loading" role="status">Einladung wird geprüft …</main>;
   if (!preview) return <TokenCard title="Einladung ungültig"><p role="alert">{error}</p><p className="forgot"><a href={import.meta.env.BASE_URL}>Zur Anmeldung</a></p></TokenCard>;
-  return <TokenCard title="Konto einrichten">
+  return <TokenCard title="Einladung annehmen">
     <p>{preview.name}, Sie wurden als {roleNames[preview.role]} zum Arbeitsbereich {preview.workspaceName} eingeladen.</p>
-    <form onSubmit={event => void submit(event)}>
-      <label htmlFor="invite-password">Passwort</label><input id="invite-password" name="password" type="password" autoComplete="new-password" minLength={12} maxLength={128} required disabled={pending} />
-      <label htmlFor="invite-confirm">Passwort bestätigen</label><input id="invite-confirm" name="confirm" type="password" autoComplete="new-password" minLength={12} maxLength={128} required disabled={pending} />
-      {error && <p className="error" role="alert">{error}</p>}
-      <button className="primary" type="submit" disabled={pending}>{pending ? 'Konto wird eingerichtet …' : 'Passwort speichern'}<span aria-hidden="true">→</span></button>
-    </form>
+    <p>Ein Klick öffnet den Arbeitsbereich. Später melden Sie sich per E-Mail-Link oder Passkey an — ohne Passwort.</p>
+    {error && <p className="error" role="alert">{error}</p>}
+    <button className="primary" type="button" onClick={() => void join()} disabled={pending}>
+      {pending ? 'Wird geöffnet …' : 'Arbeitsbereich öffnen'}<span aria-hidden="true">→</span>
+    </button>
   </TokenCard>;
 }
 
@@ -454,9 +499,12 @@ function SiteBranding({ workspaceId, branding, onBranding }: {
 function LinkedAccounts({ me }: { me: Me }) {
   const [oidc, setOidc] = useState(false);
   const [pocketId, setPocketId] = useState<{ id: string } | undefined>();
+  const [passkeys, setPasskeys] = useState<Array<{ id: string; name?: string | null }>>([]);
   const [status, setStatus] = useState('');
+  const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const passkeyAvailable = typeof PublicKeyCredential !== 'undefined';
   const load = useCallback(async () => {
     try {
       const options = loginOptionsSchema.parse(await request('/api/login-options'));
@@ -467,6 +515,8 @@ function LinkedAccounts({ me }: { me: Me }) {
       } else {
         setPocketId(undefined);
       }
+      const listed = await authClient.passkey.listUserPasskeys();
+      setPasskeys(listed.data ?? []);
       setStatus('');
     } catch { setStatus('Kontoinformationen konnten nicht geladen werden.'); }
     finally { setLoaded(true); }
@@ -484,12 +534,46 @@ function LinkedAccounts({ me }: { me: Me }) {
     catch { setStatus('Die Verknüpfung konnte nicht aufgehoben werden.'); }
     finally { setBusy(false); }
   }
+  async function addPasskey() {
+    setBusy(true); setStatus(''); setNotice('');
+    try {
+      const result = await authClient.passkey.addPasskey({ name: me.user.email });
+      if (result.error) throw new Error(result.error.message || 'Passkey konnte nicht gespeichert werden.');
+      setNotice('Passkey wurde gespeichert. Beim nächsten Besuch können Sie sich damit anmelden.');
+      await load();
+    } catch {
+      setStatus('Passkey konnte nicht eingerichtet werden. Prüfen Sie, ob Ihr Gerät Passkeys unterstützt.');
+    } finally { setBusy(false); }
+  }
+  async function removePasskey(id: string) {
+    setBusy(true); setStatus(''); setNotice('');
+    try {
+      const result = await authClient.passkey.deletePasskey({ id });
+      if (result.error) throw new Error(result.error.message || 'Passkey konnte nicht entfernt werden.');
+      await load();
+    } catch { setStatus('Der Passkey konnte nicht entfernt werden.'); }
+    finally { setBusy(false); }
+  }
   return <section className="members linked-accounts" aria-labelledby="linked-title">
     <div className="section-heading"><h2 id="linked-title">Mein Konto</h2><span>Nur für Ihr Konto</span></div>
     <p><strong>{me.user.name}</strong> · {me.user.email}</p>
     <p className="muted">Rolle in diesem Arbeitsbereich: {roleNames[me.workspace.role]}.</p>
     {status && <p role="alert">{status}</p>}
-    {loaded && !oidc && !status && <p>Sie melden sich mit E-Mail-Adresse und Passwort an. Eine Verknüpfung mit Pocket ID ist in dieser Installation nicht eingerichtet.</p>}
+    {notice && <p className="success" role="status">{notice}</p>}
+    <h3>Passkey</h3>
+    {passkeyAvailable
+      ? <>
+        <p>Speichern Sie einen Passkey auf diesem Gerät für die nächste Anmeldung ohne E-Mail-Link.</p>
+        {passkeys.length > 0 && <ul className="member-list">{passkeys.map(item => (
+          <li key={item.id}><span>{item.name || 'Passkey'}</span>
+            <button className="quiet" type="button" disabled={busy} onClick={() => void removePasskey(item.id)}>Entfernen</button>
+          </li>
+        ))}</ul>}
+        <button className="quiet" type="button" onClick={() => void addPasskey()} disabled={busy}>Passkey speichern</button>
+      </>
+      : <p>Dieses Gerät meldet keine Passkey-Unterstützung. Nutzen Sie den Anmeldelink per E-Mail.</p>}
+    <h3>Pocket ID</h3>
+    {loaded && !oidc && !status && <p>Eine Verknüpfung mit Pocket ID ist in dieser Installation nicht eingerichtet.</p>}
     {oidc && pocketId && <p>Pocket ID ist mit diesem Konto verknüpft.</p>}
     {oidc && !pocketId && <p>Eine übereinstimmende E-Mail-Adresse allein verbindet die Konten nicht. Die Verknüpfung bestätigt die Anmeldung bei Pocket ID.</p>}
     {oidc && (pocketId

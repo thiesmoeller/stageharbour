@@ -63,7 +63,7 @@ export function createMembership(db: Database, mail: MailTransport, origin: stri
         await mail.send({
           to: email,
           subject: `Einladung zum Arbeitsbereich ${space.name}`,
-          text: `Sie wurden als ${roleNames[input.role]} zum Arbeitsbereich „${space.name}“ eingeladen.\n\nÖffnen Sie diesen Link, um Ihr Konto einzurichten:\n${origin}/#/einladung/${token}\n\nDer Link ist sieben Tage gültig und kann nur einmal verwendet werden.`,
+          text: `Sie wurden als ${roleNames[input.role]} zum Arbeitsbereich „${space.name}“ eingeladen.\n\nÖffnen Sie diesen Link, um beizutreten — ohne Passwort:\n${origin}/#/einladung/${token}\n\nDer Link ist sieben Tage gültig und kann nur einmal verwendet werden. Danach melden Sie sich per E-Mail-Link oder Passkey an.`,
         });
       } catch {
         throw new AccessError(503, 'Die E-Mail konnte nicht gesendet werden. Bitte versuchen Sie es erneut.');
@@ -83,9 +83,8 @@ export function createMembership(db: Database, mail: MailTransport, origin: stri
       return { email: record.email, name: record.name, role: record.role, workspaceName: record.workspaceName };
     },
 
-    async acceptInvitation(token: string, password: string) {
-      const passwordHash = await hashPassword(password);
-      await db.transaction(async tx => {
+    async acceptInvitation(token: string) {
+      return db.transaction(async tx => {
         const [record] = await tx.select().from(invitation)
           .where(eq(invitation.tokenHash, hashToken(token))).for('update');
         if (!record || record.consumedAt || record.expiresAt <= new Date()) {
@@ -98,16 +97,17 @@ export function createMembership(db: Database, mail: MailTransport, origin: stri
             .where(and(eq(membership.workspaceId, record.workspaceId), eq(membership.userId, existing.id)));
           if (existingMembership) throw new AccessError(409, 'Diese Person gehört bereits zum Arbeitsbereich.');
         } else {
-          await tx.insert(user).values({ id: userId, name: record.name, email: record.email });
+          await tx.insert(user).values({
+            id: userId, name: record.name, email: record.email, emailVerified: true,
+          });
         }
-        const [credential] = await tx.select().from(account)
-          .where(and(eq(account.userId, userId), eq(account.providerId, 'credential')));
-        if (credential) await tx.update(account).set({ password: passwordHash }).where(eq(account.id, credential.id));
-        else await tx.insert(account).values({ id: randomUUID(), userId, accountId: userId, providerId: 'credential', password: passwordHash });
         await tx.insert(membership).values({ workspaceId: record.workspaceId, userId, role: record.role });
         await tx.update(invitation).set({ consumedAt: new Date() }).where(eq(invitation.id, record.id));
+        return {
+          ok: true as const,
+          user: { id: userId, name: record.name, email: record.email },
+        };
       });
-      return { ok: true as const };
     },
 
     async changeRole(workspaceId: string, userId: string, role: Role) {

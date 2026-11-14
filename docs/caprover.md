@@ -227,7 +227,7 @@ Port `587` uses STARTTLS (recommended). Port `465` uses SSL/TLS if you prefer.
 
 3. Save and **restart** the app.
 4. Sign in as **Administration**, open the workspace home, scroll to **Mitglieder**, and invite a test address.
-5. Open the link in the mail (`/#/einladung/…`), set a password (at least 12 characters), and sign in.
+5. Open the link in the mail (`/#/einladung/…`) and click **Arbeitsbereich öffnen** — no password. Later sign-ins use **Link per E-Mail** or a Passkey (optional under **Mein Konto**).
 
 If invite returns a mail error, check CapRover logs: wrong SMTP key (not API key), unverified `MAIL_FROM`, or incomplete `MAIL_HOST` / `MAIL_USER` / `MAIL_PASS`.
 

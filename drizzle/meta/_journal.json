@@ -141,6 +141,13 @@
       "when": 1794486211701,
       "tag": "0019_part_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1794630000000,
+      "tag": "0020_auth_passkey",
+      "breakpoints": true
     }
   ]
 }

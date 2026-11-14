@@ -52,14 +52,14 @@ export async function createApp(db: Database, config: Config, options: {
     transform: jsonSchemaTransform,
   });
   const api = app.withTypeProvider<ZodTypeProvider>();
-  const auth = options.auth ?? createAuth(db, config);
+  const mail = options.mail ?? (config.NODE_ENV === 'test' ? createFakeMailTransport() : createMailTransport(config));
+  const auth = options.auth ?? createAuth(db, config, { mail });
   await auth.$context;
   const access = createAccess(db, auth);
-  const mail = options.mail ?? (config.NODE_ENV === 'test' ? createFakeMailTransport() : createMailTransport(config));
   const storage = options.storage ?? localFilesystem(config.STORAGE_DIR);
   const leases = createLeases(db, options.clock);
   registerFeedbackRoutes(app, access, config, mail, options.clock ?? (() => new Date()));
-  registerIdentityRoutes(app, access, createMembership(db, mail, config.APP_ORIGIN), config.APP_ORIGIN);
+  registerIdentityRoutes(app, access, createMembership(db, mail, config.APP_ORIGIN), config.APP_ORIGIN, auth);
   registerProductionRoutes(app, db, access, config.APP_ORIGIN, leases);
   registerInventoryRoutes(app, db, access, config.APP_ORIGIN, leases);
   const clock = options.clock ?? (() => new Date());
@@ -114,12 +114,25 @@ export async function createApp(db: Database, config: Config, options: {
     method: ['GET', 'POST'], url: '/api/auth/*', schema: { hide: true },
     handler: async (request, reply) => {
       const url = new URL(request.raw.url ?? '/', config.APP_ORIGIN);
-      const allowed = (request.method === 'POST' && ['/api/auth/sign-in/email', '/api/auth/sign-out'].includes(url.pathname))
-        || (request.method === 'GET' && url.pathname === '/api/auth/get-session')
+      const allowed = (request.method === 'POST' && [
+        '/api/auth/sign-in/email', '/api/auth/sign-out', '/api/auth/sign-in/magic-link',
+        '/api/auth/passkey/verify-registration', '/api/auth/passkey/verify-authentication',
+        '/api/auth/passkey/delete-passkey', '/api/auth/passkey/update-passkey',
+      ].includes(url.pathname))
+        || (request.method === 'GET' && [
+          '/api/auth/get-session', '/api/auth/magic-link/verify',
+          '/api/auth/passkey/list-user-passkeys',
+          '/api/auth/passkey/generate-register-options',
+          '/api/auth/passkey/generate-authenticate-options',
+        ].includes(url.pathname))
         || (oidc && request.method === 'POST' && ['/api/auth/sign-in/social', '/api/auth/link-social', '/api/auth/unlink-account'].includes(url.pathname))
         || (oidc && request.method === 'GET' && [ `/api/auth/callback/${pocketIdProvider}`, '/api/auth/list-accounts'].includes(url.pathname));
       if (!allowed) return reply.code(404).send({ message: 'Diese Anmeldung ist nicht verfügbar.' });
-      if (request.method === 'POST' && ['/api/auth/sign-in/social', '/api/auth/link-social'].includes(url.pathname)
+      if (request.method === 'POST' && [
+        '/api/auth/sign-in/social', '/api/auth/link-social', '/api/auth/sign-in/magic-link',
+        '/api/auth/passkey/verify-registration', '/api/auth/passkey/verify-authentication',
+        '/api/auth/passkey/delete-passkey', '/api/auth/passkey/update-passkey',
+      ].includes(url.pathname)
         && request.headers.origin !== config.APP_ORIGIN) {
         return reply.code(403).send({ message: 'Diese Anmeldung ist nicht verfügbar.' });
       }
