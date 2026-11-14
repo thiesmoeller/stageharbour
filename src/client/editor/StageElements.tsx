@@ -1,5 +1,5 @@
-import { Component, createContext, Suspense, useContext, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
-import { useFrame, useLoader, type ThreeEvent } from '@react-three/fiber';
+import { Component, createContext, Suspense, use, useContext, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
+import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import { Box3, BoxGeometry, EdgesGeometry, Group, LineSegments, Matrix4, Mesh, Vector3 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -11,6 +11,7 @@ import type { Placeholder as Prop } from '../../shared/placeholders.js';
 import type { PlanDisplayOptions } from '../../shared/planDisplay.js';
 import { defaultPlanDisplay } from '../../shared/planDisplay.js';
 import type { StageModel } from '../../shared/transforms.js';
+import { getBlob } from '../api.js';
 import { configureStageGltfLoader } from '../stage/decoders.js';
 import { stageGeometries } from '../stage/geometryCache.js';
 import { useInstanceRegistry, type StageInstanceOwner } from '../stage/StageInstances.js';
@@ -67,11 +68,25 @@ class ModelErrorBoundary extends Component<{ fallback: ReactNode; resetKey: unkn
   }
 }
 
+const gltfLoads = new Map<string, Promise<Awaited<ReturnType<GLTFLoader['parseAsync']>>>>();
+
+function loadWorkspaceGlb(url: string) {
+  const cached = gltfLoads.get(url);
+  if (cached) return cached;
+  const pending = getBlob(url).then(async blob => {
+    const loader = new GLTFLoader();
+    configureStageGltfLoader(loader);
+    return loader.parseAsync(await blob.arrayBuffer(), '');
+  });
+  gltfLoads.set(url, pending);
+  return pending;
+}
+
 function ModelMesh({ prop, definition }: { prop: Prop; definition: Extract<AssetDefinition, { kind: 'model' }> }) {
   const { workspaceId } = useContext(StageInteraction);
   const source = definition.source;
   const url = source.kind === 'catalog' ? source.url : `${window.location.origin}/api/workspaces/${workspaceId}/assets/files/${source.fileId}`;
-  const gltf = useLoader(GLTFLoader, url, configureStageGltfLoader);
+  const gltf = use(loadWorkspaceGlb(url));
   const object = useMemo(() => {
     const result = clone(gltf.scene);
     result.traverse(child => { child.castShadow = true; child.receiveShadow = true; });

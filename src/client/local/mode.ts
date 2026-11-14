@@ -26,7 +26,7 @@ const demoCapabilities: LocalCapabilities = {
   uploads: false,
   identity: false,
   members: false,
-  polyHaven: false,
+  polyHaven: true,
   brandingAdmin: false,
   packages: false,
 };

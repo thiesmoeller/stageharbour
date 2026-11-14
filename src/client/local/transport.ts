@@ -1,4 +1,10 @@
+import { assetListSchema, assetSchema, createAssetSchema } from '../../shared/assets.js';
+import { validateGlbBytes } from '../../shared/glbBytes.js';
+import { importCatalogSurfaceSchema, surfaceRecordSchema } from '../../shared/surfaceRegistry.js';
+import { importPolyHavenModelSchema, modelCatalogSchema } from '../../shared/polyHaven.js';
 import { ApiError, type ApiTransport } from '../api.js';
+import { getLocalBlob, putLocalBlob } from './blobs.js';
+import { downloadLocalModel, downloadLocalTexture, searchLocalModels, searchLocalTextures } from './polyHaven.js';
 import { documentDraftSchema } from '../../shared/exportDocument.js';
 import {
   captureTemplateSchema,
@@ -1015,16 +1021,108 @@ export function createLocalTransport(store: LocalStore, options: PartsHandlerOpt
       return { ok: true as const };
     }
 
+    params = match(path, '/api/workspaces/:workspaceId/assets/catalog/poly-haven');
+    if (params && method === 'GET') {
+      requireWorkspace(store.getSnapshot(), params.workspaceId!);
+      const query = queryOf(pathRaw).get('q') ?? '';
+      try { return modelCatalogSchema.parse(await searchLocalModels(query)); }
+      catch { fail(503, 'Poly Haven ist gerade nicht erreichbar.'); }
+    }
+    params = match(path, '/api/workspaces/:workspaceId/assets/import/poly-haven');
+    if (params && method === 'POST') {
+      const snapshot = store.getSnapshot();
+      requireWorkspace(snapshot, params.workspaceId!);
+      const bodyParsed = importPolyHavenModelSchema.parse(body);
+      let imported;
+      try { imported = await downloadLocalModel(bodyParsed.id); }
+      catch { fail(503, 'Das Poly-Haven-Modell konnte nicht geladen werden.'); }
+      try { validateGlbBytes(imported.bytes); }
+      catch { fail(400, 'Ungültige GLB-Datei. Texturen und Geometrie müssen in der Datei eingebettet sein.'); }
+      const fileId = crypto.randomUUID();
+      const asset = assetSchema.parse({
+        id: crypto.randomUUID(),
+        name: imported.item.name.slice(0, 120),
+        archived: false,
+        definition: {
+          kind: 'model', width: imported.width, height: imported.height, depth: imported.depth,
+          source: { kind: 'upload', fileId },
+        },
+      });
+      await putLocalBlob(`${params.workspaceId}/${fileId}`, imported.bytes.buffer.slice(imported.bytes.byteOffset, imported.bytes.byteOffset + imported.bytes.byteLength));
+      await store.mutate(draft => { draft.assets.push(asset); });
+      return asset;
+    }
+    params = match(path, '/api/workspaces/:workspaceId/assets/files/:fileId');
+    if (params && method === 'GET') {
+      requireWorkspace(store.getSnapshot(), params.workspaceId!);
+      const bytes = await getLocalBlob(`${params.workspaceId}/${params.fileId}`);
+      if (!bytes) fail(404, 'Modelldatei nicht verfügbar.');
+      return new Blob([bytes], { type: 'model/gltf-binary' });
+    }
     params = match(path, '/api/workspaces/:workspaceId/assets');
     if (params && method === 'GET') {
       requireWorkspace(store.getSnapshot(), params.workspaceId!);
-      return [];
+      return assetListSchema.parse(store.getSnapshot().assets);
+    }
+    if (params && method === 'POST') {
+      const snapshot = store.getSnapshot();
+      requireWorkspace(snapshot, params.workspaceId!);
+      const created = createAssetSchema.parse(body);
+      if (created.definition.kind === 'model' && created.definition.source.kind === 'upload') {
+        const bytes = await getLocalBlob(`${params.workspaceId}/${created.definition.source.fileId}`);
+        if (!bytes) fail(400, 'Modelldatei nicht verfügbar.');
+      }
+      const asset = assetSchema.parse({ ...created, id: crypto.randomUUID(), archived: false });
+      await store.mutate(draft => { draft.assets.push(asset); });
+      return asset;
     }
 
-    params = match(path, '/api/workspaces/:workspaceId/surfaces');
+    params = match(path, '/api/workspaces/:workspaceId/surfaces/catalog/poly-haven');
     if (params && method === 'GET') {
       requireWorkspace(store.getSnapshot(), params.workspaceId!);
-      return [];
+      const query = queryOf(pathRaw).get('q') ?? '';
+      try { return await searchLocalTextures(query); }
+      catch { fail(503, 'Poly Haven ist gerade nicht erreichbar.'); }
+    }
+    params = match(path, '/api/workspaces/:workspaceId/surfaces/import/poly-haven');
+    if (params && method === 'POST') {
+      const snapshot = store.getSnapshot();
+      requireWorkspace(snapshot, params.workspaceId!);
+      const importedBody = importCatalogSurfaceSchema.parse(body);
+      let texture;
+      try { texture = await downloadLocalTexture(importedBody.assetId, importedBody.resolution); }
+      catch { fail(503, 'Das Poly-Haven-Material konnte nicht geladen werden.'); }
+      const fileId = crypto.randomUUID();
+      await putLocalBlob(`${params.workspaceId}/surface/${fileId}`, texture.bytes.buffer.slice(texture.bytes.byteOffset, texture.bytes.byteOffset + texture.bytes.byteLength));
+      const record = surfaceRecordSchema.parse({
+        id: crypto.randomUUID(),
+        workspaceId: params.workspaceId,
+        productionId: importedBody.scope === 'production' ? importedBody.productionId : null,
+        scope: importedBody.scope,
+        name: texture.item.name.slice(0, 120),
+        description: `Poly Haven · CC0 · https://polyhaven.com/a/${texture.item.id}`.slice(0, 500),
+        archived: false,
+        definition: {
+          tileWidthMm: texture.item.tileWidthMm,
+          tileHeightMm: texture.item.tileHeightMm,
+          maps: { baseColor: fileId },
+        },
+      });
+      await store.mutate(draft => { draft.surfaces.push(record); });
+      return record;
+    }
+    params = match(path, '/api/workspaces/:workspaceId/surfaces/files/:fileId');
+    if (params && method === 'GET') {
+      requireWorkspace(store.getSnapshot(), params.workspaceId!);
+      const bytes = await getLocalBlob(`${params.workspaceId}/surface/${params.fileId}`);
+      if (!bytes) fail(404, 'Textur nicht verfügbar.');
+      return new Blob([bytes], { type: 'image/jpeg' });
+    }
+    params = match(path, '/api/workspaces/:workspaceId/surfaces');
+    if (params && method === 'GET') {
+      const snapshot = store.getSnapshot();
+      requireWorkspace(snapshot, params.workspaceId!);
+      return snapshot.surfaces.filter(item => !item.archived);
     }
 
     params = match(path, '/api/workspaces/:workspaceId/productions/:productionId');
@@ -1064,10 +1162,32 @@ export function createLocalTransport(store: LocalStore, options: PartsHandlerOpt
     async request(path, body?, method?) {
       return handle(path, body, method);
     },
-    async upload() {
-      fail(501, 'Uploads sind im lokalen Demo-Modus nicht verfügbar.');
+    async upload(path, file) {
+      const params = match(pathOnly(path), '/api/workspaces/:workspaceId/assets/files');
+      if (!params) fail(501, 'Uploads sind im lokalen Demo-Modus nicht verfügbar.');
+      requireWorkspace(store.getSnapshot(), params.workspaceId!);
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      try { validateGlbBytes(bytes); }
+      catch { fail(400, 'Ungültige GLB-Datei. Texturen und Geometrie müssen in der Datei eingebettet sein.'); }
+      const fileId = crypto.randomUUID();
+      await putLocalBlob(`${params.workspaceId}/${fileId}`, bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+      return { fileId };
     },
     async getBlob(path) {
+      const file = match(pathOnly(path), '/api/workspaces/:workspaceId/assets/files/:fileId');
+      if (file) {
+        requireWorkspace(store.getSnapshot(), file.workspaceId!);
+        const bytes = await getLocalBlob(`${file.workspaceId}/${file.fileId}`);
+        if (!bytes) fail(404, 'Modelldatei nicht verfügbar.');
+        return new Blob([bytes], { type: 'model/gltf-binary' });
+      }
+      const texture = match(pathOnly(path), '/api/workspaces/:workspaceId/surfaces/files/:fileId');
+      if (texture) {
+        requireWorkspace(store.getSnapshot(), texture.workspaceId!);
+        const bytes = await getLocalBlob(`${texture.workspaceId}/surface/${texture.fileId}`);
+        if (!bytes) fail(404, 'Textur nicht verfügbar.');
+        return new Blob([bytes], { type: 'image/jpeg' });
+      }
       const params = match(pathOnly(path), '/api/workspaces/:workspaceId/scenes/:sceneId/export/:format');
       if (!params) fail(501, 'PDF- und Dateiabrufe sind im lokalen Demo-Modus nicht verfügbar.');
       const snapshot = store.getSnapshot();
@@ -1075,7 +1195,7 @@ export function createLocalTransport(store: LocalStore, options: PartsHandlerOpt
       if (!isExchangeFormat(params.format!)) fail(404, 'Dieses Austauschformat gibt es nicht.');
       const record = toSceneRecord(snapshot, findScene(snapshot, params.sceneId!));
       const { exportSceneFile } = await import('../../shared/exchange/index.js');
-      const file = await exportSceneFile({
+      const exported = await exportSceneFile({
         format: params.format, scene: record, venue: record.venue, layout: record.layout,
         catalog: createLayoutPartIndex({
           parts: snapshot.catalog.revisions.map(item => item.definition),
@@ -1083,7 +1203,7 @@ export function createLocalTransport(store: LocalStore, options: PartsHandlerOpt
         }),
         providerVersion: 'lokal',
       });
-      return new Blob([file.data], { type: file.contentType });
+      return new Blob([exported.data], { type: exported.contentType });
     },
   };
 }

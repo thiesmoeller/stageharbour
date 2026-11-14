@@ -96,12 +96,21 @@ export function createPolyHavenClient(fetcher: typeof fetch = fetch): SurfaceCat
 
   return {
     async search(query) {
+      const words = query.trim();
+      if (words) {
+        try {
+          const searched = assetsSchema.parse(await json(`${API}/search?${new URLSearchParams({ q: words, t: 'textures' })}`));
+          return surfaceCatalogSchema.parse(Object.entries(searched).slice(0, 48).map(([id, asset]) => item(id, asset)));
+        } catch {
+          // /search is optional; the cached asset list still answers the same query.
+        }
+      }
       const assets = await allAssets();
-      const words = query.toLocaleLowerCase().split(/\s+/).filter(Boolean);
+      const terms = words.toLocaleLowerCase().split(/\s+/).filter(Boolean);
       const matches = Object.entries(assets).filter(([id, asset]) => {
         const haystack = [id, asset.name, asset.description, ...asset.categories, ...asset.tags]
           .join(' ').toLocaleLowerCase();
-        return words.every(word => haystack.includes(word));
+        return terms.every(word => haystack.includes(word));
       });
       matches.sort((left, right) => left[1].name.localeCompare(right[1].name));
       return surfaceCatalogSchema.parse(matches.slice(0, 48).map(([id, asset]) => item(id, asset)));

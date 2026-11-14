@@ -159,6 +159,8 @@ export const layoutSchema = z.strictObject({
   schemaVersion: z.literal(2),
   objects: z.array(layoutObjectSchema).max(1000)
     .refine(objects => new Set(objects.map(object => object.id)).size === objects.length, 'Object IDs must be unique'),
+  /** Mesh Requisiten on the Bühnenbild. Not Bauteile and not stocked. */
+  placeholders: placeholdersSchema.optional(),
   joints: z.array(jointSchema).max(1000),
   groups: z.array(groupSchema).max(250).optional(),
   /** Actual cables for this Bühnenbild. Venue corridors only guide their paths. */

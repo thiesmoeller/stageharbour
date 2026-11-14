@@ -9,6 +9,8 @@
  * - Meshopt: the decoder module carries its wasm inline.
  */
 import { TextureLoader } from 'three';
+import { getBlob } from '../api.js';
+import { isLocalMode } from '../local/mode.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import type { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
@@ -40,6 +42,15 @@ export function isKtx2Url(url: string) {
 /** Loads KTX2 through the Basis transcoder and everything else as a browser image. */
 export const loadStageTexture: TextureLoad = (url, onLoad, onError) => {
   if (!isKtx2Url(url)) {
+    if (isLocalMode() && url.includes('/surfaces/files/')) {
+      void getBlob(url).then(blob => {
+        const objectUrl = URL.createObjectURL(blob);
+        imageLoader.load(objectUrl, texture => { URL.revokeObjectURL(objectUrl); onLoad(texture); }, undefined, error => {
+          URL.revokeObjectURL(objectUrl); onError?.(error);
+        });
+      }).catch(error => onError?.(error instanceof Error ? error : new Error(String(error))));
+      return;
+    }
     imageLoader.load(url, onLoad, undefined, onError);
     return;
   }

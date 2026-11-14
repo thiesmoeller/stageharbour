@@ -1,7 +1,7 @@
 import { braceSolid, type BraceSolid } from './braceTransforms.js';
 import { type Layout, type VenueGeometry, type Wall } from './layout.js';
 import { AUDIENCE_FLOOR_ID, stairRise, stairSteps, supportingSurfaces, surfaceElevation, type Platform, type StairUnit } from './levels.js';
-import { placeholderSolid, type PlaceholderSolid } from './placeholders.js';
+import { placeholderSolid, type Placeholder, type PlaceholderSolid } from './placeholders.js';
 import { resolveWall, type Opening } from './wall-types.js';
 import { effectiveVenueDoorOpen } from './venueFixtures.js';
 import { defaultAudienceViewpoint, type AudienceViewpoint } from './venue.js';
@@ -45,6 +45,16 @@ export function wallSolid(wall: Wall & { openings?: Opening[]; doorOpenPercent?:
   };
 }
 
+/** Venue furniture first, then Bühnenbild Requisiten. A shared id is the scene's prop. */
+export function sceneAndVenuePlaceholders(
+  layout: Pick<Layout, 'placeholders'>,
+  venue: { placeholders?: Placeholder[] },
+): Placeholder[] {
+  const scene = layout.placeholders ?? [];
+  const sceneIds = new Set(scene.map(item => item.id));
+  return [...(venue.placeholders ?? []).filter(item => !sceneIds.has(item.id)), ...scene];
+}
+
 export function stageModel(layout: Layout, venue: Pick<VenueGeometry, 'width' | 'depth' | 'outline' | 'platforms' | 'stairs' | 'walls' | 'wallTypes' | 'placeholders'> & { audienceViewpoint?: AudienceViewpoint }): StageModel {
   const surfaces = supportingSurfaces(venue);
   const stairs: StairUnit[] = venue.stairs ?? [];
@@ -56,7 +66,7 @@ export function stageModel(layout: Layout, venue: Pick<VenueGeometry, 'width' | 
       return wallSolid({ ...resolved, doorOpenPercent: effectiveVenueDoorOpen(wall, layout) }, surfaceElevation(surfaces, wall.supportingSurfaceId));
     }),
     braces: [],
-    placeholders: (venue.placeholders ?? []).map(item => placeholderSolid(item, surfaceElevation(surfaces, item.supportingSurfaceId))),
+    placeholders: sceneAndVenuePlaceholders(layout, venue).map(item => placeholderSolid(item, surfaceElevation(surfaces, item.supportingSurfaceId))),
     platforms: surfaces.filter(surface => surface.id !== AUDIENCE_FLOOR_ID),
     stairs: stairs.map(stair => ({ id: stair.id, label: stair.label, rise: stairRise(stair, surfaces), steps: stairSteps(stair, surfaces) })),
     audience: {

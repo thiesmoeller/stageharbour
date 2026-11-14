@@ -9,7 +9,9 @@ import { createAuth } from '../../src/server/identity/auth.js';
 import { createApp } from '../../src/server/app.js';
 import { account, membership, user } from '../../src/server/db/schema.js';
 import { createFakeMailTransport } from '../../src/server/mail/transport.js';
+import type { ModelCatalogClient } from '../../src/server/assets/polyHavenModels.js';
 import type { SurfaceCatalogClient } from '../../src/server/surfaces/polyHaven.js';
+import { cubeGlb } from './model.js';
 
 const onePixelPng = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
@@ -37,6 +39,18 @@ const surfaceCatalog: SurfaceCatalogClient = {
   },
 };
 
+const crate = {
+  id: 'crate',
+  name: 'Kiste',
+  thumbnailUrl: 'https://cdn.polyhaven.com/asset_img/thumbs/crate.png',
+  categories: ['prop'],
+};
+const crateGlb = cubeGlb();
+const modelCatalog: ModelCatalogClient = {
+  async search(query) { return query && !'kiste crate'.includes(query.toLowerCase()) ? [] : [crate]; },
+  async download() { return { item: crate, bytes: crateGlb, width: 800, height: 600, depth: 500 }; },
+};
+
 const mail = createFakeMailTransport();
 const fixture = await testDatabase('http://127.0.0.1:4173', { FEEDBACK_TO_EMAIL: 'maintainer@example.test' });
 await bootstrapAdministrator(fixture.db, fixture.config, testAdministrator);
@@ -48,6 +62,7 @@ const app = await createApp(fixture.db, fixture.config, {
   // Browser journeys share an IP. Rate-limit enforcement has its own integration tests.
   staticRoot: resolve('dist/web'),
   surfaceCatalog,
+  modelCatalog,
   mail: {
     async send(message) {
       await mail.send(message);

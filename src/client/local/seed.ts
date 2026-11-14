@@ -96,5 +96,7 @@ export function createSeedSnapshot(): LocalSnapshot {
     documentDrafts: {},
     sceneTemplates: [],
     catalog: ensureStarterCatalog(emptyCatalog(), now),
+    assets: [],
+    surfaces: [],
   };
 }

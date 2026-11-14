@@ -3,10 +3,12 @@ import { captureWorkView } from '../feedback/capture.js';
 import { recordFeedbackActivity } from '../feedback/activity.js';
 import type { StageCaptureHandle } from './StageCapture.js';
 import { EditorDock, EditorDockContext, useEditorDock, readWorkspacePreference, writeWorkspacePreference } from './EditorDock.js';
+import { RequisitenPanel, useWorkspaceAssets } from './RequisitenPanel.js';
 import { EditorMenuBar } from './EditorMenuBar.js';
 import { EditorMenu } from './EditorMenu.js';
 import { BufferedNumberInput } from './BufferedNumberInput.js';
 import { useCallback, useEffect, useRef, useState, lazy, Suspense, type DragEvent, type FormEvent, type PointerEvent } from 'react';
+import type { Asset } from '../../shared/assets.js';
 import { wallFromDrawnSegment, applyVenueResultSchema, saveVenueResultSchema, venueGeometrySchema, type Layout, type VenueGeometry, type Wall } from '../../shared/layout.js';
 import { renameVenueSchema, venueRecordSchema } from '../../shared/venueLibrary.js';
 import {
@@ -177,6 +179,8 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
   const dirty = draft.dirty || namePending || numberPending > 0;
   const [click, setClick] = useState<ClickMode>('select');
   const [placeKind, setPlaceKind] = useState<PlaceKind>('platform');
+  const [pendingModel, setPendingModel] = useState<Asset>();
+  const workspaceAssets = useWorkspaceAssets(workspaceId);
   const [pinKind, setPinKind] = useState<ConnectionKind>('power');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedTypeId, setSelectedTypeId] = useState<string | undefined>();
@@ -334,8 +338,17 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
       setPins(current => current.length >= 250 ? current : [...current, pin]); setSelectedIds([pin.id]);
     } else {
       const kind = placeKind as PlaceholderKind;
+      const definition = pendingModel?.definition;
       const item = newPlaceholder(kind, crypto.randomUUID(), point.x, point.y);
+      if (definition?.kind === 'model') {
+        item.label = pendingModel!.name;
+        item.assetId = pendingModel!.id;
+        item.width = definition.width;
+        item.depth = definition.depth;
+        item.height = definition.height;
+      }
       setPlaceholders(items => [...items, item]); setSelectedIds([item.id]);
+      setPendingModel(undefined);
     }
     setClick('select');
   }
@@ -1121,7 +1134,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
       </div>}
     </div>
     {!sheetEditorOpen && !readOnly && <div className="tool-rail" role="toolbar" aria-label="Spielstättenwerkzeuge" inert={busyGesture()}>
-      <button type="button" className="quiet" aria-pressed={click === 'select'} onClick={() => { setClick('select'); setDrawingZone([]); setTrussDrawStart(undefined); setCurtainDrawStart(undefined); setWallDrawStart(undefined); setWallDrawHover(undefined); setPlaceTypeId(undefined); setOpeningCutAlong(undefined); setHoverEdgeIndex(undefined); setHangHover(undefined); }} title="Auswählen" aria-label="Auswählen"><ToolIcon name="settings" /><span>Auswahl</span></button>
+      <button type="button" className="quiet" aria-pressed={click === 'select'} onClick={() => { setClick('select'); setPendingModel(undefined); setDrawingZone([]); setTrussDrawStart(undefined); setCurtainDrawStart(undefined); setWallDrawStart(undefined); setWallDrawHover(undefined); setPlaceTypeId(undefined); setOpeningCutAlong(undefined); setHoverEdgeIndex(undefined); setHangHover(undefined); }} title="Auswählen" aria-label="Auswählen"><ToolIcon name="settings" /><span>Auswahl</span></button>
       <button type="button" className="quiet" aria-pressed={click === 'vertex'} onClick={() => setClick('vertex')} title="Eckpunkt auf eine Umrisskante setzen" aria-label="Eckpunkt hinzufügen"><ToolIcon name="plus" /><span>Eckpunkt</span></button>
       <button type="button" className="quiet" aria-pressed={click === 'edge-parallel'} onClick={() => { setHoverEdgeIndex(undefined); setClick('edge-parallel'); }} title="Umrisskante parallel verschieben" aria-label="Kante parallel"><ToolIcon name="edge" /><span>Kante</span></button>
       <button type="button" className="quiet" aria-pressed={click === 'draw-opening'} disabled={!selectedWall || !!selectedWall.typeId} onClick={() => beginDrawOpening()} title="Ausschnitt in feste Wand zeichnen" aria-label="Ausschnitt zeichnen"><ToolIcon name="expand" /><span>Ausschnitt</span></button>
@@ -1459,14 +1472,18 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
         </div>
         {activeView !== 'plan' && <StageView onFeedbackCaptureReady={setFeedbackCapture} onLightingChange={readOnly ? undefined : setLighting}
           onHangPlanChange={readOnly ? undefined : setHangPlan}
-          layout={liveLayout} venue={previewVenue} venueEditable workspaceId={workspaceId} planDisplay={planDisplay}
+          layout={liveLayout} venue={previewVenue} assets={workspaceAssets.assets} venueEditable workspaceId={workspaceId} planDisplay={planDisplay}
           selectedIds={selectedIds} pivot={pivot}
           onSelect={(id, additive) => { if (!busyGesture()) setSelectedIds(ids => additive ? ids.includes(id) ? ids.filter(value => value !== id) : [id, ...ids] : [id]); }}
           onClearSelection={() => { if (!busyGesture()) setSelectedIds([]); }}
           onTransform={readOnly ? undefined : transform} onPushPull={readOnly ? undefined : pushPull} snapEnabled={snapEnabled} />}
       </div>
       <EditorDock dock={dock} stageVisible={activeView !== 'plan'} onShowStage={() => setViewMode('stage')}
-        library={<><SurfaceRegistryPanel readOnly={readOnly} /><details className="inspector-section" open><summary>Wandtypen / Öffnungen</summary><div className="inspector-section-body">
+        library={<><SurfaceRegistryPanel readOnly={readOnly} />
+          <RequisitenPanel workspaceId={workspaceId} readOnly={readOnly} assets={workspaceAssets.assets}
+            onChanged={() => void workspaceAssets.reload()}
+            onPlace={asset => { setPendingModel(asset); setPlaceKind('box'); setClick('place'); dock.closeAfterPlacement(); }} />
+          <details className="inspector-section" open><summary>Wandtypen / Öffnungen</summary><div className="inspector-section-body">
           <WallTypePanel types={wallTypes} selectedId={selectedTypeId} readOnly={readOnly}
             onSelect={setSelectedTypeId}
             onCreate={type => { applyWallType(type); }}

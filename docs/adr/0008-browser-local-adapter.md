@@ -2,7 +2,7 @@
 
 StageHarbour needs a tryable demo that runs without Docker, Postgres, CapRover, or accounts. That is a **second adapter at the client transport seam** (`ApiTransport`), not offline editing of a hosted workspace. When `VITE_LOCAL_MODE=1`, the SPA installs `LocalTransport` over an IndexedDB working store and optional disk snapshot backup (SolidCraft-style Speichern/Laden). There is no cloud sync and no import path into a private CapRover install. Host the demo as a **separate static site**; do not advertise it as a CTA on the private login.
 
-The private install keeps the HTTP transport, PostgreSQL, identity, uploads, and PDF/package pipelines. Local mode disables those capabilities (`pdf`, `uploads`, `identity`, `members`, `polyHaven`, `brandingAdmin`, `packages`) and seeds a single-browser demo workspace. Data lives in that browser’s IndexedDB until the user writes or reloads a disk snapshot; clearing site data loses the working copy unless a file backup exists.
+The private install keeps the HTTP transport, PostgreSQL, identity, uploads, and PDF/package pipelines. Local mode disables `pdf`, generic `uploads` (underlay and surface-file upload), `identity`, `members`, `brandingAdmin`, and `packages`, and seeds a single-browser demo workspace. Poly Haven catalog search and import, and GLB Requisiten uploads, are available: imported bytes live in a separate IndexedDB blob store, not in the disk snapshot and not synced to CapRover. Data lives in that browser’s IndexedDB until the user writes or reloads a disk snapshot; clearing site data loses the working copy and the model files unless a file backup exists.
 
 ## Considered options
 

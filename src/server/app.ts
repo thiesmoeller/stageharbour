@@ -36,6 +36,7 @@ import type { ConstructionSnapshot } from '../shared/export.js';
 import { registerAssetRoutes } from './assets/routes.js';
 import { registerBrandingRoutes } from './branding/routes.js';
 import { registerSurfaceRoutes } from './surfaces/routes.js';
+import type { ModelCatalogClient } from './assets/polyHavenModels.js';
 import type { SurfaceCatalogClient } from './surfaces/polyHaven.js';
 
 export async function createApp(db: Database, config: Config, options: {
@@ -43,6 +44,7 @@ export async function createApp(db: Database, config: Config, options: {
   staticRoot?: string; logger?: boolean; clock?: () => Date; mail?: MailTransport;
   storage?: FileStorage; renderPdf?: (snapshot: ConstructionSnapshot) => Promise<Buffer>;
   surfaceCatalog?: SurfaceCatalogClient;
+  modelCatalog?: ModelCatalogClient;
 } = {}) {
   const app = Fastify({ logger: options.logger ?? false, bodyLimit: 16 * 1024 });
   app.setValidatorCompiler(validatorCompiler);
@@ -72,7 +74,7 @@ export async function createApp(db: Database, config: Config, options: {
   registerExchangeRoutes(app, db, access, config.APP_VERSION);
   // Packages render in-process: the worker path was marking revisions failed without a useful client error.
   registerPackageRoutes(app, db, access, config.APP_ORIGIN, storage, snapshot => renderPackage(snapshot));
-  registerAssetRoutes(app, db, access, config.APP_ORIGIN, storage, leases);
+  registerAssetRoutes(app, db, access, config.APP_ORIGIN, storage, leases, options.modelCatalog);
   registerSurfaceRoutes(app, db, access, config.APP_ORIGIN, storage, options.surfaceCatalog);
   registerBrandingRoutes(app, db, access, config.APP_ORIGIN, config.WORKSPACE_ID, storage);
   app.addHook('onResponse', async (request, reply) => {

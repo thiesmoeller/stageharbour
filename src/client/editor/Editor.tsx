@@ -7,7 +7,9 @@ import type { StockItem } from '../../shared/parts/catalog.js';
 import { STARTER_PART_IDS } from '../../shared/parts/starter/index.js';
 import { supportingSurfaces } from '../../shared/levels.js';
 import { execute, history, redo, undo, type History } from '../../shared/history.js';
+import type { Asset } from '../../shared/assets.js';
 import type { Layout, LayoutObject, Scene, VenueGeometry } from '../../shared/layout.js';
+import { newPlaceholder } from '../../shared/placeholders.js';
 import { layoutSupportOptions, resolveLayoutObjectDetails, type ResolvedLayoutObject } from '../../shared/layoutObjects.js';
 import { resolvedObjectOverlapWarnings, overlappingResolvedObjectIds } from '../../shared/overlap.js';
 import { resolvedKeepClearWarnings } from '../../shared/keepClear.js';
@@ -26,6 +28,8 @@ import { EditorMenu } from './EditorMenu.js';
 import { EditorMenuBar } from './EditorMenuBar.js';
 import { PlanDisplayToggles } from './PlanDisplayToggles.js';
 import { PlanObjects, PlanVenue } from './PlanDrawingLayers.js';
+import { PlaceholderLayer } from './PlaceholderLayer.js';
+import { RequisitenPanel, useWorkspaceAssets } from './RequisitenPanel.js';
 import { GroupInspector } from './GroupInspector.js';
 import { PartInspector } from './PartInspector.js';
 import { StageView } from './StageView.js';
@@ -160,6 +164,8 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [clipboard, setClipboard] = useState<LayoutClipboard>();
   const [insertChoice, setInsertChoice] = useState<InsertChoice>();
+  const [requisite, setRequisite] = useState<Asset>();
+  const workspaceAssets = useWorkspaceAssets(workspaceId);
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
   const [sceneName, setSceneName] = useState(initial.name);
   const [venue, setVenue] = useState<VenueGeometry>(initial.venue);
@@ -574,6 +580,21 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
     setSelectedIds([object.id]);
     setInsertChoice(undefined);
   }
+  function placeRequisite(point: { x: number; y: number }) {
+    const definition = requisite?.definition;
+    if (!requisite || definition?.kind !== 'model' || readOnly) return;
+    const item = {
+      ...newPlaceholder('box', crypto.randomUUID(), Math.round(point.x), Math.round(point.y)),
+      label: requisite.name,
+      assetId: requisite.id,
+      width: definition.width,
+      depth: definition.depth,
+      height: definition.height,
+    };
+    commit({ ...state.present, placeholders: [...(state.present.placeholders ?? []), item] });
+    setSelectedIds([item.id]);
+    setRequisite(undefined);
+  }
   function backgroundPointer(event: PointerEvent<SVGSVGElement>) {
     if (busyGesture()) return;
     if (event.button === 1) {
@@ -587,6 +608,10 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
     if (insertChoice) {
       placeAt(planPoint(event));
       clearPlanSelection();
+      return;
+    }
+    if (requisite) {
+      placeRequisite(planPoint(event));
       return;
     }
     const point = planPoint(event);
@@ -833,9 +858,12 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
             setSelectedCableRunId(undefined);
             setSelectedCableVertex(undefined);
           }
-        } else if (selectedDimension) {
+        }         else if (selectedDimension) {
           commit({ ...state.present, dimensions: (state.present.dimensions ?? []).filter(item => item.id !== selectedDimension) });
           setSelectedDimension(undefined);
+        } else if ((state.present.placeholders ?? []).some(item => selectedIds.includes(item.id))) {
+          commit({ ...state.present, placeholders: (state.present.placeholders ?? []).filter(item => !selectedIds.includes(item.id)) });
+          setSelectedIds([]);
         } else removeSelected();
       } else if (event.key === 'Escape') {
         // The room view has just left its move/rotate tool with this key press; keep the selection.
@@ -850,6 +878,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
         else if (toolMenu) setToolMenu(undefined);
         else if (helpOpen) setHelpOpen(false);
         else if (insertChoice) setInsertChoice(undefined);
+        else if (requisite) setRequisite(undefined);
         else setSelectedIds([]);
       }
     }
@@ -991,7 +1020,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
         </div>
       </div>
       <svg ref={svg} tabIndex={-1} data-testid="plan-canvas" role="img" aria-label="Grundriss der Spielstätte"
-      className={insertChoice || placingGhost || dimensioning || cableDrawing ? 'placing-cursor' : undefined}
+      className={insertChoice || requisite || placingGhost || dimensioning || cableDrawing ? 'placing-cursor' : undefined}
       viewBox={`${viewCx - viewWidth / 2} ${-(viewCy + viewHeight / 2)} ${viewWidth} ${viewHeight}`}
       onPointerDownCapture={capturePlanPointer} onDoubleClick={finishCableOnDoubleClick}
       onPointerDown={backgroundPointer} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag}>
@@ -1005,6 +1034,16 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
         onSelect={() => {}} />
       <PlanObjects objects={objects} selectedIds={selectedSet} overlapIds={overlapIds} readOnly={readOnly}
         planDisplay={planDisplay} start={beginObjectDrag} />
+      <PlaceholderLayer placeholders={shown.placeholders ?? []} selectedId={selectedIds[0]} readOnly={readOnly}
+        groupedIds={new Set()} display={planDisplay}
+        onPointerDown={(event, item) => {
+          if (event.button !== 0 || busyGesture()) return;
+          event.stopPropagation();
+          setSelectedIds([item.id]);
+          setFixtureSelection(undefined);
+          setSelectedDimension(undefined);
+          setSelectedCableRunId(undefined);
+        }} />
       <InfrastructureMarks pins={venue.connectionPoints ?? []} corridors={venue.cableRoutingCorridors ?? []} display={planDisplay} />
       <CableRunMarks runs={shown.cableRuns ?? []} selectedId={selectedCableRunId} selectedVertexIndex={selectedCableVertex}
         draftPath={cableDraftPath} readOnly={readOnly || !!cableDrawing}
@@ -1077,7 +1116,9 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
         snaps={dimensioning ? [dimensioning.a?.point, dimensioning.b?.point, dimensioning.hover?.point].flatMap(item => item ? [item] : []) : []}
         onSelect={selectDimension} />
     </svg></div>
-    {(insertChoice || placingGhost) && <p className="plan-placement-hint" role="status">{insertChoice
+    {(insertChoice || requisite || placingGhost) && <p className="plan-placement-hint" role="status">{requisite
+      ? `„${requisite.name}“: Position im Grundriss anklicken · Escape bricht ab.`
+      : insertChoice
       ? `„${insertChoice.label}“: Position im Grundriss anklicken · Escape bricht ab.`
       : 'Klicken zum Platzieren · Escape bricht ab.'}</p>}
     <div className="plan-status" aria-live="polite">
@@ -1089,7 +1130,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
     </div>
   </div>;
 
-  const stage = <StageView layout={shown} venue={venue} workspaceId={workspaceId} selectedIds={selectedIds}
+  const stage = <StageView layout={shown} venue={venue} assets={workspaceAssets.assets} workspaceId={workspaceId} selectedIds={selectedIds}
     pivot={selectionPivot(state.present, selectedMembers)} snapEnabled={snapEnabled} planDisplay={planDisplay}
     onFeedbackCaptureReady={setFeedbackCapture}
     onSelect={(id, additive) => { if (!busyGesture()) setSelectedIds(current => additive ? [...new Set([...current, id])] : [id]); }}
@@ -1268,6 +1309,9 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
               {allParts.map(part => <div key={part.id} className="library-row"><div><strong>{part.name}</strong><br /><span className="muted">{part.category}</span></div>
                 <button type="button" disabled={readOnly} onClick={() => chooseInsert({ partId: part.id, revision: part.latestRevision, label: part.name })}>Einsetzen</button></div>)}
               <SurfaceRegistryPanel readOnly={readOnly} />
+              <RequisitenPanel workspaceId={workspaceId} readOnly={readOnly} assets={workspaceAssets.assets}
+                onChanged={() => void workspaceAssets.reload()}
+                onPlace={asset => { setInsertChoice(undefined); setRequisite(asset); dock.closeAfterPlacement(); }} />
             </div>}
             properties={selectedCurtain
               ? <aside className="wall-inspector"><h3>Molton-Vorhang</h3>

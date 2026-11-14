@@ -5,19 +5,24 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { assetListSchema, assetSchema, createAssetSchema, renameAssetSchema } from '../../shared/assets.js';
 import { errorSchema, workspaceParamsSchema } from '../../shared/contracts.js';
+import { importPolyHavenModelSchema, modelCatalogSchema } from '../../shared/polyHaven.js';
 import type { Database } from '../db/connection.js';
 import { assetFile, inventoryAsset } from '../db/schema.js';
 import type { FileStorage } from '../exports/storage.js';
 import { AccessError, type createAccess } from '../identity/access.js';
 import { MAX_MODEL_BYTES, validateGlb } from './glb.js';
+import { createPolyHavenModelClient, type ModelCatalogClient } from './polyHavenModels.js';
 import type { Leases } from '../productions/leases.js';
 
-export function registerAssetRoutes(app: FastifyInstance, db: Database, access: ReturnType<typeof createAccess>, origin: string, storage: FileStorage, leases: Leases) {
+export function registerAssetRoutes(
+  app: FastifyInstance, db: Database, access: ReturnType<typeof createAccess>, origin: string,
+  storage: FileStorage, leases: Leases, models: ModelCatalogClient = createPolyHavenModelClient(),
+) {
   const api = app.withTypeProvider<ZodTypeProvider>();
   const path = '/api/workspaces/:workspaceId/assets';
   const params = workspaceParamsSchema.extend({ assetId: z.uuid() });
   const fileParams = workspaceParamsSchema.extend({ fileId: z.uuid() });
-  const errors = { 400: errorSchema, 401: errorSchema, 403: errorSchema, 404: errorSchema, 423: errorSchema };
+  const errors = { 400: errorSchema, 401: errorSchema, 403: errorSchema, 404: errorSchema, 423: errorSchema, 503: errorSchema };
   const fields = { id: inventoryAsset.id, name: inventoryAsset.name, definition: inventoryAsset.definition, archived: inventoryAsset.archived };
   async function editor(request: Parameters<typeof access>[0], workspaceId: string) {
     if (request.headers.origin !== origin) throw new AccessError(403, 'Ungültiger Ursprung.');
@@ -68,6 +73,38 @@ export function registerAssetRoutes(app: FastifyInstance, db: Database, access: 
       if (!rows.length) throw new AccessError(404, 'Inventarobjekt nicht verfügbar.');
       return { ok: true as const };
     });
+  });
+  api.get(`${path}/catalog/poly-haven`, { schema: { params: workspaceParamsSchema, querystring: z.object({ q: z.string().max(120).optional() }), response: { 200: modelCatalogSchema, ...errors } } }, async request => {
+    await access(request, request.params.workspaceId);
+    try { return await models.search(request.query.q ?? ''); }
+    catch { throw new AccessError(503, 'Poly Haven ist gerade nicht erreichbar.'); }
+  });
+  api.post(`${path}/import/poly-haven`, { schema: { params: workspaceParamsSchema, body: importPolyHavenModelSchema, response: { 201: assetSchema, ...errors } } }, async (request, reply) => {
+    const { workspaceId } = request.params;
+    const { user } = await editor(request, workspaceId);
+    let imported;
+    try { imported = await models.download(request.body.id); }
+    catch { throw new AccessError(503, 'Das Poly-Haven-Modell konnte nicht geladen werden.'); }
+    try { validateGlb(imported.bytes); }
+    catch { throw new AccessError(400, 'Ungültige GLB-Datei. Texturen und Geometrie müssen in der Datei eingebettet sein.'); }
+    const fileId = randomUUID();
+    const assetId = randomUUID();
+    const storageKey = `${workspaceId}/models/${fileId}.glb`;
+    const name = imported.item.name.slice(0, 120);
+    const created = await db.transaction(async tx => {
+      await leases.requireHeld(tx, workspaceId, 'inventory', workspaceId, user.id);
+      await storage.put(storageKey, imported.bytes);
+      await tx.insert(assetFile).values({ id: fileId, workspaceId, storageKey });
+      const [row] = await tx.insert(inventoryAsset).values({
+        id: assetId, workspaceId, name,
+        definition: {
+          kind: 'model', width: imported.width, height: imported.height, depth: imported.depth,
+          source: { kind: 'upload', fileId },
+        },
+      }).returning(fields);
+      return row!;
+    });
+    return reply.code(201).send(created);
   });
   api.post(`${path}/files`, { bodyLimit: MAX_MODEL_BYTES, schema: { params: workspaceParamsSchema, response: { 201: z.object({ fileId: z.uuid() }), ...errors } } }, async (request, reply) => {
     const { workspaceId } = request.params;

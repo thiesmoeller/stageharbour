@@ -1,5 +1,7 @@
 import { z } from 'zod';
+import { assetListSchema, type Asset } from '../../shared/assets.js';
 import { brandingSchema, roleSchema, type Branding } from '../../shared/contracts.js';
+import { surfaceListSchema, type SurfaceRecord } from '../../shared/surfaceRegistry.js';
 import { documentDraftSchema, type DocumentDraft } from '../../shared/exportDocument.js';
 import { inventorySchema, type Inventory } from '../../shared/inventory.js';
 import { layoutSchema, sceneTemplateSchema, venueGeometrySchema, type Layout, type SceneTemplate, type VenueGeometry } from '../../shared/layout.js';
@@ -46,6 +48,8 @@ export type LocalSnapshot = {
   documentDrafts: Record<string, DocumentDraft>;
   sceneTemplates: SceneTemplate[];
   catalog: LocalCatalog;
+  assets: Asset[];
+  surfaces: SurfaceRecord[];
 };
 
 const localUserSchema = z.strictObject({
@@ -101,6 +105,8 @@ export const localSnapshotSchema = z.strictObject({
   documentDrafts: z.record(z.uuid(), documentDraftSchema),
   sceneTemplates: z.array(sceneTemplateSchema),
   catalog: localCatalogSchema,
+  assets: assetListSchema.default([]),
+  surfaces: surfaceListSchema.default([]),
 });
 
 /** Files and stored snapshots get the catalog first, then every persisted play layout is upgraded once. */
@@ -130,7 +136,15 @@ function upgradeSnapshot(data: unknown): unknown {
       return { ...template, layout: migrateLayout(template.layout, index) };
     })
     : old.sceneTemplates;
-  return { ...old, schemaVersion: SNAPSHOT_SCHEMA_VERSION, catalog, scenes, sceneTemplates };
+  return {
+    ...old,
+    schemaVersion: SNAPSHOT_SCHEMA_VERSION,
+    catalog,
+    scenes,
+    sceneTemplates,
+    assets: Array.isArray(old.assets) ? old.assets : [],
+    surfaces: Array.isArray(old.surfaces) ? old.surfaces : [],
+  };
 }
 
 export function parseSnapshot(data: unknown): LocalSnapshot {
