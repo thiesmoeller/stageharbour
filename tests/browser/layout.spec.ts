@@ -52,7 +52,7 @@ test('starter parts insert, inspect, render and persist through the generic obje
   // The chosen view is remembered across reloads; the plan is one click away in the view bar.
   await (await openCommand(page, 'Grundriss')).click();
   await expect(page.locator('[data-testid^="object-"]')).toHaveCount(3);
-  await page.locator('[data-testid^="object-"][aria-label="Portalwand"] polygon').click();
+  await page.locator('[data-testid^="object-"][aria-label="Portalwand"]').locator('polygon').first().click();
   await showProperties(page);
   await expect(page.getByLabel('Variante')).toHaveValue('doorLeft');
   await expect(page.getByLabel('Türöffnung')).toHaveValue('40');
