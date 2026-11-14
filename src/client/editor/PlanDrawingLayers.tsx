@@ -115,10 +115,10 @@ export function PlanObjects({ objects, selectedIds = new Set<string>(), overlapI
             <polygon points={paint(figure.fill)} fill={chosen ? '#b67c35' : '#315d49'} fillOpacity={0.75}
               stroke={stroke} strokeWidth={chosen ? 4 : 2} vectorEffect="non-scaling-stroke" />
             {figure.openings.map((opening, index) => <polygon key={`opening-${index}`} points={paint(opening)}
-              fill="#f8faf5" stroke={stroke} strokeWidth="1" vectorEffect="non-scaling-stroke" />)}
+              fill="#f8faf5" stroke={stroke} strokeWidth="1" vectorEffect="non-scaling-stroke" pointerEvents="none" />)}
             {figure.frames.map((frame, index) => <polygon key={`frame-${index}`} data-testid={`plan-door-frame-${object.object.id}-${index}`}
-              points={paint(frame)} fill="#e7e0d2" stroke="#8a8175" strokeWidth="1" vectorEffect="non-scaling-stroke" />)}
-            {figure.leaves.map((leaf, index) => <g key={`leaf-${index}`}>
+              points={paint(frame)} fill="#e7e0d2" stroke="#8a8175" strokeWidth="1" vectorEffect="non-scaling-stroke" pointerEvents="none" />)}
+            {figure.leaves.map((leaf, index) => <g key={`leaf-${index}`} pointerEvents="none">
               {leaf.arc.length > 1 && <polyline data-testid={`plan-door-swing-${object.object.id}-${index}`}
                 points={paint(leaf.arc)} fill="none" stroke="#c8c4b8" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />}
               {leaf.slab.length >= 3
