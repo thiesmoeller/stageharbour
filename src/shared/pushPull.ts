@@ -44,8 +44,9 @@ export function localNormalFromWorld(world: Vec3, planRotationDeg: number, mirro
 
 export function resolvePushPullFace(handle: PushPullHandle): PushPullHandle | undefined {
   if (handle.kind === 'wallOpening') return handle;
-  // Floor-anchored solids keep the bottom face fixed.
-  if ((handle.kind === 'platform' || handle.kind === 'wall' || handle.kind === 'placeholder') && handle.face === 'ny') {
+  // Platforms and placeholders stay floor-anchored. Venue walls may raise their underside
+  // (bottomClearance) so a gap under the panel reaches the floor, as in Pascal.
+  if ((handle.kind === 'platform' || handle.kind === 'placeholder') && handle.face === 'ny') {
     return undefined;
   }
   return handle;
@@ -103,9 +104,15 @@ function clampWallOpenings(wall: Wall): Wall {
 function resizeWall(wall: Wall, face: LocalFace, delta: number): Wall {
   const axes = planAxes(wall.rotation);
   if (face === 'py' || face === 'ny') {
-    // Floor-anchored height: only the top face grows; bottom stays on the supporting surface.
-    if (face === 'ny') return wall;
-    return clampWallOpenings({ ...wall, height: clampDim(wall.height + delta) });
+    if (face === 'py') return clampWallOpenings({ ...wall, height: clampDim(wall.height + delta) });
+    // Outward on the underside points down. Dragging the face up (negative outward) opens a
+    // gap under the panel; dragging down closes it. Panel height stays; the top rises with it.
+    const clearance = Math.max(0, Math.min(100000, (wall.bottomClearance ?? 0) - delta));
+    if (clearance === (wall.bottomClearance ?? 0)) return wall;
+    return clearance > 0 ? { ...wall, bottomClearance: clearance } : (() => {
+      const { bottomClearance: _cleared, ...rest } = wall;
+      return rest;
+    })();
   }
   if (face === 'px' || face === 'nx') {
     const sign: 1 | -1 = face === 'px' ? 1 : -1;

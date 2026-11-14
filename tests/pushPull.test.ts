@@ -68,6 +68,20 @@ test('push-pull on a rotated venue wall grows height, width and thickness from t
   assert.equal(thicker.walls![0]!.x, 3994);
 });
 
+test('push-pull raises a venue wall underside to open a gap to the floor', () => {
+  const wall = { ...newWall(randomUUID(), 4000, 3000), width: 1200, height: 2400, thickness: 28 };
+  const venue = { schemaVersion: 1 as const, width: 8000, depth: 6000, walls: [wall] };
+  assert.ok(resolvePushPullFace({ kind: 'wall', id: wall.id, face: 'ny' }));
+  // Outward on ny points down; a negative delta is dragging the underside up.
+  const raised = applyPushPull(venue, { kind: 'wall', id: wall.id, face: 'ny' }, -400);
+  assert.equal(raised.walls![0]!.bottomClearance, 400);
+  assert.equal(raised.walls![0]!.height, 2400);
+  const lowered = applyPushPull(raised, { kind: 'wall', id: wall.id, face: 'ny' }, 150);
+  assert.equal(lowered.walls![0]!.bottomClearance, 250);
+  const flush = applyPushPull(lowered, { kind: 'wall', id: wall.id, face: 'ny' }, 250);
+  assert.equal(flush.walls![0]!.bottomClearance, undefined);
+});
+
 test('push-pull resizes inline wall openings and keeps wall resize valid with cutouts', () => {
   const openingId = randomUUID();
   const wall = {

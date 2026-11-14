@@ -289,7 +289,12 @@ export default function RaumsichtCanvas({ model, layout, venue, resolvedObjects,
       data-quality={quality} data-focus-aim={focusAimMode || undefined}>
       <WebGlBoundary>
         <StageCanvas theme={theme} quality={quality} lights={false} camera={camera} cameraRevision={frameRevision}
-          controls={{ buttons: 'editor', enableRotate: view === 'orbit' || view === 'audience' || aimOnly }}>
+          controls={{
+            buttons: 'editor',
+            enableRotate: view === 'orbit' || view === 'audience' || aimOnly,
+            // Past the horizon so the underside of a wall can be grabbed for bottomClearance.
+            maxPolarAngle: Math.PI - 0.05,
+          }}>
           <StageDisplay.Provider value={enhanced ? RENDERED_DISPLAY : SOLID_DISPLAY}>
             <StageInstances>
               {onCaptureReady && <CaptureBridge onCaptureReady={onCaptureReady} mirrorWidth={mirrorWidth} />}

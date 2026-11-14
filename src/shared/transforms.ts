@@ -28,9 +28,10 @@ export type StageModel = {
 
 // Millimetre 3D: +X audience-right, +Y up, +Z away from the audience.
 // rotationY is Three.js Y-up yaw and equals -planRotation (radians).
-export function wallSolid(wall: Wall & { openings?: Opening[]; doorOpenPercent?: number }, elevation = 0): WallSolid {
+export function wallSolid(wall: Wall & { openings?: Opening[]; doorOpenPercent?: number; bottomClearance?: number }, elevation = 0): WallSolid {
   const rotationY = -wall.rotation * Math.PI / 180;
-  const center = { x: wall.x, y: elevation + wall.height / 2, z: wall.y };
+  const clearance = wall.bottomClearance ?? 0;
+  const center = { x: wall.x, y: elevation + clearance + wall.height / 2, z: wall.y };
   const size = { x: wall.width, y: wall.height, z: wall.thickness };
   const cosine = Math.cos(rotationY), sine = Math.sin(rotationY);
   const corners = [[-1, -1, -1], [1, -1, -1], [1, -1, 1], [-1, -1, 1], [-1, 1, -1], [1, 1, -1], [1, 1, 1], [-1, 1, 1]].map(([lx = 0, ly = 0, lz = 0]) => {

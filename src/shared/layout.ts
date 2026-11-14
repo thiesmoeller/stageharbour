@@ -48,6 +48,8 @@ export const wallFieldsStoredSchema = z.strictObject({
   x: coordinate, y: coordinate,
   rotation: z.number().finite().min(-360).max(360),
   width: dimension, height: dimension, thickness: dimension,
+  /** Gap under the wall panel above its supporting surface. 0 sits on the floor. */
+  bottomClearance: z.number().finite().min(0).max(100000).optional(),
   typeId: z.uuid().optional(),
   /** Inline cutouts when the wall has no wall type (permanent venue shell openings). */
   openings: z.array(openingSchema).max(20).optional(),
@@ -72,6 +74,7 @@ export const wallFieldsSchema = z.strictObject({
   x: coordinate, y: coordinate,
   rotation: z.number().finite().min(-360).max(360),
   width: dimension, height: dimension, thickness: dimension,
+  bottomClearance: z.number().finite().min(0).max(100000).optional(),
   typeId: z.uuid().optional(),
   openings: z.array(openingSchema).max(20).optional(),
   panelId: z.uuid().optional(),

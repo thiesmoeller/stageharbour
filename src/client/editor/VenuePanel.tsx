@@ -1543,9 +1543,23 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
                 <button type="button" className="quiet" aria-pressed={click === 'draw-opening'} onClick={() => beginDrawOpening()}>Ausschnitt zeichnen</button>
               </div>
             </>}
-            <div className="numeric-fields">{(['x', 'y', 'rotation', 'width', 'height', 'thickness'] as const).map(key => <label key={key}>{key}<input aria-label={`Feste Wand ${selectedWallIndex + 1} ${key}`} type="number" value={selectedWall[key]}
-              disabled={!!selectedWall.typeId && (key === 'width' || key === 'height' || key === 'thickness')}
-              onChange={event => setWalls(items => items.map(item => item.id === selectedWall.id ? { ...item, [key]: Number(event.target.value) } : item))} /></label>)}</div>
+            <div className="numeric-fields">
+              {(['x', 'y', 'rotation', 'width', 'height', 'thickness'] as const).map(key => <label key={key}>{key}<input aria-label={`Feste Wand ${selectedWallIndex + 1} ${key}`} type="number" value={selectedWall[key]}
+                disabled={!!selectedWall.typeId && (key === 'width' || key === 'height' || key === 'thickness')}
+                onChange={event => setWalls(items => items.map(item => item.id === selectedWall.id ? { ...item, [key]: Number(event.target.value) } : item))} /></label>)}
+              <label>Bodenfreiheit<input aria-label={`Feste Wand ${selectedWallIndex + 1} Bodenfreiheit`} type="number" min={0}
+                value={selectedWall.bottomClearance ?? 0}
+                onChange={event => setWalls(items => items.map(item => {
+                  if (item.id !== selectedWall.id) return item;
+                  const clearance = Math.max(0, Number(event.target.value));
+                  if (!(clearance > 0)) {
+                    const { bottomClearance: _cleared, ...rest } = item;
+                    return rest;
+                  }
+                  return { ...item, bottomClearance: clearance };
+                }))} /></label>
+            </div>
+            <p className="muted">Bodenfreiheit: Unterkante der Wand über der Auflage. In der Raumsicht die Unterseite nach oben ziehen (Orbit unter die Wand).</p>
             <WallSurfaceEditor key={selectedWall.id} surfaces={selectedWall.surfaces} panelHeight={selectedWall.height} readOnly={readOnly || busy || busyGesture()}
               onChange={next => {
                 const targets = selectedIds.filter(id => walls.some(wall => wall.id === id));
