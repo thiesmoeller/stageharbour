@@ -46,7 +46,6 @@ await fixture.db.insert(account).values({ id: randomUUID(), userId: editorId, ac
 await fixture.db.insert(membership).values({ workspaceId: fixture.config.WORKSPACE_ID, userId: editorId, role: 'editor' });
 const app = await createApp(fixture.db, fixture.config, {
   // Browser journeys share an IP. Rate-limit enforcement has its own integration tests.
-  auth: createAuth(fixture.db, fixture.config, { rateLimit: false }),
   staticRoot: resolve('dist/web'),
   surfaceCatalog,
   mail: {
@@ -56,6 +55,16 @@ const app = await createApp(fixture.db, fixture.config, {
       await writeFile(mailboxPath, JSON.stringify(mail.messages));
     },
   },
+  auth: createAuth(fixture.db, fixture.config, {
+    rateLimit: false,
+    mail: {
+      async send(message) {
+        await mail.send(message);
+        await mkdir('test-results', { recursive: true });
+        await writeFile(mailboxPath, JSON.stringify(mail.messages));
+      },
+    },
+  }),
 });
 app.addHook('onClose', fixture.dispose);
 for (const signal of ['SIGINT', 'SIGTERM'] as const) process.once(signal, () => { void app.close(); });

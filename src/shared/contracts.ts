@@ -20,13 +20,17 @@ export const inviteMemberSchema = z.object({
 });
 export const invitationSchema = z.object({ email: z.email(), name: z.string(), role: roleSchema });
 export const invitationPreviewSchema = invitationSchema.extend({ workspaceName: z.string() });
-export const acceptInvitationSchema = z.object({ password: z.string().min(12).max(128) });
+export const acceptInvitationSchema = z.object({}).strict();
 export const tokenParamsSchema = z.object({ token: z.string().min(16).max(128) });
 export const changeRoleSchema = z.object({ role: roleSchema });
 export const requestPasswordResetSchema = z.object({ email: z.email() });
-export const completePasswordResetSchema = acceptInvitationSchema;
+export const completePasswordResetSchema = z.object({ password: z.string().min(12).max(128) });
 export const passwordResetPreviewSchema = z.object({ email: z.email() });
 export const okSchema = z.object({ ok: z.literal(true) });
+export const acceptInvitationResultSchema = z.object({
+  ok: z.literal(true),
+  user: z.object({ id: z.string(), name: z.string(), email: z.email() }),
+});
 export const errorSchema = z.object({ message: z.string() });
 export const venueReferenceSchema = z.object({
   id: z.uuid(), kind: z.enum(['image', 'pdf']), mediaType: z.string(),

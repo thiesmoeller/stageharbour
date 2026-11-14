@@ -3,12 +3,13 @@ import { test, expect } from '@playwright/test';
 import { testAdministrator } from '../helpers/database.js';
 import { mailboxPath } from '../helpers/mailbox.js';
 
-const editor = { email: 'editorin@example.test', name: 'Editorin Beispiel', password: 'editor-password-7319' };
+const editor = { email: 'editorin@example.test', name: 'Editorin Beispiel' };
 
-test('administrator invites an editor who sets a password and opens the workspace', async ({ page }) => {
+test('administrator invites an editor who joins without a password and opens the workspace', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
+  await page.getByRole('tab', { name: 'Passwort' }).click();
   await page.getByLabel('E-Mail-Adresse').fill(testAdministrator.email);
   await page.getByLabel('Passwort', { exact: true }).fill(testAdministrator.password);
   await page.getByRole('button', { name: 'Anmelden', exact: true }).click();
@@ -24,18 +25,28 @@ test('administrator invites an editor who sets a password and opens the workspac
   expect(match).toBeTruthy();
   await page.getByRole('button', { name: 'Abmelden', exact: true }).click();
   await page.goto(match![0]!);
-  await expect(page.getByRole('heading', { name: 'Konto einrichten' })).toBeVisible();
-  await page.getByLabel('Passwort', { exact: true }).fill(editor.password);
-  await page.getByLabel('Passwort bestätigen').fill(editor.password);
-  await page.getByRole('button', { name: 'Passwort speichern' }).click();
-  await expect(page.getByRole('heading', { name: 'Willkommen zurück' })).toBeVisible();
-  await page.getByLabel('E-Mail-Adresse').fill(editor.email);
-  await page.getByLabel('Passwort', { exact: true }).fill(editor.password);
-  await page.getByRole('button', { name: 'Anmelden', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Einladung annehmen' })).toBeVisible();
+  await page.getByRole('button', { name: 'Arbeitsbereich öffnen' }).click();
   await expect(page.getByRole('heading', { name: 'Beispiel-Theatergruppe' })).toBeVisible();
   await expect(page.getByText('Angemeldet als Editorin Beispiel')).toBeVisible();
   await expect(page.getByText('Bearbeitung', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /Verwaltung/ })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Mitglieder' })).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('member requests a magic link and lands in the workspace', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/');
+  await expect(page.getByRole('tab', { name: 'Link per E-Mail' })).toHaveAttribute('aria-selected', 'true');
+  await page.getByLabel('E-Mail-Adresse').fill(testAdministrator.email);
+  await page.getByRole('button', { name: 'Link senden', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Wenn ein Konto mit dieser E-Mail-Adresse existiert');
+  const mailbox = JSON.parse(await readFile(mailboxPath, 'utf8')) as Array<{ text: string }>;
+  const match = mailbox.at(-1)?.text.match(/https?:\/\/[^\s]+\/api\/auth\/magic-link\/verify\?[^\s]+/);
+  expect(match).toBeTruthy();
+  await page.goto(match![0]!);
+  await expect(page.getByRole('heading', { name: 'Beispiel-Theatergruppe' })).toBeVisible();
   expect(errors).toEqual([]);
 });

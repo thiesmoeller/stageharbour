@@ -4,6 +4,7 @@ import { testAdministrator } from './database.js';
 /** Sign in as the test administrator and land on the plans overview. */
 export async function signInToPlans(page: Page, account: { email: string; password: string } = testAdministrator) {
   await page.goto('/');
+  await page.getByRole('tab', { name: 'Passwort' }).click();
   await page.getByLabel('E-Mail-Adresse').fill(account.email);
   await page.getByLabel('Passwort', { exact: true }).fill(account.password);
   await page.getByRole('button', { name: 'Anmelden', exact: true }).click();

@@ -23,6 +23,7 @@ test('design a venue independently, reuse it in a production, and save scene lig
   await test.step('Create and publish a venue with warm lighting', async () => {
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto('/');
+    await page.getByRole('tab', { name: 'Passwort' }).click();
     await page.getByLabel('E-Mail-Adresse').fill(testAdministrator.email);
     await page.getByLabel('Passwort', { exact: true }).fill(testAdministrator.password);
     await page.getByRole('button', { name: 'Anmelden', exact: true }).click();

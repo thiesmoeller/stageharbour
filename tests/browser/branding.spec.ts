@@ -5,6 +5,7 @@ import { pngBytes } from '../helpers/references.js';
 test('administrator can set site branding with a logo', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('link', { name: 'StageHarbour Startseite' })).toBeVisible();
+  await page.getByRole('tab', { name: 'Passwort' }).click();
   await page.getByLabel('E-Mail-Adresse').fill(testAdministrator.email);
   await page.getByLabel('Passwort', { exact: true }).fill(testAdministrator.password);
   await page.getByRole('button', { name: 'Anmelden', exact: true }).click();
