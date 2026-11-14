@@ -1,8 +1,8 @@
-import { useLayoutEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Color, Object3D, type SpotLight } from 'three';
-import type { HangPlan } from '../../shared/hangPlan.js';
-import { clippedBeamDegrees, planMmToViewMetres } from '../../shared/hangPlan.js';
+import { CanvasTexture, Color, NoColorSpace, Object3D, type SpotLight } from 'three';
+import type { BarnDoorFlaps, HangPlan } from '../../shared/hangPlan.js';
+import { barnDoorCookieMask, openBarnDoors, planMmToViewMetres } from '../../shared/hangPlan.js';
 import { resolveFixtureOutput } from '../../shared/lightBoard.js';
 import type { Truss } from '../../shared/truss.js';
 import { fixtureHangPose } from './StageOverhead.js';
@@ -33,25 +33,56 @@ export function FixtureSpotLights({ hangPlan, trusses = [], stageWidth, stageDep
     {mounted.map(fixture => {
       const pose = fixtureHangPose(fixture, trusses, stageWidth, stageDepth);
       if (!pose) return null;
-      const beam = clippedBeamDegrees(
-        fixture.focus?.beam ?? 40,
-        fixture.barnDoorsAttached ? fixture.focus?.barnDoors : undefined,
-      );
+      const beam = fixture.focus?.beam ?? 40;
       const hang = planMmToViewMetres(pose.hang.x, pose.hang.y, pose.hang.z, stageWidth);
       const aim = planMmToViewMetres(pose.aim.x, pose.aim.y, pose.aim.z, stageWidth);
+      const barnDoors = fixture.barnDoorsAttached ? fixture.focus?.barnDoors ?? openBarnDoors : undefined;
       return <FixtureSpot key={fixture.id} id={fixture.id} hang={hang} aim={aim}
-        beamDeg={beam} live={lightBoardLive} />;
+        beamDeg={beam} barnDoors={barnDoors} live={lightBoardLive} />;
     })}
   </>;
 }
 
-function FixtureSpot({ id, hang, aim, beamDeg, live }: {
+/** Soft rectangular cookie in the unclipped cone. Rebuilt when the flaps or the beam change. */
+function useBarnDoorCookie(flaps: BarnDoorFlaps | undefined, beamDeg: number) {
+  const cookie = useMemo(() => {
+    if (!flaps) return null;
+    // Mask is normalized to the cone, so a beam edit rebinds the same crop to the new angle.
+    void beamDeg;
+    const mask = barnDoorCookieMask(flaps, 128);
+    const canvas = document.createElement('canvas');
+    canvas.width = mask.size;
+    canvas.height = mask.size;
+    const context = canvas.getContext('2d');
+    if (!context) return null;
+    const image = context.createImageData(mask.size, mask.size);
+    for (let i = 0; i < mask.pixels.length; i++) {
+      const value = mask.pixels[i]!;
+      const offset = i * 4;
+      image.data[offset] = value;
+      image.data[offset + 1] = value;
+      image.data[offset + 2] = value;
+      image.data[offset + 3] = 255;
+    }
+    context.putImageData(image, 0, 0);
+    const texture = new CanvasTexture(canvas);
+    texture.colorSpace = NoColorSpace;
+    texture.needsUpdate = true;
+    return texture;
+  }, [flaps, beamDeg]);
+  useEffect(() => () => cookie?.dispose(), [cookie]);
+  return cookie;
+}
+
+function FixtureSpot({ id, hang, aim, beamDeg, barnDoors, live }: {
   id: string;
   hang: { x: number; y: number; z: number };
   aim: { x: number; y: number; z: number };
   beamDeg: number;
+  barnDoors?: BarnDoorFlaps;
   live: LightBoardLive;
 }) {
+  const cookie = useBarnDoorCookie(barnDoors, beamDeg);
   const target = useMemo(() => new Object3D(), []);
   const lightRef = useRef<SpotLight>(null);
   const color = useMemo(() => new Color(), []);
@@ -72,6 +103,7 @@ function FixtureSpot({ id, hang, aim, beamDeg, live }: {
     <spotLight ref={lightRef} name={`fixture-spot-${id}`}
       position={[hang.x, hang.y, hang.z]}
       target={target}
+      map={cookie}
       intensity={0}
       distance={Math.max(12, dist * 3.2)}
       angle={(beamDeg * Math.PI) / 360}

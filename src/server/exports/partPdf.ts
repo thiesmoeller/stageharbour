@@ -2,7 +2,7 @@ import type { ConstructionSnapshot } from '../../shared/export.js';
 import { resolveExportLayers } from '../../shared/exportLayers.js';
 import { assemblyCaption } from '../../shared/assembly.js';
 import { resolveFrozen } from '../../shared/frozenParts.js';
-import { planSymbol, type PlanStrokeKind } from '../../shared/partDrawings.js';
+import { planFigure, planSymbol, type PlanStrokeKind } from '../../shared/partDrawings.js';
 import type { Vec2 } from '../../shared/parts/math.js';
 
 const mm = (value: number) => value * 72 / 25.4;
@@ -35,8 +35,22 @@ export function strokePartSymbols(
   const symbols = resolved.objects.map(item => ({ item, symbol: planSymbol(item) }))
     .sort((a, b) => a.symbol.elevation - b.symbol.elevation);
   for (const { item, symbol } of symbols) {
-    if (path(symbol.footprint, true)) doc.lineWidth(0.5).fillAndStroke('#dfe7d8', '#4b5d42');
+    const figure = planFigure(item);
+    if (path(figure.fill, true)) doc.lineWidth(0.5).fillAndStroke('#dfe7d8', '#4b5d42');
+    for (const opening of figure.openings) {
+      if (!path(opening, true)) continue;
+      doc.lineWidth(0.4).fillAndStroke('#ffffff', '#4b5d42');
+    }
+    for (const frame of figure.frames) {
+      if (!path(frame, true)) continue;
+      doc.lineWidth(0.4).fillAndStroke('#e7e0d2', '#6d6456');
+    }
+    for (const leaf of figure.leaves) {
+      if (leaf.slab.length >= 3 && path(leaf.slab, true)) doc.lineWidth(0.4).fillAndStroke('#c8c4b8', '#6d6456');
+      if (leaf.arc.length > 1 && path(leaf.arc, false)) doc.lineWidth(0.3).dash(1, { space: 1 }).stroke('#718469').undash();
+    }
     for (const stroke of symbol.strokes) {
+      if ((figure.leaves.length || figure.openings.length) && (stroke.kind === 'opening' || stroke.kind === 'leaf' || stroke.kind === 'swing')) continue;
       const style = STYLES[stroke.kind];
       if (!path(stroke.points, stroke.closed)) continue;
       doc.lineWidth(style.width);

@@ -49,8 +49,10 @@ test('starter parts insert, inspect, render and persist through the generic obje
 
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Bauteilreise', exact: true })).toBeVisible();
+  // The chosen view is remembered across reloads; the plan is one click away in the view bar.
+  await (await openCommand(page, 'Grundriss')).click();
   await expect(page.locator('[data-testid^="object-"]')).toHaveCount(3);
-  await page.locator('[data-testid^="object-"][aria-label="Portalwand"] polygon').click();
+  await page.locator('[data-testid^="object-"][aria-label="Portalwand"]').locator('polygon').first().click({ force: true });
   await showProperties(page);
   await expect(page.getByLabel('Variante')).toHaveValue('doorLeft');
   await expect(page.getByLabel('Türöffnung')).toHaveValue('40');
@@ -82,6 +84,18 @@ test('generic objects support multi-selection, groups, clipboard and undo', asyn
   const paste = await openCommand(page, 'Einfügen');
   await expect(paste).toBeEnabled();
   await paste.click();
+  // The copy follows the pointer until the plan is clicked.
+  await expect(page.locator('.plan-placement-hint')).toContainText('Platzieren');
+  await expect(objects).toHaveCount(4);
+  const ghost = objects.nth(2).locator('polygon');
+  const before = await ghost.getAttribute('points');
+  const hovered = await page.locator('.plan-canvas > svg').evaluate((element, point) => {
+    const mapped = new DOMPoint(point.x, -point.y).matrixTransform((element as SVGSVGElement).getScreenCTM()!);
+    return { x: mapped.x, y: mapped.y };
+  }, { x: 6500, y: 4200 });
+  await page.mouse.move(hovered.x, hovered.y);
+  await expect.poll(async () => ghost.getAttribute('points')).not.toBe(before);
+  await commitObjectPlacement(page, 6500, 4200);
   await expect(objects).toHaveCount(4);
   await (await openCommand(page, 'Rückgängig')).click();
   await expect(objects).toHaveCount(2);

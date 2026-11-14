@@ -1,5 +1,5 @@
 import type { Layout, VenueGeometry } from './layout.js';
-import { createLayoutPartIndex, resolveLayoutObjectDetails, type LayoutObjectResolution, type LayoutPartIndex } from './layoutObjects.js';
+import { createLayoutPartIndex, layoutSupportOptions, resolveLayoutObjectDetails, type LayoutObjectResolution, type LayoutPartIndex } from './layoutObjects.js';
 import { supportingSurfaces } from './levels.js';
 import { assemblyOrder, type AssemblyOrder } from './assembly.js';
 import { closureOf, referencedMaterialKeys } from './parts/catalogPlans.js';
@@ -71,7 +71,7 @@ export function resolveFrozen(frozen: FrozenParts): FrozenResolution {
   const cached = resolutions.get(frozen.layout);
   if (cached && cached.library === frozen.library && cached.venue === frozen.venue) return cached.value;
   const index = createLayoutPartIndex({ parts: frozen.library.parts, materials: frozen.library.materials });
-  const details = resolveLayoutObjectDetails(frozen.layout, index, { supportElevations: venueSupportElevations(frozen.venue) });
+  const details = resolveLayoutObjectDetails(frozen.layout, index, layoutSupportOptions(frozen.venue));
   const value = { ...details, index, assembly: assemblyOrder(frozen.layout.joints, details.objects) };
   resolutions.set(frozen.layout, { library: frozen.library, venue: frozen.venue, value });
   return value;

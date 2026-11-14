@@ -77,7 +77,6 @@ test('feedback works beside the 3D view and supports mobile keyboard dismissal',
   test.setTimeout(60_000);
   await signInToPlans(page);
   await createProduction(page, { productionName: 'Feedback Vollbild', venueName: 'Vollbild Bühne' });
-  await page.locator('.editor-menubar summary').filter({ hasText: /^Ansicht$/ }).click();
   await page.getByRole('button', { name: 'Raumsicht', exact: true }).click();
   const canvas = page.locator('[data-renderer="stage"] canvas');
   await expect(canvas).toBeVisible({ timeout: 30_000 });

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 import {
-  clippedBeamDegrees, defaultFocusTowardCentre, emptyHangPlan, fixtureAimPoint, fixtureFloorPool, focusTowardPoint, hangPlanFitsTrusses, hangPlanSchema, lightLookSchema,
+  barnDoorCookieMask, barnDoorFloorOutline, barnDoorSpotCookie, clippedBeamDegrees, defaultFocusTowardCentre, emptyHangPlan, fixtureAimPoint, fixtureFloorPool, focusTowardPoint, hangPlanFitsTrusses, hangPlanSchema, lightLookSchema,
   newLightLook, newLightingFixture, nextFixtureLabel, openBarnDoors, patchFixtureLabel, patchFixtureType, planMmToViewMetres, resolveFixtureAim,
 } from '../src/shared/hangPlan.js';
 import { layoutSchema, venueGeometrySchema } from '../src/shared/layout.js';
@@ -151,6 +151,67 @@ test('patchFixtureType switches Gerätetyp and clears barn doors on wash', () =>
   const flood = patchFixtureType(wash, id, 'flood');
   assert.equal(flood.fixtures[0]!.typeId, 'flood');
   assert.equal(flood.fixtures[0]!.barnDoorsAttached, false);
+});
+
+function maskAt(mask: { size: number; pixels: Uint8ClampedArray }, nx: number, ny: number) {
+  const col = Math.min(mask.size - 1, Math.max(0, Math.round(((nx + 1) * mask.size) / 2 - 0.5)));
+  const row = Math.min(mask.size - 1, Math.max(0, Math.round(((ny + 1) * mask.size) / 2 - 0.5)));
+  return mask.pixels[row * mask.size + col]!;
+}
+
+test('barn door cookie is a full disk, one closed flap darkens that edge, and unmounted doors have no map', () => {
+  const open = barnDoorCookieMask(openBarnDoors, 32);
+  assert.ok(maskAt(open, 0, 0) > 240);
+  assert.ok(maskAt(open, 0, -0.7) > 200);
+  assert.ok(maskAt(open, 0, 0.7) > 200);
+  assert.ok(maskAt(open, -0.7, 0) > 200);
+  assert.ok(maskAt(open, 0.7, 0) > 200);
+  assert.ok(maskAt(open, 0.92, 0.92) < 30);
+
+  const topClosed = barnDoorCookieMask({ ...openBarnDoors, top: 90 }, 32);
+  assert.ok(maskAt(topClosed, 0, -0.7) < 40);
+  assert.ok(maskAt(topClosed, 0, -0.7) < maskAt(open, 0, -0.7));
+  assert.ok(maskAt(topClosed, 0, 0.7) > 200);
+
+  const stageLeftClosed = barnDoorCookieMask({ ...openBarnDoors, stageLeft: 90 }, 32);
+  assert.ok(maskAt(stageLeftClosed, -0.7, 0) < 40);
+  assert.ok(maskAt(stageLeftClosed, 0.7, 0) > 200);
+
+  const bottomClosed = barnDoorCookieMask({ ...openBarnDoors, bottom: 90 }, 32);
+  assert.ok(maskAt(bottomClosed, 0, 0.7) < 40);
+  assert.ok(maskAt(bottomClosed, 0, -0.7) > 200);
+
+  const stageRightClosed = barnDoorCookieMask({ ...openBarnDoors, stageRight: 90 }, 32);
+  assert.ok(maskAt(stageRightClosed, 0.7, 0) < 40);
+  assert.ok(maskAt(stageRightClosed, -0.7, 0) > 200);
+
+  assert.equal(barnDoorSpotCookie(false, { ...openBarnDoors, top: 90 }), null);
+  const mounted = barnDoorSpotCookie(true);
+  assert.ok(mounted);
+  assert.equal(mounted.pixels.length, mounted.size * mounted.size);
+  assert.ok(maskAt(mounted, 0, 0) > 240);
+  assert.ok(maskAt(mounted, 0.92, 0.92) < 30);
+});
+
+test('barn door floor outline cuts the closed flap and keeps an open disk', () => {
+  const hang = { x: 4000, y: 4000, z: 3000 };
+  const aim = { x: 4000, y: 0, z: 3000 };
+  const open = barnDoorFloorOutline(hang, aim, 40, openBarnDoors);
+  assert.ok(open);
+  const radii = open.map(point => Math.hypot(point.x - hang.x, point.z - hang.z));
+  const radius = Math.max(...radii);
+  assert.ok(radius - Math.min(...radii) < radius * 0.02);
+
+  const topClosed = barnDoorFloorOutline(hang, aim, 40, { ...openBarnDoors, top: 90 });
+  assert.ok(topClosed);
+  assert.ok(Math.max(...topClosed.map(point => point.z)) < Math.max(...open.map(point => point.z)) - radius * 0.4);
+  assert.ok(Math.min(...topClosed.map(point => point.z)) < hang.z - radius * 0.5);
+
+  const stageLeftClosed = barnDoorFloorOutline(hang, aim, 40, { ...openBarnDoors, stageLeft: 90 });
+  assert.ok(stageLeftClosed);
+  assert.ok(Math.min(...stageLeftClosed.map(point => point.x)) > Math.min(...open.map(point => point.x)) + radius * 0.4);
+
+  assert.equal(barnDoorFloorOutline(hang, { x: 4000, y: 5000, z: 3000 }, 40, openBarnDoors), null);
 });
 
 test('patchFixtureLabel renames hang fixtures; nextFixtureLabel suggests S1…', () => {

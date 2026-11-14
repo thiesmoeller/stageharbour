@@ -1,6 +1,6 @@
 import type { ResolvedLayoutObject } from './layoutObjects.js';
 import { add, convexHull, dot, quatAxes, scale, sub, type Vec2, type Vec3 } from './parts/math.js';
-import { solidVertices, type ResolvedSheet } from './parts/resolve.js';
+import { solidVertices, type ResolvedBox, type ResolvedSheet, type ResolvedSolid } from './parts/resolve.js';
 
 /**
  * Generic drawing primitives of placed parts. Painters (document studio, legacy PDF) only turn
@@ -58,6 +58,196 @@ function floorOpenings(sheet: ResolvedSheet): FloorOpening[] {
 function sheetPoint(sheet: ResolvedSheet, u: number, w: number): Vec2 {
   const axes = quatAxes(sheet.rotation);
   return plan(add(sheet.origin, add(scale(axes.x, u), scale(axes.z, w))));
+}
+
+export type PlanLeafFigure = {
+  /** Hinge, then the free end, in plan millimetres. */
+  points: [Vec2, Vec2];
+  /** Plan outline of the leaf at its real thickness. */
+  slab: Vec2[];
+  /** Quarter-or-less swing from the shut leaf to the free end. Empty while the leaf is shut. */
+  arc: Vec2[];
+};
+
+export type PlanFigure = {
+  /**
+   * Mass to fill. Equals `footprint` until the part carries a door;
+   * a door paints the wall sheet alone, so the frame and leaf are not hulled into it.
+   */
+  fill: Vec2[];
+  /** Rectangular reveal of a doorway, the full wall thickness, with square ends. */
+  openings: Vec2[][];
+  /** Frame and jamb pieces as their own rectangles around the reveal. */
+  frames: Vec2[][];
+  leaves: PlanLeafFigure[];
+};
+
+/** A leaf counts as swung once it leaves the wall by more than this. */
+const SWUNG_LEAF_RADIANS = 0.5 * Math.PI / 180;
+
+function unitPlan(vector: Vec3): Vec2 | undefined {
+  const point = plan(vector);
+  const span = Math.hypot(point.x, point.y);
+  if (span < 1e-9) return undefined;
+  return { x: point.x / span, y: point.y / span };
+}
+
+function distanceToSheet(point: Vec2, sheet: ResolvedSheet): number {
+  const normal = unitPlan(quatAxes(sheet.rotation).z);
+  if (!normal) return Infinity;
+  const origin = plan(sheet.origin);
+  return Math.abs((point.x - origin.x) * normal.x + (point.y - origin.y) * normal.y);
+}
+
+type DoorLeaf = {
+  solid: ResolvedBox; sheet: ResolvedSheet; hinge: Vec2; free: Vec2; hingeIsMinus: boolean; swung: boolean;
+};
+
+/** Upright slab whose long axis is the leaf width and whose short axis is the real thickness. */
+function doorLeafBox(solid: ResolvedSolid): ResolvedBox | undefined {
+  if (solid.kind !== 'box') return undefined;
+  const axes = quatAxes(solid.rotation);
+  if (Math.abs(axes.y.y) <= VERTICAL) return undefined;
+  const width = Math.max(solid.size.x, solid.size.z);
+  const thickness = Math.min(solid.size.x, solid.size.z);
+  if (!(width >= 200 && width > thickness * 4)) return undefined;
+  return solid;
+}
+
+/** Which centerline end is the hinge pin: the door's hinge connector, else the end nearer the wall. */
+function hingeIsMinusEnd(item: ResolvedLayoutObject, minus: Vec2, plus: Vec2, sheet: ResolvedSheet): boolean {
+  let best: { atMinus: boolean; distance: number } | undefined;
+  for (const connector of item.connectors) {
+    if (connector.kind !== 'hinge-edge' || Math.abs(connector.axis.y) < VERTICAL) continue;
+    const position = plan(connector.position);
+    const toMinus = Math.hypot(position.x - minus.x, position.y - minus.y);
+    const toPlus = Math.hypot(position.x - plus.x, position.y - plus.y);
+    const distance = Math.min(toMinus, toPlus);
+    if (best && best.distance <= distance) continue;
+    best = { atMinus: toMinus <= toPlus, distance };
+  }
+  if (best && best.distance <= Math.max(80, sheet.thickness * 3)) return best.atMinus;
+  return distanceToSheet(minus, sheet) <= distanceToSheet(plus, sheet);
+}
+
+/**
+ * Upright door slabs beside a wall sheet. A leaf that has yawed off the sheet is swung;
+ * one still lying in the opening is shut. The frame is not a leaf: it is too narrow.
+ */
+function doorLeaves(item: ResolvedLayoutObject, sheets: readonly ResolvedSheet[]): DoorLeaf[] {
+  const leaves: DoorLeaf[] = [];
+  for (const solid of item.solids) {
+    const leaf = doorLeafBox(solid);
+    if (!leaf) continue;
+    const axes = quatAxes(leaf.rotation);
+    const width = Math.max(leaf.size.x, leaf.size.z);
+    const along = unitPlan(leaf.size.x >= leaf.size.z ? axes.x : axes.z);
+    if (!along) continue;
+    let nearest: { sheet: ResolvedSheet; distance: number } | undefined;
+    const centre = plan(leaf.center);
+    for (const sheet of sheets) {
+      const distance = distanceToSheet(centre, sheet);
+      if (!nearest || distance < nearest.distance) nearest = { sheet, distance };
+    }
+    if (!nearest || nearest.distance > width / 2 + nearest.sheet.thickness + 50) continue;
+    const wall = unitPlan(quatAxes(nearest.sheet.rotation).x);
+    if (!wall) continue;
+    const sine = Math.abs(wall.x * along.y - wall.y * along.x);
+    const swung = sine > Math.sin(SWUNG_LEAF_RADIANS);
+    const half = width / 2;
+    const minus = { x: centre.x - along.x * half, y: centre.y - along.y * half };
+    const plus = { x: centre.x + along.x * half, y: centre.y + along.y * half };
+    const hingeIsMinus = hingeIsMinusEnd(item, minus, plus, nearest.sheet);
+    const hinge = hingeIsMinus ? minus : plus;
+    if (!swung) {
+      const alongHinge = dot(sub({ x: hinge.x, y: 0, z: hinge.y }, nearest.sheet.origin), quatAxes(nearest.sheet.rotation).x);
+      const beside = floorOpenings(nearest.sheet).some(opening =>
+        Math.min(Math.abs(alongHinge - opening.start), Math.abs(alongHinge - opening.end)) <= Math.max(50, nearest.sheet.thickness * 3));
+      if (!beside) continue;
+    }
+    leaves.push({
+      solid: leaf, sheet: nearest.sheet, hinge, free: hingeIsMinus ? plus : minus, hingeIsMinus, swung,
+    });
+  }
+  return leaves;
+}
+
+function leafArc(leaf: DoorLeaf): Vec2[] {
+  if (!leaf.swung) return [];
+  const wall = unitPlan(quatAxes(leaf.sheet.rotation).x);
+  if (!wall) return [];
+  const sign = leaf.hingeIsMinus ? 1 : -1;
+  const from = Math.atan2(sign * wall.y, sign * wall.x);
+  let to = Math.atan2(leaf.free.y - leaf.hinge.y, leaf.free.x - leaf.hinge.x);
+  while (to - from > Math.PI) to -= 2 * Math.PI;
+  while (from - to > Math.PI) to += 2 * Math.PI;
+  const radius = Math.hypot(leaf.free.x - leaf.hinge.x, leaf.free.y - leaf.hinge.y);
+  return radius > 1 ? arc(leaf.hinge, radius, from, to) : [];
+}
+
+/** Square reveal through the wall sheet: the opening's full thickness, not a chamfer. */
+function revealQuads(sheets: readonly ResolvedSheet[]): Vec2[][] {
+  const quads: Vec2[][] = [];
+  for (const sheet of sheets) {
+    for (const opening of floorOpenings(sheet)) {
+      quads.push([
+        sheetPoint(sheet, opening.start, 0), sheetPoint(sheet, opening.end, 0),
+        sheetPoint(sheet, opening.end, sheet.thickness), sheetPoint(sheet, opening.start, sheet.thickness),
+      ]);
+    }
+  }
+  return quads;
+}
+
+function besideOpening(point: Vec2, sheet: ResolvedSheet): boolean {
+  const axes = quatAxes(sheet.rotation);
+  const along = dot(sub({ x: point.x, y: 0, z: point.y }, sheet.origin), axes.x);
+  const tolerance = Math.max(80, sheet.thickness);
+  return floorOpenings(sheet).some(opening => along >= opening.start - tolerance && along <= opening.end + tolerance)
+    && distanceToSheet(point, sheet) <= sheet.thickness + tolerance;
+}
+
+/**
+ * Frame and jamb solids around a doorway, each as its own plan rectangle.
+ * They stay out of the wall hull: hulled in, a frame proud of the face becomes a diagonal cut.
+ */
+function frameRims(item: ResolvedLayoutObject, sheets: readonly ResolvedSheet[]): Vec2[][] {
+  if (!sheets.some(sheet => floorOpenings(sheet).length)) return [];
+  const rims: Vec2[][] = [];
+  for (const solid of item.solids) {
+    if (solid.kind === 'sheet' || doorLeafBox(solid)) continue;
+    const hull = convexHull(solidVertices(solid).map(plan));
+    if (hull.length < 3) continue;
+    const centre = polygonCentre(hull);
+    if (!sheets.some(sheet => besideOpening(centre, sheet))) continue;
+    rims.push(hull);
+  }
+  return rims;
+}
+
+/**
+ * What the 2D plan paints for one placed part. The stored footprint stays the convex hull of
+ * every solid, including a swung door leaf, and is still used for selection and overlap.
+ * Painting that hull fills the swing as a solid triangle and chamfers the wall into the frame.
+ * This figure keeps the wall sheet, punches a rectangular reveal, draws the frame as a rim
+ * and the leaf as its real thickness with the swing arc.
+ */
+export function planFigure(item: ResolvedLayoutObject): PlanFigure {
+  const sheets = uprightSheets(item);
+  const leaves = doorLeaves(item, sheets);
+  const frames = frameRims(item, sheets);
+  if (!leaves.length && !frames.length) return { fill: item.footprint, openings: [], frames: [], leaves: [] };
+  const fill = convexHull(sheets.flatMap(solidVertices).map(plan));
+  return {
+    fill: fill.length >= 3 ? fill : item.footprint,
+    openings: revealQuads(sheets),
+    frames,
+    leaves: leaves.map(leaf => ({
+      points: [leaf.hinge, leaf.free],
+      slab: convexHull(solidVertices(leaf.solid).map(plan)),
+      arc: leafArc(leaf),
+    })),
+  };
 }
 
 /**

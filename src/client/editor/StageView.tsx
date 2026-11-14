@@ -21,8 +21,7 @@ import type { Asset } from '../../shared/assets.js';
 import type { StageViewPreset as StageCameraView } from '../stage/cameraFraming.js';
 import type { StageEditing } from './StageEditing.js';
 import { useLayoutParts } from './useLayoutParts.js';
-import { resolveLayoutObjects } from '../../shared/layoutObjects.js';
-import { supportingSurfaces } from '../../shared/levels.js';
+import { layoutSupportOptions, resolveLayoutObjects } from '../../shared/layoutObjects.js';
 const RaumsichtCanvas = lazy(() => import('./RaumsichtCanvas.js'));
 
 import type { StageCaptureHandle } from './StageCapture.js';
@@ -51,13 +50,10 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
   const dock = useContext(EditorDockContext);
   const model = stageModel(layout, venue);
   const catalog = useLayoutParts(workspaceId, layout);
-  const supportElevations = useMemo(
-    () => new Map(supportingSurfaces(venue).map(surface => [surface.id, surface.elevation])),
-    [venue],
-  );
+  const supportOptions = useMemo(() => layoutSupportOptions(venue), [venue]);
   const resolvedObjects = useMemo(
-    () => resolveLayoutObjects(layout, catalog.index, { supportElevations }),
-    [layout, catalog.index, supportElevations],
+    () => resolveLayoutObjects(layout, catalog.index, supportOptions),
+    [layout, catalog.index, supportOptions],
   );
   const curtains = effectiveCurtains(venue, layout);
   const savedLighting = layout.lighting ?? venue.lighting ?? defaultLighting;

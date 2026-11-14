@@ -7,7 +7,7 @@ import { overheadBoxCorners } from './overhead.js';
 import { trussCorners } from './truss.js';
 import { curtainEndTicks, curtainWavyPoints } from './curtains.js';
 import { resolveFrozen } from './frozenParts.js';
-import { planSymbol, type PlanStrokeKind, type PlanSymbol } from './partDrawings.js';
+import { planFigure, planSymbol, type PlanStrokeKind, type PlanSymbol } from './partDrawings.js';
 
 type Point = { x: number; y: number };
 
@@ -37,9 +37,20 @@ export function planFeatures(snapshot: ConstructionSnapshot, partial: Partial<Ex
     for (const stair of snapshot.venue.stairs ?? []) add(stairCorners(stair), '#718469', stair.label, '#f1f4ed');
   }
   if (layers.scenery) {
-    for (const symbol of snapshotPlanSymbols(snapshot)) {
-      add(symbol.footprint, '#4b5d42', symbol.label, '#dfe7d8');
+    const drawn = resolveFrozen(snapshot).objects
+      .map(item => ({ symbol: planSymbol(item), figure: planFigure(item) }))
+      .sort((a, b) => a.symbol.elevation - b.symbol.elevation);
+    for (const { symbol, figure } of drawn) {
+      add(figure.fill, '#4b5d42', symbol.label, '#dfe7d8');
+      for (const opening of figure.openings) add(opening, '#4b5d42', undefined, '#ffffff');
+      for (const frame of figure.frames) add(frame, '#6d6456', undefined, '#e7e0d2');
+      for (const leaf of figure.leaves) {
+        if (leaf.slab.length >= 3) add(leaf.slab, '#6d6456', undefined, '#c8c4b8');
+        else add(leaf.points, '#986122', undefined, undefined, false);
+        if (leaf.arc.length > 1) add(leaf.arc, '#986122', undefined, undefined, false);
+      }
       for (const stroke of symbol.strokes) {
+        if ((figure.leaves.length || figure.openings.length) && (stroke.kind === 'opening' || stroke.kind === 'leaf' || stroke.kind === 'swing')) continue;
         const style = STROKE_STYLES[stroke.kind];
         add(stroke.points, style.stroke, undefined, style.fill, stroke.closed);
       }

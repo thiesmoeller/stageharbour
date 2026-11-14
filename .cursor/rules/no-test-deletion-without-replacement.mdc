@@ -1,0 +1,17 @@
+---
+description: Tests may only be deleted or weakened when a replacement covers the same user-visible behaviour
+alwaysApply: true
+---
+
+# No test deletion without replacement
+
+The layout v2 rewrite (`7e18451`) deleted the browser and unit tests for snapping, rotation, the view bar and the light controls together with the code. CI stayed green and the regressions reached `dev` unnoticed.
+
+**When a change deletes a test, removes a `test(...)` block or loosens an assertion:**
+
+1. Name the user-visible behaviour the test guarded.
+2. Either keep that behaviour and port the test to the new code, or get the user's explicit agreement that the behaviour is dropped.
+3. Never delete a test because the code under it is being rewritten. A rewrite keeps the behaviour, so it keeps the test.
+4. List every removed or weakened test in the final summary, each with its replacement or with the user's decision.
+
+A data-model or schema migration is not a reason to drop editor behaviour. Port the gesture, tool or panel to the new model in the same change, or leave the old one working.

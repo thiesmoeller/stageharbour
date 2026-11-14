@@ -1,9 +1,12 @@
 import type { PointerEvent } from 'react';
 import type { Layout, VenueGeometry } from '../../shared/layout.js';
 import type { ResolvedLayoutObject } from '../../shared/layoutObjects.js';
+import { STARTER_PART_IDS } from '../../shared/parts/starter/index.js';
+import { layoutStageDeckModules } from '../../shared/stageDeck.js';
 import { measuredOutline } from '../../shared/venue.js';
 import { resolveWall, isDoorOpening, doorOpenAngleDegrees } from '../../shared/wall-types.js';
 import { effectiveVenueDoorOpen } from '../../shared/venueFixtures.js';
+import { planFigure } from '../../shared/partDrawings.js';
 import { defaultPlanDisplay, type PlanDisplayOptions } from '../../shared/planDisplay.js';
 
 type FixtureSelection = { kind: 'curtain' | 'door'; id: string };
@@ -72,6 +75,22 @@ export function PlanVenue({ venue, shown, readOnly = true, planDisplay = default
   </>;
 }
 
+function DeckSeams({ object }: { object: ResolvedLayoutObject }) {
+  if (object.object.part.id !== STARTER_PART_IDS.deck) return null;
+  const width = object.resolved.derived.W;
+  const depth = object.resolved.derived.D;
+  if (typeof width !== 'number' || typeof depth !== 'number' || width <= 0 || depth <= 0) return null;
+  const modules = layoutStageDeckModules(width, depth, 0);
+  return <g data-testid={`deck-seams-${object.object.id}`} data-modules={modules.length}
+    transform={`translate(${object.object.x} ${-object.object.y}) rotate(${-object.object.rotation})`}
+    pointerEvents="none">
+    {modules.map((module, index) => <rect key={index}
+      x={module.x - module.width / 2} y={-(module.y + module.depth / 2)}
+      width={module.width} height={module.depth}
+      fill="none" stroke="#f4f7ef" strokeWidth="1.5" strokeDasharray="40 30" vectorEffect="non-scaling-stroke" />)}
+  </g>;
+}
+
 export function PlanObjects({ objects, selectedIds = new Set<string>(), overlapIds = new Set<string>(), readOnly = true, planDisplay = defaultPlanDisplay, start = () => {} }: {
   objects: readonly ResolvedLayoutObject[];
   selectedIds?: ReadonlySet<string>; overlapIds?: ReadonlySet<string>;
@@ -82,17 +101,35 @@ export function PlanObjects({ objects, selectedIds = new Set<string>(), overlapI
         {objects.map(object => {
           const chosen = selectedIds.has(object.object.id);
           const overlap = overlapIds.has(object.object.id);
-          const points = object.footprint.map(point => `${point.x},${-point.y}`).join(' ');
-          const centre = object.footprint.reduce((sum, point) => ({
-            x: sum.x + point.x / object.footprint.length,
-            y: sum.y + point.y / object.footprint.length,
+          const figure = planFigure(object);
+          const paint = (points: readonly { x: number; y: number }[]) => points.map(point => `${point.x},${-point.y}`).join(' ');
+          const centre = figure.fill.reduce((sum, point) => ({
+            x: sum.x + point.x / figure.fill.length,
+            y: sum.y + point.y / figure.fill.length,
           }), { x: 0, y: 0 });
+          const stroke = chosen ? '#986122' : '#234638';
           return <g key={object.object.id} data-print-layer="objects" data-print-name={object.object.label}
             data-testid={`object-${object.object.id}`} aria-label={object.object.label}
             className={[readOnly ? '' : 'draggable-wall', overlap ? 'plan-overlap' : ''].filter(Boolean).join(' ') || undefined}
             onPointerDown={event => start(event, object)}>
-            <polygon points={points} fill={chosen ? '#b67c35' : '#315d49'} fillOpacity={0.75}
-              stroke={chosen ? '#986122' : '#234638'} strokeWidth={chosen ? 4 : 2} vectorEffect="non-scaling-stroke" />
+            <polygon points={paint(figure.fill)} fill={chosen ? '#b67c35' : '#315d49'} fillOpacity={0.75}
+              stroke={stroke} strokeWidth={chosen ? 4 : 2} vectorEffect="non-scaling-stroke" />
+            {figure.openings.map((opening, index) => <polygon key={`opening-${index}`} points={paint(opening)}
+              fill="#f8faf5" stroke={stroke} strokeWidth="1" vectorEffect="non-scaling-stroke" pointerEvents="none" />)}
+            {figure.frames.map((frame, index) => <polygon key={`frame-${index}`} data-testid={`plan-door-frame-${object.object.id}-${index}`}
+              points={paint(frame)} fill="#e7e0d2" stroke="#8a8175" strokeWidth="1" vectorEffect="non-scaling-stroke" pointerEvents="none" />)}
+            {figure.leaves.map((leaf, index) => <g key={`leaf-${index}`} pointerEvents="none">
+              {leaf.arc.length > 1 && <polyline data-testid={`plan-door-swing-${object.object.id}-${index}`}
+                points={paint(leaf.arc)} fill="none" stroke="#c8c4b8" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />}
+              {leaf.slab.length >= 3
+                ? <polygon data-testid={`plan-door-leaf-${object.object.id}-${index}`} points={paint(leaf.slab)}
+                  fill="#c8c4b8" stroke="#8a8478" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+                : <line data-testid={`plan-door-leaf-${object.object.id}-${index}`}
+                  x1={leaf.points[0].x} y1={-leaf.points[0].y} x2={leaf.points[1].x} y2={-leaf.points[1].y}
+                  stroke="#c8c4b8" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />}
+              <circle cx={leaf.points[0].x} cy={-leaf.points[0].y} r={18} fill="#986122" />
+            </g>)}
+            <DeckSeams object={object} />
             {object.resolved.planSymbol === 'stair' && <line x1={object.bounds.min.x} y1={-object.bounds.min.z}
               x2={object.bounds.max.x} y2={-object.bounds.max.z} stroke="#f8faf5" strokeWidth="2" vectorEffect="non-scaling-stroke" />}
             {planDisplay.showObjectNames && <text x={centre.x} y={-centre.y - 70} textAnchor="middle" fontSize="110"

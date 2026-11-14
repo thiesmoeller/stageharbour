@@ -1,5 +1,7 @@
-import type { HangPlan } from '../../shared/hangPlan.js';
-import { fixtureFloorPool, resolveFixtureAim } from '../../shared/hangPlan.js';
+import { useEffect, useMemo } from 'react';
+import { Shape, ShapeGeometry } from 'three';
+import type { BarnDoorFlaps, HangPlan } from '../../shared/hangPlan.js';
+import { barnDoorFloorOutline, fixtureFloorPool, resolveFixtureAim } from '../../shared/hangPlan.js';
 import { trussHangWorld, type Truss } from '../../shared/truss.js';
 
 
@@ -7,7 +9,7 @@ import { trussHangWorld, type Truss } from '../../shared/truss.js';
  * Scheinwerfer marker in millimetre venue space (inside X-mirror): body, lens and an optional
  * flat floor pool. The light itself comes from FixtureSpotLights.
  */
-export function LightingFixtureMesh({ id, x, y, z, aimX, aimY, aimZ, selected = false, intensity = 100, color = '#ffe0b3', beamDeg = 40, showPool = true, onSelect }: {
+export function LightingFixtureMesh({ id, x, y, z, aimX, aimY, aimZ, selected = false, intensity = 100, color = '#ffe0b3', beamDeg = 40, barnDoors, showPool = true, onSelect }: {
   id?: string;
   x: number; y: number; z: number;
   aimX?: number; aimY?: number; aimZ?: number;
@@ -15,6 +17,8 @@ export function LightingFixtureMesh({ id, x, y, z, aimX, aimY, aimZ, selected = 
   intensity?: number;
   color?: string;
   beamDeg?: number;
+  /** Mounted flaps. The floor pool then uses the same crop as the spot cookie. */
+  barnDoors?: BarnDoorFlaps;
   showPool?: boolean;
   onSelect?: (id: string, additive: boolean) => void;
 }) {
@@ -53,13 +57,46 @@ export function LightingFixtureMesh({ id, x, y, z, aimX, aimY, aimZ, selected = 
         <meshBasicMaterial color={lens} transparent opacity={on ? 0.55 + level * 0.4 : 0.12} />
       </mesh>
     </group>
-    {pool && <mesh position={[pool.x - x, 12 - y, pool.z - z]} rotation={[-Math.PI / 2, 0, 0]}
+    {pool && barnDoors && <BarnDoorFloorPool hang={{ x, y, z }} aim={{ x: aimX!, y: aimY!, z: aimZ! }}
+      beamDeg={beamDeg} flaps={barnDoors} color={color} opacity={0.12 + Math.min(1, level) * 0.38} />}
+    {pool && !barnDoors && <mesh position={[pool.x - x, 12 - y, pool.z - z]} rotation={[-Math.PI / 2, 0, 0]}
       raycast={() => null}>
       <circleGeometry args={[pool.radius, 28]} />
       <meshBasicMaterial color={color} transparent opacity={0.12 + Math.min(1, level) * 0.38}
         depthWrite={false} />
     </mesh>}
   </group>;
+}
+
+/** Clipped pool on the floor, in the fixture group's millimetre space. */
+function BarnDoorFloorPool({ hang, aim, beamDeg, flaps, color, opacity }: {
+  hang: { x: number; y: number; z: number };
+  aim: { x: number; y: number; z: number };
+  beamDeg: number;
+  flaps: BarnDoorFlaps;
+  color: string;
+  opacity: number;
+}) {
+  const geometry = useMemo(() => {
+    const outline = barnDoorFloorOutline(hang, aim, beamDeg, flaps);
+    if (!outline) return null;
+    const shape = new Shape();
+    outline.forEach((point, index) => {
+      const localX = point.x - hang.x;
+      const localZ = point.z - hang.z;
+      if (index === 0) shape.moveTo(localX, localZ);
+      else shape.lineTo(localX, localZ);
+    });
+    shape.closePath();
+    const result = new ShapeGeometry(shape);
+    result.rotateX(Math.PI / 2);
+    return result;
+  }, [hang.x, hang.y, hang.z, aim.x, aim.y, aim.z, beamDeg, flaps]);
+  useEffect(() => () => geometry?.dispose(), [geometry]);
+  if (!geometry) return null;
+  return <mesh geometry={geometry} position={[0, 12 - hang.y, 0]} raycast={() => null}>
+    <meshBasicMaterial color={color} transparent opacity={opacity} depthWrite={false} />
+  </mesh>;
 }
 
 

@@ -31,7 +31,10 @@ for (const kind of ['stage', 'venue'] as const) {
     await file.click();
     await expect(page.getByRole('button', { name: 'Kopieren', exact: true })).toBeHidden();
     await expect(fileCommand).toBeVisible();
-    await page.getByRole('heading', { name: `${kind} keyboard menus ${kind === 'stage' ? 'Bild' : 'Saal'}`, exact: true }).click();
+    await expect(page.getByRole('heading', { name: `${kind} keyboard menus ${kind === 'stage' ? 'Bild' : 'Saal'}`, exact: true })).toBeVisible();
+    // Outside dismissal: the compact scene title sits under the open menu, so click the status bar.
+    if (kind === 'stage') await page.locator('.workspace-statusbar .status-dot').click();
+    else await page.getByRole('heading', { name: `${kind} keyboard menus Saal`, exact: true }).click();
     await expect(fileCommand).toBeHidden();
 
     if (kind === 'venue') {
