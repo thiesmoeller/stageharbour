@@ -1,16 +1,18 @@
 import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode, type SetStateAction } from 'react';
 import { createPortal } from 'react-dom';
 import { ToolIcon } from './ToolIcon.js';
+import { scopedStorageKey } from '../local/storageScope.js';
 
 type Panel = 'properties' | 'library' | 'lighting' | 'display';
 const labels = { properties: 'Eigenschaften', library: 'Bibliothek', lighting: 'Licht', display: 'Anzeige' };
 const icons = { properties: 'tray', library: 'library', lighting: 'light', display: 'settings' } as const;
 
+
 export function readWorkspacePreference(key: string): string | null {
-  try { return localStorage.getItem(`stage-planner.editor.${key}`); } catch { return null; }
+  try { return localStorage.getItem(scopedStorageKey(`stage-planner.editor.${key}`)); } catch { return null; }
 }
 export function writeWorkspacePreference(key: string, value: string) {
-  try { localStorage.setItem(`stage-planner.editor.${key}`, value); } catch { /* Private browsing may disable storage. */ }
+  try { localStorage.setItem(scopedStorageKey(`stage-planner.editor.${key}`), value); } catch { /* Private browsing may disable storage. */ }
 }
 
 /** One persistent dock per editor. Hidden panes stay mounted to retain unapplied inputs. */

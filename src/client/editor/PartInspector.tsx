@@ -4,6 +4,7 @@ import type { ResolvedLayoutObject } from '../../shared/layoutObjects.js';
 import { fittingStockItems, stockItemFits } from '../../shared/partLists.js';
 import type { PartSummary, StockItem } from '../../shared/parts/catalog.js';
 import type { PartParameter } from '../../shared/parts/definition.js';
+import { visibleParameters } from '../../shared/parts/visibleParameters.js';
 import type { FaceSurfacing, SurfaceFinish } from '../../shared/surfaces.js';
 import { confirmDiscardPending, usePendingApplyForm } from './usePendingApplyForm.js';
 import { FinishEditor } from './WallSurfaceEditor.js';
@@ -83,7 +84,9 @@ export function PartInspector({ item, summary, latestRevision, stockItems, assig
 }) {
   const { object, definition, resolved } = item;
   const { pending, resetKey, markPending, clearPending, discard, formProps } = usePendingApplyForm(onPendingChange);
-  const parameters = definition.parameters.filter(parameter => parameter.scope !== 'variant');
+  const [variantKey, setVariantKey] = useState(object.variant ?? '');
+  useEffect(() => { setVariantKey(object.variant ?? ''); }, [object.id, object.variant, resetKey]);
+  const parameters = visibleParameters(definition, variantKey || undefined);
   const faces = [...new Map(resolved.faces.map(face => [face.key, face])).values()];
   const [finishes, setFinishes] = useState<NonNullable<LayoutObject['finishes']>>(() => object.finishes ?? {});
   const compatibleStock = fittingStockItems(stockItems, item);
@@ -105,8 +108,8 @@ export function PartInspector({ item, summary, latestRevision, stockItems, assig
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    const values: Record<string, number> = {};
-    const state: Record<string, number> = {};
+    const values: Record<string, number> = { ...object.values };
+    const state: Record<string, number> = { ...object.state };
     for (const parameter of parameters) {
       const value = Number(data.get(`parameter:${parameter.key}`));
       if (!Number.isFinite(value)) return;
@@ -148,7 +151,7 @@ export function PartInspector({ item, summary, latestRevision, stockItems, assig
       <input id="part-label" name="label" defaultValue={object.label} maxLength={120} required />
       {!!definition.variants?.length && <>
         <label htmlFor="part-variant">Variante</label>
-        <select id="part-variant" name="variant" defaultValue={object.variant ?? ''}>
+        <select id="part-variant" name="variant" value={variantKey} onChange={event => setVariantKey(event.target.value)}>
           {!object.variant && <option value="">Standard</option>}
           {definition.variants.map(variant => <option key={variant.key} value={variant.key}>{variant.label}</option>)}
         </select>

@@ -1,6 +1,7 @@
 import type { Layout, LayoutObject } from './layout.js';
+import { resolveSupportingSurfaceId, supportingSurfaces, type SupportingSurface } from './levels.js';
 import {
-  createPartContext, partRefKey, placeResolvedPart, resolvePart,
+  createPartContext, partRefKey, placeFootprint, placePlanPoint, placeResolvedPart, resolvePart,
   type PartContext, type PartDefinition, type PartIssue, type PartMaterial, type PartRef, type PlacedPart, type ResolvedPart,
 } from './parts/index.js';
 
@@ -47,7 +48,102 @@ export type LayoutObjectResolution = {
 export type ResolveLayoutOptions = {
   /** Venue-owned surfaces, keyed by id, with absolute elevation in millimetres. */
   supportElevations?: ReadonlyMap<string, number> | Readonly<Record<string, number>>;
+  /**
+   * Venue floor and podiums. An object with no `support` stands on the highest of these
+   * or of another object's walkable surface under its footprint.
+   */
+  automaticSupports?: readonly SupportingSurface[];
 };
+
+/** Venue floor and podiums, for callers that resolve a Bühnenbild in that room. */
+export function layoutSupportOptions(
+  venue: Parameters<typeof supportingSurfaces>[0],
+): ResolveLayoutOptions {
+  const surfaces = supportingSurfaces(venue);
+  return {
+    supportElevations: new Map(surfaces.map(surface => [surface.id, surface.elevation])),
+    automaticSupports: surfaces,
+  };
+}
+
+type ResolvedLocal = { object: LayoutObject; definition: PartDefinition; resolved: ResolvedPart };
+
+/**
+ * Support id for every object that has none: the topmost venue podium or other part
+ * surface under its footprint. Parents are chosen so two parts cannot stand on each other.
+ */
+function automaticSupportParents(
+  local: ReadonlyMap<string, ResolvedLocal>,
+  venueSurfaces: readonly SupportingSurface[],
+  options: ResolveLayoutOptions,
+): Map<string, string> {
+  const autoIds = [...local.values()]
+    .filter(item => !item.object.support)
+    .map(item => item.object.id)
+    .sort();
+  const parents = new Map<string, string>();
+  if (!autoIds.length) return parents;
+
+  const pointer = (id: string): string | undefined => local.get(id)?.object.support ?? parents.get(id);
+
+  const originOf = (id: string, stack: string[] = []): number => {
+    if (!local.has(id)) return externalSupport(options, id) ?? 0;
+    if (stack.includes(id)) return 0;
+    const support = pointer(id);
+    if (!support) return 0;
+    if (!local.has(support)) return externalSupport(options, support) ?? 0;
+    stack.push(id);
+    const base = originOf(support, stack);
+    stack.pop();
+    const parent = local.get(support)!;
+    const top = parent.resolved.surfaces.length
+      ? Math.max(...parent.resolved.surfaces.map(surface => surface.elevation))
+      : 0;
+    return base + top;
+  };
+
+  const standsOn = (supporterId: string, dependentId: string): boolean => {
+    const seen = new Set<string>();
+    let cursor: string | undefined = supporterId;
+    while (cursor && local.has(cursor)) {
+      if (cursor === dependentId) return true;
+      if (seen.has(cursor)) return false;
+      seen.add(cursor);
+      cursor = pointer(cursor);
+    }
+    return false;
+  };
+
+  for (let pass = 0; pass < autoIds.length + 1; pass += 1) {
+    let changed = false;
+    for (const id of autoIds) {
+      const item = local.get(id)!;
+      const placement = { x: item.object.x, y: item.object.y, rotation: item.object.rotation };
+      const footprint = placeFootprint(item.resolved, placement);
+      const candidates: SupportingSurface[] = venueSurfaces.map(surface => ({ ...surface }));
+      for (const other of local.values()) {
+        if (other.object.id === id || !other.resolved.surfaces.length || standsOn(other.object.id, id)) continue;
+        const origin = originOf(other.object.id);
+        const otherPlacement = { x: other.object.x, y: other.object.y, rotation: other.object.rotation };
+        for (const surface of other.resolved.surfaces) {
+          candidates.push({
+            id: other.object.id,
+            label: other.object.label,
+            outline: surface.outline.map(point => placePlanPoint(point, otherPlacement)),
+            elevation: origin + surface.elevation,
+          });
+        }
+      }
+      const chosen = resolveSupportingSurfaceId(footprint, candidates);
+      if (parents.get(id) !== chosen) {
+        parents.set(id, chosen);
+        changed = true;
+      }
+    }
+    if (!changed) break;
+  }
+  return parents;
+}
 
 function externalSupport(options: ResolveLayoutOptions | undefined, id: string): number | undefined {
   const source = options?.supportElevations;
@@ -91,6 +187,10 @@ export function resolveLayoutObjectDetails(
     }
   }
 
+  const autoParent = options?.automaticSupports
+    ? automaticSupportParents(local, options.automaticSupports, options)
+    : new Map<string, string>();
+
   const elevations = new Map<string, number>();
   const visiting = new Set<string>();
   const elevationOf = (objectId: string): number => {
@@ -98,7 +198,7 @@ export function resolveLayoutObjectDetails(
     if (known !== undefined) return known;
     const item = local.get(objectId);
     if (!item) return 0;
-    const support = item.object.support;
+    const support = item.object.support ?? autoParent.get(objectId);
     if (!support) {
       elevations.set(objectId, 0);
       return 0;

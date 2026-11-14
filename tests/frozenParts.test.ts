@@ -7,7 +7,7 @@ import { composeDocument, type DocumentLayout } from '../src/shared/exportDocume
 import { frozenLists, resolveFrozen } from '../src/shared/frozenParts.js';
 import type { Layout, LayoutObject, Scene } from '../src/shared/layout.js';
 import { createLayoutPartIndex, resolveLayoutObjects } from '../src/shared/layoutObjects.js';
-import { elevationOutline, planSymbol } from '../src/shared/partDrawings.js';
+import { elevationOutline, planFigure, planSymbol } from '../src/shared/partDrawings.js';
 import { STARTER_LIBRARY, STARTER_PART_IDS } from '../src/shared/parts/starter/index.js';
 import { snapshotPlanSymbols } from '../src/shared/planFeatures.js';
 
@@ -103,6 +103,84 @@ test('plan symbols draw floor gaps and the door swing; solids and stairs add the
   const chairStrokes = planSymbol(chair!).strokes;
   assert.ok(chairStrokes.length > 1 && chairStrokes.every(stroke => stroke.kind === 'solid' && stroke.closed));
   assert.ok(planSymbol(stair!).strokes.some(stroke => stroke.kind === 'step'));
+});
+
+function edgeLengths(points: readonly { x: number; y: number }[]): number[] {
+  return points.map((point, index) => {
+    const next = points[(index + 1) % points.length]!;
+    return Math.hypot(next.x - point.x, next.y - point.y);
+  });
+}
+
+/** Edges of a rectangle in plan run with the axes; a chamfered jamb does not. */
+function assertRectilinear(polygons: readonly { x: number; y: number }[][], label: string) {
+  for (const points of polygons) {
+    assert.ok(points.length >= 4, label);
+    for (let index = 0; index < points.length; index += 1) {
+      const point = points[index]!;
+      const next = points[(index + 1) % points.length]!;
+      const dx = Math.abs(next.x - point.x);
+      const dy = Math.abs(next.y - point.y);
+      assert.ok(dx < 0.5 || dy < 0.5, `${label} has a diagonal edge`);
+    }
+  }
+}
+
+test('an open door is a wall with a thin leaf, a rectangular reveal and a frame rim', () => {
+  const index = freshIndex();
+  const placed = (variant: string, open: number, rotation = 0) => resolveLayoutObjects({
+    schemaVersion: 2, joints: [], objects: [
+      wall('Wand', 0, variant, { state: { open }, rotation }),
+    ],
+  }, index)[0]!;
+  const plain = planFigure(placed('plain', 0));
+  const shutObject = placed('doorLeft', 0);
+  const shut = planFigure(shutObject);
+  assert.equal(plain.leaves.length, 0);
+  assert.equal(plain.frames.length, 0);
+  assert.deepEqual(plain.fill, placed('plain', 0).footprint);
+  assert.ok(shutObject.footprint.some(point => point.y < 2980), 'the selection hull still includes the frame');
+  assert.deepEqual(shut.fill, plain.fill, 'a shut door paints the wall sheet, not a chamfer into the frame');
+  assert.equal(shut.openings.length, 1);
+  assertRectilinear(shut.openings, 'reveal');
+  assertRectilinear(shut.frames, 'frame');
+  assert.ok(shut.frames.length >= 2, 'the frame is a rim of jambs around the opening');
+  assert.equal(shut.leaves.length, 1);
+  assert.equal(shut.leaves[0]!.arc.length, 0, 'a shut leaf draws no swing');
+  const shutShort = edgeLengths(shut.leaves[0]!.slab).filter(length => length < 100);
+  assert.ok(shutShort.length >= 2 && shutShort.every(length => Math.abs(length - 40) < 1), 'shut leaf keeps the real door thickness');
+
+  const open = placed('doorLeft', 40);
+  const figure = planFigure(open);
+  assert.ok(open.footprint.some(point => point.y < 3000 - 200), 'the stored hull still covers the swung leaf');
+  assert.deepEqual(figure.fill, plain.fill, 'the painted wall stays the sheet, without diagonal jambs');
+  assert.equal(figure.leaves.length, 1);
+  assert.equal(figure.openings.length, 1);
+  assertRectilinear(figure.openings, 'reveal');
+  assertRectilinear(figure.frames, 'frame');
+  const frameXs = figure.frames.flatMap(frame => frame.map(point => point.x));
+  const frameYs = figure.frames.flatMap(frame => frame.map(point => point.y));
+  assert.ok(Math.min(...frameXs) > -500 && Math.max(...frameXs) < 500, 'the frame rims the opening instead of cutting the wall ends');
+  assert.ok(Math.min(...frameYs) < 2986 - 20, 'the frame stands proud of the wall face as a rectangular rim');
+  const [hinge, tip] = figure.leaves[0]!.points;
+  assert.ok(tip.y < hinge.y - 200, 'the leaf swings toward the audience');
+  assert.ok(Math.abs(Math.hypot(tip.x - hinge.x, tip.y - hinge.y) - 800) < 2, 'leaf length is the clear opening');
+  const openShort = edgeLengths(figure.leaves[0]!.slab).filter(length => length < 100);
+  assert.ok(openShort.length >= 2 && openShort.every(length => Math.abs(length - 40) < 1), 'open leaf is the 40 mm slab, not the wall depth');
+  const arc = figure.leaves[0]!.arc;
+  assert.ok(arc.length > 2 && arc.every(point => point.y <= 3000 + 1), 'the swing arc stays on the audience side of the wall');
+
+  const right = planFigure(placed('doorRight', 100));
+  const [rightHinge, rightTip] = right.leaves[0]!.points;
+  assert.ok(rightTip.x < rightHinge.x && rightTip.y < rightHinge.y, 'a right-hand leaf swings the other way');
+  const rightShort = edgeLengths(right.leaves[0]!.slab).filter(length => length < 100);
+  assert.ok(rightShort.every(length => Math.abs(length - 40) < 1));
+
+  const turned = planFigure(placed('doorLeft', 100, 90));
+  assert.ok(turned.fill.every(point => Math.abs(point.x) < 100), 'a rotated open door still paints the wall, not the swing');
+  assert.ok(turned.leaves[0]!.points[1]!.x > turned.leaves[0]!.points[0]!.x + 200);
+  assert.ok(edgeLengths(turned.leaves[0]!.slab).some(length => Math.abs(length - 40) < 1), 'a rotated leaf stays 40 mm thick');
+  assertRectilinear(turned.frames, 'rotated frame');
 });
 
 test('elevations project front faces with their cut-outs and heights above the floor', () => {

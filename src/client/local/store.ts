@@ -1,7 +1,9 @@
 import { createSeedSnapshot } from './seed.js';
 import { parseSnapshot, serializeSnapshot, type LocalSnapshot } from './snapshot.js';
+import { localDatabaseName } from './storageScope.js';
 
-const DB_NAME = 'stageharbour-local';
+/** Unscoped name from before / and /preview/ were isolated — read once to migrate. */
+const LEGACY_DB_NAME = 'stageharbour-local';
 const STORE_NAME = 'snapshot';
 const SNAPSHOT_KEY = 'current';
 const DB_VERSION = 1;
@@ -13,9 +15,9 @@ function idbRequest<T>(request: IDBRequest<T>): Promise<T> {
   });
 }
 
-function openDb(): Promise<IDBDatabase> {
+function openDb(name: string): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    const request = indexedDB.open(name, DB_VERSION);
     request.onupgradeneeded = () => {
       const db = request.result;
       if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME);
@@ -23,6 +25,19 @@ function openDb(): Promise<IDBDatabase> {
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error ?? new Error('IndexedDB konnte nicht geöffnet werden.'));
   });
+}
+
+/** Copy the old shared database when this deployment's scoped one is still empty. */
+async function readLegacySnapshot(): Promise<LocalSnapshot | undefined> {
+  if (localDatabaseName() === LEGACY_DB_NAME) return undefined;
+  try {
+    const db = await openDb(LEGACY_DB_NAME);
+    try { return await readPersisted(db); }
+    finally { db.close(); }
+  } catch {
+    // A newer /preview/ snapshot or a missing legacy DB must not block this site.
+    return undefined;
+  }
 }
 
 async function readPersisted(db: IDBDatabase): Promise<LocalSnapshot | undefined> {
@@ -45,10 +60,12 @@ export type LocalStore = {
 };
 
 export async function openLocalStore(): Promise<LocalStore> {
-  const db = await openDb();
+  const db = await openDb(localDatabaseName());
   let cache = await readPersisted(db);
   if (!cache) {
-    cache = createSeedSnapshot();
+    // Prefer a readable legacy snapshot over a fresh seed so people who already
+    // used the shared Pages database keep their work on the first open of either site.
+    cache = await readLegacySnapshot() ?? createSeedSnapshot();
     await writePersisted(db, cache);
   }
 

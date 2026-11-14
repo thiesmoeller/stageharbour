@@ -70,6 +70,18 @@ export async function placeWallAt(page: Page, x = 4000, y = 3000) {
   await showProperties(page);
 }
 
+/** Tool-rail categories whose list holds the parts that are not the category's first choice. */
+const TOOL_CATEGORY: Record<string, string> = { 'Treppe einsetzen': 'Podeste', 'Tür einsetzen': 'Wände', 'Stuhl einsetzen': 'Möbel' };
+
+/** Pick a part from the tool rail: directly, or from its category list. */
+export async function chooseTool(page: Page, name: string) {
+  const direct = page.getByRole('button', { name, exact: true });
+  const category = TOOL_CATEGORY[name];
+  if (!category || await direct.count()) { await direct.click(); return; }
+  await page.getByRole('button', { name: `${category}: weitere Bauteile`, exact: true }).click();
+  await page.getByRole('dialog', { name: category }).getByRole('button', { name: name.replace(/ einsetzen$/, ''), exact: true }).click();
+}
+
 /** Start a preview placement from a named button and commit at plan coordinates (mm). */
 export async function placeNamedObjectAt(page: Page, name: string, x = 4000, y = 3000) {
   const replacement: Record<string, string> = {
@@ -79,8 +91,7 @@ export async function placeNamedObjectAt(page: Page, name: string, x = 4000, y =
     'Podest hinzufügen': 'Bühnenelement · 2 × 1 m einsetzen',
     'Treppe hinzufügen': 'Treppe einsetzen',
   };
-  const button = page.getByRole('button', { name: replacement[name] ?? name, exact: true });
-  await button.click();
+  await chooseTool(page, replacement[name] ?? name);
   await commitObjectPlacement(page, x, y);
   await showProperties(page);
 }

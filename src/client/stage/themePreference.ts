@@ -1,7 +1,8 @@
 import { DEFAULT_LIGHT_THEME_ID, isLightThemeId, type LightThemeId } from './lightThemes.js';
+import { scopedStorageKey } from '../local/storageScope.js';
 
 /** Where the Raumsicht keeps the chosen "Umgebung". */
-export const THEME_STORAGE_KEY = 'stage-planner.raumsicht.theme';
+export const THEME_STORAGE_KEY = scopedStorageKey('stage-planner.raumsicht.theme');
 /** Where Pascal's viewer persisted it (zustand persist: `{ state: { sceneTheme } }`). Read-only. */
 export const LEGACY_THEME_STORAGE_KEY = 'viewer-preferences';
 

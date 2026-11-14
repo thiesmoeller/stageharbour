@@ -645,6 +645,18 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
 .compact-editor-heading .scene-menu > summary { display: flex; align-items: center; gap: 8px; overflow: hidden; }
 .compact-editor-heading .scene-menu h2 { font-size: 13px; flex-shrink: 0; max-width: 200px; }
 .scene-context { color: var(--ui-muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
+.compact-editor-heading .scene-title { display: flex; align-items: baseline; gap: 8px; flex: 1 1 80px; min-width: 60px; overflow: hidden; white-space: nowrap; }
+.compact-editor-heading .scene-title h2 { margin: 0; font-size: 13px; line-height: 1.4; max-width: 260px; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
+.scene-editor .tool-rail .wall-tool { flex: 0 0 auto; }
+.scene-editor .tool-rail .wall-tool-primary { flex: 1 1 auto; width: 100%; min-width: 0; margin: 0; padding-bottom: 4px; border-bottom: 1px solid transparent; border-radius: 5px; }
+/* The list of further sizes hangs on the button's edge, like the corner mark of a tool group. */
+.scene-editor .tool-rail .wall-tool-menu { position: absolute; top: 0; right: 0; bottom: 0; flex: none; width: 16px; min-width: 16px; min-height: 0; padding: 0; border: 0; border-radius: 0 5px 5px 0; color: var(--ui-muted); background: transparent; }
+.scene-editor .tool-rail .wall-tool-menu:hover { background: #d9e8e4; color: #286a62; }
+.scene-editor .tool-rail button[aria-pressed=true] { background: #eaf2f0; color: #286a62; border-color: #c6dad4; }
+.tool-menu-backdrop { position: fixed; inset: 0; z-index: 999; }
+.tool-menu .wall-type-choices { max-height: min(60vh, 420px); overflow-y: auto; }
+.workspace-statusbar .lease-status { white-space: nowrap; }
+.plan-canvas > svg.placing-cursor { cursor: crosshair; }
 .compact-editor-heading .save-status { font-size: 11px; margin: 0; max-width: 190px; }
 .compact-editor-heading .document-history { flex-wrap: nowrap; flex-shrink: 0; }
 .compact-editor-heading .workspace-viewbar { flex-wrap: nowrap; flex-shrink: 0; width: auto; }

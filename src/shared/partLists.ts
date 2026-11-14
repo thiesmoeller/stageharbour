@@ -2,6 +2,8 @@ import { z } from 'zod';
 import type { ResolvedLayoutObject } from './layoutObjects.js';
 import type { PartDefinition, PartMaterial, PartRef, StockMode } from './parts/definition.js';
 import { STOCK_MODES } from './parts/definition.js';
+import { STARTER_PART_IDS } from './parts/starter/index.js';
+import { layoutStageDeckModules, stageDeckCatalogKey } from './stageDeck.js';
 
 /**
  * Parts list, cut list, weight and stock demand of resolved Bühnenbild objects. One Bühnenbild
@@ -153,6 +155,23 @@ export function stockVariantOf(item: Pick<ResolvedLayoutObject, 'object' | 'reso
   return item.object.variant ?? item.resolved.variant ?? null;
 }
 
+/**
+ * Catalog pieces inside one Bühnenelement podium. A single module that already matches the
+ * variant stays on the normal object path. A larger outline (or Altbestand of another size)
+ * is still one object, and demand counts the tiled 2×1 / 2×0,5 / 1×1 / 1×0,5 pieces.
+ */
+function deckDemandVariants(item: ResolvedLayoutObject): string[] | undefined {
+  if (item.object.part.id !== STARTER_PART_IDS.deck) return undefined;
+  const width = item.resolved.derived.W;
+  const depth = item.resolved.derived.D;
+  if (typeof width !== 'number' || typeof depth !== 'number' || width <= 0 || depth <= 0) return undefined;
+  const keys = layoutStageDeckModules(width, depth, 0).map(module => stageDeckCatalogKey(module.width, module.depth));
+  if (keys.some(key => key === undefined)) return undefined;
+  const catalog = keys as string[];
+  if (catalog.length === 1 && catalog[0] === stockVariantOf(item)) return undefined;
+  return catalog;
+}
+
 /** Whether a physical piece can stand in for a placed object: same part, same variant, same own values. */
 export function stockItemFits(
   stock: Pick<InventoryItem, 'partId' | 'variantKey' | 'values'>,
@@ -214,6 +233,16 @@ function partRows(objects: readonly ResolvedLayoutObject[], context: ListContext
     rows.set(key, row);
   };
   for (const item of objects) {
+    const modules = deckDemandVariants(item);
+    if (modules) {
+      for (const variant of modules) {
+        add(item.object.part.id, item.object.part, item.resolved.name, variant, item.resolved.stock, 1, 0);
+      }
+      for (const child of item.resolved.partCounts) {
+        add(child.part.id, child.part, child.name, child.variant ?? null, child.stock, 0, child.count * modules.length);
+      }
+      continue;
+    }
     add(item.object.part.id, item.object.part, item.resolved.name, stockVariantOf(item), item.resolved.stock, 1, 0);
     for (const child of item.resolved.partCounts) {
       add(child.part.id, child.part, child.name, child.variant ?? null, child.stock, 0, child.count);
@@ -312,6 +341,16 @@ function demandRows(objects: readonly ResolvedLayoutObject[], context: ListConte
   };
   for (const item of objects) {
     const mode = item.resolved.stock;
+    const modules = deckDemandVariants(item);
+    if (modules) {
+      if (mode !== 'none') {
+        for (const variant of modules) add(mode, item.object.part, item.resolved.name, variant, 1, 0);
+      }
+      for (const child of item.resolved.partCounts) {
+        if (child.stock !== 'none') add(child.stock, child.part, child.name, child.variant ?? null, child.count * modules.length, 0);
+      }
+      continue;
+    }
     if (mode !== 'none') add(mode, item.object.part, item.resolved.name, stockVariantOf(item), 1, item.object.stockItemId ? 1 : 0);
     for (const child of item.resolved.partCounts) {
       if (child.stock !== 'none') add(child.stock, child.part, child.name, child.variant ?? null, child.count, 0);

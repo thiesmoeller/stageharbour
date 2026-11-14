@@ -5,7 +5,7 @@ import { applyObjectFinishes, transformSelection } from '../src/shared/editing.j
 import { formGroup, groupPivot } from '../src/shared/groups.js';
 import { emptyLayout, layoutSchema, type Layout, type LayoutObject } from '../src/shared/layout.js';
 import { layoutV1ToV2, layoutV1Schema, migrateLayout } from '../src/shared/layoutMigrate.js';
-import { createLayoutPartIndex, resolveLayoutObjectDetails } from '../src/shared/layoutObjects.js';
+import { createLayoutPartIndex, layoutSupportOptions, resolveLayoutObjectDetails } from '../src/shared/layoutObjects.js';
 import { resolvedObjectOverlapWarnings } from '../src/shared/overlap.js';
 import { STARTER_LIBRARY, STARTER_PART_IDS } from '../src/shared/parts/starter/index.js';
 import { membersInBounds } from '../src/shared/selection.js';
@@ -262,4 +262,88 @@ test('resolved footprints drive marquee, overlap and connector snapping', () => 
 
 test('emptyLayout is the only writable empty scene shape', () => {
   assert.deepEqual(emptyLayout(), { schemaVersion: 2, objects: [], joints: [] });
+});
+
+const podiumId = '10000000-0000-4000-8000-0000000000a1';
+const deckId = '10000000-0000-4000-8000-0000000000a2';
+const upperDeckId = '10000000-0000-4000-8000-0000000000a3';
+
+function bareWall(id: string, x: number, y: number): LayoutObject {
+  const { support: _support, ...wall } = wallObject(id, x, y);
+  return wall;
+}
+
+test('an object without an explicit support jumps onto the venue podium or scene deck under it', () => {
+  const venue = {
+    width: 12000,
+    depth: 8000,
+    platforms: [{
+      id: podiumId,
+      label: 'Podium',
+      elevation: 250,
+      outline: [{ x: 0, y: 0 }, { x: 2000, y: 0 }, { x: 2000, y: 2000 }, { x: 0, y: 2000 }],
+    }],
+  };
+  const deck: LayoutObject = {
+    id: deckId,
+    label: 'Bühnenelement',
+    part: { id: STARTER_PART_IDS.deck, revision: 1 },
+    variant: '2x1',
+    values: { H: 600 },
+    x: 5000,
+    y: 3000,
+    rotation: 0,
+  };
+  const onPodium = bareWall('10000000-0000-4000-8000-0000000000b1', 1000, 1000);
+  const onDeck = bareWall('10000000-0000-4000-8000-0000000000b2', 5000, 3000);
+  const onFloor = bareWall('10000000-0000-4000-8000-0000000000b3', 9000, 1000);
+  const pinned: LayoutObject = { ...onPodium, id: '10000000-0000-4000-8000-0000000000b4', support: ids.floor };
+  const layout: Layout = { schemaVersion: 2, objects: [deck, onPodium, onDeck, onFloor, pinned], joints: [] };
+  const details = resolveLayoutObjectDetails(layout, index, layoutSupportOptions(venue));
+  assert.deepEqual(details.issues, []);
+  assert.equal(details.byId.get(onPodium.id)?.elevation, 250);
+  const deckSurface = details.byId.get(deckId)?.surfaces[0]?.elevation ?? 0;
+  assert.ok(deckSurface >= 600, `deck top ${deckSurface} should be the walking surface`);
+  assert.equal(details.byId.get(onDeck.id)?.elevation, deckSurface);
+  assert.equal(details.byId.get(onFloor.id)?.elevation, 0);
+  assert.equal(details.byId.get(pinned.id)?.elevation, 0);
+});
+
+test('a wall on a deck that stands on a venue podium uses the stacked height', () => {
+  const venue = {
+    width: 8000,
+    depth: 6000,
+    platforms: [{
+      id: podiumId,
+      label: 'Podium',
+      elevation: 250,
+      outline: [{ x: 0, y: 0 }, { x: 4000, y: 0 }, { x: 4000, y: 4000 }, { x: 0, y: 4000 }],
+    }],
+  };
+  const deck: LayoutObject = {
+    id: deckId,
+    label: 'Bühnenelement',
+    part: { id: STARTER_PART_IDS.solidPlatform, revision: 1 },
+    values: { B: 2000, T: 1000, H: 400 },
+    x: 2000,
+    y: 2000,
+    rotation: 0,
+    support: podiumId,
+  };
+  const upper: LayoutObject = {
+    id: upperDeckId,
+    label: 'Oberpodest',
+    part: { id: STARTER_PART_IDS.solidPlatform, revision: 1 },
+    values: { B: 1000, T: 1000, H: 200 },
+    x: 2000,
+    y: 2000,
+    rotation: 0,
+  };
+  const wall = bareWall(ids.wallA, 2000, 2000);
+  const layout: Layout = { schemaVersion: 2, objects: [deck, upper, wall], joints: [] };
+  const details = resolveLayoutObjectDetails(layout, index, layoutSupportOptions(venue));
+  assert.deepEqual(details.issues, []);
+  assert.equal(details.byId.get(deckId)?.elevation, 250);
+  assert.equal(details.byId.get(upperDeckId)?.elevation, 650);
+  assert.equal(details.byId.get(ids.wallA)?.elevation, 850);
 });

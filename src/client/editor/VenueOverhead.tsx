@@ -117,8 +117,16 @@ export function CurtainMarks({ curtains, selectedIds = [], drawing, display = de
         display.showDimensions ? `${curtain.height} mm` : undefined,
         display.showObjectNames && curtain.openPercent > 0 ? `offen ${Math.round(curtain.openPercent)}%` : undefined,
       ].filter(Boolean).join(' · ');
+      const angle = (curtain.rotation ?? 0) * Math.PI / 180;
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+      const half = curtain.length / 2;
       return <g key={curtain.id} data-print-layer="curtains" data-print-name={curtain.label} data-testid={`curtain-${curtain.id}`} className={onPointerDown ? 'draggable-wall' : undefined}
         onPointerDown={onPointerDown ? event => onPointerDown(event, curtain.id) : undefined}>
+        {onPointerDown && <line
+          x1={curtain.x - half * cos} y1={-(curtain.y - half * sin)}
+          x2={curtain.x + half * cos} y2={-(curtain.y + half * sin)}
+          stroke="transparent" strokeWidth="80" vectorEffect="non-scaling-stroke" pointerEvents="stroke" />}
         {waves.map((points, index) =>
           <path key={index} d={points.map((point, i) => `${i ? 'L' : 'M'}${point.x} ${-point.y}`).join(' ')}
             fill="none" stroke={chosen ? '#b67c35' : '#2a2a2a'} strokeWidth={chosen ? 3.5 : 2.5}

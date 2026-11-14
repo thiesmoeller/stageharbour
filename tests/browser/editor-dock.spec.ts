@@ -87,7 +87,6 @@ test('lighting and display settings never reduce 3D canvas height', async ({ pag
   await expect(stage).toHaveAttribute('data-quality', 'enhanced');
   await expect(page.locator('.lighting-panel')).toBeHidden();
   await expectCanvasFillsViewport();
-  await menu(page, 'Ansicht').click();
   await page.getByRole('button', { name: 'Geteilt', exact: true }).click();
   await expectCanvasFillsViewport();
   await page.getByRole('button', { name: 'Licht', exact: true }).click();

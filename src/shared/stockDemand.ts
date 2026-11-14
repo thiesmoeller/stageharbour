@@ -1,8 +1,7 @@
 import { z } from 'zod';
 import { assemblyOrder } from './assembly.js';
-import { venueSupportElevations } from './frozenParts.js';
 import type { Layout, VenueGeometry } from './layout.js';
-import { resolveLayoutObjectDetails, type LayoutPartIndex } from './layoutObjects.js';
+import { layoutSupportOptions, resolveLayoutObjectDetails, type LayoutPartIndex } from './layoutObjects.js';
 import { buildListsSchema, combineLists, sceneLists, type BuildLists, type StockInventory } from './partLists.js';
 
 /** A saved Bühnenbild as the stock-demand endpoints read it. */
@@ -18,7 +17,7 @@ export const productionStockDemandSchema = z.strictObject({
 export type ProductionStockDemand = z.infer<typeof productionStockDemandSchema>;
 
 function liveSceneLists(scene: DemandScene, index: LayoutPartIndex, stock: StockInventory): BuildLists {
-  const details = resolveLayoutObjectDetails(scene.layout, index, { supportElevations: venueSupportElevations(scene.venue) });
+  const details = resolveLayoutObjectDetails(scene.layout, index, layoutSupportOptions(scene.venue));
   return sceneLists({
     objects: details.objects, context: index.context, stock, scene: { id: scene.id, name: scene.name },
     assemblyNumbers: assemblyOrder(scene.layout.joints, details.objects).numbers,

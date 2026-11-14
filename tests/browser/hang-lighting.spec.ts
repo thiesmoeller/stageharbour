@@ -76,6 +76,10 @@ test('Traversen hang points, Scheinwerfer assign, and display toggles', async ({
   await page.locator('.light-board-on').first().click();
   await expect(page.getByTestId('fixture-desk')).toBeVisible();
   await expect(page.getByRole('region', { name: 'Licht', exact: true }).getByTestId('fixture-desk')).toBeVisible();
+  const topFlap = page.getByRole('slider', { name: 'F1 Flügelblende Oben' });
+  await expect(topFlap).toHaveValue('0');
+  await topFlap.fill('70');
+  await expect(topFlap).toHaveValue('70');
   const typeSelect = page.getByLabel('F1 Gerätetyp');
   await expect(typeSelect).toBeVisible();
   await typeSelect.selectOption('flood');

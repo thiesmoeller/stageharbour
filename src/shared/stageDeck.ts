@@ -2,11 +2,19 @@ import { axisAlignedPlatformOutline, orientedPlatformBox, type Platform } from '
 
 /** Catalog sizes from common BE-1 / GT Stage Deck Bühnenelemente (mm). */
 export const STAGE_DECK_MODULES_MM = [
-  { width: 2000, depth: 1000, label: '2 × 1 m' },
-  { width: 2000, depth: 500, label: '2 × 0,5 m' },
-  { width: 1000, depth: 1000, label: '1 × 1 m' },
-  { width: 1000, depth: 500, label: '1 × 0,5 m' },
+  { width: 2000, depth: 1000, label: '2 × 1 m', key: '2x1' },
+  { width: 2000, depth: 500, label: '2 × 0,5 m', key: '2x05' },
+  { width: 1000, depth: 1000, label: '1 × 1 m', key: '1x1' },
+  { width: 1000, depth: 500, label: '1 × 0,5 m', key: '1x05' },
 ] as const;
+
+/** Stock variant of a catalog module. Either orientation maps to the same piece. */
+export function stageDeckCatalogKey(width: number, depth: number): string | undefined {
+  const w = Math.round(width);
+  const d = Math.round(depth);
+  return STAGE_DECK_MODULES_MM.find(module =>
+    (module.width === w && module.depth === d) || (module.width === d && module.depth === w))?.key;
+}
 
 /** Typical adjustable leg / spindle heights for stage decks (mm). */
 export const STAGE_DECK_LEG_HEIGHTS_MM = [200, 400, 600, 800, 1000, 1200] as const;

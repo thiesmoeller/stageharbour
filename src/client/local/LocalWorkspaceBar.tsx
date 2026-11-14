@@ -3,8 +3,9 @@ import { askConfirm } from '../ConfirmDialog.js';
 import { getLocalStore } from './boot.js';
 import { loadWorkspaceFromDisk, saveWorkspaceToDisk } from './fileBackup.js';
 import { localCapabilities } from './mode.js';
+import { scopedStorageKey } from './storageScope.js';
 
-const BANNER_KEY = 'stageharbour-local-banner-dismissed';
+const BANNER_KEY = scopedStorageKey('stageharbour-local-banner-dismissed');
 
 function bannerDismissed(): boolean {
   try {

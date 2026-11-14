@@ -226,11 +226,150 @@ export function newLightLook(id: string, name = 'Look 1'): LightLook {
   return { id, name, fixtures: {} };
 }
 
-/** Effective beam angle after average barn-door closure (simple preview approximation). */
+/**
+ * Legacy circular stand-in: average flap closure shrinks one cone.
+ * The preview crops with {@link barnDoorCookieMask} instead, so each flap cuts its own edge.
+ */
 export function clippedBeamDegrees(beam: number, flaps?: BarnDoorFlaps): number {
   if (!flaps) return beam;
   const closure = (flaps.top + flaps.bottom + flaps.stageLeft + flaps.stageRight) / 4 / 90;
   return Math.max(8, beam * (1 - closure * 0.85));
+}
+
+/** Width of the soft barn-door edge, in units of the unclipped beam radius (1 = cone edge). */
+const BARN_DOOR_EDGE_SOFTNESS = 0.08;
+
+function smoothstep(edge0: number, edge1: number, value: number): number {
+  const span = edge1 - edge0;
+  if (span === 0) return value >= edge1 ? 1 : 0;
+  const t = Math.min(1, Math.max(0, (value - edge0) / span));
+  return t * t * (3 - 2 * t);
+}
+
+/**
+ * Barn-door window in the beam cross-section, −1…+1.
+ * −x is stage left, −y is the top flap (upstage when the fixture looks toward the audience).
+ * 0° leaves that edge on the cone; 90° brings it to the axis.
+ */
+export function barnDoorWindow(flaps: BarnDoorFlaps) {
+  return {
+    stageLeft: -1 + flaps.stageLeft / 90,
+    stageRight: 1 - flaps.stageRight / 90,
+    top: -1 + flaps.top / 90,
+    bottom: 1 - flaps.bottom / 90,
+  };
+}
+
+/** 0 = dark, 1 = full beam. Disk of the unclipped cone, cut by a soft rectangle. */
+export function barnDoorCoverage(nx: number, ny: number, flaps: BarnDoorFlaps = openBarnDoors): number {
+  const window = barnDoorWindow(flaps);
+  const soft = BARN_DOOR_EDGE_SOFTNESS;
+  const horizontal = Math.min(
+    smoothstep(window.stageLeft - soft, window.stageLeft + soft, nx),
+    smoothstep(window.stageRight + soft, window.stageRight - soft, nx),
+  );
+  const vertical = Math.min(
+    smoothstep(window.top - soft, window.top + soft, ny),
+    smoothstep(window.bottom + soft, window.bottom - soft, ny),
+  );
+  const disk = smoothstep(1 + soft, 1 - soft, Math.hypot(nx, ny));
+  return Math.min(disk, horizontal, vertical);
+}
+
+/**
+ * Greyscale SpotLight cookie. Row 0 is the top flap; column 0 is stage left.
+ * Corners stay dark (the cone is a disk). 255 is lit.
+ */
+export function barnDoorCookieMask(flaps: BarnDoorFlaps = openBarnDoors, size = 64): { size: number; pixels: Uint8ClampedArray } {
+  const pixels = new Uint8ClampedArray(size * size);
+  for (let row = 0; row < size; row++) {
+    const ny = ((row + 0.5) / size) * 2 - 1;
+    for (let col = 0; col < size; col++) {
+      const nx = ((col + 0.5) / size) * 2 - 1;
+      pixels[row * size + col] = Math.round(barnDoorCoverage(nx, ny, flaps) * 255);
+    }
+  }
+  return { size, pixels };
+}
+
+/** Cookie for a hung fixture. Unmounted barn doors leave the circular cone unmasked. */
+export function barnDoorSpotCookie(attached: boolean, flaps?: BarnDoorFlaps, size = 64) {
+  if (!attached) return null;
+  return barnDoorCookieMask(flaps ?? openBarnDoors, size);
+}
+
+type BeamPoint = { x: number; y: number };
+
+function clipBeamPolygon(
+  polygon: BeamPoint[],
+  inside: (point: BeamPoint) => boolean,
+  edge: (a: BeamPoint, b: BeamPoint) => BeamPoint,
+): BeamPoint[] {
+  if (!polygon.length) return [];
+  const next: BeamPoint[] = [];
+  let previous = polygon[polygon.length - 1]!;
+  let previousInside = inside(previous);
+  for (const current of polygon) {
+    const currentInside = inside(current);
+    if (currentInside !== previousInside) next.push(edge(previous, current));
+    if (currentInside) next.push(current);
+    previous = current;
+    previousInside = currentInside;
+  }
+  return next;
+}
+
+/**
+ * Floor hit of the barn-door crop (plan millimetres). Same window as the cookie:
+ * top cuts upstage of the aim, stage left cuts −X when the beam points at the audience.
+ * Omitted flaps leave the unclipped disk. Null when the beam misses the floor.
+ */
+export function barnDoorFloorOutline(
+  hang: { x: number; y: number; z: number },
+  aim: { x: number; y: number; z: number },
+  beamDeg = 40,
+  flaps?: BarnDoorFlaps,
+  segments = 64,
+): { x: number; z: number }[] | null {
+  const pool = fixtureFloorPool(hang, aim, beamDeg);
+  if (!pool) return null;
+  const window = barnDoorWindow(flaps ?? openBarnDoors);
+  let polygon: BeamPoint[] = [];
+  for (let i = 0; i < segments; i++) {
+    const angle = (i / segments) * Math.PI * 2;
+    polygon.push({ x: Math.cos(angle), y: Math.sin(angle) });
+  }
+  const slack = 1e-5;
+  const cuts: { axis: 'x' | 'y'; limit: number; inside: (point: BeamPoint) => boolean }[] = [
+    { axis: 'x', limit: window.stageLeft, inside: point => point.x >= window.stageLeft - slack },
+    { axis: 'x', limit: window.stageRight, inside: point => point.x <= window.stageRight + slack },
+    { axis: 'y', limit: window.top, inside: point => point.y >= window.top - slack },
+    { axis: 'y', limit: window.bottom, inside: point => point.y <= window.bottom + slack },
+  ];
+  for (const cut of cuts) {
+    polygon = clipBeamPolygon(polygon, cut.inside, (a, b) => {
+      const delta = b[cut.axis] - a[cut.axis];
+      const t = delta === 0 ? 0 : (cut.limit - a[cut.axis]) / delta;
+      return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+    });
+  }
+  if (polygon.length < 3) return null;
+  let forwardX = aim.x - hang.x;
+  let forwardZ = aim.z - hang.z;
+  const horizontal = Math.hypot(forwardX, forwardZ);
+  if (horizontal < 1) {
+    forwardX = 0;
+    forwardZ = -1;
+  } else {
+    forwardX /= horizontal;
+    forwardZ /= horizontal;
+  }
+  const rightX = -forwardZ;
+  const rightZ = forwardX;
+  return polygon.map(point => ({
+    x: pool.x + (point.x * rightX + point.y * forwardX) * pool.radius,
+    z: pool.z + (point.x * rightZ + point.y * forwardZ) * pool.radius,
+  }));
 }
 
 /**

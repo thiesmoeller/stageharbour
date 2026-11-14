@@ -3,7 +3,7 @@ import { BufferGeometry, DoubleSide, Line, LineBasicMaterial, Shape, ShapeGeomet
 import type { StageElementContent } from './stageElements.js';
 import { StageCurtains } from './StageCurtains.js';
 import { LightingFixtureMesh, fixtureHangPose } from './StageOverhead.js';
-import type { HangPlan } from '../../shared/hangPlan.js';
+import { openBarnDoors, type HangPlan } from '../../shared/hangPlan.js';
 import type { FixtureBoardOutput } from '../../shared/lightBoard.js';
 
 /** A thin guide line on the floor. */
@@ -74,7 +74,9 @@ export function StageConstraint({ element, elevation = 0, hangPlan, fixtureLevel
           aimX={pose.aim.x} aimY={pose.aim.y} aimZ={pose.aim.z}
           selected={fixture.id === selectedFixtureId}
           intensity={level.intensity} color={level.color} beamDeg={beamDeg}
-          showPool={false}
+          barnDoors={fixture.barnDoorsAttached ? fixture.focus?.barnDoors ?? openBarnDoors : undefined}
+          // Intensity stays 0 until the Lichtpult is open, so the pool stays hidden until then.
+          showPool
           onSelect={onFixtureSelect} />;
       })}
     </>;

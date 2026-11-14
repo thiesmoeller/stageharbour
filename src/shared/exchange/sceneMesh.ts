@@ -259,6 +259,7 @@ export function buildSceneMesh(input: SceneMeshInput): SceneMesh {
 
   const resolution = resolveLayoutObjectDetails(layout, catalog, {
     supportElevations: new Map(surfaces.map(surface => [surface.id, surface.elevation])),
+    automaticSupports: surfaces,
   });
   mesh.issues = resolution.issues;
   const resolved = new Set(resolution.objects.map(item => item.object.id));
