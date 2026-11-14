@@ -1,33 +1,27 @@
-import type { ReactNode } from 'react';
-import { PLAN_SYMBOLS, STOCK_MODES, type PartChild, type PartDefinition, type PartMaterial } from '../../shared/parts/definition.js';
-import type { PartIssue } from '../../shared/parts/issues.js';
+import { useId, type ReactNode } from 'react';
+import type { PartChild, PartDefinition, PartMaterial } from '../../shared/parts/definition.js';
+import type { Handle } from '../../shared/parts/handles.js';
+import { hasErrors, type PartIssue } from '../../shared/parts/issues.js';
 import type { PartSummary } from '../../shared/parts/catalog.js';
 import type { ResolvedPart } from '../../shared/parts/resolve.js';
+import { AttributesPanel } from './AttributesPanel.js';
+import { BodyList } from './BodyList.js';
 import { CutListPanel, IssueList } from './CutListPanel.js';
-import { CoreMeasures } from './CoreMeasures.js';
-import { ElementEditor, TraitsEditor, type EditorIssue } from './ElementEditor.js';
-import { FormulaField, IssueLines } from './FormulaField.js';
-import { OpeningInspector } from './OpeningInspector.js';
-import { ParameterTable } from './ParameterTable.js';
-import { VariantTable } from './VariantTable.js';
-import { moveItem, newDerived, removeAt, replaceAt, selectionOfIssue, type DesignerSelection } from './draft.js';
-import { previewScope } from './formulaPreview.js';
+import { OptionsPanel } from './OptionsPanel.js';
+import { selectionOfIssue, type DesignerSelection } from './draft.js';
 
-const STOCK_LABELS: Record<(typeof STOCK_MODES)[number], string> = {
-  item: 'Einzelstücke mit Kennzeichnung', count: 'Gezählter Bestand', none: 'Nicht im Bestand',
-};
-const PLAN_SYMBOL_LABELS: Record<(typeof PLAN_SYMBOLS)[number], string> = {
-  footprint: 'Grundfläche', solids: 'Körper von oben', stair: 'Treppe',
-};
-
-function Section({ title, children, open = true, testId }: { title: string; children: ReactNode; open?: boolean; testId?: string }) {
-  return <details className="inspector-section" open={open} data-testid={testId}>
-    <summary>{title}</summary>
-    <div className="inspector-section-body">{children}</div>
-  </details>;
-}
+export const INSPECTOR_TABS = [
+  { id: 'options', label: 'Optionen' },
+  { id: 'attributes', label: 'Attribute' },
+  { id: 'outline', label: 'Gliederung' },
+  { id: 'cutlist', label: 'Zuschnitt' },
+  { id: 'issues', label: 'Prüfung' },
+] as const;
+export type InspectorTab = (typeof INSPECTOR_TABS)[number]['id'];
 
 export type PartEditorProps = {
+  tab: InspectorTab;
+  onTab: (tab: InspectorTab) => void;
   definition: PartDefinition;
   onChange: (definition: PartDefinition, select?: DesignerSelection) => void;
   resolved: ResolvedPart | undefined;
@@ -39,130 +33,67 @@ export type PartEditorProps = {
   library: readonly PartSummary[];
   childDefinition: (child: PartChild) => PartDefinition | undefined;
   onUpgradeChild: (key: string, partId: string) => void;
+  onAddChild: (partId: string) => void;
   previewVariant: string | undefined;
   onPreviewVariant: (variant: string) => void;
   previewValues: Readonly<Record<string, number>>;
   onPreviewValue: (key: string, value: number | undefined) => void;
   favourite: boolean | undefined;
   onFavourite: ((favourite: boolean) => void) | undefined;
-  /** Sheet body key when the face sketcher is active. */
-  sketchBodyKey?: string;
-  /** Hole selected on the face sketcher. */
-  openingKey?: string;
+  promote: Handle | undefined;
+  onPromote: (handle: Handle) => void;
+  onPromoteField: (selection: DesignerSelection, path: (string | number)[], label: string) => void;
+  onDismissPromote: () => void;
+  /** Grouping actions for the Gliederung tab. */
+  grouping: ReactNode;
 };
 
-/** Right-hand inspector: essentials first; formulas and full parameter chrome under Erweitert. */
+/**
+ * Right-hand tabs. Inactive panels stay mounted and hidden, so their fields keep their text and
+ * the cut list and issues stay readable for checks.
+ */
 export function PartEditor(props: PartEditorProps) {
-  const { definition, onChange, resolved, issues, materials, disabled, selection, onSelect } = props;
-  const editorIssues = issues as readonly EditorIssue[];
-  const derived = definition.derived ?? [];
-  const metaIssues = (field: string) => issues.filter(item => item.field === field && !item.parameter && !item.body && !item.child);
-  const sketching = !!props.sketchBodyKey;
-  const showOpening = sketching && !!props.openingKey;
-
+  const { tab, onTab, definition, onChange, resolved, issues, materials, disabled, selection, onSelect } = props;
+  const id = useId();
+  const errorCount = issues.filter(item => item.severity === 'error').length;
+  const panel = (name: InspectorTab, children: ReactNode, testId?: string) =>
+    <div role="tabpanel" id={`${id}-${name}`} aria-labelledby={`${id}-${name}-tab`} hidden={tab !== name} className="inspector-panel" data-testid={testId}>
+      {children}
+    </div>;
   return <div className="designer-inspector" data-testid="designer-inspector">
-    <Section title="Bauteil">
-      <label className="designer-field">Name
-        <input value={definition.name} disabled={disabled} data-testid="part-name" onChange={event => onChange({ ...definition, name: event.target.value })} />
-      </label>
-      <IssueLines issues={metaIssues('name')} />
-      <label className="designer-field">Kategorie
-        <input value={definition.category} disabled={disabled} data-testid="part-category" onChange={event => onChange({ ...definition, category: event.target.value })} />
-      </label>
-      <IssueLines issues={metaIssues('category')} />
-      {props.favourite !== undefined && <label className="checkbox-line">
-        <input type="checkbox" checked={props.favourite} disabled={!props.onFavourite} onChange={event => props.onFavourite?.(event.target.checked)} />Favorit
-      </label>}
-    </Section>
-
-    <Section title="Maße" testId="designer-section-measures">
-      <p className="muted">Die üblichen Größen dieses Bauteils. Öffnungen zeichnest du auf der Fläche.</p>
-      <CoreMeasures definition={definition} onChange={onChange} disabled={disabled} />
-    </Section>
-
-    {!!definition.variants?.length && <Section title="Varianten" testId="designer-section-variants">
-      <VariantTable definition={definition} onChange={onChange} issues={issues} disabled={disabled}
-        previewVariant={props.previewVariant} onPreviewVariant={props.onPreviewVariant} />
-    </Section>}
-
-    {sketching && <Section title="Öffnung" testId="designer-section-opening">
-      {showOpening && props.sketchBodyKey && props.openingKey
-        ? <OpeningInspector definition={definition} bodyKey={props.sketchBodyKey} holeKey={props.openingKey}
-          activeVariant={props.previewVariant} disabled={disabled} onChange={onChange} />
-        : <p className="muted">Öffnung auf der Fläche anklicken oder neu aufziehen.</p>}
-    </Section>}
-
-    <Section title="Auswahl" open={!sketching} testId="designer-section-selection">
-      <ElementEditor definition={definition} onChange={onChange} resolved={resolved} issues={editorIssues} materials={materials} disabled={disabled}
-        selection={selection} library={props.library} childDefinition={props.childDefinition} onUpgradeChild={props.onUpgradeChild} />
-    </Section>
-
-    <Section title="Erweitert · Parameter und Formeln" open={false} testId="designer-section-advanced">
-      <p className="muted">Schlüssel, Bereiche, abgeleitete Werte und Formeln — für den Feinschliff.</p>
-      <label className="designer-field">Beschreibung
-        <textarea rows={2} value={definition.description ?? ''} disabled={disabled} onChange={event => {
-          const { description: _old, ...rest } = definition;
-          onChange(event.target.value ? { ...rest, description: event.target.value } : rest);
-        }} />
-      </label>
-      <div className="designer-grid-2">
-        <label className="designer-field">Bestand
-          <select value={definition.traits.stock} disabled={disabled}
-            onChange={event => onChange({ ...definition, traits: { ...definition.traits, stock: event.target.value as PartDefinition['traits']['stock'] } })}>
-            {STOCK_MODES.map(mode => <option key={mode} value={mode}>{STOCK_LABELS[mode]}</option>)}
-          </select>
-        </label>
-        <label className="designer-field">Darstellung im Plan
-          <select value={definition.traits.planSymbol ?? 'footprint'} disabled={disabled} onChange={event => {
-            const { planSymbol: _old, ...traits } = definition.traits;
-            const value = event.target.value as NonNullable<PartDefinition['traits']['planSymbol']>;
-            onChange({ ...definition, traits: value === 'footprint' ? traits : { ...traits, planSymbol: value } });
-          }}>
-            {PLAN_SYMBOLS.map(symbol => <option key={symbol} value={symbol}>{PLAN_SYMBOL_LABELS[symbol]}</option>)}
-          </select>
-        </label>
-      </div>
-      <h3 className="designer-subsection-title">Alle Parameter</h3>
-      <ParameterTable definition={definition} onChange={onChange} issues={issues} disabled={disabled}
-        preview={props.previewValues} onPreview={props.onPreviewValue} resolvedValues={resolved?.values}
-        defaultTestIdPrefix="parameter-advanced" />
-      <h3 className="designer-subsection-title">Abgeleitete Werte</h3>
-      <div data-testid="designer-derived">
-        {derived.map((item, index) => {
-          const own = issues.filter(entry => entry.derived === item.key && !entry.path);
-          const set = (next: typeof item) => onChange({ ...definition, derived: replaceAt(derived, index, next) });
-          return <div key={index} className="derived-row">
-            <input aria-label={`Name des abgeleiteten Werts ${index + 1}`} className="key-input" value={item.key} disabled={disabled}
-              onChange={event => set({ ...item, key: event.target.value })} />
-            <FormulaField compact label="=" value={item.formula} disabled={disabled} testId={`derived-${item.key}`}
-              scope={previewScope(resolved)} issues={own} onChange={formula => set({ ...item, formula })} />
-            <span className="element-actions">
-              <button type="button" className="quiet icon-button" disabled={disabled || index === 0} aria-label={`${item.key} nach oben`}
-                onClick={() => onChange({ ...definition, derived: moveItem(derived, index, -1) })}>↑</button>
-              <button type="button" className="quiet icon-button" disabled={disabled} aria-label={`${item.key} entfernen`}
-                onClick={() => {
-                  const next = removeAt(derived, index);
-                  const { derived: _old, ...rest } = definition;
-                  onChange(next.length ? { ...rest, derived: next } : rest);
-                }}>×</button>
-            </span>
-          </div>;
-        })}
-        <button type="button" className="quiet" disabled={disabled}
-          onClick={() => onChange({ ...definition, derived: [...derived, newDerived(definition)] })}>Wert hinzufügen</button>
-      </div>
-      <h3 className="designer-subsection-title">Eigenschaften</h3>
-      <TraitsEditor definition={definition} onChange={onChange} issues={editorIssues} disabled={disabled} />
-    </Section>
-
-    <Section title="Zuschnittliste und Gewicht" open={false} testId="designer-section-cutlist">
-      <CutListPanel resolved={resolved} materials={materials} />
-    </Section>
-    <Section title="Prüfung" testId="designer-section-issues">
+    <div role="tablist" aria-label="Bauteil bearbeiten" className="inspector-tabs">
+      {INSPECTOR_TABS.map(item => <button key={item.id} type="button" role="tab" id={`${id}-${item.id}-tab`} aria-controls={`${id}-${item.id}`}
+        aria-selected={tab === item.id} tabIndex={tab === item.id ? 0 : -1} data-testid={`designer-tab-${item.id}`}
+        className={tab === item.id ? 'inspector-tab active' : 'inspector-tab'} onClick={() => onTab(item.id)}
+        onKeyDown={event => {
+          const index = INSPECTOR_TABS.findIndex(entry => entry.id === tab);
+          const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+          if (!step) return;
+          event.preventDefault();
+          onTab(INSPECTOR_TABS[(index + step + INSPECTOR_TABS.length) % INSPECTOR_TABS.length]!.id);
+        }}>
+        {item.label}{item.id === 'issues' && errorCount > 0 && <span className="tab-badge" aria-label={`${errorCount} Fehler`}>{errorCount}</span>}
+      </button>)}
+    </div>
+    {panel('options', <OptionsPanel definition={definition} onChange={onChange} issues={issues} disabled={disabled}
+      previewVariant={props.previewVariant} onPreviewVariant={props.onPreviewVariant} favourite={props.favourite} onFavourite={props.onFavourite} />,
+    'designer-section-measures')}
+    {panel('attributes', <AttributesPanel definition={definition} onChange={onChange} resolved={resolved} issues={issues} materials={materials}
+      disabled={disabled} selection={selection} library={props.library} childDefinition={props.childDefinition} onUpgradeChild={props.onUpgradeChild}
+      previewValues={props.previewValues} onPreviewValue={props.onPreviewValue}
+      promote={props.promote} onPromote={props.onPromote} onPromoteField={props.onPromoteField} onDismissPromote={props.onDismissPromote} />)}
+    {panel('outline', <>
+      {props.grouping}
+      <BodyList definition={definition} onChange={onChange} selection={selection} onSelect={onSelect} materials={materials}
+        library={props.library} onAddChild={props.onAddChild} disabled={disabled} />
+    </>, 'designer-section-outline')}
+    {panel('cutlist', <CutListPanel resolved={resolved} materials={materials} />, 'designer-section-cutlist')}
+    {panel('issues', <>
+      {!hasErrors(issues) && !issues.length && <p className="muted">Keine Hinweise.</p>}
       <IssueList issues={issues} onSelect={index => {
         const target = issues[index] && selectionOfIssue(issues[index], definition);
         if (target) onSelect(target);
       }} />
-    </Section>
+    </>, 'designer-section-issues')}
   </div>;
 }

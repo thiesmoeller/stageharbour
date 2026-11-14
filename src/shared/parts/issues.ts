@@ -9,7 +9,7 @@ export type PartIssueCode =
   | 'unknown-material' | 'material-kind' | 'body-too-small' | 'out-of-range' | 'outline-invalid'
   | 'hole-outside' | 'hole-overlap' | 'hole-splits-sheet' | 'hole-covers-sheet' | 'hole-unsupported'
   | 'repeat-count' | 'too-many-solids' | 'unknown-part' | 'child-cycle' | 'child-depth'
-  | 'surface-not-horizontal' | 'connector-axis' | 'hardware-quantity';
+  | 'surface-not-horizontal' | 'connector-axis' | 'hardware-quantity' | 'display-only-untied';
 
 /**
  * One finding about a definition or about the data it was resolved with. `message` is German

@@ -5,6 +5,7 @@ import type { ResolvedPart } from '../../shared/parts/resolve.js';
 const kg = (value: number) => `${formatNumber(Math.round(value * 100) / 100)} kg`;
 const m = (millimetres: number) => `${formatNumber(Math.round(millimetres / 10) / 100)} m`;
 const m2 = (squareMillimetres: number) => `${formatNumber(Math.round(squareMillimetres / 10_000) / 100)} m²`;
+const SHAPE_LABELS = { round: 'Rundstab', tube: 'Rohr' } as const;
 
 /** Zuschnittliste, Zubehör, Unterbauteile and Gewicht of the current resolve. */
 export function CutListPanel({ resolved, materials }: { resolved: ResolvedPart | undefined; materials: readonly PartMaterial[] }) {
@@ -17,14 +18,18 @@ export function CutListPanel({ resolved, materials }: { resolved: ResolvedPart |
       <caption>Profile</caption>
       <thead><tr><th scope="col">Material</th><th scope="col">Länge</th><th scope="col">Stück</th><th scope="col">Gesamt</th><th scope="col">Gewicht</th></tr></thead>
       <tbody>{beams.map((row, index) => <tr key={index}>
-        <td>{name(row.material)}</td><td>{row.lengthMm} mm</td><td>{row.count}</td><td>{m(row.totalLengthMm)}</td><td>{kg(row.weightKg)}</td>
+        <td>{name(row.material)}{row.shape && <span className="muted-inline"> · {SHAPE_LABELS[row.shape]}</span>}</td>
+        <td>{row.lengthMm} mm</td><td>{row.count}</td><td>{m(row.totalLengthMm)}</td><td>{kg(row.weightKg)}</td>
       </tr>)}</tbody>
     </table>}
     {sheets.length > 0 && <table className="designer-table compact">
       <caption>Platten</caption>
       <thead><tr><th scope="col">Material</th><th scope="col">Zuschnitt</th><th scope="col">Stück</th><th scope="col">Netto</th><th scope="col">Gewicht</th></tr></thead>
       <tbody>{sheets.map((row, index) => <tr key={index}>
-        <td>{name(row.material)}</td><td>{row.widthMm} × {row.heightMm} × {formatNumber(row.thicknessMm)} mm</td><td>{row.count}</td>
+        <td>{name(row.material)}</td>
+        <td>{row.widthMm} × {row.heightMm} × {formatNumber(row.thicknessMm)} mm
+          {row.hemMm !== undefined && <span className="muted-inline" data-testid="designer-cut-hem"> · Zuschnitt {row.cutWidthMm} × {row.cutHeightMm} mm mit {row.hemMm} mm Saum</span>}</td>
+        <td>{row.count}</td>
         <td>{m2(row.areaMm2)}</td><td>{kg(row.weightKg)}</td>
       </tr>)}</tbody>
     </table>}

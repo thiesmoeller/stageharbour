@@ -121,6 +121,17 @@ _Was_: Ballast stock
 **Bühnentechnik-Designer**:
 The workspace page at `#/designer` where a group authors its Bauteile: bodies, child parts, parameters, variants, connectors and traits, with live cut list and weight.
 
+**Attribut** (attribute):
+A field of a body or child part in the Bühnentechnik-Designer that the author made dynamic by giving it a formula, such as a height that follows `H` or a copy count that follows `ballast`. Plain drawn geometry has no attributes; the Attribute panel lists only these fields.
+_Avoid_: Property (alone), Parameter (that is an Option)
+
+**Option**:
+A parameter of a Bauteil as the person placing it sees it: an input, a list of labelled values or a read-only value, grouped under the variant strip in the Optionen panel. An attribute becomes an option when the author publishes it („Als Option freigeben“).
+_Avoid_: Setting, Attribute
+
+**Nur Darstellung** (display only):
+A body that illustrates a bought piece, such as a Spanngurt drawn around Betonplatten, without counting as a piece or adding weight. The hardware line of the part keeps the count.
+
 **Stage canvas**:
 The app-owned 3D view used by the Raumsicht and the Bühnentechnik-Designer preview. It replaces the Pascal viewer.
 

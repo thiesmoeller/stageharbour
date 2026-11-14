@@ -356,7 +356,7 @@ test('a library is checked part by part against its own materials and parts', ()
   assert.equal(validateLibrary({ ...STARTER_LIBRARY, parts: STARTER_PARTS.filter(part => part.name !== 'Steckfuß') }, STARTER_CONTEXT).ok, true);
 
   const withoutLatte = validateLibrary({ ...STARTER_LIBRARY, materials: STARTER_MATERIALS.filter(material => material.key !== 'latte-40x40') });
-  assert.deepEqual([...new Set(withoutLatte.issues.map(item => item.partName))], ['Stützdreieck', 'Tisch']);
+  assert.deepEqual([...new Set(withoutLatte.issues.map(item => item.partName))], ['Stützdreieck', 'Tisch', 'Stützdreieck mit Beschwerung']);
   assert.ok(withoutLatte.issues.every(item => item.code === 'unknown-material' && item.material === 'latte-40x40'));
 
   const malformed = validateLibrary({ schemaVersion: 1, materials: [], parts: [{ ...STARTER_PARTS[0], extra: 1 }] });

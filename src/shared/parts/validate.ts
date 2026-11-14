@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import {
-  BODY_MATERIAL_KIND, MATERIAL_KIND_LABELS, PART_LIMITS,
-  createPartContext, definitionConsistencyIssues, partDefinitionShapeSchema, partLibrarySchema, partRefKey,
-  type PartContext, type PartDefinition, type PartLibrary, type PartParameter, type PartRef, type PartVariant,
+  BODY_MATERIAL_KINDS, MATERIAL_KIND_LABELS, PART_LIMITS,
+  createPartContext, definitionConsistencyIssues, inlineGroup, partDefinitionShapeSchema, partLibrarySchema, partRefKey,
+  type PartContext, type PartDefinition, type PartLibrary, type PartMaterialKind, type PartParameter, type PartRef, type PartVariant,
 } from './definition.js';
 import { formatNumber, hasErrors, issue, type PartIssue } from './issues.js';
 import { resolvePartConfiguration } from './resolve.js';
@@ -38,17 +38,17 @@ function schemaIssues(error: z.ZodError): PartIssue[] {
 
 function staticContextIssues(definition: PartDefinition, context: PartContext): PartIssue[] {
   const found: PartIssue[] = [];
-  const material = (key: string, expected: 'profile' | 'sheet' | 'hardware', subject: { body?: string; hardware?: string }) => {
+  const material = (key: string, accepted: readonly PartMaterialKind[], subject: { body?: string; hardware?: string }) => {
     const known = context.material(key);
     if (!known) {
       found.push(issue('error', 'unknown-material', { ...subject, material: key }, `Das Material „${key}“ ist nicht vorhanden.`));
-    } else if (known.kind !== expected) {
+    } else if (!accepted.includes(known.kind)) {
       found.push(issue('error', 'material-kind', { ...subject, material: key },
-        `Das Material „${known.name}“ ist ${MATERIAL_KIND_LABELS[known.kind]}, gebraucht wird ${MATERIAL_KIND_LABELS[expected]}.`));
+        `Das Material „${known.name}“ ist ${MATERIAL_KIND_LABELS[known.kind]}, gebraucht wird ${accepted.map(kind => MATERIAL_KIND_LABELS[kind]).join(' oder ')}.`));
     }
   };
-  for (const body of definition.bodies) material(body.material, BODY_MATERIAL_KIND[body.kind], { body: body.key });
-  for (const item of definition.hardware ?? []) material(item.material, 'hardware', { hardware: item.material });
+  for (const body of definition.bodies) material(body.material, BODY_MATERIAL_KINDS[body.kind], { body: body.key });
+  for (const item of definition.hardware ?? []) material(item.material, ['hardware'], { hardware: item.material });
 
   /** Levels of child parts below a definition, or the reason the tree is not usable. */
   const explored = new Map<string, number>();
@@ -57,7 +57,7 @@ function staticContextIssues(definition: PartDefinition, context: PartContext): 
     if (known !== undefined) return known;
     let deepest = 0;
     for (const child of current.children ?? []) {
-      const next = context.part(child.part);
+      const next = inlineGroup(child) ?? (child.part ? context.part(child.part) : undefined);
       if (!next) return 'missing';
       if (trail.includes(next.id)) return 'cycle';
       const below = depthBelow(next, [...trail, next.id]);
@@ -70,9 +70,11 @@ function staticContextIssues(definition: PartDefinition, context: PartContext): 
 
   for (const child of definition.children ?? []) {
     const subject = { child: child.key };
-    const target = context.part(child.part);
+    const target = inlineGroup(child) ?? (child.part ? context.part(child.part) : undefined);
     if (!target) {
-      found.push(issue('error', 'unknown-part', subject, `Das Bauteil ${child.part.id} (Revision ${child.part.revision}) ist nicht vorhanden.`));
+      found.push(issue('error', 'unknown-part', subject, child.part
+        ? `Das Bauteil ${child.part.id} (Revision ${child.part.revision}) ist nicht vorhanden.`
+        : 'Die Gruppe hat keine Definition.'));
       continue;
     }
     if (target.id === definition.id) {

@@ -1,6 +1,6 @@
 import type { CatalogIssue, PartDetail, PartRevisionInfo, PartSummary } from './catalog.js';
 import {
-  partRefKey, type PartContext, type PartDefinition, type PartMaterial, type PartRef, type StockMode,
+  inlineGroup, partRefKey, type PartContext, type PartDefinition, type PartMaterial, type PartRef, type StockMode,
 } from './definition.js';
 import { hasErrors } from './issues.js';
 import { validateDefinition } from './validate.js';
@@ -66,7 +66,14 @@ export const sortMaterials = (materials: readonly PartMaterial[]): PartMaterial[
 /** Direct child parts of a definition, each exact revision once. */
 export function childRefs(definition: PartDefinition): PartRef[] {
   const seen = new Map<string, PartRef>();
-  for (const child of definition.children ?? []) seen.set(partRefKey(child.part), { id: child.part.id, revision: child.part.revision });
+  const visit = (current: PartDefinition) => {
+    for (const child of current.children ?? []) {
+      if (child.part) seen.set(partRefKey(child.part), { id: child.part.id, revision: child.part.revision });
+      const group = inlineGroup(child);
+      if (group) visit(group);
+    }
+  };
+  visit(definition);
   return [...seen.values()];
 }
 

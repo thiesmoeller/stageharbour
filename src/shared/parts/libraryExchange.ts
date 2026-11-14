@@ -1,6 +1,6 @@
 import type { CatalogIssue, ImportReport, ImportedPart } from './catalog.js';
 import {
-  PART_SCHEMA_VERSION, createPartContext, partLibrarySchema, partRefKey,
+  PART_SCHEMA_VERSION, createPartContext, inlineGroup, partLibrarySchema, partRefKey,
   type PartContext, type PartDefinition, type PartLibrary, type PartMaterial, type PartRef,
 } from './definition.js';
 import { hasErrors } from './issues.js';
@@ -86,8 +86,11 @@ function remapChildren(definition: PartDefinition, remap: ReadonlyMap<string, Pa
   return {
     ...definition,
     children: definition.children.map(child => {
-      const target = remap.get(partRefKey(child.part));
-      return target ? { ...child, part: { id: target.id, revision: target.revision } } : child;
+      const group = inlineGroup(child);
+      const grouped = group ? { ...child, group: remapChildren(group, remap) } : child;
+      if (!grouped.part) return grouped;
+      const target = remap.get(partRefKey(grouped.part));
+      return target ? { ...grouped, part: { id: target.id, revision: target.revision } } : grouped;
     }),
   };
 }
@@ -171,7 +174,10 @@ export function planLibraryImport(args: {
       if (rejected.has(key)) continue;
       const broken = childRefs(part).map(ref => entries.get(partRefKey(ref))).find(child => child && rejected.has(partRefKey(child)));
       if (!broken) continue;
-      const child = part.children!.find(item => partRefKey(item.part) === partRefKey(broken))!;
+      const child = part.children?.find(item => item.part
+        ? partRefKey(item.part) === partRefKey(broken)
+        : !!inlineGroup(item) && childRefs(inlineGroup(item)!).some(ref => partRefKey(ref) === partRefKey(broken)));
+      if (!child) continue;
       rejected.set(key, [{
         severity: 'error', code: 'unknown-part', child: child.key, part: { id: part.id, revision: part.revision }, partName: part.name,
         message: `Bauteil „${part.name}“: Unterbauteil „${child.key}“ („${broken.name}“) wurde abgelehnt.`,

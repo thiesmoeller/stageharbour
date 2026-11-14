@@ -32,8 +32,9 @@ test('the starter library and the test fixtures are valid', () => {
   assert.deepEqual(STARTER_LIBRARY.parts.map(part => part.name), [
     'Stützdreieck', 'Steckfuß', 'Bühnenelement', 'Wandelement', 'Tisch', 'Tür',
     'Stuhl', 'Person', 'Lautsprecher', 'Kiste', 'Treppe', 'Schwebendes Podest', 'Massives Podest',
+    'Rohrrahmen mit Stoff', 'Stützdreieck mit Beschwerung',
   ]);
-  for (const key of ['latte-40x40', 'sperrholz-12', 'steckfuss-rohr-50', 'gummifuss-50', 'betonplatte-400', 'spanngurt-25']) {
+  for (const key of ['latte-40x40', 'sperrholz-12', 'steckfuss-rohr-50', 'gummifuss-50', 'betonplatte-400', 'spanngurt-25', 'alurohr-30', 'nessel-bemalt']) {
     assert.ok(STARTER_MATERIALS.some(material => material.key === key), key);
   }
   for (const fixture of [WIDE_BRACE, DOOR_LEAF, DOOR_WALL, STAIR, DECK_ROW, CHAIR, panel()]) {

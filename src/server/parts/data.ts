@@ -2,7 +2,7 @@ import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import type { PartDetail, PartRevisionInfo, PartSummary } from '../../shared/parts/catalog.js';
 import { buildPartDetail, buildPartSummary, rawChildRefs, sortPartSummaries } from '../../shared/parts/catalogPlans.js';
 import {
-  createPartContext, partRefKey, type PartContext, type PartDefinition, type PartMaterial, type PartRef,
+  createPartContext, inlineGroup, partRefKey, type PartContext, type PartDefinition, type PartMaterial, type PartRef,
 } from '../../shared/parts/definition.js';
 import type { Database } from '../db/connection.js';
 import { material, partDefinition, partRevision, user } from '../db/schema.js';
@@ -54,7 +54,11 @@ export async function loadParts(store: Store, workspaceId: string, seeds: readon
       const key = partRefKey(definition);
       if (!wanted.has(key) || found.has(key)) continue;
       found.set(key, definition);
-      for (const child of definition.children ?? []) {
+      const pending = [...(definition.children ?? [])];
+      for (const child of pending) {
+        const group = inlineGroup(child);
+        if (group) pending.push(...(group.children ?? []));
+        if (!child.part) continue;
         const childKey = partRefKey(child.part);
         if (!asked.has(childKey)) next.set(childKey, { id: child.part.id, revision: child.part.revision });
       }

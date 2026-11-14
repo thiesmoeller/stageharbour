@@ -54,6 +54,21 @@ export function quatFromEulerDegrees(x: number, y: number, z: number): Quat {
   };
 }
 
+/** Inverse of `quatFromEulerDegrees`: three.js `Euler.setFromQuaternion(q, 'XYZ')` in degrees. */
+export function eulerDegreesFromQuat(q: Quat): Vec3 {
+  const { x, y, z, w } = q;
+  const m11 = 1 - 2 * (y * y + z * z), m12 = 2 * (x * y - w * z), m13 = 2 * (x * z + w * y);
+  const m22 = 1 - 2 * (x * x + z * z), m23 = 2 * (y * z - w * x);
+  const m32 = 2 * (y * z + w * x), m33 = 1 - 2 * (x * x + y * y);
+  const ay = Math.asin(Math.max(-1, Math.min(1, m13)));
+  const gimbal = Math.abs(m13) >= 0.9999999;
+  return {
+    x: (gimbal ? Math.atan2(m32, m22) : Math.atan2(-m23, m33)) / DEG,
+    y: ay / DEG,
+    z: (gimbal ? 0 : Math.atan2(-m12, m11)) / DEG,
+  };
+}
+
 /** Quaternion of the rotation whose matrix columns are the given orthonormal axes. */
 export function quatFromBasis(xAxis: Vec3, yAxis: Vec3, zAxis: Vec3): Quat {
   const m11 = xAxis.x, m12 = yAxis.x, m13 = zAxis.x;
