@@ -101,6 +101,7 @@ test('face sketcher draws, moves and deletes an opening on a sheet and saves it 
 
   const sketcher = page.getByTestId('designer-face-sketcher');
   await expect(sketcher).toBeVisible();
+  await sketcher.scrollIntoViewIfNeeded();
   await expect(sketcher).toHaveAttribute('data-openings', '0');
   await expect(page.getByTestId('face-sketcher-count')).toHaveText('0 Öffnungen');
   await expect(page.getByTestId('designer-save')).toBeDisabled();
@@ -171,10 +172,12 @@ test('face sketcher saves and reloads a window pocket on a Wandelement copy', as
   await signInToPlans(page);
   await openDesigner(page);
   await copyStarter(page, 'Wandelement');
-  await expect(page.getByTestId('designer-face-sketcher')).toBeVisible();
+  const sketcher = page.getByTestId('designer-face-sketcher');
+  await expect(sketcher).toBeVisible();
+  await sketcher.scrollIntoViewIfNeeded();
   await page.getByTestId('face-sketcher-tool-rect').click();
   await dragOnSheet(page, [0.4, 0.45], [0.6, 0.55]);
-  await expect(page.getByTestId('designer-face-sketcher')).toHaveAttribute('data-openings', '1');
+  await expect(sketcher).toHaveAttribute('data-openings', '1');
   await expect(page.getByTestId('parameter-default-oeffnungLeft')).toBeVisible();
   await page.getByTestId('designer-tab-issues').click();
   await expect(page.getByTestId('designer-issues')).toContainText('Keine Fehler');

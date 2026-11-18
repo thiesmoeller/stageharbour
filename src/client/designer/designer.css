@@ -34,19 +34,25 @@
   border: 0; border-radius: 0; overflow: hidden;
 }
 .editor.designer-shell .designer-model-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; flex: 1; }
-.editor.designer-shell .designer-preview { flex: 1; min-height: 0; display: flex; flex-direction: column; border: 0; border-radius: 0; }
-.editor.designer-shell .designer-canvas {
-  flex: 1; min-height: 0; height: auto; position: relative; display: flex; flex-direction: column;
+.editor.designer-shell .designer-preview {
+  flex: 1; min-height: 200px; display: flex; flex-direction: column; border: 0; border-radius: 0;
 }
+.editor.designer-shell .designer-canvas {
+  flex: 1; min-height: 200px; height: auto; position: relative;
+}
+/* R3F wraps the WebGL canvas in a div — pin it to the shell cell so picking/handle readout stay valid. */
 .editor.designer-shell .designer-canvas > div:first-child {
-  flex: 1; min-height: 0; width: 100% !important; height: auto !important;
+  position: absolute; inset: 0; width: 100% !important; height: 100% !important;
 }
 .editor.designer-shell .designer-canvas canvas { width: 100% !important; height: 100% !important; display: block; }
 .editor.designer-shell .model-tool-rail { overflow-y: auto; overscroll-behavior: contain; }
 .editor.designer-shell .designer-model-footer { flex-shrink: 0; }
 .editor.designer-shell .designer-inplace { flex-shrink: 0; border-radius: 0; border-left: 0; border-right: 0; }
 .editor.designer-shell .designer-opening,
-.editor.designer-shell .designer-face-sketcher { flex-shrink: 0; max-height: 40%; overflow: auto; border-radius: 0; }
+.editor.designer-shell .designer-face-sketcher {
+  flex-shrink: 0; max-height: min(42dvh, 420px); overflow: auto; overscroll-behavior: contain; border-radius: 0;
+}
+.editor.designer-shell .face-sketcher-canvas svg { height: min(200px, 26dvh); }
 .editor.designer-shell .inspector-panel { min-height: 0; }
 .editor.designer-shell .designer-views { padding: 0; }
 .editor.designer-shell .designer-view svg { height: min(220px, 28dvh); }
@@ -341,6 +347,9 @@
 @media (max-width: 1280px) {
   .designer-layout { grid-template-columns: minmax(220px, 260px) minmax(0, 1fr); }
   .designer-right { grid-column: 1 / -1; }
+}
+/* Shell stacks the inspector only below the laptop 3-column band (see min-width: 1000px). */
+@media (max-width: 999px) {
   .editor.designer-shell .designer-layout {
     grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) minmax(180px, 36dvh);
@@ -367,7 +376,19 @@
   .designer-layout.hierarchy-collapsed { grid-template-columns: minmax(0, 1fr) 300px; }
   .designer-page:not(.designer-shell) .designer-right { grid-column: auto; max-height: calc(100dvh - 200px); overflow: auto; }
   .designer-page:not(.designer-shell) .designer-left { max-height: calc(100dvh - 200px); overflow: auto; }
-  .editor.designer-shell .designer-layout { margin-top: 0; gap: 0; }
+  .editor.designer-shell .designer-layout {
+    margin-top: 0; gap: 0;
+    grid-template-columns: minmax(200px, 240px) minmax(0, 1fr) minmax(280px, 340px);
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .editor.designer-shell .designer-layout.hierarchy-collapsed {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  }
+  .editor.designer-shell .designer-left,
+  .editor.designer-shell .designer-centre,
+  .editor.designer-shell .designer-right {
+    grid-column: auto; grid-row: auto; max-height: none;
+  }
 }
 @media (min-width: 1600px) {
   .designer-layout { grid-template-columns: 250px minmax(0, 1fr) 360px; }

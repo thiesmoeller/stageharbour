@@ -62,7 +62,8 @@ type InPlace = {
 const LIVE_CHECK = { maxCombinationsPerVariant: 8, maxCombinations: 48 } as const;
 const MAX_CHILD_DEPTH = 8;
 const VIEW_TOOLS: readonly ModelToolId[] = ['select', 'tape', 'interact'];
-const EMPTY_FRAME: StageBounds = { min: [-1, 0, -1], max: [1, 1, 1] };
+/** Working volume when no solids are on screen — wide enough for the 1 m ground handles. */
+const EMPTY_FRAME: StageBounds = { min: [-2, 0, -2], max: [2, 1.5, 2] };
 
 const childRefs = (definition: PartDefinition): PartRef[] => (definition.children ?? []).flatMap(child => {
   const nested = inlineGroup(child);

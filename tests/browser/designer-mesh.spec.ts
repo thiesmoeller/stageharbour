@@ -57,6 +57,9 @@ test('nested GLB insertion, calibration, breadcrumbs, scene render and stock sta
   await page.getByRole('button', { name: 'Bibliothek / Gliederung' }).click();
   await expect(page.locator('#designer-hierarchy')).toBeHidden();
 
+  // Modelling shell hides workspace nav — leave the part first (same as Bühnenbild).
+  await page.getByTestId('designer-back').click();
+  await expect(page.getByTestId('designer-page')).toHaveAttribute('data-mode', 'library');
   await page.getByRole('navigation', { name: 'Arbeitsbereiche' }).getByRole('button', { name: /Produktionen/ }).click();
   await createProduction(page, { productionName: 'Mesh-Bühnenbild', venueName: 'Mesh-Saal', sceneName: 'Griffprobe' });
   const library = await openLibrary(page);
