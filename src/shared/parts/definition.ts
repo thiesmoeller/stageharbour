@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { Asset } from '../assets.js';
 import { surfaceFinishSchema } from '../surfaces.js';
 import { FORMULA_MAX_LENGTH, FormulaError, formulaIdentifiers, isFormulaFunction, parseFormula } from './formula.js';
 import { formulaIssue, issue, type PartIssue } from './issues.js';
@@ -167,8 +168,16 @@ const polygonPoints = z.array(vec2Schema).min(3).max(PART_LIMITS.polygonPoints);
 
 export const sheetOutlineSchema = z.discriminatedUnion('shape', [
   z.strictObject({ shape: z.literal('rect'), ...rectFields }),
+  /** Centre and radius in sheet coordinates; resolve tessellates to a closed polygon loop. */
+  z.strictObject({
+    shape: z.literal('circle'),
+    cx: formulaSchema, cy: formulaSchema, r: formulaSchema,
+    /** Chord count; resolve defaults from radius (~24–48) and clamps to `PART_LIMITS.polygonPoints`. */
+    segments: formulaSchema.optional(),
+  }),
   z.strictObject({ shape: z.literal('polygon'), points: polygonPoints }),
 ]);
+export type SheetOutline = z.infer<typeof sheetOutlineSchema>;
 
 const holeBase = { key: partKeySchema, when: formulaSchema.optional() };
 export const sheetHoleSchema = z.discriminatedUnion('shape', [
@@ -203,7 +212,16 @@ export const sheetBodySchema = z.strictObject({
   holes: z.array(sheetHoleSchema).max(PART_LIMITS.holes).optional(),
 });
 
-export const bodySchema = z.discriminatedUnion('kind', [boxBodySchema, beamBodySchema, sheetBodySchema]);
+/** Static imported geometry. Size is its physical bounding size in mm; scaling never infers stock. */
+export const meshBodySchema = boxBodySchema.extend({
+  kind: z.literal('mesh'),
+  assetId: z.uuid(),
+  material: partKeySchema.default('mesh'),
+  displayOnly: z.literal(true).default(true),
+});
+export type MeshBody = z.infer<typeof meshBodySchema>;
+
+export const bodySchema = z.discriminatedUnion('kind', [boxBodySchema, beamBodySchema, sheetBodySchema, meshBodySchema]);
 export type BoxBody = z.infer<typeof boxBodySchema>;
 export type BeamBody = z.infer<typeof beamBodySchema>;
 export type SheetBody = z.infer<typeof sheetBodySchema>;
@@ -402,24 +420,25 @@ export const MATERIAL_KIND_LABELS: Record<PartMaterialKind, string> = {
   profile: 'Profil', sheet: 'Platte', hardware: 'Zubehör', fabric: 'Stoff',
 };
 /** Material kind each body kind draws from first. */
-export const BODY_MATERIAL_KIND: Record<PartBodyKind, PartMaterialKind> = { box: 'hardware', beam: 'profile', sheet: 'sheet' };
+export const BODY_MATERIAL_KIND: Record<PartBodyKind, PartMaterialKind> = { box: 'hardware', beam: 'profile', sheet: 'sheet', mesh: 'hardware' };
 /** Every material kind a body kind accepts: a sheet may also be cloth. */
 export const BODY_MATERIAL_KINDS: Record<PartBodyKind, readonly PartMaterialKind[]> = {
-  box: ['hardware'], beam: ['profile'], sheet: ['sheet', 'fabric'],
+  mesh: [], box: ['hardware'], beam: ['profile'], sheet: ['sheet', 'fabric'],
 };
 /** Drawn thickness of cloth without one of its own. */
 export const DEFAULT_FABRIC_THICKNESS_MM = 1;
 
 /** Lookups `resolvePart` and `validateDefinition` read materials and child definitions through. */
 export type PartContext = {
+  asset?: (id: string) => Asset | undefined;
   material(key: string): PartMaterial | undefined;
   part(ref: PartRef): PartDefinition | undefined;
 };
 
-export function createPartContext(source: { materials?: readonly PartMaterial[]; parts?: readonly PartDefinition[] }): PartContext {
+export function createPartContext(source: { assets?: readonly Asset[]; materials?: readonly PartMaterial[]; parts?: readonly PartDefinition[] }): PartContext {
   const materials = new Map((source.materials ?? []).map(material => [material.key, material]));
   const parts = new Map((source.parts ?? []).map(part => [partRefKey(part), part]));
-  return { material: key => materials.get(key), part: ref => parts.get(partRefKey(ref)) };
+  return { ...(source.assets ? { asset: (id: string) => source.assets!.find(asset => asset.id === id) } : {}), material: key => materials.get(key), part: ref => parts.get(partRefKey(ref)) };
 }
 
 /** The value of the parameter's domain nearest to `input`: clamped, snapped to the step or to a listed value. */

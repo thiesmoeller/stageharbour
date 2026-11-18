@@ -97,10 +97,10 @@ function detailOf(catalog: LocalCatalog, partId: string): PartDetail {
   return buildPartDetail(part, latestDefinition(catalog, part), revisions);
 }
 
-function contextFor(catalog: LocalCatalog, input: unknown): PartContext {
+function contextFor(catalog: LocalCatalog, input: unknown, assets: LocalSnapshot["assets"]): PartContext {
   const revisions = definitionsByRevision(catalog);
   return createPartContext({
-    materials: catalog.materials,
+    assets, materials: catalog.materials,
     parts: closureOf(rawChildRefs(input), ref => revisions.get(ref.id)?.get(ref.revision)),
   });
 }
@@ -201,7 +201,7 @@ route('POST', `${base}/parts`, async (context, params, request) => {
   const { workspaceId } = parse(workspaceParamsSchema, params);
   const { definition: input } = parse(createPartSchema, request.body);
   return created(await write(context, workspaceId, 'parts', (draft, now) => {
-    const definition = unwrap(planCreatePart(input, contextFor(draft.catalog, input), id => draft.catalog.parts.some(part => part.id === id)));
+    const definition = unwrap(planCreatePart(input, contextFor(draft.catalog, input, draft.assets), id => draft.catalog.parts.some(part => part.id === id)));
     insertNewPart(draft, definition, now);
     return detailOf(draft.catalog, definition.id);
   }));
@@ -214,7 +214,7 @@ route('POST', `${base}/parts/:partId/revisions`, async (context, params, request
     const part = findPart(draft.catalog, partId);
     const definition = unwrap(planSavePart({
       partId, latestRevision: part.latestRevision, baseRevision: body.baseRevision, input: body.definition,
-      context: contextFor(draft.catalog, body.definition),
+      context: contextFor(draft.catalog, body.definition, draft.assets),
     }));
     addLatestRevision(draft, definition, now);
     return detailOf(draft.catalog, partId);
@@ -303,7 +303,7 @@ route('POST', `${base}/library/import`, async (context, params, request) => {
     const plan = unwrap(planLibraryImport({
       input: body.library,
       overwriteMaterials: body.overwriteMaterials ?? false,
-      workspace: { materials: materialsByKey(draft.catalog), revisions: definitionsByRevision(draft.catalog) },
+      workspace: { assets: draft.assets, materials: materialsByKey(draft.catalog), revisions: definitionsByRevision(draft.catalog) },
     }));
     for (const definition of [...plan.materials.create, ...plan.materials.overwrite]) upsertMaterial(draft.catalog, definition);
     const newest = new Map<string, PartDefinition>();

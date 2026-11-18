@@ -57,7 +57,7 @@ A user-defined set of set pieces that move and rotate together around the centro
 _Avoid_: Auto-group
 
 **Bauteil** (part):
-A group-defined parametric stage element definition, authored in the **Bühnentechnik-Designer**. It is built from bodies of stock material and child parts, and declares parameters, variants, connectors and traits. Every stage element a group places is a placement of a Bauteil.
+A group-defined parametric stage element definition, authored in the **Bühnentechnik-Designer**. It is built from bodies of stock material, imported mesh elements and child parts, and declares parameters, variants, connectors and traits. Every stage element a group places is a placement of a Bauteil. Sheet bodies carry a planar outline: rectangle, circle (tessellated on resolve) or polygon.
 _Avoid_: Asset, Element definition (alone)
 
 **Bauteil revision**:
@@ -237,3 +237,13 @@ The intended finish captured when a physical panel is assigned to a stage-layout
 
 **Technical cutout**:
 A measured outlet or cable opening specific to one physical panel. It is a stock characteristic, distinct from a scenic door or window opening defined by the wall type.
+
+
+**Standalone prop (Requisite)**:
+A static model placed independently in a venue or Bühnenbild. Its placement carries outside dimensions and orientation; it is not a stocked Bauteil.
+
+**Imported mesh element**:
+Static imported geometry inside a Bauteil, such as a purchased door handle. It follows its containing door or group, retains its embedded finishes and contributes no inferred construction weight or cut quantities; purchased hardware is recorded explicitly.
+
+**Workspace model asset**:
+An immutable, reusable model file owned by the workspace. Standalone props and imported mesh elements reference the same asset; saved revisions retain that dependency.

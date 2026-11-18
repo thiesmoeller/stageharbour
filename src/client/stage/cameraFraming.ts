@@ -65,6 +65,17 @@ export function normalize(value: Vec3): Vec3 {
 const add = (a: Vec3, b: Vec3, scale = 1): Vec3 => [a[0] + b[0] * scale, a[1] + b[1] * scale, a[2] + b[2] * scale];
 const toRadians = (degrees: number) => degrees * Math.PI / 180;
 
+/**
+ * Near/far from the current eye–target distance so zooming in does not leave a fit-time
+ * near plane that clips solids. `near` stays a small fraction of distance (clamped);
+ * `far` stays comfortably past the scene.
+ */
+export function adaptiveClipPlanes(distance: number): { near: number; far: number } {
+  const safe = Number.isFinite(distance) && distance > 0 ? distance : 1;
+  const near = Math.min(Math.max(safe * 0.01, 0.01), 50);
+  return { near, far: Math.max(safe * 100, near + 1) };
+}
+
 /** Perspective camera that shows the whole bounding sphere from `direction` (part preview). */
 export function framePerspective(bounds: StageBounds, options: { aspect: number; fov?: number; direction?: Vec3; margin?: number }): StageLookCamera {
   const fov = options.fov ?? 40, margin = options.margin ?? 1.15;
@@ -77,7 +88,8 @@ export function framePerspective(bounds: StageBounds, options: { aspect: number;
   return {
     projection: 'perspective', target, up: Y_UP, fov, zoom: 1,
     position: add(target, normalize(options.direction ?? DEFAULT_FRAME_DIRECTION), distance),
-    near: Math.max(0.01, distance - radius * 2), far: distance + radius * 4,
+    // Fixed small near (like stageViewCamera); far past the framed sphere and at least 1000.
+    near: 0.01, far: Math.max(1000, distance + radius * 4),
   };
 }
 

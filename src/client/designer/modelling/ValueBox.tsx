@@ -36,10 +36,10 @@ export const ValueBox = forwardRef<ValueBoxHandle, {
     <label>
       <span className="model-value-label">{readout?.label ?? 'Maße'}</span>
       <input ref={input} value={text} disabled={disabled} placeholder={readout?.value ?? ''} data-testid="designer-value-box"
-        aria-label={`Maße: ${readout?.label ?? 'Wert'}`} inputMode="decimal"
+        aria-invalid={!!error} aria-label={`Maße: ${readout?.label ?? 'Wert'}`} inputMode="decimal"
         onChange={event => { setText(event.target.value); setError(undefined); }}
         onKeyDown={event => {
-          if (event.key === 'Enter') { event.preventDefault(); submit(); }
+          if (event.key === 'Enter' && !event.nativeEvent.isComposing) { event.preventDefault(); submit(); }
           if (event.key === 'Escape') { setText(''); setError(undefined); input.current?.blur(); }
         }} />
     </label>

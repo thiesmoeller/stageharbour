@@ -78,7 +78,7 @@ export function definitionFormulaSites(definition: PartDefinition): FormulaSite[
     const outer: Target = { owner: { kind: 'body', key: body.key, index }, base: ['bodies', index], indices: [] };
     const target = { ...outer, indices: repeat(outer, body.repeat) };
     one(target, 'when', ['when'], body.when);
-    if (body.kind === 'box') {
+    if (body.kind === 'box' || body.kind === 'mesh') {
       list(target, 'size', ['size'], body.size);
       list(target, 'at', ['at'], body.at);
       list(target, 'rotation', ['rotation'], body.rotation);
@@ -96,6 +96,9 @@ export function definitionFormulaSites(definition: PartDefinition): FormulaSite[
       const shape = (owner: Target, field: string, path: (string | number)[], value: typeof body.outline) => {
         if (value.shape === 'polygon') {
           points(owner, `${field}.points`, [...path, 'points'], value.points);
+        } else if (value.shape === 'circle') {
+          for (const name of ['cx', 'cy', 'r'] as const) one(owner, `${field}.${name}`, [...path, name], value[name]);
+          one(owner, `${field}.segments`, [...path, 'segments'], value.segments);
         } else {
           for (const name of ['x', 'y', 'width', 'height'] as const) one(owner, `${field}.${name}`, [...path, name], value[name]);
         }

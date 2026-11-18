@@ -11,8 +11,10 @@ test('a Poly Haven GLB can be placed on the scene and on the venue', async ({ pa
   const library = await openLibrary(page);
   await library.getByRole('button', { name: 'Suchen', exact: true }).click();
   await library.getByRole('button', { name: 'Importieren', exact: true }).click();
-  await expect(library.getByRole('button', { name: 'Setzen', exact: true })).toBeVisible();
-  await library.getByRole('button', { name: 'Setzen', exact: true }).click();
+  // Earlier specs share this server and may already have imported a model; each import adds a row.
+  await expect(library.getByText('Modell im Arbeitsbereich gespeichert.')).toBeVisible();
+  await library.getByRole('button', { name: 'Setzen', exact: true }).last().click();
+  await library.getByRole('button', { name: 'Maße übernehmen' }).click();
   await expect(page.locator('.plan-placement-hint')).toContainText('Kiste');
 
   const screen = await page.locator('.plan-canvas > svg').evaluate(svg => {
@@ -20,6 +22,7 @@ test('a Poly Haven GLB can be placed on the scene and on the venue', async ({ pa
     const mapped = new DOMPoint(3000, -2500).matrixTransform(ctm!);
     return { x: mapped.x, y: mapped.y };
   });
+
   const file = page.waitForResponse(response => response.url().includes('/assets/files/') && response.ok());
   await page.mouse.click(screen.x, screen.y);
   await expect(page.locator('[data-testid^="placeholder-"]')).toHaveCount(1);
@@ -31,7 +34,8 @@ test('a Poly Haven GLB can be placed on the scene and on the venue', async ({ pa
   await revealEditorCommand(page, 'Spielstätte bearbeiten');
   await page.getByRole('button', { name: 'Spielstätte bearbeiten', exact: true }).click();
   const venueLibrary = await openLibrary(page);
-  await venueLibrary.getByRole('button', { name: 'Setzen', exact: true }).click();
+  await venueLibrary.getByRole('button', { name: 'Setzen', exact: true }).last().click();
+  await venueLibrary.getByRole('button', { name: 'Maße übernehmen' }).click();
   const venuePlan = page.getByRole('img', { name: 'Umriss der Spielstätte' });
   await venuePlan.click({ position: { x: 180, y: 140 } });
   await expect(page.locator('[data-testid^="placeholder-"]')).toHaveCount(1);

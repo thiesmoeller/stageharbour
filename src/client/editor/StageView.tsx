@@ -55,6 +55,10 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
     () => resolveLayoutObjects(layout, catalog.index, supportOptions),
     [layout, catalog.index, supportOptions],
   );
+  const meshSolidCount = resolvedObjects.reduce(
+    (count, item) => count + item.resolved.solids.filter(solid => solid.kind === 'box' && solid.assetId).length,
+    0,
+  );
   const curtains = effectiveCurtains(venue, layout);
   const savedLighting = layout.lighting ?? venue.lighting ?? defaultLighting;
   const lighting = useMemo(() => captureLightLook ? { ...savedLighting, enabled: true } : savedLighting, [captureLightLook, savedLighting]);
@@ -173,6 +177,7 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
       onClose={() => selectFixture(null)}
     />}
     </DockPortal>
+    <span data-testid="stage-mesh-solids" data-count={meshSolidCount} hidden />
     <Suspense fallback={<p role="status">Raumsicht wird geladen …</p>}><RaumsichtCanvas model={model} layout={layout} venue={venue} resolvedObjects={resolvedObjects} audience={audience} view={view} assets={assets} workspaceId={workspaceId} lighting={lighting} planDisplay={planDisplay} onCaptureReady={onCaptureReady ?? onFeedbackCaptureReady} aimOnly={exportAim}
       enhanced={!simple}
       selectedFixtureId={boardOpen ? selectedFixtureId : null}

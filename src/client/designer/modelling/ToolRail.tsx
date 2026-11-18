@@ -1,7 +1,7 @@
 import { MODEL_TOOLS, type ModelToolId } from './tools.js';
 
 const ICONS: Record<ModelToolId, string> = {
-  select: '↖', move: '✥', rotate: '⟳', pushpull: '⇳', rect: '▭', line: '╱', polygon: '⬠', beam: '▬', tape: '⟷', interact: '☝',
+  select: '↖', move: '✥', rotate: '⟳', pushpull: '⇳', rect: '▭', line: '╱', circle: '○', polygon: '⬠', beam: '▬', tape: '⟷', interact: '☝',
 };
 const VIEW_TOOLS: readonly ModelToolId[] = ['select', 'tape', 'interact'];
 

@@ -19,8 +19,12 @@ test('every tool has its own single-key shortcut', () => {
   assert.equal(new Set(keys).size, keys.length);
   assert.equal(toolForKey('P'), 'pushpull');
   assert.equal(toolForKey('r'), 'rect');
+  assert.equal(toolForKey('c'), 'circle');
+  assert.equal(toolForKey('v'), 'polygon');
   assert.equal(toolForKey(' '), 'select');
   assert.equal(toolForKey('x'), undefined);
+  assert.equal(MODEL_TOOLS.find(tool => tool.id === 'circle')?.label, 'Kreis');
+  assert.equal(MODEL_TOOLS.find(tool => tool.id === 'polygon')?.label, 'Vieleck');
 });
 
 test('undo history: one step per record, tagged edits merge within a moment', () => {

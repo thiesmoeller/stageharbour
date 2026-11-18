@@ -82,11 +82,12 @@ export function newPartDefinition(id: string, materials: readonly PartMaterial[]
   };
 }
 
-export const BODY_KIND_LABELS: Record<PartBodyKind, string> = { box: 'Quader', beam: 'Profil', sheet: 'Platte' };
+export const BODY_KIND_LABELS: Record<PartBodyKind, string> = { box: 'Quader', beam: 'Profil', sheet: 'Platte', mesh: 'Importiertes Mesh' };
 
 export function newBody(kind: PartBodyKind, definition: PartDefinition, materials: readonly PartMaterial[]): PartBody {
   const material = firstMaterialKey(materials, BODY_MATERIAL_KIND[kind], kind === 'box' ? 'gummifuss-50' : kind === 'beam' ? 'latte-40x40' : 'sperrholz-12');
   const key = uniqueKey(kind === 'box' ? 'quader' : kind === 'beam' ? 'profil' : 'platte', elementKeys(definition));
+  if (kind === 'mesh') throw new Error('Ein Mesh wird aus einem Arbeitsbereich-Modell eingefügt.');
   if (kind === 'box') return { kind, key, material, size: [100, 100, 100], at: [0, 50, 0] };
   if (kind === 'beam') return { kind, key, material, from: [0, 0, 0], to: [0, 500, 0] };
   return { kind, key, material, plane: 'xy', at: [0, 0, 0], outline: { shape: 'rect', x: -250, y: 0, width: 500, height: 500 } };

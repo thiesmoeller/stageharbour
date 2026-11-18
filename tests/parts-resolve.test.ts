@@ -9,7 +9,7 @@ import { hasErrors } from '../src/shared/parts/issues.js';
 import { boundsOf, polygonArea, signedArea, type Vec2, type Vec3 } from '../src/shared/parts/math.js';
 import { placeFootprint, placePoint, placeResolvedPart, placementTransform } from '../src/shared/parts/place.js';
 import {
-  archSegmentCount, resolvePart, resolvePartConfiguration, solidVertices,
+  archSegmentCount, circleSegmentCount, resolvePart, resolvePartConfiguration, solidVertices,
   type ResolvedPart, type ResolvedSheet, type ResolvedSolid,
 } from '../src/shared/parts/resolve.js';
 import {
@@ -384,6 +384,33 @@ test('holes: inside, arch, polygon, and the cases that are refused', () => {
   assert.deepEqual(codes(withHoles([{ shape: 'rect', key: 'daneben', x: 600, y: 0, width: 100, height: 100 }])), ['warning:hole-outside']);
   assert.deepEqual(codes(withHoles([{ shape: 'arch', key: 'flach', x: -400, y: 0, width: 800, height: 300 }])), ['error:outline-invalid']);
   assert.deepEqual(codes(withHoles([{ shape: 'polygon', key: 'schleife', points: [[0, 100], [200, 300], [200, 100], [0, 300]] }])), ['error:outline-invalid']);
+});
+
+test('a circle outline tessellates to a closed loop near πr²', () => {
+  const radius = 400;
+  const withCircle = (outline: { shape: 'circle'; cx: number | string; cy: number | string; r: number | string; segments?: number | string }) =>
+    resolvePart(panel({
+      parameters: [],
+      bodies: [{ kind: 'sheet', key: 'platte', material: 'sperrholz-12', plane: 'xy', at: [0, 0, 0], outline }],
+    }), {}, FIXTURE_CONTEXT);
+
+  const defaulted = withCircle({ shape: 'circle', cx: 100, cy: 50, r: radius });
+  assert.deepEqual(defaulted.issues, []);
+  const found = sheet(defaulted, 'platte');
+  assert.equal(found.outline.length, circleSegmentCount(radius));
+  assert.ok(signedArea(found.outline) > 0, 'circle outline is counter-clockwise');
+  const exact = Math.PI * radius * radius;
+  assert.ok(Math.abs(found.netAreaMm2 - exact) / exact < 0.005, `area ${found.netAreaMm2} against ${exact}`);
+  assert.ok(found.outline.every(point => Math.hypot(point.x - 100, point.y - 50) <= radius + EPS));
+  assert.ok(found.outline.some(point => Math.abs(Math.hypot(point.x - 100, point.y - 50) - radius) < EPS));
+
+  const capped = withCircle({ shape: 'circle', cx: 0, cy: 0, r: 2000, segments: 200 });
+  assert.deepEqual(capped.issues, []);
+  assert.equal(sheet(capped, 'platte').outline.length, PART_LIMITS.polygonPoints);
+
+  const explicit = withCircle({ shape: 'circle', cx: 0, cy: 0, r: 100, segments: 12 });
+  assert.deepEqual(explicit.issues, []);
+  assert.equal(sheet(explicit, 'platte').outline.length, 12);
 });
 
 test('polygon outlines are accepted in either winding', () => {

@@ -120,7 +120,7 @@ function rotationHandles(base: Pick<Handle, 'solid' | 'body' | 'index'>, centre:
   }));
 }
 
-function boxHandles(body: Extract<PartBody, { kind: 'box' }>, solid: Extract<ResolvedSolid, { kind: 'box' }>): Handle[] {
+function boxHandles(body: Extract<PartBody, { kind: 'box' | 'mesh' }>, solid: Extract<ResolvedSolid, { kind: 'box' }>): Handle[] {
   const base = { solid: solid.id, body: body.key, index: solid.index };
   const axes = quatAxes(solid.rotation);
   const local = [axes.x, axes.y, axes.z];
@@ -227,6 +227,27 @@ function sheetHandles(
           [{ path: ['outline', 'y'], coefficient: axes.y }, { path: ['outline', 'height'], coefficient: down }], heightMeasure),
       );
     }
+  } else if (outline.shape === 'circle') {
+    const cx = evaluated(outline.cx, scope), cy = evaluated(outline.cy, scope), r = evaluated(outline.r, scope);
+    if (cx !== undefined && cy !== undefined && r !== undefined) {
+      const rim: Vec2 = { x: cx + r, y: cy };
+      const tangent: Vec2 = { x: cx + r, y: cy + Math.max(r * 0.15, 1) };
+      points.push({
+        ...base, id: `${solid.id}:point:centre`, kind: 'point', name: 'point:centre', label: 'Mittelpunkt',
+        position: at({ x: cx, y: cy }, mid), axis: axes.z,
+        writes: [
+          { path: ['outline', 'cx'], coefficient: axes.x },
+          { path: ['outline', 'cy'], coefficient: axes.y },
+        ],
+      });
+      edges.push({
+        ...base, id: `${solid.id}:edge:radius`, kind: 'edge', name: 'edge:radius', label: 'Radius', side: 'edge',
+        position: at(rim, mid), axis: axes.x,
+        segment: [at(rim, mid), at(tangent, mid)],
+        writes: [{ path: ['outline', 'r'], coefficient: axes.x }],
+        measure: { label: 'Radius', value: r, path: ['outline', 'r'] },
+      });
+    }
   } else {
     const values = outline.points.map(point => ({ x: evaluated(point[0], scope), y: evaluated(point[1], scope) }));
     if (values.every(point => point.x !== undefined && point.y !== undefined)) {
@@ -265,8 +286,8 @@ function sheetHandles(
 export function solidHandles(definition: PartDefinition, resolved: Pick<ResolvedPart, 'values' | 'derived'>, solid: ResolvedSolid): Handle[] {
   if (solid.path.length) return [];
   const body = definition.bodies.find(item => item.key === solid.body);
-  if (!body || body.kind !== solid.kind) return [];
-  if (body.kind === 'box' && solid.kind === 'box') return boxHandles(body, solid);
+  if (!body) return [];
+  if ((body.kind === 'box' || body.kind === 'mesh') && solid.kind === 'box') return boxHandles(body, solid);
   if (body.kind === 'beam' && solid.kind === 'beam') return beamHandles(body, solid);
   if (body.kind === 'sheet' && solid.kind === 'sheet') return sheetHandles(body, solid, elementScope(resolved, body, solid.index));
   return [];

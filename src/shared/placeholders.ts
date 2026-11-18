@@ -44,6 +44,7 @@ export const placeholderSchema = z.strictObject({
   width: dimension, depth: dimension, height: dimension,
   supportingSurfaceId: z.uuid().optional(),
   assetId: z.uuid().optional(),
+  modelRotation: z.tuple([z.number().finite(), z.number().finite(), z.number().finite()]).optional(),
   /** Optional seated person mark on a chair. Ignored for other kinds. */
   seatedFigure: z.boolean().optional(),
 });

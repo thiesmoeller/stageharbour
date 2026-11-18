@@ -1,14 +1,14 @@
 import { calculateFormula, type Formula } from './formula.js';
 import {
-  normalizeParameterValue, type BeamBody, type BoxBody, type PartBody, type PartChild,
+  PART_LIMITS, normalizeParameterValue, type BeamBody, type BoxBody, type PartBody, type PartChild,
   type PartDefinition, type SheetBody,
 } from './definition.js';
 import { elementScope, moveWrites, pathKey, type FieldPath, type Handle, type HandleWrite } from './handles.js';
 import {
-  add, cross, dot, eulerDegreesFromQuat, isSimplePolygon, length, polygonArea, normalize, quatFromAxisAngle, quatFromBasis, quatFromEulerDegrees,
+  add, cross, dot, eulerDegreesFromQuat, isSimplePolygon, length, polygonArea, normalize, quatAxes, quatFromAxisAngle, quatFromBasis, quatFromEulerDegrees,
   quatMultiply, rotate, scale, sub, type Quat, type Vec2, type Vec3,
 } from './math.js';
-import type { ResolvedPart, ResolvedSolid } from './resolve.js';
+import { ANCHOR_OFFSET, solidFace, type ResolvedPart, type ResolvedSheet, type ResolvedSolid } from './resolve.js';
 
 /**
  * Direct edits of a definition from drags in the 3D view. A field holding a number takes the new
@@ -237,6 +237,64 @@ export function pushPullFace(definition: PartDefinition, resolved: Resolved, han
   return applyWrites(definition, resolved, targetOf(handle), handle.writes, scale(handle.axis, distance));
 }
 
+/**
+ * SketchUp Ctrl+Push/Pull: leave the face, add a new body extruded from it by `distance`.
+ * Box and beam faces become a new box; sheet front/back keep the outline as a new thick sheet.
+ */
+export function pushPullNewBody(definition: PartDefinition, resolved: Resolved, handle: Handle, distance: number): EditResult {
+  if (Math.abs(distance) < 1) return fail('invalid', 'Der Abstand ist zu klein.');
+  if (handle.kind !== 'face' || !handle.side) {
+    return fail('invalid', 'Nur Flächen lassen sich als neuer Körper ziehen (Strg beim Ziehen).');
+  }
+  const solid = resolved.solids.find(item => item.id === handle.solid);
+  const body = definition.bodies.find(item => item.key === handle.body);
+  if (!solid || !body || body.kind === 'mesh' || !('material' in body)) {
+    return fail('missing', 'Das Element gibt es nicht mehr.');
+  }
+  if (body.kind === 'sheet' && solid.kind === 'sheet' && (handle.side === 'front' || handle.side === 'back')) {
+    const added = extrudeNewSheet(definition, body, solid, handle.side, handle.axis, distance);
+    return added.ok ? { ok: true, definition: added.definition, parameters: [] } : added;
+  }
+  const face = solidFace(solid, handle.side);
+  if (!face?.plane) return fail('invalid', 'Nur Flächen lassen sich als neuer Körper ziehen (Strg beim Ziehen).');
+  const { origin, u, v, outline } = face.plane;
+  const xs = outline.map(point => point.x);
+  const ys = outline.map(point => point.y);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  if (!(maxX - minX >= 1 && maxY - minY >= 1)) return fail('invalid', 'Die Fläche ist zu klein.');
+  const corner = add(origin, add(scale(u, minX), scale(v, minY)));
+  const opposite = add(origin, add(scale(u, maxX), scale(v, maxY)));
+  const added = addBoxFromRect(definition, { corner, opposite, u, normal: handle.axis, height: distance }, body.material);
+  return added.ok ? { ok: true, definition: added.definition, parameters: [] } : added;
+}
+
+/** A new sheet whose front sits on the pulled face and whose thickness is `|distance|`. */
+function extrudeNewSheet(
+  definition: PartDefinition,
+  body: SheetBody,
+  solid: ResolvedSheet,
+  side: 'front' | 'back',
+  axis: Vec3,
+  distance: number,
+): AddResult {
+  const thickness = roundMm(Math.abs(distance));
+  const axes = quatAxes(solid.rotation);
+  const faceOrigin = side === 'back' ? add(solid.origin, scale(axes.z, solid.thickness)) : solid.origin;
+  const outward = scale(axis, Math.sign(distance) || 1);
+  // Material grows along local +z; place the front on the face when that matches the pull.
+  const solidOrigin = dot(axes.z, outward) >= 0 ? faceOrigin : add(faceOrigin, scale(outward, thickness));
+  const anchor = body.anchor ?? 'face';
+  const at = add(solidOrigin, scale(axes.z, -ANCHOR_OFFSET[anchor] * thickness));
+  const copy: SheetBody = {
+    ...structuredClone(body),
+    key: uniqueElementKey(definition, body.key),
+    thickness,
+    at: rounded(at),
+  };
+  return withBody(definition, copy);
+}
+
 /** Sets what a handle measures to `value`, as typed into the value box. */
 export function setHandleMeasure(definition: PartDefinition, resolved: Resolved, handle: Handle, value: number): EditResult {
   if (!handle.measure) return fail('invalid', 'Dieser Griff hat kein Maß.');
@@ -333,6 +391,15 @@ export function copySelection(definition: PartDefinition, resolved: Resolved, ta
   const cloned = cloneTargets(definition, targets);
   if ('ok' in cloned) return cloned;
   return moveSelection(cloned.definition, resolved, cloned.targets, delta);
+}
+
+/** Copies the selection and turns the copies about `pivot`. The originals stay. */
+export function copyRotateSelection(
+  definition: PartDefinition, resolved: Resolved, targets: SelectionTargets, axis: Vec3, degrees: number, pivot?: Vec3,
+): EditResult {
+  const cloned = cloneTargets(definition, targets);
+  if ('ok' in cloned) return cloned;
+  return rotateSelection(cloned.definition, resolved, cloned.targets, axis, degrees, pivot);
 }
 
 const UNIT_AXES: readonly Vec3[] = [{ x: 1, y: 0, z: 0 }, { x: 0, y: 1, z: 0 }, { x: 0, y: 0, z: 1 }];
@@ -476,6 +543,41 @@ export function addFaceFromRect(
     points: [point(0, 0), point(du, 0), point(du, dv), point(0, dv)],
     normal: n,
   }, material);
+}
+
+/**
+ * A sheet face on a drawn circle. Push/pull then sets its thickness. The circle lies in the plane
+ * through `centre` with axis-aligned `normal`; material lies on the side the normal points to.
+ */
+export function addFaceFromCircle(
+  definition: PartDefinition,
+  circle: { centre: Vec3; radius: number; normal: Vec3; segments?: number },
+  material: string,
+): AddResult {
+  const n = normalize(circle.normal);
+  if (!axisAligned(n)) return fail('invalid', 'Kreise gehen nur auf waagrechten oder geraden senkrechten Flächen.');
+  if (!(circle.radius >= 1)) return fail('invalid', 'Der Kreis ist zu klein.');
+  let plane: SheetBody['plane'], anchor: NonNullable<SheetBody['anchor']>, at: [number, number, number], flat: (p: Vec3) => Vec2;
+  if (Math.abs(n.y) > 0.5) {
+    plane = 'xz'; anchor = n.y > 0 ? 'back' : 'face'; at = [0, roundMm(circle.centre.y), 0]; flat = p => ({ x: p.x, y: p.z });
+  } else if (Math.abs(n.z) > 0.5) {
+    plane = 'xy'; anchor = n.z > 0 ? 'face' : 'back'; at = [0, 0, roundMm(circle.centre.z)]; flat = p => ({ x: p.x, y: p.y });
+  } else {
+    plane = 'yz'; anchor = n.x < 0 ? 'face' : 'back'; at = [roundMm(circle.centre.x), 0, 0]; flat = p => ({ x: p.z, y: p.y });
+  }
+  const centre = flat(circle.centre);
+  const segments = circle.segments === undefined
+    ? undefined
+    : Math.max(3, Math.min(PART_LIMITS.polygonPoints, Math.round(circle.segments)));
+  const body: SheetBody = {
+    kind: 'sheet', key: uniqueElementKey(definition, 'platte'), material, plane, at,
+    ...(anchor !== 'face' ? { anchor } : {}),
+    outline: {
+      shape: 'circle', cx: roundMm(centre.x), cy: roundMm(centre.y), r: roundMm(circle.radius),
+      ...(segments !== undefined ? { segments } : {}),
+    },
+  };
+  return withBody(definition, body);
 }
 
 /**

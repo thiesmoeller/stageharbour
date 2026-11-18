@@ -24,6 +24,19 @@ async function point(page: Page, match: (id: string) => boolean): Promise<Point>
   return { id: found!.id, x: box.x + found!.x, y: box.y + found!.y };
 }
 
+/** Same as point(), but clamped into the WebGL canvas so a tall shell crop cannot miss the pick. */
+async function pointOnCanvas(page: Page, match: (id: string) => boolean): Promise<Point> {
+  const canvas = page.locator('.model-canvas canvas');
+  const box = (await canvas.boundingBox())!;
+  const raw = await point(page, match);
+  const pad = 12;
+  return {
+    id: raw.id,
+    x: Math.min(Math.max(raw.x, box.x + pad), box.x + box.width - pad),
+    y: Math.min(Math.max(raw.y, box.y + pad), box.y + box.height - pad),
+  };
+}
+
 /** Size of the selected solids in mm: [x, y, z] extents and the bottom. */
 async function selectedSize(page: Page) {
   const text = await preview(page).getAttribute('data-selected-bounds');
@@ -55,8 +68,8 @@ test('designer models a box directly, ties its height to a per-variant option an
   await test.step('draw a rectangle from the origin and type its size', async () => {
     await page.locator('body').press('r');
     await expect(preview(page)).toHaveAttribute('data-tool', 'rect');
-    const origin = await point(page, id => id === 'origin');
-    const corner = await point(page, id => id === 'ground-xz');
+    const origin = await pointOnCanvas(page, id => id === 'origin');
+    const corner = await pointOnCanvas(page, id => id === 'ground-xz');
     await page.mouse.move(origin.x, origin.y);
     await page.mouse.click(origin.x, origin.y);
     await page.mouse.move(corner.x, corner.y, { steps: 6 });
@@ -136,6 +149,37 @@ test('designer models a box directly, ties its height to a per-variant option an
   expect(errors).toEqual([]);
 });
 
+test('designer draws a circle face with the Kreis tool and typed radius', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await signInToPlans(page);
+  await openDesigner(page);
+  await page.getByTestId('designer-library').getByRole('button', { name: 'Neu', exact: true }).click();
+  await page.getByTestId('designer-tab-outline').click();
+  const outline = page.getByTestId('designer-section-outline');
+  await outline.getByRole('button', { name: 'Platte entfernen' }).click();
+  await outline.getByRole('button', { name: 'Bein entfernen' }).click();
+  await expect(preview(page)).toHaveAttribute('data-solids', '0');
+
+  await page.locator('body').press('c');
+  await expect(preview(page)).toHaveAttribute('data-tool', 'circle');
+  await expect(page.getByTestId('designer-tool-circle')).toHaveAttribute('aria-pressed', 'true');
+  const origin = await pointOnCanvas(page, id => id === 'origin');
+  const rim = await pointOnCanvas(page, id => id === 'ground-x');
+  await page.mouse.click(origin.x, origin.y);
+  await page.mouse.move(rim.x, rim.y, { steps: 6 });
+  await page.mouse.click(rim.x, rim.y);
+  await expect(preview(page)).toHaveAttribute('data-solids', '1');
+  await page.keyboard.type('400');
+  await page.keyboard.press('Enter');
+  await expect.poll(async () => {
+    const size = await selectedSize(page);
+    return size && [size.x, size.z].sort((a, b) => a - b).join('x');
+  }).toBe('800x800');
+
+  expect(errors).toEqual([]);
+});
+
 test('designer groups a body into a sub-part, edits it in place and explodes it again', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -152,6 +196,7 @@ test('designer groups a body into a sub-part, edits it in place and explodes it 
     await expect(page.getByTestId('designer-model-status')).toContainText('als Revision 1 angelegt');
     await expect(preview(page)).toHaveAttribute('data-solids', '5');
     await expect(preview(page)).toHaveAttribute('data-bounds', before!);
+    await page.getByTestId('designer-tab-issues').click();
     await expect(page.getByTestId('designer-issues')).toContainText('Keine Fehler');
   });
 
@@ -174,6 +219,7 @@ test('designer groups a body into a sub-part, edits it in place and explodes it 
     await expect(page.getByTestId('designer-model-status')).toContainText('aufgelöst');
     await expect(preview(page)).toHaveAttribute('data-solids', '5');
     await expect(preview(page)).toHaveAttribute('data-bounds', before!);
+    await page.getByTestId('designer-tab-issues').click();
     await expect(page.getByTestId('designer-issues')).toContainText('Keine Fehler');
     await page.getByTestId('designer-save').click();
     await expect(page.getByTestId('designer-status')).toContainText('Gespeichert als Revision 2');

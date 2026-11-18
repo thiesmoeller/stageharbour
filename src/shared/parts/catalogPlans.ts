@@ -104,7 +104,7 @@ export function closureOf(seeds: readonly PartRef[], lookup: (ref: PartRef) => P
 }
 
 export function referencedMaterialKeys(definition: PartDefinition): Set<string> {
-  return new Set([...definition.bodies.map(body => body.material), ...(definition.hardware ?? []).map(item => item.material)]);
+  return new Set([...definition.bodies.filter(body => body.kind !== 'mesh').map(body => body.material), ...(definition.hardware ?? []).map(item => item.material)]);
 }
 
 /** Checks a definition against the materials and parts of the workspace. */

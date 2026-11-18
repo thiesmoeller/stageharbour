@@ -343,6 +343,7 @@ export function VenuePanel({ workspaceId, sceneId, venue, venueId, venueName, ve
       if (definition?.kind === 'model') {
         item.label = pendingModel!.name;
         item.assetId = pendingModel!.id;
+        item.modelRotation = definition.rotation;
         item.width = definition.width;
         item.depth = definition.depth;
         item.height = definition.height;

@@ -18,7 +18,7 @@ import {
   buildLibraryExport, libraryFilename, planLibraryImport,
 } from '../../shared/parts/libraryExchange.js';
 import type { Database } from '../db/connection.js';
-import { material, partDefinition, partRevision } from '../db/schema.js';
+import { inventoryAsset, material, partDefinition, partRevision } from '../db/schema.js';
 import { AccessError, type createAccess } from '../identity/access.js';
 import {
   addLatestRevision, contextFor, findPart, insertNewPart, loadAllRevisions, loadLatestDefinitions, loadMaterials, readDetail,
@@ -245,7 +245,7 @@ export function registerPartRoutes(
       const plan = unwrap(planLibraryImport({
         input: request.body.library,
         overwriteMaterials: request.body.overwriteMaterials ?? false,
-        workspace: { materials: await loadMaterials(tx, workspaceId), revisions },
+        workspace: { assets: await tx.select().from(inventoryAsset).where(eq(inventoryAsset.workspaceId, workspaceId)), materials: await loadMaterials(tx, workspaceId), revisions },
       }));
       for (const definition of [...plan.materials.create, ...plan.materials.overwrite]) {
         await tx.insert(material).values({ workspaceId, key: definition.key, definition, createdAt: now, updatedAt: now })

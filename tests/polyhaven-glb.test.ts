@@ -27,8 +27,8 @@ test('Poly Haven GLB pick keeps only dl.polyhaven.org and prefers the smaller fi
   assert.equal(pickPolyHavenGlb({ gltf: { url: 'https://dl.polyhaven.org/file/crate.gltf', size: 20 } }), undefined);
 });
 
-test('Poly Haven model dimensions are metres converted to millimetres', () => {
-  assert.deepEqual(millimetresFromPolyHavenModel([1.2, 0.8, 0.5]), { width: 1200, height: 800, depth: 500 });
+test('Poly Haven model dimensions are millimetres with Z up converted to Y up', () => {
+  assert.deepEqual(millimetresFromPolyHavenModel([1200, 500, 800]), { width: 1200, height: 800, depth: 500 });
   assert.deepEqual(millimetresFromPolyHavenModel(undefined), { width: 1000, height: 1000, depth: 1000 });
 });
 
@@ -69,7 +69,9 @@ test('local mode stores an imported Poly Haven GLB and an uploaded GLB', async (
     const found = await transport.request(`${base}/assets/catalog/poly-haven?q=kiste`) as { id: string }[];
     assert.equal(found[0]?.id, 'crate');
     const imported = await transport.request(`${base}/assets/import/poly-haven`, { id: 'crate' }) as { definition: { source: { fileId: string } } };
-    const blob = await transport.getBlob(`${base}/assets/files/${imported.definition.source.fileId}`);
+    globalThis.fetch = async () => { throw new Error('Provider offline after reload'); };
+    const reloadedTransport = createLocalTransport(store);
+    const blob = await reloadedTransport.getBlob(`${base}/assets/files/${imported.definition.source.fileId}`);
     assert.equal(blob.type, 'model/gltf-binary');
     assert.equal((await blob.arrayBuffer()).byteLength, glb.length);
     const uploaded = await transport.upload(`${base}/assets/files`, new File([glb], 'stuhl.glb', { type: 'model/gltf-binary' })) as { fileId: string };

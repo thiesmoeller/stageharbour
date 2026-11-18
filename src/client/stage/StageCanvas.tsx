@@ -3,7 +3,7 @@ import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, OrthographicCamera, PerspectiveCamera } from '@react-three/drei';
 import { MOUSE, OrthographicCamera as ThreeOrthographicCamera, PerspectiveCamera as ThreePerspectiveCamera, type Camera, type Mesh, type Scene } from 'three';
 import {
-  DEFAULT_STAGE_BOUNDS, boundsCenter, boundsSize, isUsableBounds, resolveStageCamera, vector,
+  DEFAULT_STAGE_BOUNDS, adaptiveClipPlanes, boundsCenter, boundsSize, isUsableBounds, resolveStageCamera, vector,
   type StageBounds, type StageCameraConfig, type Viewport,
 } from './cameraFraming.js';
 import { DEFAULT_LIGHT_THEME_ID, lightTheme, type LightTheme, type LightThemeId } from './lightThemes.js';
@@ -144,7 +144,13 @@ function RendererAppearance({ theme, quality }: { theme: LightTheme; quality: St
   return null;
 }
 
-type OrbitControlsLike = { target: { set(x: number, y: number, z: number): void }; update(): void; mouseButtons: Record<'LEFT' | 'MIDDLE' | 'RIGHT', MOUSE | -1 | null> };
+type OrbitControlsLike = {
+  target: { x: number; y: number; z: number; set(x: number, y: number, z: number): void };
+  update(): void;
+  mouseButtons: Record<'LEFT' | 'MIDDLE' | 'RIGHT', MOUSE | -1 | null>;
+  addEventListener(type: 'change', listener: () => void): void;
+  removeEventListener(type: 'change', listener: () => void): void;
+};
 
 const MOUSE_BUTTONS = {
   editor: { LEFT: -1, MIDDLE: MOUSE.ROTATE, RIGHT: MOUSE.PAN },
@@ -181,6 +187,21 @@ function StageCameraRig({ input, revision, bounds, controls }: { input: StageCam
     if (!active || !buttons) return;
     Object.assign(active.mouseButtons, MOUSE_BUTTONS[buttons]);
   }, [active, buttons]);
+  useEffect(() => {
+    if (!active) return;
+    const onChange = () => {
+      if (!(camera instanceof ThreeOrthographicCamera || camera instanceof ThreePerspectiveCamera)) return;
+      const distance = camera.position.distanceTo(active.target);
+      const { near, far } = adaptiveClipPlanes(distance);
+      if (camera.near === near && camera.far === far) return;
+      camera.near = near;
+      camera.far = far;
+      camera.updateProjectionMatrix();
+      invalidate();
+    };
+    active.addEventListener('change', onChange);
+    return () => active.removeEventListener('change', onChange);
+  }, [active, camera, invalidate]);
   return <>
     {look.projection === 'orthographic'
       ? <OrthographicCamera makeDefault position={vector(look.position)} up={vector(look.up)} zoom={look.zoom} near={look.near} far={look.far} />

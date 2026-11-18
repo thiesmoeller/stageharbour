@@ -39,19 +39,24 @@ test('designer copies a starter part, edits a parameter live and saves a new rev
 
   const partId = await copyStarter(page, 'Tisch');
   expect(partId).not.toBe(STARTER_TABLE_ID);
+  await page.getByTestId('designer-tab-cutlist').click();
   const cutList = page.getByTestId('designer-cutlist');
   await expect(cutList).toContainText('722 mm');
+  const weightBefore = await page.getByTestId('designer-weight').textContent();
+  await page.getByTestId('designer-tab-views').click();
   await expect(page.getByTestId('designer-view-front')).toBeVisible();
   await expect(page.getByTestId('designer-preview')).toHaveAttribute('data-solids', '5');
   const geometryBefore = await page.getByTestId('designer-preview').getAttribute('data-geometry');
-  const weightBefore = await page.getByTestId('designer-weight').textContent();
   await expect(page.getByTestId('designer-save')).toBeDisabled();
 
+  await page.getByTestId('designer-tab-options').click();
   await page.getByTestId('parameter-default-H').fill('900');
+  await page.getByTestId('designer-tab-cutlist').click();
   await expect(cutList).toContainText('872 mm');
+  await expect(page.getByTestId('designer-weight')).not.toHaveText(weightBefore!);
+  await page.getByTestId('designer-tab-views').click();
   await expect(page.getByTestId('designer-view-size-front')).toContainText('900');
   await expect(page.getByTestId('designer-preview')).not.toHaveAttribute('data-geometry', geometryBefore!);
-  await expect(page.getByTestId('designer-weight')).not.toHaveText(weightBefore!);
 
   // Formulas live under Attribute › Alle Felder — open it before editing derived values.
   await page.getByTestId('designer-tab-attributes').click();
@@ -61,16 +66,21 @@ test('designer copies a starter part, edits a parameter live and saves a new rev
   const thickness = page.getByTestId('derived-staerke');
   await thickness.fill('B +');
   await expect(page.locator('.derived-row .formula-value.error')).toContainText('Zeichen');
+  await page.getByTestId('designer-tab-issues').click();
   await expect(page.getByTestId('designer-issues')).toContainText('verhindert das Speichern');
   await expect(page.getByTestId('designer-save')).toBeDisabled();
+  await page.getByTestId('designer-tab-attributes').click();
   await thickness.fill('28');
+  await page.getByTestId('designer-tab-issues').click();
   await expect(page.getByTestId('designer-issues')).toContainText('Keine Fehler');
 
   await page.getByTestId('designer-save').click();
   await expect(page.getByTestId('designer-status')).toContainText('Gespeichert als Revision 2');
   await page.reload();
   await expect(page.getByTestId('designer-title')).toHaveText(/^Tisch Kopie/);
+  await page.getByTestId('designer-tab-options').click();
   await expect(page.getByTestId('parameter-default-H')).toHaveValue('900');
+  await page.getByTestId('designer-tab-cutlist').click();
   await expect(page.getByTestId('designer-cutlist')).toContainText('872 mm');
   await expect(page.getByTestId('designer-savebar')).toContainText('Revision 2');
 
@@ -91,6 +101,7 @@ test('face sketcher draws, moves and deletes an opening on a sheet and saves it 
 
   const sketcher = page.getByTestId('designer-face-sketcher');
   await expect(sketcher).toBeVisible();
+  await sketcher.scrollIntoViewIfNeeded();
   await expect(sketcher).toHaveAttribute('data-openings', '0');
   await expect(page.getByTestId('face-sketcher-count')).toHaveText('0 Öffnungen');
   await expect(page.getByTestId('designer-save')).toBeDisabled();
@@ -104,7 +115,9 @@ test('face sketcher draws, moves and deletes an opening on a sheet and saves it 
   await expect(page.getByTestId('face-sketcher-readout')).toContainText('Rechteck „oeffnung“');
   await expect(page.getByTestId('parameter-default-oeffnungB')).toHaveValue(/^2[0-9]0$/);
   await expect(page.getByTestId('designer-save')).toBeEnabled();
+  await page.getByTestId('designer-tab-issues').click();
   await expect(page.getByTestId('designer-issues')).toContainText('Keine Fehler');
+  await page.getByTestId('designer-tab-options').click();
   const widthBefore = await page.getByTestId('parameter-default-oeffnungB').inputValue();
 
   const handle = page.getByTestId('face-sketcher-handle-e');
@@ -159,11 +172,14 @@ test('face sketcher saves and reloads a window pocket on a Wandelement copy', as
   await signInToPlans(page);
   await openDesigner(page);
   await copyStarter(page, 'Wandelement');
-  await expect(page.getByTestId('designer-face-sketcher')).toBeVisible();
+  const sketcher = page.getByTestId('designer-face-sketcher');
+  await expect(sketcher).toBeVisible();
+  await sketcher.scrollIntoViewIfNeeded();
   await page.getByTestId('face-sketcher-tool-rect').click();
   await dragOnSheet(page, [0.4, 0.45], [0.6, 0.55]);
-  await expect(page.getByTestId('designer-face-sketcher')).toHaveAttribute('data-openings', '1');
+  await expect(sketcher).toHaveAttribute('data-openings', '1');
   await expect(page.getByTestId('parameter-default-oeffnungLeft')).toBeVisible();
+  await page.getByTestId('designer-tab-issues').click();
   await expect(page.getByTestId('designer-issues')).toContainText('Keine Fehler');
   await expect(page.getByTestId('designer-save')).toBeEnabled();
   await page.getByTestId('designer-save').click();
@@ -230,7 +246,9 @@ test('viewers can open parts in the designer but not change or save them', async
     await viewer.getByTestId('designer-starters').getByRole('listitem').filter({ hasText: 'Tisch' }).getByRole('button', { name: 'Öffnen' }).click();
     await expect(viewer).toHaveURL(new RegExp(`#/designer/${STARTER_TABLE_ID}$`));
     await expect(viewer.getByTestId('designer-title')).toHaveText('Tisch');
+    await viewer.getByTestId('designer-tab-cutlist').click();
     await expect(viewer.getByTestId('designer-cutlist')).toContainText('722 mm');
+    await viewer.getByTestId('designer-tab-options').click();
     await expect(viewer.getByTestId('part-name')).toBeDisabled();
     await expect(viewer.getByTestId('parameter-default-H')).toBeDisabled();
     await expect(viewer.getByTestId('designer-face-sketcher')).toBeVisible();

@@ -1,3 +1,4 @@
+import { expandCatalogSearch, parseCatalogEntries, polyHavenIdSchema } from '../../shared/polyHaven.js';
 import { z } from 'zod';
 import { MAX_MODEL_BYTES } from '../../shared/assets.js';
 import {
@@ -14,7 +15,11 @@ const assetSchema = z.looseObject({
   dimensions: z.array(z.number()).optional(),
   thumbnail_url: z.url(),
 });
-const assetsSchema = z.record(z.string(), assetSchema);
+const assetsSchema = { parse: (input: unknown) => parseCatalogEntries(input, (id, value) => {
+  const raw = assetSchema.parse(value);
+  item(id, raw);
+  return raw;
+}) };
 
 export type ModelImport = {
   item: ModelCatalogItem;
@@ -39,7 +44,7 @@ function item(id: string, raw: z.infer<typeof assetSchema>): ModelCatalogItem {
 }
 
 export function createPolyHavenModelClient(fetcher: typeof fetch = fetch): ModelCatalogClient {
-  let cached: { expires: number; assets: z.infer<typeof assetsSchema> } | undefined;
+  let cached: { expires: number; assets: Record<string, z.infer<typeof assetSchema>> } | undefined;
 
   async function json(url: string) {
     const response = await fetcher(url, {
@@ -62,7 +67,7 @@ export function createPolyHavenModelClient(fetcher: typeof fetch = fetch): Model
       const words = query.trim();
       if (words) {
         try {
-          const searched = assetsSchema.parse(await json(`${POLYHAVEN_API}/search?${new URLSearchParams({ q: words, t: 'models' })}`));
+          const searched = assetsSchema.parse(await expandCatalogSearch(await json(`${POLYHAVEN_API}/search?${new URLSearchParams({ q: words, t: 'models' })}`), allAssets));
           return modelCatalogSchema.parse(Object.entries(searched).slice(0, 48).map(([id, asset]) => item(id, asset)));
         } catch {
           // Fall back to the cached model list.
@@ -79,6 +84,7 @@ export function createPolyHavenModelClient(fetcher: typeof fetch = fetch): Model
     },
 
     async download(assetId) {
+      polyHavenIdSchema.parse(assetId);
       const [assets, rawFiles] = await Promise.all([
         allAssets(),
         json(`${POLYHAVEN_API}/files/${encodeURIComponent(assetId)}`),
@@ -89,7 +95,7 @@ export function createPolyHavenModelClient(fetcher: typeof fetch = fetch): Model
       if (!glb || !isPolyHavenDownloadUrl(glb.url)) throw new Error('Poly Haven model has no GLB');
       if (glb.size > MAX_MODEL_BYTES) throw new Error('Model is too large');
       const response = await fetcher(glb.url, {
-        headers: { 'User-Agent': USER_AGENT },
+        headers: { 'User-Agent': USER_AGENT }, redirect: 'error',
         signal: AbortSignal.timeout(60_000),
       });
       if (!response.ok) throw new Error(`Poly Haven download returned ${response.status}`);

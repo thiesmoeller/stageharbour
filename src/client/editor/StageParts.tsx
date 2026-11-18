@@ -1,3 +1,4 @@
+import { WorkspaceMesh } from '../stage/WorkspaceMesh.js';
 import { useContext, useMemo } from 'react';
 import { Euler, Matrix4, MeshStandardMaterial, Quaternion, Vector3 } from 'three';
 import type { ThreeEvent } from '@react-three/fiber';
@@ -43,14 +44,14 @@ function deckSeams(item: ResolvedLayoutObject, base: Matrix4): StageInstance[] {
 }
 
 function PartInstance({ item }: { item: ResolvedLayoutObject }) {
-  const { selectedIds, onSelect } = useContext(StageInteraction);
+  const { selectedIds, onSelect, workspaceId, assets } = useContext(StageInteraction);
   const selected = selectedIds.includes(item.object.id);
   const geometryKey = useMemo(() => `part:${item.object.part.id}@${item.object.part.revision}:${JSON.stringify({
     variant: item.object.variant,
     values: item.object.values,
     state: item.object.state,
   })}`, [item.object.part.id, item.object.part.revision, item.object.variant, item.object.values, item.object.state]);
-  const buildGeometry = useMemo(() => () => buildPartGeometry(item.resolved).geometry, [item.resolved]);
+  const buildGeometry = useMemo(() => () => buildPartGeometry({ ...item.resolved, solids: item.resolved.solids.filter(solid => !(solid.kind === 'box' && solid.assetId)) }).geometry, [item.resolved]);
   const instances = useMemo(() => {
     const matrix = placementMatrix({
       x: item.object.x,
@@ -80,7 +81,11 @@ function PartInstance({ item }: { item: ResolvedLayoutObject }) {
     },
   }), [item.object.id, onSelect, pushPullKind]);
   useStageInstances(instances, owner);
-  return null;
+  return <group matrixAutoUpdate={false} matrix={placementMatrix({ x: item.object.x, y: item.object.y, rotation: item.object.rotation, elevation: item.elevation })}
+    onClick={owner.onClick}>
+    {item.resolved.solids.map(solid => solid.kind === 'box' && solid.assetId
+      ? <WorkspaceMesh key={solid.id} workspaceId={workspaceId} asset={assets.find(asset => asset.id === solid.assetId)} solid={solid} /> : null)}
+  </group>;
 }
 
 /** One generic 3D path for every placed catalog part; equal configurations share cached geometry and an instance batch. */

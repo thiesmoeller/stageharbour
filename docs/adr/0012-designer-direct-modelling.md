@@ -28,4 +28,4 @@ This amends [ADR 0011](0011-face-openings-sketcher.md): its decision to draw ope
 
 - The Designer layout becomes a full-height canvas with a tool rail, a value box („Maße“) and right-hand tabs Optionen, Attribute, Gliederung, Zuschnitt, Prüfung.
 - Browser tests position the pointer from a `data-` readout of projected handle points, as the stage canvas harness does.
-- Arcs in outlines (gap B), bent beam paths (gap C) and model bodies (gap D) remain separate slices; each adds handles, not tools.
+- **Gap B starts with circle outlines.** A sheet `outline` may be `{ shape: 'circle', cx, cy, r, segments? }` (formula fields). Resolve tessellates to a polygon loop; handles expose centre and radius, not every chord vertex. Full arcs / partial sweeps remain a later gap-B slice. Bent beam paths (gap C) and model bodies (gap D) remain separate slices; each adds handles, not tools.

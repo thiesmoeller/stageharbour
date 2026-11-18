@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import {
   createSurfaceSchema, surfaceCatalogSchema, surfaceFileResultSchema, surfaceRecordSchema,
   type SurfaceCatalogItem, type SurfaceMapKind,
@@ -10,7 +10,11 @@ import { surfaceTextureUrl, useSurfaceRegistry } from './SurfaceRegistryContext.
 const IMAGE_ACCEPT = 'image/png,image/jpeg,image/webp';
 
 function TextureInput({ name, label, required = false }: { name: SurfaceMapKind; label: string; required?: boolean }) {
-  return <label>{label}<input name={name} type="file" accept={IMAGE_ACCEPT} required={required} /></label>;
+  const [preview, setPreview] = useState<string>();
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
+  return <label>{label}<input name={name} type="file" accept={IMAGE_ACCEPT} required={required} onChange={event => {
+    const file = event.target.files?.[0]; setPreview(file ? URL.createObjectURL(file) : undefined);
+  }} />{preview && <img src={preview} alt={`${label}: Vorschau`} style={{ width: 96, height: 96, objectFit: 'contain' }} />}</label>;
 }
 
 export function SurfaceRegistryPanel({ readOnly = false }: { readOnly?: boolean }) {
@@ -18,6 +22,8 @@ export function SurfaceRegistryPanel({ readOnly = false }: { readOnly?: boolean 
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [catalogStatus, setCatalogStatus] = useState('');
+  const [completion, setCompletion] = useState('');
   const [packing, setPacking] = useState<'orm' | 'separate'>('orm');
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [catalogQuery, setCatalogQuery] = useState('');
@@ -90,12 +96,17 @@ export function SurfaceRegistryPanel({ readOnly = false }: { readOnly?: boolean 
 
   async function searchCatalog(event?: FormEvent) {
     event?.preventDefault();
+    if (catalogLoading) return;
+    setCatalogStatus("Suche läuft …");
     setCatalogLoading(true); setError('');
     try {
-      setCatalog(surfaceCatalogSchema.parse(await request(
+      const found = surfaceCatalogSchema.parse(await request(
         `/api/workspaces/${registry.workspaceId}/surfaces/catalog/poly-haven?q=${encodeURIComponent(catalogQuery)}`,
-      )));
+      ));
+      setCatalog(found);
+      setCatalogStatus(found.length ? `${found.length} Materialien gefunden.` : "Keine passenden Materialien gefunden.");
     } catch (caught) {
+      setCatalogStatus('Suche fehlgeschlagen. Bitte erneut suchen.');
       setError(caught instanceof ApiError ? caught.message : 'Poly Haven konnte nicht durchsucht werden.');
     } finally {
       setCatalogLoading(false);
@@ -103,6 +114,7 @@ export function SurfaceRegistryPanel({ readOnly = false }: { readOnly?: boolean 
   }
 
   async function importCatalogSurface(assetId: string) {
+    if (busy) return;
     setBusy(true); setError('');
     try {
       surfaceRecordSchema.parse(await request(
@@ -116,6 +128,7 @@ export function SurfaceRegistryPanel({ readOnly = false }: { readOnly?: boolean 
         },
       ));
       await registry.reload();
+      setCompletion("Oberfläche im Arbeitsbereich gespeichert.");
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Das Poly-Haven-Material konnte nicht importiert werden.');
     } finally {
@@ -124,8 +137,9 @@ export function SurfaceRegistryPanel({ readOnly = false }: { readOnly?: boolean 
   }
 
   return <details className="inspector-section" open>
-    <summary>Eigene Oberflächen</summary>
+    <summary>Eigene Oberflächen · PBR-Texturen</summary>
     <div className="inspector-section-body surface-registry">
+      <p role="status">{completion}</p>
       <p className="muted">glTF&nbsp;2.0 Metallic-Roughness · PNG/JPEG/WebP · Normalmaps im OpenGL-Format (+Y).</p>
       <div className="surface-registry-list">
         {registry.surfaces.filter(surface => !surface.archived).map(surface => <article key={surface.id} className="surface-registry-item">
@@ -151,7 +165,7 @@ export function SurfaceRegistryPanel({ readOnly = false }: { readOnly?: boolean 
       )}
       {!readOnly && localCapabilities.polyHaven && catalogOpen && <section className="surface-catalog">
         <form onSubmit={event => void searchCatalog(event)} className="surface-catalog-search">
-          <label>CC0-Material suchen<input value={catalogQuery}
+          <label>CC0-Material suchen<input type="search" name="q" value={catalogQuery}
             onChange={event => setCatalogQuery(event.target.value)} placeholder="Holz, Stoff, Beton …" /></label>
           <button type="submit" disabled={catalogLoading}>{catalogLoading ? 'Suche …' : 'Suchen'}</button>
         </form>
@@ -175,11 +189,11 @@ export function SurfaceRegistryPanel({ readOnly = false }: { readOnly?: boolean 
               onClick={() => void importCatalogSurface(item.id)}>Importieren</button>
           </article>)}
         </div>
-        {!catalogLoading && !catalog.length && <p className="muted">Keine passenden Materialien gefunden.</p>}
+        <p className="muted" role="status">{catalogStatus}</p>
         <p className="muted">CC0-Materialien · <a href="https://polyhaven.com/textures"
           target="_blank" rel="noreferrer">Powered by Poly Haven</a></p>
       </section>}
-      {creating && localCapabilities.uploads && <form onSubmit={event => void submit(event)}><fieldset disabled={busy}>
+      {creating && localCapabilities.uploads && <form onSubmit={event => void submit(event)}><fieldset disabled={busy}><legend>PBR-Texturmaps hochladen</legend>
         <label>Name<input name="name" required maxLength={120} /></label>
         <label>Beschreibung<textarea name="description" maxLength={500} /></label>
         <label>Gültigkeit<select name="scope" defaultValue={registry.productionId ? 'production' : 'workspace'}>

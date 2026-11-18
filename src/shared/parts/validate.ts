@@ -1,3 +1,4 @@
+import { meshAssetDependencies } from './assetDependencies.js';
 import { z } from 'zod';
 import {
   BODY_MATERIAL_KINDS, MATERIAL_KIND_LABELS, PART_LIMITS,
@@ -47,7 +48,14 @@ function staticContextIssues(definition: PartDefinition, context: PartContext): 
         `Das Material „${known.name}“ ist ${MATERIAL_KIND_LABELS[known.kind]}, gebraucht wird ${accepted.map(kind => MATERIAL_KIND_LABELS[kind]).join(' oder ')}.`));
     }
   };
-  for (const body of definition.bodies) material(body.material, BODY_MATERIAL_KINDS[body.kind], { body: body.key });
+  for (const assetId of meshAssetDependencies(definition, context)) {
+    if (!context.asset) continue;
+    const asset = context.asset(assetId);
+    if (asset?.definition.kind !== 'model' || asset.definition.source.kind !== 'upload') {
+      found.push(issue('error', 'unknown-asset', { field: 'assetId' }, `Modelldatei ${assetId} fehlt im Arbeitsbereich. Bitte die Abhängigkeit importieren.`));
+    }
+  }
+  for (const body of definition.bodies) if (body.kind !== 'mesh') material(body.material, BODY_MATERIAL_KINDS[body.kind], { body: body.key });
   for (const item of definition.hardware ?? []) material(item.material, ['hardware'], { hardware: item.material });
 
   /** Levels of child parts below a definition, or the reason the tree is not usable. */
@@ -291,6 +299,7 @@ export function validateLibrary(input: unknown, fallback?: PartContext, options:
   const library = parsed.data;
   const own = createPartContext(library);
   const context: PartContext = {
+    asset: fallback?.asset,
     material: key => own.material(key) ?? fallback?.material(key),
     part: ref => own.part(ref) ?? fallback?.part(ref),
   };
