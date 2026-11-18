@@ -10,7 +10,7 @@ export function planeAxes(normal: Vec3): Vec3 {
 }
 
 /**
- * SketchUp arrow-key plane lock while drawing: Right = red/X, Left = blue/Z, Up = green/Y.
+ * Arrow-key plane lock while drawing: Right = red/X, Left = blue/Z, Up = green/Y.
  * Locked axis becomes the plane normal, so Right/Left erect a rectangle into the air.
  */
 export function axisFromArrowKey(key: string): AxisName | undefined {
@@ -36,7 +36,7 @@ export function drawingPlaneLockLabel(axis: AxisName): string {
 }
 
 /**
- * SketchUp-style regular n-gon vertices in the plane through `centre` with `normal`.
+ * Regular n-gon vertices in the plane through `centre` with `normal`.
  * The first vertex lies along the plane's `u` axis; sides are clamped to 3…`PART_LIMITS.polygonPoints`.
  */
 export function regularPolygonPoints(centre: Vec3, radius: number, sides: number, normal: Vec3): Vec3[] {

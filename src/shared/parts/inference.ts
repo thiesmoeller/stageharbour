@@ -3,7 +3,7 @@ import { add, cross, dot, length, normalize, scale, sub, type Vec3 } from './mat
 import { solidVertices, type ResolvedPart, type ResolvedSolid } from './resolve.js';
 
 /**
- * SketchUp-style inference in part millimetres: the pointer ray snaps to corners, edge
+ * Geometry inference in part millimetres: the pointer ray snaps to corners, edge
  * midpoints, edges, faces, the origin and the axes through the start of the running operation.
  * Without a hit the point lies on the drawing plane, on a 1 mm grid. Alt bypasses all of it.
  */

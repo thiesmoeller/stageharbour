@@ -64,7 +64,7 @@ test('without a hit the point lies on the floor grid; Alt keeps the exact pointe
   assert.notEqual(nearCorner?.kind, 'endpoint', 'Alt also ignores corners');
 });
 
-test('from a start point the pointer locks onto an axis, coloured like SketchUp', () => {
+test('from a start point the pointer locks onto an axis with axis colours', () => {
   const from = { x: -1000, y: 0, z: -1000 };
   const snap = snapPoint({ candidates, ray: rayTo({ x: -400.3, y: 0, z: -998 }), from, tolerance: 5 });
   assert.equal(snap?.kind, 'axis');

@@ -39,7 +39,7 @@ export function rotateEdit(
 
 /**
  * Live push/pull preview without rewriting the draft: scale along the face axis about the
- * opposite face so React/resolve stay idle during the drag (SketchUp-smooth).
+ * opposite face so React/resolve stay idle during the drag.
  */
 export function pushPullPreviewScale(
   handle: { position: Vec3; axis: Vec3; measure?: { value: number } },

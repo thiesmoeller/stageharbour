@@ -79,7 +79,7 @@ test('rotateEdit with copy uses copyRotateSelection and leaves the original', ()
   assert.deepEqual(original.at, [300, 50, 0]);
 });
 
-test('move and pushpull tool hints describe SketchUp base point and double-click repeat', () => {
+test('move and pushpull tool hints describe base point and double-click repeat', () => {
   assert.match(MODEL_TOOLS.find(tool => tool.id === 'move')!.hint, /Inferenz/);
   assert.match(MODEL_TOOLS.find(tool => tool.id === 'rotate')!.hint, /Inferenz/);
   assert.match(MODEL_TOOLS.find(tool => tool.id === 'pushpull')!.hint, /Doppelklick/);

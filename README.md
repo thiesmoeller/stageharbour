@@ -35,7 +35,7 @@ Prefer running locally without Postgres? `npm run dev:local` builds the same bro
 
 ## Why StageHarbour
 
-Touring theatre groups rebuild the same production in different rooms. Spreadsheets, SketchUp files, and WhatsApp threads do not survive that journey well.
+Touring theatre groups rebuild the same production in different rooms. Spreadsheets, loose 3D model files, and WhatsApp threads do not survive that journey well.
 
 StageHarbour is the harbour for that work:
 

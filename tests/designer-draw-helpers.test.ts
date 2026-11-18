@@ -38,7 +38,7 @@ test('squareLockedExtents locks on Shift or near-equal sides', () => {
   });
 });
 
-test('isPolygonSideCount accepts SketchUp-style side counts', () => {
+test('isPolygonSideCount accepts regular n-gon side counts', () => {
   assert.equal(isPolygonSideCount(6), true);
   assert.equal(isPolygonSideCount(3), true);
   assert.equal(isPolygonSideCount(64), true);

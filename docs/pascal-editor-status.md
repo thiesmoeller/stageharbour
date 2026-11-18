@@ -31,7 +31,7 @@ The one existing local scene's zero-elevation model was converted from the forme
 
 ## Workspace UI update (13 September 2026)
 
-The editor now uses a compact application shell inspired by SketchUp's canvas, toolbar and inspector arrangement. On desktop, the document header and command bar stay above the canvas, creation tools sit on the left, and a separately scrolling properties tray sits on the right. Account management remains in the overview. The plan has its own zoom controls; the status bar offers an explicit help disclosure. Selected-object properties precede expandable wall-type, inventory, assembly, grouping, clipboard and placeholder sections. Collapsing a section keeps its form mounted, preserving entries. Selecting another object brings its properties back into view.
+The editor now uses a compact application shell: canvas, toolbar and inspector. On desktop, the document header and command bar stay above the canvas, creation tools sit on the left, and a separately scrolling properties tray sits on the right. Account management remains in the overview. The plan has its own zoom controls; the status bar offers an explicit help disclosure. Selected-object properties precede expandable wall-type, inventory, assembly, grouping, clipboard and placeholder sections. Collapsing a section keeps its form mounted, preserving entries. Selecting another object brings its properties back into view.
 
 The asset library opens beside the properties tray. Construction plans and packages share one export drawer. Venue drafting retains its own scrollable workspace and history controls; scene creation and history controls are hidden while drafting the venue. Narrow screens use stacked views and a horizontal creation toolbar.
 

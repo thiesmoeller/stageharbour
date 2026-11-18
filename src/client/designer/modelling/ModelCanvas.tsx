@@ -243,7 +243,7 @@ function ModelScene(props: ModelCanvasProps & {
   const last = useRef<LastStep | undefined>(undefined);
   const lastClick = useRef<{ time: number; solid?: string }>({ time: 0 });
   const lastPushPull = useRef<number | undefined>(undefined);
-  /** Vieleck side count for the next centre→radius gesture (SketchUp default 6). */
+  /** Vieleck side count for the next centre→radius gesture (default 6). */
   const polygonSides = useRef(6);
   const hoverRef = useRef<Hover>({});
   const meshes = useRef(new Map<string, Object3D>());
@@ -1058,7 +1058,7 @@ function ModelScene(props: ModelCanvasProps & {
             current.onStatus('Endpunkt der Drehung klicken oder Winkel eintippen.');
             return;
           }
-          // SketchUp: double-click a face repeats the last push/pull distance.
+          // Double-click a face repeats the last Drücken/Ziehen distance.
           if (
             running.kind === 'pushpull'
             && !running.moved
@@ -1458,7 +1458,7 @@ function LockIcon() {
   </svg>;
 }
 
-/** Floor grid with red, green and blue axes through the origin, SketchUp style. */
+/** Floor grid with red, green and blue axes through the origin. */
 function ReferenceGrid() {
   return <group>
     <gridHelper args={[10, 20, '#b9c2c8', '#dde2e6']} position={[0, 0.0005, 0]} raycast={() => null} />

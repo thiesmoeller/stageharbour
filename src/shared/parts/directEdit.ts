@@ -238,7 +238,7 @@ export function pushPullFace(definition: PartDefinition, resolved: Resolved, han
 }
 
 /**
- * SketchUp Ctrl+Push/Pull: leave the face, add a new body extruded from it by `distance`.
+ * Ctrl+Drücken/Ziehen: leave the face, add a new body extruded from it by `distance`.
  * Box and beam faces become a new box; sheet front/back keep the outline as a new thick sheet.
  */
 export function pushPullNewBody(definition: PartDefinition, resolved: Resolved, handle: Handle, distance: number): EditResult {

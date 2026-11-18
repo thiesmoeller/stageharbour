@@ -98,7 +98,7 @@ export function nearestTrussForHang(
   return best;
 }
 
-/** Build a truss from two plan points (SketchUp-like click start / click end). */
+/** Build a truss from two plan points (click start, click end). */
 export function trussFromSegment(id: string, start: PlanPoint, end: PlanPoint, bottomHeight = EXAMPLE_TRUSS_BOTTOM_HEIGHT): Truss | undefined {
   const length = Math.hypot(end.x - start.x, end.y - start.y);
   if (!(length >= 1)) return undefined;

@@ -335,7 +335,7 @@ export function inferenceDeltaMm(origin: Vec3, axisNormal: Vec3, hitPoint: Vec3)
 }
 
 /**
- * SketchUp-style inference only locks to faces roughly parallel to the dragged face.
+ * Face inference only locks to faces roughly parallel to the dragged face.
  * Horizontal tops / angled hits under the cursor must not project onto a side-face drag
  * (that collapses Bühnenelemente into thin strips).
  */
@@ -354,7 +354,7 @@ export function stageDeckDragAxisMm(venue: VenueGeometry, handle: PushPullHandle
 }
 
 /**
- * Prefer SketchUp-style inference (flush to pointed geometry) over the grid when available.
+ * Prefer geometry inference (flush to pointed faces) over the grid when available.
  * Bühnenelement cover-snaps the target onto the 0,5 m module grid so the highlight matches
  * the committed outline. Alt / snap-off keeps the free pointer delta.
  */

@@ -152,7 +152,7 @@ export function dimensionValue(orientation: PlayDimension['orientation'], a: Pla
 }
 
 /**
- * SketchUp linear dimension: the line stays horizontal, vertical, or parallel to the
+ * Linear dimension: the line stays horizontal, vertical, or parallel to the
  * two points, whichever the cursor is pulling toward, and sits off the geometry.
  */
 export function dimensionFromPlacement(a: PlanPoint, b: PlanPoint, at: PlanPoint): { orientation: PlayDimension['orientation']; offset: number } {

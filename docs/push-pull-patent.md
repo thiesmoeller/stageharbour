@@ -1,6 +1,6 @@
-# SketchUp Push/Pull patent notes
+# Face push/pull (Drücken/Ziehen) patent notes
 
-Question: Can this planner use a SketchUp-like push/pull interaction to set **Podest** elevation and **Überbauung** height/thickness?
+Question: Can this planner use a face push/pull interaction to set **Podest** elevation and **Überbauung** height/thickness?
 
 ## Primary source
 
@@ -8,15 +8,15 @@ Question: Can this planner use a SketchUp-like push/pull interaction to set **Po
 - USPTO / Google Patents legal status: **Expired — Lifetime**, adjusted expiration **2021-05-06**.
 - Source: [Google Patents US6628279B1](https://patents.google.com/patent/US6628279B1/en) (status line: “Expired - Lifetime, expires 2021-05-06”).
 
-Claims cover receiving planar closed faces and extruding / “pushing or pulling” those faces into 3D (among other SketchUp modelling behaviours).
+Claims cover receiving planar closed faces and extruding / “pushing or pulling” those faces into 3D (among other direct-modelling behaviours from that era).
 
 ## Practical takeaway (not legal advice)
 
 | Topic | Status |
 |---|---|
 | US6628279 Push/Pull patent | Expired (May 2021) — no longer a US patent barrier for that invention |
-| Other jurisdictions / follow-ons | Not exhaustively searched here; worth a quick patent counsel check before shipping a marketing claim of “SketchUp Push/Pull” |
-| “SketchUp” trademark | Still owned by Trimble — do **not** brand the feature as SketchUp; describe it in German product language (e.g. **Höhe ziehen**, **Extrudieren**) |
+| Other jurisdictions / follow-ons | Not exhaustively searched here; worth a quick patent counsel check before shipping marketing claims that name a third-party product |
+| Product naming | Do **not** brand the feature with a third-party CAD trademark; describe it in German product language (e.g. **Höhe ziehen**, **Extrudieren**, **Drücken/Ziehen**) |
 | Fit for Podest / Überbauung | Interaction is a good UX match: select top face → drag to change elevation / bottomHeight / thickness with live millimetre feedback |
 
 ## Product mapping

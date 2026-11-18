@@ -1,4 +1,4 @@
-/** Modelling tools of the Designer's tool rail, with SketchUp's single-key shortcuts where it has one. */
+/** Modelling tools of the Designer's tool rail, with single-key shortcuts where the tool has one. */
 export const MODEL_TOOLS = [
   { id: 'select', label: 'Auswählen', key: ' ', keyLabel: 'Leertaste', hint: 'Anklicken wählt. Umschalt fügt hinzu, Strg schaltet um. Strg+A wählt alles. Ziehen von links wählt innen, von rechts schneidet. Doppelklick öffnet eine Gruppe.' },
   { id: 'move', label: 'Verschieben', key: 'm', keyLabel: 'M', hint: 'Bezugspunkt aus der Inferenz (Ecke, Mitte, …) klicken, dann Zielpunkt. Pfeiltasten oder Umschalt sperren eine Achse. Strg beim Ziel kopiert.' },
@@ -23,7 +23,7 @@ export function toolForKey(key: string): ModelToolId | undefined {
 
 /**
  * Numbers typed into the value box: `750`, `1200;600`, `-25`, with a decimal comma or point.
- * A semicolon separates values, as in SketchUp's German edition.
+ * A semicolon separates values (German locale convention for paired Maße).
  */
 export function parseValueBox(text: string): number[] | undefined {
   const parts = text.trim().split(/\s*;\s*/);
