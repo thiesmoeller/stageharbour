@@ -19,7 +19,7 @@ import {
   AXIS_COLORS, AXIS_VECTORS, angleAbout, axisOf, inferenceCandidates, pointOnAxis, rayPlane, snapAlongAxis, snapAngle, snapPoint,
   type AxisName, type InferenceCandidates, type Ray, type Snap,
 } from '../../../shared/parts/inference.js';
-import { add, boundsOf, cross, dot, length, normalize, scale, sub, type RigidTransform, type Vec3 } from '../../../shared/parts/math.js';
+import { add, boundsOf, cross, dot, length, normalize, quatAxes, scale, sub, type RigidTransform, type Vec3 } from '../../../shared/parts/math.js';
 import { solidFace, solidVertices, type ResolvedPart, type ResolvedSolid } from '../../../shared/parts/resolve.js';
 import type { StageBounds } from '../../stage/cameraFraming.js';
 import { StageCanvas } from '../../stage/StageCanvas.js';
@@ -30,7 +30,7 @@ import {
   axisFromArrowKey, circlePreviewPoints, drawingPlaneLockLabel, drawingPlaneNormal, isPolygonSideCount,
   planeAxes, regularPolygonPoints, squareLockedExtents,
 } from './drawHelpers.js';
-import { moveEdit as rigidMove, pushPullPreviewScale, rotateEdit as rigidRotate } from './selectionEdit.js';
+import { moveEdit as rigidMove, pushPullNewBodyPreview, pushPullPreviewScale, rotateEdit as rigidRotate } from './selectionEdit.js';
 import { isTypingTarget, MODEL_TOOLS, type ModelToolId } from './tools.js';
 
 const MM = 0.001;
@@ -867,8 +867,11 @@ function ModelScene(props: ModelCanvasProps & {
           const measure = state.handle.measure;
           // Mesh-only preview: never rewrite the draft during the drag (that re-resolved the
           // whole Tisch and flashed „nicht gespeichert“ on every pointer move).
-          const preview = !state.copy ? pushPullPreviewScale(state.handle, delta) : undefined;
-          const valid = state.copy ? Math.abs(delta) >= 1 : !!preview;
+          const collapses = measure !== undefined && measure.value + delta <= 1e-3;
+          const preview = !state.copy && !collapses ? pushPullPreviewScale(state.handle, delta) : undefined;
+          // Measured faces need a scale preview; unmeasured edges (drawn polygons) and Ctrl+Neu
+          // still accept a free millimetre delta so the second click can commit.
+          const valid = !collapses && (preview !== undefined || Math.abs(delta) >= 1);
           const text = state.copy
             ? `Neu ${formatMm(delta)} mm`
             : measure ? `${measure.label} ${formatMm(measure.value + delta)} mm` : `${formatMm(delta)} mm`;
@@ -885,10 +888,20 @@ function ModelScene(props: ModelCanvasProps & {
             clearMeshPreview();
           }
           const tip = add(state.handle.position, scale(state.handle.axis, state.delta));
+          const ghostSolid = state.copy && state.handle.side
+            ? state.startResolved.solids.find(item => item.id === state.handle.solid)
+            : undefined;
+          const ghostLines = ghostSolid && state.handle.side && Math.abs(state.delta) >= 1
+            ? pushPullNewBodyPreview(state.handle.axis, state.delta, solidFace(ghostSolid, state.handle.side))
+              .map(line => ({ ...line, color: '#286a62', dashed: true as const }))
+            : [];
           setOverlay({
             ...(snap ? { snap } : {}),
             label: { at: tip, text, locked: !valid },
-            lines: [{ points: [state.handle.position, tip], color: '#b77c37', dashed: true }],
+            lines: [
+              { points: [state.handle.position, tip], color: '#b77c37', dashed: true },
+              ...ghostLines,
+            ],
           });
           return;
         }
@@ -1527,7 +1540,18 @@ function SolidMesh({ workspaceId, assets, solid, color, selected, hovered, dimme
 }
 
 function FaceOutline({ solid, side, edge, locked }: { solid: ResolvedSolid; side: PartFaceSide; edge?: Handle; locked: boolean }) {
-  const points = edge?.segment ? [edge.segment[0], edge.segment[1]] : faceLoop(solid, side);
+  // Sheet rim: draw the full thickness quad, not the mid-plane segment (that looked like a lone line).
+  let points: Vec3[] | undefined;
+  if (edge?.segment && solid.kind === 'sheet') {
+    const mid = solid.thickness / 2;
+    const along = scale(quatAxes(solid.rotation).z, mid);
+    const [a, b] = edge.segment;
+    const frontA = sub(a, along), frontB = sub(b, along);
+    const backA = add(a, along), backB = add(b, along);
+    points = [frontA, frontB, backB, backA, frontA];
+  } else {
+    points = edge?.segment ? [edge.segment[0], edge.segment[1]] : faceLoop(solid, side);
+  }
   if (!points) return null;
   return <Line points={points.map(point => [point.x, point.y, point.z] as [number, number, number])} color={locked ? '#963d2b' : HIGHLIGHT}
     lineWidth={edge ? 4 : 3} depthTest={false} renderOrder={4} />;

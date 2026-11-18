@@ -3,7 +3,7 @@ import {
   type EditResult, type SelectionTargets,
 } from '../../../shared/parts/directEdit.js';
 import type { PartDefinition } from '../../../shared/parts/definition.js';
-import { normalize, scale, sub, type Vec3 } from '../../../shared/parts/math.js';
+import { add, normalize, scale, sub, type Vec3 } from '../../../shared/parts/math.js';
 import type { ResolvedPart } from '../../../shared/parts/resolve.js';
 
 /**
@@ -55,4 +55,27 @@ export function pushPullPreviewScale(
     axis,
     factor: next / measure,
   };
+}
+
+/**
+ * Live preview of Ctrl+Drücken/Ziehen: the face outline extruded by `distance` as line segments
+ * (base loop, far loop, uprights). Empty when the side has no plane (e.g. a sheet rim).
+ */
+export function pushPullNewBodyPreview(
+  axis: Vec3,
+  distance: number,
+  face: { plane?: { origin: Vec3; u: Vec3; v: Vec3; outline: readonly { x: number; y: number }[] } } | undefined,
+): { points: Vec3[] }[] {
+  if (!(Math.abs(distance) >= 1) || !face?.plane) return [];
+  const { origin, u, v, outline } = face.plane;
+  if (outline.length < 2) return [];
+  const lift = scale(normalize(axis), distance);
+  const base = outline.map(point => add(origin, add(scale(u, point.x), scale(v, point.y))));
+  const far = base.map(point => add(point, lift));
+  const lines: { points: Vec3[] }[] = [
+    { points: [...base, base[0]!] },
+    { points: [...far, far[0]!] },
+  ];
+  for (let i = 0; i < base.length; i++) lines.push({ points: [base[i]!, far[i]!] });
+  return lines;
 }

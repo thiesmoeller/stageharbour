@@ -8,7 +8,7 @@ import {
 import { handleForPick, partHandles, type Handle } from '../src/shared/parts/handles.js';
 import { add, quatFromAxisAngle, rotate, scale, sub, type Vec3 } from '../src/shared/parts/math.js';
 import { resolvePart, solidVertices, type ResolvedPart } from '../src/shared/parts/resolve.js';
-import { STARTER_MATERIALS } from '../src/shared/parts/starter/index.js';
+import { STARTER_MATERIALS, STARTER_TABLE } from '../src/shared/parts/starter/index.js';
 import { fixtureId, panel } from './helpers/partsFixtures.js';
 
 const CONTEXT = createPartContext({ materials: STARTER_MATERIALS });
@@ -218,6 +218,41 @@ test('a parameter outside its range or between its listed values refuses the dra
   );
   assert.equal(pushPullFace(listed, resolved(listed), handle(listed, 'k:side:top'), 50).ok, false);
   assert.equal(ok(pushPullFace(listed, resolved(listed), handle(listed, 'k:side:top'), 100)).parameters[0]!.default, 400);
+});
+
+test('a parameter with a step snaps on push/pull instead of refusing the drag', () => {
+  const stepped = part(
+    [{ kind: 'box', key: 'k', material: 'holz-koerper', size: [400, 'H', 200], at: [0, 'H / 2', 0] }],
+    { parameters: [length('H', 750, { range: { min: 500, max: 1100, step: 10 } })] },
+  );
+  // 37 mm is between steps — must land on 790, not fail with „Schritten von 10“.
+  const next = ok(pushPullFace(stepped, resolved(stepped), handle(stepped, 'k:side:top'), 37));
+  assert.equal(next.parameters[0]!.default, 790);
+});
+
+test('Tischplatte push/pull snaps Höhe to its step so the second click can persist', () => {
+  const before = resolvePart(STARTER_TABLE, {}, CONTEXT);
+  assert.deepEqual(before.issues.filter(issue => issue.severity === 'error'), []);
+  const top = partHandles(STARTER_TABLE, before).find(item => item.body === 'platte' && item.name === 'side:front');
+  assert.ok(top);
+  // Previously failed with „Schritten von 10“ for any non-multiple of 10.
+  const next = ok(pushPullFace(STARTER_TABLE, before, top, 0.5));
+  assert.equal(next.parameters.find(item => item.key === 'H')?.default, 750);
+  const thicker = ok(pushPullFace(STARTER_TABLE, before, top, 37));
+  assert.equal(thicker.parameters.find(item => item.key === 'H')?.default, 790);
+});
+
+test('polygon sheet edges carry a measure so side push/pull can preview and commit', () => {
+  const definition = part([{
+    kind: 'sheet', key: 'p', material: 'sperrholz-12', plane: 'xz', at: [0, 0, 0], thickness: 400,
+    outline: { shape: 'polygon', points: [[0, 0], [1200, 0], [1200, 600], [0, 600]] },
+  }]);
+  const edge = handle(definition, 'p:edge:1');
+  assert.ok(edge.measure && edge.measure.value > 0, 'edge needs a measure for live scale preview');
+  const next = ok(pushPullFace(definition, resolved(definition), edge, 100));
+  const outline = (next.bodies[0] as Extract<PartBody, { kind: 'sheet' }>).outline;
+  assert.equal(outline.shape, 'polygon');
+  if (outline.shape === 'polygon') assert.deepEqual(outline.points[1], [1300, 0]);
 });
 
 test('typing a measure sets it exactly; a beam measures its length', () => {

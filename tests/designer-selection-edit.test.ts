@@ -4,9 +4,9 @@ import { createPartContext, type PartBody, type PartDefinition } from '../src/sh
 import { copyRotateSelection, moveSelection, moveVertex } from '../src/shared/parts/directEdit.js';
 import { partHandles } from '../src/shared/parts/handles.js';
 import { add } from '../src/shared/parts/math.js';
-import { resolvePart, solidVertices } from '../src/shared/parts/resolve.js';
+import { resolvePart, solidFace, solidVertices } from '../src/shared/parts/resolve.js';
 import { STARTER_MATERIALS } from '../src/shared/parts/starter/index.js';
-import { moveEdit, pushPullPreviewScale, rotateEdit } from '../src/client/designer/modelling/selectionEdit.js';
+import { moveEdit, pushPullNewBodyPreview, pushPullPreviewScale, rotateEdit } from '../src/client/designer/modelling/selectionEdit.js';
 import { MODEL_TOOLS } from '../src/client/designer/modelling/tools.js';
 import { fixtureId } from './helpers/partsFixtures.js';
 
@@ -97,4 +97,16 @@ test('pushPullPreviewScale grows about the opposite face without needing a draft
   assert.equal(preview.factor, 400 / 300);
   assert.equal(pushPullPreviewScale(top, -300), undefined);
   assert.equal(pushPullPreviewScale({ position: top.position, axis: top.axis }, 50), undefined);
+});
+
+test('pushPullNewBodyPreview extrudes the face outline for Ctrl+Drücken/Ziehen ghost lines', () => {
+  const definition = part([{ kind: 'box', key: 'k', material: 'holz-koerper', size: [400, 300, 200], at: [0, 150, 0] }]);
+  const before = resolved(definition);
+  const solid = before.solids[0]!;
+  const face = solidFace(solid, 'top');
+  const lines = pushPullNewBodyPreview({ x: 0, y: 1, z: 0 }, 120, face);
+  assert.equal(lines.length, 6); // base + far + 4 uprights
+  assert.equal(lines[0]!.points.length, 5); // closed base
+  const farY = Math.max(...lines[1]!.points.map(point => point.y));
+  assert.ok(farY > 150);
 });

@@ -171,7 +171,15 @@ export function setFields(definition: PartDefinition, resolved: Resolved, target
 
   for (const [key, value] of requests) {
     const parameter = parameters.get(key)!;
-    if (Math.abs(normalizeParameterValue(parameter, value) - value) > FOLLOW_EPS) return fail('range', rangeText(definition, key));
+    const settled = normalizeParameterValue(parameter, value);
+    // Snap to step / listed values; only refuse when the drag leaves the allowed min/max or list.
+    if (parameter.values?.length) {
+      if (Math.abs(settled - value) > FOLLOW_EPS) return fail('range', rangeText(definition, key));
+      continue;
+    }
+    if (parameter.range && (value < parameter.range.min - FOLLOW_EPS || value > parameter.range.max + FOLLOW_EPS)) {
+      return fail('range', rangeText(definition, key));
+    }
   }
   if (pending.length) {
     const moved = scopeWith(definition, resolved, element, index, Object.fromEntries(requests));

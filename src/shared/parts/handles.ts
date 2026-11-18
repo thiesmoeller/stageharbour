@@ -259,14 +259,18 @@ function sheetHandles(
         const along = normalize({ x: to.x - from.x, y: to.y - from.y, z: 0 });
         const outward = { x: along.y * turn, y: -along.x * turn };
         const normal = inPlane(outward.x, outward.y);
+        // Extent through the centroid along the outward normal — enough for scale preview.
+        const midPoint = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
+        const extent = Math.max(2 * Math.abs((midPoint.x - centre.x) * outward.x + (midPoint.y - centre.y) * outward.y), 1);
         edges.push({
           ...base, id: `${solid.id}:edge:${index}`, kind: 'edge', name: `edge:${index}`, label: 'Kante', side: 'edge',
-          position: at({ x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 }, mid), axis: normal,
+          position: at(midPoint, mid), axis: normal,
           segment: [at(from, mid), at(to, mid)],
           writes: [index, next].flatMap(point => [
             { path: ['outline', 'points', point, 0], coefficient: scale(normal, outward.x) },
             { path: ['outline', 'points', point, 1], coefficient: scale(normal, outward.y) },
           ]),
+          measure: { label: 'Abstand', value: extent },
         });
         points.push({
           ...base, id: `${solid.id}:point:${index}`, kind: 'point', name: `point:${index}`, label: 'Eckpunkt',
