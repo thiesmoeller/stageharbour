@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { polyHavenIdSchema } from './polyHaven.js';
 
 export const SURFACE_MAP_KINDS = [
   'baseColor', 'normal', 'orm', 'roughness', 'metalness', 'occlusion',
@@ -75,7 +76,7 @@ export const surfaceFileResultSchema = z.strictObject({
 });
 
 export const surfaceCatalogItemSchema = z.strictObject({
-  id: z.string().regex(/^[a-z0-9_]+$/).max(120),
+  id: polyHavenIdSchema,
   name: z.string().trim().min(1).max(160),
   description: z.string().max(1000),
   thumbnailUrl: z.url().refine(value => new URL(value).hostname === 'cdn.polyhaven.com'),
@@ -88,7 +89,7 @@ export type SurfaceCatalogItem = z.infer<typeof surfaceCatalogItemSchema>;
 
 export const importCatalogSurfaceSchema = z.strictObject({
   provider: z.literal('poly-haven'),
-  assetId: z.string().regex(/^[a-z0-9_]+$/).max(120),
+  assetId: polyHavenIdSchema,
   resolution: z.enum(['1k', '2k']).default('1k'),
   scope: surfaceScopeSchema,
   productionId: z.uuid().optional(),

@@ -1,3 +1,4 @@
+import { RequisitenPanel, useWorkspaceAssets } from '../editor/RequisitenPanel.js';
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import type { Me } from '../../shared/contracts.js';
@@ -12,7 +13,7 @@ import { calculateFormula } from '../../shared/parts/formula.js';
 import { explodeChild, makeChildFromBodies, makeGroup } from '../../shared/parts/grouping.js';
 import { elementScope, type Handle } from '../../shared/parts/handles.js';
 import { hasErrors, type PartIssue } from '../../shared/parts/issues.js';
-import type { RigidTransform } from '../../shared/parts/math.js';
+import { add, rotate, quatMultiply, type RigidTransform } from '../../shared/parts/math.js';
 import { resolvePartConfiguration, type ResolvedPart, type ResolvedSolid } from '../../shared/parts/resolve.js';
 import { definitionDependencies } from '../../shared/parts/sites.js';
 import { validateDefinition } from '../../shared/parts/validate.js';
@@ -22,11 +23,11 @@ import { askConfirm } from '../ConfirmDialog.js';
 import { catalogIssues, createPart, duplicatePart, getPart, listMaterials, listParts, resolveParts, savePart, setPartFavourite } from '../partsApi.js';
 import { writeWorkspaceLocation, type WorkspaceLocation } from '../workspaceRoutes.js';
 import { FaceOpeningsSketcher } from './FaceOpeningsSketcher.js';
+import { BodyList } from './BodyList.js';
 import { LibrarySidebar } from './LibrarySidebar.js';
 import { OpeningInspector } from './OpeningInspector.js';
 import { PartEditor, type InspectorTab } from './PartEditor.js';
 import { previewBounds } from './PartPreview3D.js';
-import { PartViewsSvg } from './PartViewsSvg.js';
 import { firstMaterialKey, newChild, newPartDefinition, type DesignerSelection } from './draft.js';
 import { childFrame, solidOfChild } from './modelling/childFrame.js';
 import { emptyHistory, record, redo, undo, type History } from './modelling/history.js';
@@ -43,6 +44,8 @@ type SaveState =
 
 /** A child part opened inside its parent. Leaving saves a new revision of the child. */
 type InPlace = {
+  parent?: InPlace;
+  parentDefinition: PartDefinition;
   key: string;
   /** Absent while a Gruppe is edited: it is stored on the parent, not in the library. */
   detail?: PartDetail;
@@ -145,7 +148,9 @@ export function Designer({ me, onDirty, partId }: { me: Me; onDirty: (dirty: boo
   const [modelStatus, setModelStatus] = useState<string>();
   const [promote, setPromote] = useState<Handle>();
   const [frame, setFrame] = useState<{ bounds: StageBounds; revision: number; fitted: boolean }>({ bounds: EMPTY_FRAME, revision: 0, fitted: false });
+  const workspaceAssets = useWorkspaceAssets(workspaceId);
   const [inPlace, setInPlace] = useState<InPlace>();
+  const [hierarchyOpen, setHierarchyOpen] = useState(true);
   const loadToken = useRef(0);
   const pendingNew = useRef<PartDefinition | undefined>(undefined);
   const lastResolved = useRef<ResolvedPart | undefined>(undefined);
@@ -207,7 +212,9 @@ export function Designer({ me, onDirty, partId }: { me: Me; onDirty: (dirty: boo
   }, [partId]);
 
   const childDirty = !!inPlace && canonicalJson(inPlace.draft) !== canonicalJson(inPlace.original);
-  const dirty = !!draft && (isNew || !saved || childDirty || canonicalJson(draft) !== canonicalJson(saved.definition));
+  let ancestorDirty = false;
+  for (let current = inPlace?.parent; current; current = current.parent) ancestorDirty ||= canonicalJson(current.draft) !== canonicalJson(current.original);
+  const dirty = !!draft && (isNew || !saved || childDirty || ancestorDirty || canonicalJson(draft) !== canonicalJson(saved.definition));
   useEffect(() => { onDirty(dirty && !readOnly); }, [dirty, readOnly, onDirty]);
   useEffect(() => () => onDirty(false), [onDirty]);
   useEffect(() => {
@@ -217,14 +224,14 @@ export function Designer({ me, onDirty, partId }: { me: Me; onDirty: (dirty: boo
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty, readOnly]);
 
-  const context = useMemo(() => createPartContext({ materials, parts: [...childDefinitions.values()] }), [materials, childDefinitions]);
+  const context = useMemo(() => createPartContext({ assets: workspaceAssets.assets, materials, parts: [...childDefinitions.values()] }), [materials, childDefinitions, workspaceAssets.assets]);
   const deferredDraft = useDeferredValue(draft);
   const deferredVariant = useDeferredValue(previewVariant);
   const deferredValues = useDeferredValue(previewValues);
   const deferredChild = useDeferredValue(inPlace?.draft);
   const inPlaceContext = useMemo(() => deferredChild
-    ? createPartContext({ materials, parts: [...childDefinitions.values(), deferredChild] })
-    : undefined, [materials, childDefinitions, deferredChild]);
+    ? createPartContext({ assets: workspaceAssets.assets, materials, parts: [...childDefinitions.values(), deferredChild] })
+    : undefined, [materials, childDefinitions, deferredChild, workspaceAssets.assets]);
   const live = useMemo(() => deferredDraft && materials.length
     ? liveCheck(deferredDraft, inPlaceContext ?? context, deferredVariant, deferredValues) : undefined,
   [deferredDraft, context, inPlaceContext, deferredVariant, deferredValues, materials.length]);
@@ -242,6 +249,15 @@ export function Designer({ me, onDirty, partId }: { me: Me; onDirty: (dirty: boo
   const modelLive = inPlace ? childLive : live;
   const issues = inPlace ? childLive?.issues ?? [] : saveIssues ?? live?.issues ?? [];
   const stale = deferredDraft !== draft || (!!inPlace && deferredChild !== inPlace.draft);
+  // Canvas must not lag behind a just-committed draft: deferred resolve would flash the
+  // pre-gesture mesh when a mesh-only preview is cleared (Drücken/Ziehen finish click).
+  const canvasResolved = useMemo(() => {
+    if (!stale || !model || !materials.length) return modelResolved;
+    const check = inPlace
+      ? liveCheck(model, context, inPlace.variant, inPlace.values)
+      : liveCheck(model, inPlaceContext ?? context, previewVariant, previewValues);
+    return check.resolved ?? modelResolved;
+  }, [stale, model, materials.length, modelResolved, inPlace, context, inPlaceContext, previewVariant, previewValues]);
   const blocking = hasErrors(live?.issues ?? []);
   const effectiveTool: ModelToolId = readOnly && !VIEW_TOOLS.includes(tool) ? 'select' : tool;
 
@@ -346,6 +362,13 @@ export function Designer({ me, onDirty, partId }: { me: Me; onDirty: (dirty: boo
     setSelection({ kind, key: first });
     setMulti(rest);
   }
+  function selectAll() {
+    if (!draft) return;
+    selectMany([
+      ...draft.bodies.map(body => body.key),
+      ...(draft.children ?? []).map(child => child.key),
+    ]);
+  }
 
   function promoteHandle(handle: Handle) {
     if (!model || !modelResolved) return;
@@ -429,15 +452,16 @@ export function Designer({ me, onDirty, partId }: { me: Me; onDirty: (dirty: boo
   }
 
   async function enterChild(key: string) {
-    if (readOnly || inPlace || !draft || !resolved) return;
-    const child = draft.children?.find(item => item.key === key);
+    if (readOnly || !model || !modelResolved) return;
+    const child = model.children?.find(item => item.key === key);
     const definition = (child && inlineGroup(child)) ?? (child?.part ? childDefinitions.get(partRefKey(child.part)) : undefined);
-    const placement = child && childFrame(draft, resolved, key);
+    const localFrame = child && childFrame(model, modelResolved, key);
+    const placement = localFrame && inPlace ? { rotation: quatMultiply(inPlace.frame.rotation, localFrame.rotation), translation: add(inPlace.frame.translation, rotate(inPlace.frame.rotation, localFrame.translation)) } : localFrame;
     if (!child || !definition || !placement) { setModelStatus('Dieses Unterbauteil lässt sich nicht öffnen.'); return; }
     if (inlineGroup(child)) {
       lastChildResolved.current = undefined;
       gestureStart.current = undefined;
-      setInPlace({ key, original: definition, draft: definition, frame: placement, variant: child.variant, values: {}, parentHistory: history, parentSelection: selection });
+      setInPlace({ parent: inPlace, parentDefinition: model, key, original: definition, draft: definition, frame: placement, variant: child.variant, values: Object.fromEntries(Object.entries(child.values ?? {}).map(([name, formula]) => [name, calculateFormula(formula, elementScope(modelResolved, child))])), parentHistory: history, parentSelection: selection });
       setHistory(emptyHistory());
       setSelection(definition.bodies[0] ? { kind: 'body', key: definition.bodies[0].key } : undefined);
       setMulti([]); setPromote(undefined); setTool('select');
@@ -447,14 +471,14 @@ export function Designer({ me, onDirty, partId }: { me: Me; onDirty: (dirty: boo
     setBusy('Unterbauteil wird geöffnet …');
     try {
       const detail = await getPart(workspaceId, child.part!.id);
-      const scope = elementScope(resolved, child, child.repeat ? [0, 0, 0] : []);
+      const scope = elementScope(modelResolved, child, child.repeat ? [0, 0, 0] : []);
       const values: Record<string, number> = {};
       for (const [name, formula] of Object.entries(child.values ?? {})) {
         try { values[name] = calculateFormula(formula, scope); } catch { /* the child's default applies */ }
       }
       lastChildResolved.current = undefined;
       gestureStart.current = undefined;
-      setInPlace({ key, detail, original: definition, draft: definition, frame: placement, variant: child.variant, values, parentHistory: history, parentSelection: selection });
+      setInPlace({ parent: inPlace, parentDefinition: model, key, detail, original: definition, draft: definition, frame: placement, variant: child.variant, values, parentHistory: history, parentSelection: selection });
       setHistory(emptyHistory());
       setSelection(definition.bodies[0] ? { kind: 'body', key: definition.bodies[0].key } : undefined);
       setMulti([]); setPromote(undefined); setTool('select');
@@ -464,34 +488,46 @@ export function Designer({ me, onDirty, partId }: { me: Me; onDirty: (dirty: boo
     } finally { setBusy(''); }
   }
 
-  function closeInPlace(current: InPlace) {
-    setInPlace(undefined);
+  function closeInPlace(current: InPlace, next?: InPlace) {
+    setInPlace(next ?? current.parent);
+    lastChildResolved.current = undefined;
     setHistory(current.parentHistory);
     setSelection(current.parentSelection ?? { kind: 'child', key: current.key });
     setMulti([]); setPromote(undefined);
     gestureStart.current = undefined;
   }
-  async function leaveChild(keep: boolean) {
-    if (!inPlace || !draft) return;
-    const current = inPlace;
-    if (!keep || !childDirty) { closeInPlace(current); setModelStatus(keep ? undefined : 'Änderungen am Unterbauteil verworfen.'); return; }
+  /** Leave one nested level. Pass `node` when chaining several leaves without waiting for a re-render. */
+  async function leaveChild(keep: boolean, node: InPlace | undefined = inPlace): Promise<InPlace | undefined> {
+    if (!node || !draft) return undefined;
+    const current = node;
+    const parent = current.parentDefinition;
+    const dirty = canonicalJson(current.draft) !== canonicalJson(current.original);
+    const applyParent = (next: PartDefinition): InPlace | undefined => {
+      if (!current.parent) { setDraft(next); return undefined; }
+      return { ...current.parent, draft: next };
+    };
+    if (!keep || !dirty) {
+      closeInPlace(current);
+      setModelStatus(keep ? undefined : 'Änderungen am Unterbauteil verworfen.');
+      return current.parent;
+    }
     const check = validateDefinition(current.draft, context);
     if (!check.ok || !check.definition) {
       setModelStatus('Das Unterbauteil hat Fehler. Bitte zuerst beheben.');
       setTab('issues');
-      return;
+      return current;
     }
     if (!current.detail) {
       const next: PartDefinition = {
-        ...draft,
-        children: (draft.children ?? []).map(child => child.key === current.key ? { ...child, group: check.definition, part: undefined } : child),
+        ...parent,
+        children: (parent.children ?? []).map(child => child.key === current.key ? { ...child, group: check.definition, part: undefined } : child),
       };
-      closeInPlace(current);
-      setHistory(record(current.parentHistory, draft));
-      setDraft(next);
+      const updated = applyParent(next);
+      closeInPlace(current, updated);
+      setHistory(record(current.parentHistory, parent));
       setSaveIssues(undefined);
       setModelStatus(`Gruppe „${check.definition.name}“ übernommen.`);
-      return;
+      return updated;
     }
     setBusy('Unterbauteil wird gespeichert …');
     try {
@@ -499,20 +535,33 @@ export function Designer({ me, onDirty, partId }: { me: Me; onDirty: (dirty: boo
       const ref = { id: detail.id, revision: detail.definition.revision };
       setChildDefinitions(known => new Map([...known, [partRefKey(detail.definition), detail.definition]]));
       const next: PartDefinition = {
-        ...draft,
-        children: (draft.children ?? []).map(child =>
+        ...parent,
+        children: (parent.children ?? []).map(child =>
           child.part?.id === current.original.id && child.part.revision === current.original.revision ? { ...child, part: ref } : child),
       };
-      closeInPlace(current);
-      setHistory(record(current.parentHistory, draft));
-      setDraft(next);
+      const updated = applyParent(next);
+      closeInPlace(current, updated);
+      setHistory(record(current.parentHistory, parent));
       setSaveIssues(undefined);
       setModelStatus(`„${detail.definition.name}“ als Revision ${detail.definition.revision} gespeichert; dieses Bauteil verweist jetzt darauf.`);
       void refreshLibrary();
+      return updated;
     } catch (error) {
       if (error instanceof ApiError && error.status === 422) setModelStatus('Der Server lehnt das Unterbauteil ab: ' + catalogIssues(error).map(item => item.message).join(' '));
       else setModelStatus(message(error, 'Das Unterbauteil konnte nicht gespeichert werden.'));
+      return current;
     } finally { setBusy(''); }
+  }
+
+  async function leaveToBreadcrumb(index: number) {
+    const trail: InPlace[] = [];
+    for (let node: InPlace | undefined = inPlace; node; node = node.parent) trail.unshift(node);
+    let current = inPlace;
+    for (let step = trail.length - 1; step > index && current; step -= 1) {
+      const next = await leaveChild(true, current);
+      if (next === current) break;
+      current = next;
+    }
   }
 
   useEffect(() => {
@@ -527,6 +576,11 @@ export function Designer({ me, onDirty, partId }: { me: Me; onDirty: (dirty: boo
         if (typing) return;
         event.preventDefault();
         stepHistory(key === 'y' || event.shiftKey ? 'redo' : 'undo');
+        return;
+      }
+      if (command && !event.altKey && key === 'a' && !typing) {
+        event.preventDefault();
+        selectAll();
         return;
       }
       if (!typing && !command && !event.altKey && key === 'g' && !readOnly) {
@@ -665,7 +719,12 @@ export function Designer({ me, onDirty, partId }: { me: Me; onDirty: (dirty: boo
     sheet: firstMaterialKey(materials, 'sheet', 'sperrholz-12'),
     beam: firstMaterialKey(materials, 'profile', 'latte-40x40'),
   }), [materials]);
-  const surrounding = useMemo(() => inPlace && resolved ? { resolved, hide: solidOfChild(inPlace.key) } : undefined, [inPlace?.key, resolved]);
+  const surrounding = useMemo(() => {
+    if (!inPlace || !resolved) return undefined;
+    const path: string[] = [];
+    for (let current: InPlace | undefined = inPlace; current; current = current.parent) path.unshift(current.key);
+    return { resolved, hide: (solid: ResolvedSolid) => path.every((key, index) => solid.path[index]?.replace(/\[.*$/, '') === key) };
+  }, [inPlace, resolved]);
 
   const statusText = (() => {
     if (busy) return busy;
@@ -679,7 +738,7 @@ export function Designer({ me, onDirty, partId }: { me: Me; onDirty: (dirty: boo
     }
   })();
 
-  const selectedChild = !inPlace && selection?.kind === 'child' ? selection.key : undefined;
+  const selectedChild = selection?.kind === 'child' ? selection.key : undefined;
   const grouping = !readOnly && model && <div className="designer-grouping" data-testid="designer-grouping">
     <button type="button" className="quiet" disabled={!!inPlace || !groupKeys.length || !!busy} data-testid="designer-make-group"
       title="Die Auswahl wird eine Gruppe. Alles darin bewegt und dreht sich mit, auch ein Griff an einer Tür." onClick={groupSelection}>
@@ -695,21 +754,84 @@ export function Designer({ me, onDirty, partId }: { me: Me; onDirty: (dirty: boo
       onClick={() => selectedChild && explode(selectedChild)}>Auflösen</button>
   </div>;
 
-  return <section className="plans designer-page" aria-label="Bühnentechnik" data-testid="designer-page">
-    <div className="section-heading">
+  /** Open-part modelling: lock the viewport like Bühnenbild; library browse keeps the page chrome. */
+  const modelling = !!draft || phase.kind === 'loading' || phase.kind === 'missing' || phase.kind === 'failed';
+
+  async function backToLibrary() {
+    if (!(await confirmLeave())) return;
+    flushSync(() => onDirty(false));
+    setDraft(undefined); setSaved(undefined); setIsNew(false); setInPlace(undefined);
+    go({ section: 'designer' });
+  }
+
+  const hierarchyToggle = <button type="button" className="quiet" aria-expanded={hierarchyOpen} aria-controls="designer-hierarchy"
+    data-testid="designer-hierarchy-toggle" onClick={() => setHierarchyOpen(value => !value)}>
+    Bibliothek / Gliederung
+  </button>;
+
+  const leftColumn = <div className="designer-left" id="designer-hierarchy" hidden={!hierarchyOpen}>
+    <LibrarySidebar workspaceId={workspaceId} parts={parts} currentId={isNew ? undefined : saved?.id} readOnly={readOnly}
+      onOpen={id => void open(id)} onNew={() => void createNew()} onDuplicate={id => void duplicate(id)}
+      onChanged={() => void refreshLibrary()} onImported={imported} />
+    {model && tab !== 'outline' && <details open><summary>Gliederung · {model.name}</summary>
+      {grouping}
+      <BodyList definition={model} onChange={change} selection={selection} onSelect={select} materials={materials} library={parts} onAddChild={id => void addChild(id)} disabled={readOnly} />
+    </details>}
+    {model && <RequisitenPanel workspaceId={workspaceId} readOnly={readOnly} assets={workspaceAssets.assets} onChanged={workspaceAssets.reload} onPlace={asset => {
+      if (asset.definition.kind !== 'model' || asset.definition.source.kind !== 'upload') return;
+      const key = `mesh-${crypto.randomUUID().slice(0, 8)}`;
+      change({ ...model, bodies: [...model.bodies, { kind: 'mesh', key, assetId: asset.id, label: asset.name.slice(0, 80), material: 'mesh', displayOnly: true,
+        at: [0, asset.definition.height / 2, 0], rotation: asset.definition.rotation, size: [asset.definition.width, asset.definition.height, asset.definition.depth] }] }, { kind: 'body', key });
+    }} nested />}
+  </div>;
+
+  const inspector = phase.kind === 'idle' && model && <PartEditor tab={tab} onTab={setTab} definition={model} onChange={change} resolved={modelResolved} issues={issues}
+    materials={materials} disabled={readOnly} selection={selection} onSelect={select} library={parts} childDefinition={childDefinition}
+    onUpgradeChild={(key, id) => void upgradeChild(key, id)} onAddChild={id => void addChild(id)}
+    previewVariant={previewVariant} onPreviewVariant={setPreviewVariant}
+    previewValues={previewValues} onPreviewValue={(key, value) => setPreviewValues(current => {
+      const next = { ...current };
+      if (value === undefined) delete next[key];
+      else next[key] = value;
+      return next;
+    })}
+    favourite={inPlace ? undefined : summary?.favourite} onFavourite={readOnly || !summary || inPlace ? undefined : favourite => void toggleFavourite(favourite)}
+    promote={promote} onPromote={promoteHandle} onPromoteField={promoteField} onDismissPromote={() => setPromote(undefined)}
+    grouping={tab === 'outline' ? grouping : null} />;
+
+  return <section
+    className={modelling ? 'editor designer-shell designer-page' : 'plans designer-page'}
+    aria-label="Bühnentechnik"
+    data-testid="designer-page"
+    data-mode={modelling ? 'modelling' : 'library'}
+  >
+    {!modelling && <div className="section-heading">
       <div>
         <h2>Bühnentechnik</h2>
         <p className="muted">Bauteile direkt im 3D-Fenster modellieren. Maße, die sich ändern dürfen, werden Optionen. Gespeicherte Revisionen bleiben unverändert.</p>
       </div>
-    </div>
+    </div>}
     {readOnly && <p className="designer-readonly" role="note" data-testid="designer-readonly">Nur Ansicht: Mit Ihrer Rolle können Sie Bauteile ansehen, aber nicht ändern.</p>}
     {libraryError && <p className="error" role="alert">{libraryError}</p>}
-    <div className="designer-layout">
-      <div className="designer-left">
-        <LibrarySidebar workspaceId={workspaceId} parts={parts} currentId={isNew ? undefined : saved?.id} readOnly={readOnly}
-          onOpen={id => void open(id)} onNew={() => void createNew()} onDuplicate={id => void duplicate(id)}
-          onChanged={() => void refreshLibrary()} onImported={imported} />
+    {modelling && draft && <header className="designer-commandbar" data-testid="designer-savebar">
+      <button type="button" className="quiet back-button" data-testid="designer-back" onClick={() => void backToLibrary()} title="Zur Bauteilbibliothek">← Bibliothek</button>
+      <div className="designer-title">
+        <strong data-testid="designer-title">{draft.name || 'Ohne Namen'}</strong>
+        <span className="muted-inline">{isNew ? 'Neu' : `Revision ${saved?.latestRevision ?? draft.revision}`}{dirty ? ' · geändert' : ''}</span>
       </div>
+      <p className={saveState.kind === 'failed' || saveState.kind === 'conflict' || saveState.kind === 'invalid' ? 'designer-status error-text' : 'designer-status'}
+        role="status" data-testid="designer-status">{statusText}{stale ? ' · Vorschau wird berechnet …' : ''}</p>
+      {hierarchyToggle}
+      {saveState.kind === 'conflict' && <button type="button" onClick={() => void reloadLatest()}>Neu laden</button>}
+      {!readOnly && <>
+        <button type="button" className="quiet" disabled={!dirty || saveState.kind === 'saving'} onClick={() => void discard()}>Verwerfen</button>
+        <button type="button" className="primary" data-testid="designer-save" disabled={(!dirty && !isNew) || saveState.kind === 'saving' || blocking || !!inPlace}
+          title={inPlace ? 'Erst das Unterbauteil schließen.' : blocking ? 'Fehler verhindern das Speichern.' : undefined} onClick={() => void save()}>Speichern</button>
+      </>}
+    </header>}
+    {!modelling && hierarchyToggle}
+    <div className={`designer-layout ${hierarchyOpen ? '' : 'hierarchy-collapsed'}`}>
+      {leftColumn}
       <div className="designer-centre">
         {phase.kind === 'loading' && <p className="muted" role="status">Bauteil wird geladen …</p>}
         {phase.kind === 'missing' && <div className="designer-missing" role="alert" data-testid="designer-missing">
@@ -726,33 +848,34 @@ export function Designer({ me, onDirty, partId }: { me: Me; onDirty: (dirty: boo
           <p className="muted">Links ein Bauteil der Bibliothek öffnen{readOnly ? '.' : ', ein neues anlegen oder ein Beispiel als Kopie übernehmen.'}</p>
         </div>}
         {phase.kind === 'idle' && draft && model && <>
-          <div className="designer-savebar" data-testid="designer-savebar">
-            <div className="designer-title">
-              <strong data-testid="designer-title">{draft.name || 'Ohne Namen'}</strong>
-              <span className="muted-inline">{isNew ? 'Neu' : `Revision ${saved?.latestRevision ?? draft.revision}`}{dirty ? ' · geändert' : ''}</span>
-            </div>
-            <p className={saveState.kind === 'failed' || saveState.kind === 'conflict' || saveState.kind === 'invalid' ? 'designer-status error-text' : 'designer-status'}
-              role="status" data-testid="designer-status">{statusText}{stale ? ' · Vorschau wird berechnet …' : ''}</p>
-            {saveState.kind === 'conflict' && <button type="button" onClick={() => void reloadLatest()}>Neu laden</button>}
-            {!readOnly && <>
-              <button type="button" className="quiet" disabled={!dirty || saveState.kind === 'saving'} onClick={() => void discard()}>Verwerfen</button>
-              <button type="button" className="primary" data-testid="designer-save" disabled={(!dirty && !isNew) || saveState.kind === 'saving' || blocking || !!inPlace}
-                title={inPlace ? 'Erst das Unterbauteil schließen.' : blocking ? 'Fehler verhindern das Speichern.' : undefined} onClick={() => void save()}>Speichern</button>
-            </>}
-          </div>
-          {inPlace && <div className="designer-inplace" role="note" data-testid="designer-inplace">
-            <span>Unterbauteil <strong>{inPlace.draft.name}</strong> wird bearbeitet{childDirty ? ' · geändert' : ''}. Der Rest ist abgeblendet.</span>
-            <button type="button" className="primary" disabled={!!busy} data-testid="designer-leave-child" onClick={() => void leaveChild(true)}>
-              {childDirty ? 'Schließen und als neue Revision speichern' : 'Schließen'}
-            </button>
-            {childDirty && <button type="button" className="quiet" disabled={!!busy} onClick={() => void leaveChild(false)}>Änderungen verwerfen</button>}
-          </div>}
+          {inPlace && (() => {
+            const trail: { name: string; node?: InPlace }[] = [{ name: draft.name }];
+            const stack: InPlace[] = [];
+            for (let node: InPlace | undefined = inPlace; node; node = node.parent) stack.unshift(node);
+            for (const node of stack) trail.push({ name: node.draft.name, node });
+            return <div className="designer-inplace" role="note" data-testid="designer-inplace">
+              <nav className="designer-breadcrumbs" aria-label="Bauteil-Hierarchie" data-testid="designer-breadcrumbs">
+                <ol>{trail.map((crumb, index) => <li key={`${crumb.name}-${index}`}>
+                  <button type="button" className="link-button" disabled={!!busy || index === trail.length - 1}
+                    aria-current={index === trail.length - 1 ? 'page' : undefined}
+                    onClick={() => { if (index === 0) void leaveToBreadcrumb(-1); else void leaveToBreadcrumb(index - 1); }}>
+                    {crumb.name}
+                  </button>
+                </li>)}</ol>
+              </nav>
+              <span>Unterbauteil wird bearbeitet{childDirty ? ' · geändert' : ''}. Der Rest ist abgeblendet.</span>
+              <button type="button" className="primary" disabled={!!busy} data-testid="designer-leave-child" onClick={() => void leaveChild(true)}>
+                {childDirty ? inPlace.detail ? 'Zurück · neue Revision speichern' : 'Zurück · Gruppe übernehmen' : 'Schließen'}
+              </button>
+              {childDirty && <button type="button" className="quiet" disabled={!!busy} onClick={() => void leaveChild(false)}>Änderungen verwerfen</button>}
+            </div>;
+          })()}
           <div className="designer-model">
             <ToolRail tool={effectiveTool} onTool={setTool} readOnly={readOnly}
               canUndo={history.past.length > 0} canRedo={history.future.length > 0}
               onUndo={() => stepHistory('undo')} onRedo={() => stepHistory('redo')} />
             <div className="designer-model-main">
-              <ModelCanvas definition={model} resolved={modelResolved} surrounding={surrounding} frame={inPlace?.frame}
+              <ModelCanvas workspaceId={workspaceId} assets={workspaceAssets.assets} definition={model} resolved={canvasResolved} surrounding={surrounding} frame={inPlace?.frame}
                 materials={materials} selection={selection} multi={multi} tool={effectiveTool} readOnly={readOnly}
                 frameBounds={frame.bounds} frameRevision={frame.revision} label={`3D-Modell von ${model.name}`} controller={controller}
                 onSelect={select} onSelectMany={selectMany} onEnterChild={key => void enterChild(key)} onPreview={onPreview} onCommit={onCommit} onCancel={onCancel}
@@ -776,24 +899,9 @@ export function Designer({ me, onDirty, partId }: { me: Me; onDirty: (dirty: boo
                 activeVariant={previewVariant} disabled={readOnly} onChange={definition => change(definition)} />
               : <p className="muted">Öffnung auf der Fläche anklicken oder neu aufziehen.</p>}
           </section>}
-          <PartViewsSvg resolved={modelResolved} materials={materials} selection={selection} onSelect={setSelection} />
         </>}
       </div>
-      <div className="designer-right">
-        {phase.kind === 'idle' && model && <PartEditor tab={tab} onTab={setTab} definition={model} onChange={change} resolved={modelResolved} issues={issues}
-          materials={materials} disabled={readOnly} selection={selection} onSelect={setSelection} library={parts} childDefinition={childDefinition}
-          onUpgradeChild={(key, id) => void upgradeChild(key, id)} onAddChild={id => void addChild(id)}
-          previewVariant={previewVariant} onPreviewVariant={setPreviewVariant}
-          previewValues={previewValues} onPreviewValue={(key, value) => setPreviewValues(current => {
-            const next = { ...current };
-            if (value === undefined) delete next[key];
-            else next[key] = value;
-            return next;
-          })}
-          favourite={inPlace ? undefined : summary?.favourite} onFavourite={readOnly || !summary || inPlace ? undefined : favourite => void toggleFavourite(favourite)}
-          promote={promote} onPromote={promoteHandle} onPromoteField={promoteField} onDismissPromote={() => setPromote(undefined)}
-          grouping={grouping} />}
-      </div>
+      <div className="designer-right">{inspector}</div>
     </div>
   </section>;
 }

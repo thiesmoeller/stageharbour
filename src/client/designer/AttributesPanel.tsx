@@ -118,7 +118,14 @@ function addAttribute(definition: PartDefinition, selection: DesignerSelection, 
       if (kindOf === 'sheet') {
         ensure('thickness', solid?.kind === 'sheet' ? solid.thickness : 10);
         const outline = (element as Extract<PartBody, { kind: 'sheet' }>).outline;
-        return { definition: next, fields: outline.shape === 'rect' ? ['outline.width', 'outline.height', 'thickness'] : ['thickness'] };
+        return {
+          definition: next,
+          fields: outline.shape === 'rect'
+            ? ['outline.width', 'outline.height', 'thickness']
+            : outline.shape === 'circle'
+              ? ['outline.r', 'thickness']
+              : ['thickness'],
+        };
       }
       return { definition, fields: [] };
     case 'rotation':
@@ -241,7 +248,7 @@ export function AttributesPanel(props: AttributesPanelProps) {
       }}>
         <option value="">Wählen …</option>
         {(Object.keys(ATTRIBUTE_LABELS) as AttributeKind[])
-          .filter(kind => kind !== 'material' || found.isBody)
+          .filter(kind => kind !== 'material' || (found.isBody && (found.element as PartBody).kind !== 'mesh'))
           .map(kind => <option key={kind} value={kind}>{ATTRIBUTE_LABELS[kind]}</option>)}
       </select>
     </label>}

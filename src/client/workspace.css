@@ -73,9 +73,12 @@ body:has(.workspace) { background: var(--ui-bg); color: var(--ui-ink); }
 .workspace-management .members { border-color: var(--ui-line); }
 /* Once a document is open, the viewport belongs to the editor. */
 .app:has(.editor) { height: 100dvh; min-height: 600px; overflow: hidden; }
-.app:has(.editor) > footer, .workspace:has(.editor) > .workspace-heading, .workspace:has(.editor) > .workspace-management { display: none; }
+.app:has(.editor) > footer, .workspace:has(.editor) > .workspace-heading, .workspace:has(.editor) > .workspace-management,
+.workspace:has(.editor) > .workspace-navigation, .workspace:has(.editor) > .local-workspace-bar { display: none; }
 .workspace:has(.editor) { width: 100%; max-width: none; min-height: 0; margin: 0; display: flex; flex: 1; }
 .editor { position: relative; display: flex; flex-direction: column; width: 100%; min-height: 0; margin: 0; padding: 0 0 0 76px; border: 0; border-radius: 0; background: var(--ui-bg); overflow: hidden; font-size: 13px; }
+/* Bühnentechnik modelling reuses the editor viewport lock but keeps its own in-canvas tool rail. */
+.editor.designer-shell { padding: 0; flex: 1; }
 .editor:fullscreen { padding: 0 0 0 76px; background: var(--ui-bg); }
 .editor button { display: inline-flex; justify-content: center; align-items: center; gap: 6px; min-height: 28px; padding: 4px 9px; border-radius: 5px; font-size: 12px; font-weight: 500; }
 .editor .quiet { color: var(--ui-ink); background: transparent; border: 1px solid transparent; }

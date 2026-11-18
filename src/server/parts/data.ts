@@ -5,7 +5,7 @@ import {
   createPartContext, inlineGroup, partRefKey, type PartContext, type PartDefinition, type PartMaterial, type PartRef,
 } from '../../shared/parts/definition.js';
 import type { Database } from '../db/connection.js';
-import { material, partDefinition, partRevision, user } from '../db/schema.js';
+import { inventoryAsset, material, partDefinition, partRevision, user } from '../db/schema.js';
 import { AccessError } from '../identity/access.js';
 
 export type Store = Pick<Database, 'select' | 'insert' | 'update' | 'delete' | 'execute'>;
@@ -72,7 +72,8 @@ export async function loadParts(store: Store, workspaceId: string, seeds: readon
 export async function contextFor(store: Store, workspaceId: string, input: unknown): Promise<PartContext> {
   const materials = await loadMaterials(store, workspaceId);
   const parts = await loadParts(store, workspaceId, rawChildRefs(input));
-  return createPartContext({ materials: [...materials.values()], parts });
+  const assets = await store.select().from(inventoryAsset).where(eq(inventoryAsset.workspaceId, workspaceId));
+  return createPartContext({ materials: [...materials.values()], parts, assets });
 }
 
 export function summaryOf(row: PartRow, definition: PartDefinition): PartSummary {

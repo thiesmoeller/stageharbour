@@ -1,3 +1,4 @@
+import type { Asset } from '../assets.js';
 import type { CatalogIssue, ImportReport, ImportedPart } from './catalog.js';
 import {
   PART_SCHEMA_VERSION, createPartContext, inlineGroup, partLibrarySchema, partRefKey,
@@ -56,6 +57,7 @@ export function buildLibraryExport(args: {
 
 /** What the workspace holds, as far as an import needs to know. */
 export type ImportWorkspace = {
+  assets?: readonly Asset[];
   materials: ReadonlyMap<string, PartMaterial>;
   /** Every stored revision, by part id and revision number. */
   revisions: ReadonlyMap<string, ReadonlyMap<number, PartDefinition>>;
@@ -151,6 +153,7 @@ export function planLibraryImport(args: {
   const applied = new Map<string, PartMaterial>();
   for (const material of [...create, ...overwrite]) applied.set(material.key, material);
   const context: PartContext = createPartContext({
+    assets: workspace.assets ?? [],
     materials: [...workspace.materials.values()].filter(material => !applied.has(material.key)),
     parts: [...workspace.revisions.values()].flatMap(byRevision => [...byRevision.values()]),
   });

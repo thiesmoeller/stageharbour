@@ -1,5 +1,7 @@
+import type { Asset } from '../../../shared/assets.js';
+import { WorkspaceMesh } from '../../stage/WorkspaceMesh.js';
 import { Component, useEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
+import { flushSync } from 'react-dom';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Html, Line } from '@react-three/drei';
 import {
@@ -8,8 +10,8 @@ import {
 } from 'three';
 import type { PartDefinition, PartFaceSide, PartMaterial } from '../../../shared/parts/definition.js';
 import {
-  addBeam, addFaceFromRect, addSheetFromOutline, copySelection, handleLocks, moveSelection, moveVertex, pushPullFace, rotateSelection,
-  setHandleMeasure, type AddResult, type EditResult, type SelectionTargets,
+  addBeam, addFaceFromCircle, addFaceFromRect, addSheetFromOutline, handleLocks, pushPullFace, pushPullNewBody,
+  type AddResult, type EditResult, type SelectionTargets,
 } from '../../../shared/parts/directEdit.js';
 import { BOX_SIDE_SLOTS, SHEET_SIDE_SLOTS, buildSolidGeometry } from '../../../shared/parts/geometry.js';
 import { handleForPick, partHandles, type Handle } from '../../../shared/parts/handles.js';
@@ -24,7 +26,12 @@ import { StageCanvas } from '../../stage/StageCanvas.js';
 import type { DesignerSelection } from '../draft.js';
 import { resolvedGeometryKey } from '../geometryCache.js';
 import { sameSelection, solidSelection } from '../views.js';
-import { MODEL_TOOLS, type ModelToolId } from './tools.js';
+import {
+  axisFromArrowKey, circlePreviewPoints, drawingPlaneLockLabel, drawingPlaneNormal, isPolygonSideCount,
+  planeAxes, regularPolygonPoints, squareLockedExtents,
+} from './drawHelpers.js';
+import { moveEdit as rigidMove, pushPullPreviewScale, rotateEdit as rigidRotate } from './selectionEdit.js';
+import { isTypingTarget, MODEL_TOOLS, type ModelToolId } from './tools.js';
 
 const MM = 0.001;
 const FALLBACK_COLOR = '#c9cfd2';
@@ -48,6 +55,8 @@ export type ToolController = {
 };
 
 export type ModelCanvasProps = {
+  workspaceId: string;
+  assets: readonly Asset[];
   definition: PartDefinition;
   resolved: ResolvedPart | undefined;
   /** Surrounding part when a child is edited in place: drawn dimmed, not editable. */
@@ -105,9 +114,15 @@ function selectedSolidIds(resolved: ResolvedPart | undefined, selection: Designe
   return ids;
 }
 
-class CanvasBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+class CanvasBoundary extends Component<{ children: ReactNode; resetKey: string }, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch(error: Error) {
+    console.error('Designer 3D canvas failed', error);
+  }
+  componentDidUpdate(prev: Readonly<{ resetKey: string }>) {
+    if (this.state.failed && prev.resetKey !== this.props.resetKey) this.setState({ failed: false });
+  }
   render() {
     return this.state.failed
       ? <p className="muted designer-preview-failed" role="status">Die 3D-Ansicht ist in diesem Browser nicht verfügbar. Formeln, Optionen und die Ansichten darunter bleiben nutzbar.</p>
@@ -115,11 +130,15 @@ class CanvasBoundary extends Component<{ children: ReactNode }, { failed: boolea
   }
 }
 
+type Marquee = { x: number; y: number; w: number; h: number; crossing: boolean };
+
 /** The Designer's modelling view: the part on the stage canvas, picked, drawn and edited with the tools. */
 export function ModelCanvas(props: ModelCanvasProps) {
   const { resolved, frameBounds } = props;
   const container = useRef<HTMLDivElement>(null);
   const overlay = useRef<HTMLDivElement>(null);
+  // Marquee must live outside the R3F tree: createPortal(<div/>) from ModelScene makes Fiber treat Div as a THREE type.
+  const [marquee, setMarquee] = useState<Marquee | undefined>();
   const camera = useMemo(() => ({ mode: 'frame' as const, bounds: frameBounds }), [frameBounds]);
   const geometryKey = useMemo(() => resolved ? resolvedGeometryKey(resolved) : '', [resolved]);
   const bounds = resolved?.solids.length
@@ -137,11 +156,16 @@ export function ModelCanvas(props: ModelCanvasProps) {
   return <div ref={container} className={`designer-preview model-canvas tool-${props.tool}`} data-testid="designer-preview"
     data-solids={resolved?.solids.length ?? 0} data-geometry={geometryKey} data-bounds={bounds} data-selected-bounds={selectedBounds}
     data-tool={props.tool} data-handles="[]">
-    <CanvasBoundary>
+    <CanvasBoundary resetKey={`${geometryKey}:${props.tool}`}>
       <div className="designer-canvas"><StageCanvas aria-label={props.label} theme="studio" quality="simple" bounds={frameBounds} camera={camera}
         cameraRevision={props.frameRevision} controls={{ buttons: 'editor' }} ground="none">
-        <ModelScene {...props} container={container} overlay={overlay} />
-      </StageCanvas><div ref={overlay} className="model-overlay" /></div>
+        <ModelScene {...props} container={container} overlay={overlay} onMarquee={setMarquee} />
+      </StageCanvas>
+      <div ref={overlay} className="model-overlay">
+        {marquee && <div className={marquee.crossing ? 'model-marquee crossing' : 'model-marquee'} data-testid="designer-marquee"
+          style={{ left: marquee.x, top: marquee.y, width: marquee.w, height: marquee.h }} />}
+      </div>
+      </div>
     </CanvasBoundary>
   </div>;
 }
@@ -156,14 +180,16 @@ type Overlay = {
 };
 
 type Drag =
-  | { kind: 'move'; targets: SelectionTargets; vertex?: Handle; start: Vec3; startDefinition: PartDefinition; startResolved: ResolvedPart; candidates: InferenceCandidates; axis?: AxisName; shiftLocked?: boolean; delta: Vec3; moved: boolean; pointer: { x: number; y: number }; exclude: Set<string>; copy: boolean }
-  | { kind: 'rotate'; targets: SelectionTargets; phase: 'from' | 'to'; pivot: Vec3; axis: Vec3; home: Vec3; from: Vec3; startDefinition: PartDefinition; startResolved: ResolvedPart; angle: number; moved: boolean; pointer: { x: number; y: number } }
-  | { kind: 'pushpull'; handle: Handle; origin: Vec3; startDefinition: PartDefinition; startResolved: ResolvedPart; candidates: InferenceCandidates; plane: { origin: Vec3; normal: Vec3 }; delta: number; moved: boolean; pointer: { x: number; y: number } }
+  | { kind: 'move'; targets: SelectionTargets; previewIds: Set<string>; start: Vec3; startDefinition: PartDefinition; startResolved: ResolvedPart; candidates: InferenceCandidates; axis?: AxisName; shiftLocked?: boolean; delta: Vec3; moved: boolean; pointer: { x: number; y: number }; exclude: Set<string>; copy: boolean }
+  | { kind: 'rotate'; targets: SelectionTargets; previewIds: Set<string>; phase: 'from' | 'to'; pivot: Vec3; axis: Vec3; home: Vec3; from: Vec3; startDefinition: PartDefinition; startResolved: ResolvedPart; angle: number; moved: boolean; pointer: { x: number; y: number }; copy: boolean }
+  | { kind: 'pushpull'; handle: Handle; origin: Vec3; startDefinition: PartDefinition; startResolved: ResolvedPart; candidates: InferenceCandidates; plane: { origin: Vec3; normal: Vec3 }; delta: number; moved: boolean; pointer: { x: number; y: number }; copy: boolean }
   | { kind: 'window'; x0: number; y0: number; x1: number; y1: number };
 
 type Draw =
-  | { kind: 'rect'; anchor: Vec3; normal: Vec3; u: Vec3; opposite?: Vec3 }
-  | { kind: 'polygon'; normal: Vec3; points: Vec3[]; cursor?: Vec3 }
+  | { kind: 'rect'; anchor: Vec3; normal: Vec3; u: Vec3; homeNormal: Vec3; planeLock?: AxisName; opposite?: Vec3; square?: boolean }
+  | { kind: 'circle'; centre: Vec3; normal: Vec3; homeNormal: Vec3; planeLock?: AxisName; cursor?: Vec3; segments?: number }
+  | { kind: 'ngon'; centre: Vec3; normal: Vec3; homeNormal: Vec3; planeLock?: AxisName; sides: number; cursor?: Vec3 }
+  | { kind: 'line'; normal: Vec3; homeNormal: Vec3; planeLock?: AxisName; points: Vec3[]; cursor?: Vec3 }
   | { kind: 'beam'; from: Vec3; cursor?: Vec3 }
   | { kind: 'tape'; from: Vec3; cursor?: Vec3; done?: boolean };
 
@@ -173,13 +199,9 @@ type LastStep =
   | { kind: 'rotate'; target: Drag & { kind: 'rotate' } }
   | { kind: 'pushpull'; target: Drag & { kind: 'pushpull' } }
   | { kind: 'rect'; startDefinition: PartDefinition; draw: Draw & { kind: 'rect' }; key: string }
-  | { kind: 'beam'; startDefinition: PartDefinition; from: Vec3; direction: Vec3; key: string };
-
-function planeAxes(normal: Vec3): Vec3 {
-  const n = normalize(normal);
-  if (Math.abs(n.x) > 0.9) return { x: 0, y: 0, z: 1 };
-  return { x: 1, y: 0, z: 0 };
-}
+  | { kind: 'circle'; startDefinition: PartDefinition; draw: Draw & { kind: 'circle' }; radius: number; key: string }
+  | { kind: 'ngon'; startDefinition: PartDefinition; draw: Draw & { kind: 'ngon' }; radius: number; key: string }
+  | { kind: 'beam'; startDefinition: PartDefinition; from: Vec3; direction: Vec3; key: string }
 
 /** The part axis a face normal stands on, or the floor normal for a slanted face. */
 function drawingNormal(normal: Vec3 | undefined): Vec3 {
@@ -201,7 +223,11 @@ function faceLoop(solid: ResolvedSolid, side: PartFaceSide): Vec3[] | undefined 
  * `overlay` holds the labels: drei's Html removes its elements on unmount, which fails when they
  * sit in a node React has already torn down.
  */
-function ModelScene(props: ModelCanvasProps & { container: MutableRefObject<HTMLDivElement | null>; overlay: MutableRefObject<HTMLDivElement | null> }) {
+function ModelScene(props: ModelCanvasProps & {
+  container: MutableRefObject<HTMLDivElement | null>;
+  overlay: MutableRefObject<HTMLDivElement | null>;
+  onMarquee: (marquee: Marquee | undefined) => void;
+}) {
   const { resolved, definition, selection, multi, tool, readOnly, surrounding, frame, materials } = props;
   const gl = useThree(state => state.gl);
   const cameraObject = useThree(state => state.camera);
@@ -211,16 +237,24 @@ function ModelScene(props: ModelCanvasProps & { container: MutableRefObject<HTML
   const model = useRef<Group>(null);
   const [hover, setHover] = useState<Hover>({});
   const [overlay, setOverlay] = useState<Overlay>({});
-  const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number; crossing: boolean }>();
   const latest = useRef(props); latest.current = props;
   const drag = useRef<Drag | undefined>(undefined);
   const draw = useRef<Draw | undefined>(undefined);
   const last = useRef<LastStep | undefined>(undefined);
   const lastClick = useRef<{ time: number; solid?: string }>({ time: 0 });
+  const lastPushPull = useRef<number | undefined>(undefined);
+  /** Vieleck side count for the next centre→radius gesture (SketchUp default 6). */
+  const polygonSides = useRef(6);
+  const hoverRef = useRef<Hover>({});
   const meshes = useRef(new Map<string, Object3D>());
+  const previewing = useRef<Set<string>>(new Set());
 
   const handles = useMemo(() => resolved ? partHandles(definition, resolved) : [], [definition, resolved]);
   const selectedIds = useMemo(() => selectedSolidIds(resolved, selection, multi), [resolved, selection, multi]);
+  const handlesRef = useRef(handles); handlesRef.current = handles;
+  const view = useRef({ cameraObject, size, controls, invalidate });
+  view.current = { cameraObject, size, controls, invalidate };
+  const previewMatrix = useRef<{ ids: ReadonlySet<string>; matrix: Matrix4 } | null>(null);
   const frameMatrix = useMemo(() => {
     const matrix = new Matrix4();
     if (frame) {
@@ -244,7 +278,7 @@ function ModelScene(props: ModelCanvasProps & { container: MutableRefObject<HTML
     const rect = gl.domElement.getBoundingClientRect();
     const ndc = new Vector2((clientX - rect.left) / rect.width * 2 - 1, -(clientY - rect.top) / rect.height * 2 + 1);
     const raycaster = new Raycaster();
-    raycaster.setFromCamera(ndc, cameraObject);
+    raycaster.setFromCamera(ndc, view.current.cameraObject);
     const origin = toLocal(raycaster.ray.origin);
     const ahead = toLocal(raycaster.ray.origin.clone().add(raycaster.ray.direction));
     return { ray: { origin, direction: normalize(sub(ahead, origin)) }, raycaster };
@@ -253,9 +287,9 @@ function ModelScene(props: ModelCanvasProps & { container: MutableRefObject<HTML
   function pick(clientX: number, clientY: number, exclude?: ReadonlySet<string>) {
     const { ray, raycaster } = rayAt(clientX, clientY);
     const objects = [...meshes.current.values()];
-    const hits: Intersection[] = raycaster.intersectObjects(objects, false);
+    const hits: Intersection[] = raycaster.intersectObjects(objects, true);
     for (const hit of hits) {
-      const id = hit.object.userData.solidId as string | undefined;
+      const id = (hit.object.userData.solidId ?? hit.object.parent?.userData.solidId) as string | undefined;
       if (!id || exclude?.has(id) || !hit.face) continue;
       const solid = latest.current.resolved?.solids.find(item => item.id === id);
       if (!solid) continue;
@@ -268,33 +302,127 @@ function ModelScene(props: ModelCanvasProps & { container: MutableRefObject<HTML
 
   /** Millimetres one screen pixel spans at a model point. */
   function pixelMm(point: Vec3): number {
+    const { cameraObject: cam, size: viewport } = view.current;
     const world = toWorld(point);
     let span: number;
-    if (cameraObject instanceof OrthographicCamera) span = (cameraObject.top - cameraObject.bottom) / cameraObject.zoom / size.height;
+    if (cam instanceof OrthographicCamera) span = (cam.top - cam.bottom) / cam.zoom / viewport.height;
     else {
-      const distance = cameraObject.position.distanceTo(world);
-      const fov = (cameraObject as PerspectiveCamera).fov ?? 45;
-      span = 2 * distance * Math.tan(fov * Math.PI / 360) / size.height;
+      const distance = cam.position.distanceTo(world);
+      const fov = (cam as PerspectiveCamera).fov ?? 45;
+      span = 2 * distance * Math.tan(fov * Math.PI / 360) / viewport.height;
     }
     return span / MM;
   }
 
   function screenOf(point: Vec3): { x: number; y: number } {
     const rect = gl.domElement.getBoundingClientRect();
-    const ndc = toWorld(point).project(cameraObject);
+    const ndc = toWorld(point).project(view.current.cameraObject);
     return { x: rect.left + (ndc.x + 1) / 2 * rect.width, y: rect.top + (1 - ndc.y) / 2 * rect.height };
   }
 
   /** Pixels from the canvas's top-left corner, so the readout stays right when the page scrolls without a redraw. */
   function canvasOf(point: Vec3): { x: number; y: number } {
     const { width, height } = gl.domElement.getBoundingClientRect();
-    const ndc = toWorld(point).project(cameraObject);
+    const ndc = toWorld(point).project(view.current.cameraObject);
     return { x: (ndc.x + 1) / 2 * width, y: (1 - ndc.y) / 2 * height };
+  }
+
+  function solidIdsForTargets(part: ResolvedPart, targets: SelectionTargets): Set<string> {
+    const ids = new Set<string>();
+    for (const solid of part.solids) {
+      const child = childKeyOf(solid);
+      if (child && targets.children.includes(child)) ids.add(solid.id);
+      else if (!solid.path.length && targets.bodies.includes(solid.body)) ids.add(solid.id);
+    }
+    return ids;
+  }
+
+  function clearMeshPreview() {
+    previewMatrix.current = null;
+    for (const id of previewing.current) {
+      const object = meshes.current.get(id);
+      if (!object) continue;
+      object.matrix.identity();
+      object.matrixAutoUpdate = true;
+      object.updateMatrixWorld(true);
+    }
+    previewing.current.clear();
+    view.current.invalidate();
+  }
+
+  function applyMeshPreview(ids: ReadonlySet<string>, matrix: Matrix4) {
+    for (const id of previewing.current) {
+      if (ids.has(id)) continue;
+      const object = meshes.current.get(id);
+      if (!object) continue;
+      object.matrix.identity();
+      object.matrixAutoUpdate = true;
+    }
+    previewing.current = new Set(ids);
+    previewMatrix.current = { ids, matrix: matrix.clone() };
+    for (const id of ids) {
+      const object = meshes.current.get(id);
+      if (!object) continue;
+      object.matrixAutoUpdate = false;
+      object.matrix.copy(matrix);
+      object.updateMatrixWorld(true);
+    }
+    view.current.invalidate();
+  }
+
+  function movePreviewMatrix(delta: Vec3) {
+    return new Matrix4().makeTranslation(delta.x, delta.y, delta.z);
+  }
+
+  function rotatePreviewMatrix(axis: Vec3, degrees: number, pivot: Vec3) {
+    const quaternion = new Quaternion().setFromAxisAngle(three(normalize(axis)), degrees * Math.PI / 180);
+    return new Matrix4()
+      .makeTranslation(pivot.x, pivot.y, pivot.z)
+      .multiply(new Matrix4().makeRotationFromQuaternion(quaternion))
+      .multiply(new Matrix4().makeTranslation(-pivot.x, -pivot.y, -pivot.z));
+  }
+
+  /** Scale along an arbitrary axis about `pivot` (push/pull live preview). */
+  function scaleAlongAxisMatrix(axis: Vec3, factor: number, pivot: Vec3) {
+    const n = normalize(axis);
+    const f = factor - 1;
+    const stretch = new Matrix4().set(
+      1 + f * n.x * n.x, f * n.x * n.y, f * n.x * n.z, 0,
+      f * n.y * n.x, 1 + f * n.y * n.y, f * n.y * n.z, 0,
+      f * n.z * n.x, f * n.z * n.y, 1 + f * n.z * n.z, 0,
+      0, 0, 0, 1,
+    );
+    return new Matrix4()
+      .makeTranslation(pivot.x, pivot.y, pivot.z)
+      .multiply(stretch)
+      .multiply(new Matrix4().makeTranslation(-pivot.x, -pivot.y, -pivot.z));
+  }
+
+  function updateHover(next: Hover) {
+    const prev = hoverRef.current;
+    if (
+      prev.solid === next.solid
+      && prev.locked === next.locked
+      && prev.face?.side === next.face?.side
+      && prev.face?.solid.id === next.face?.solid.id
+      && prev.face?.edge?.id === next.face?.edge?.id
+    ) return;
+    hoverRef.current = next;
+    setHover(next);
   }
 
   // Readout of projected handle points for browser tests, refreshed with every drawn frame.
   const readout = useRef('');
   useFrame(() => {
+    const preview = previewMatrix.current;
+    if (preview) {
+      for (const id of preview.ids) {
+        const object = meshes.current.get(id);
+        if (!object) continue;
+        object.matrixAutoUpdate = false;
+        object.matrix.copy(preview.matrix);
+      }
+    }
     const element = props.container.current;
     if (!element || !model.current) return;
     const points: { id: string; x: number; y: number }[] = [];
@@ -320,13 +448,15 @@ function ModelScene(props: ModelCanvasProps & { container: MutableRefObject<HTML
   }
 
   function moveEdit(state: Drag & { kind: 'move' }, delta: Vec3, copy = state.copy): EditResult {
-    if (state.vertex) return moveVertex(state.startDefinition, state.startResolved, state.vertex, delta);
-    return copy
-      ? copySelection(state.startDefinition, state.startResolved, state.targets, delta)
-      : moveSelection(state.startDefinition, state.startResolved, state.targets, delta);
+    return rigidMove(state.startDefinition, state.startResolved, state.targets, delta, copy);
   }
-  function rotateEdit(state: Drag & { kind: 'rotate' }, angle: number): EditResult {
-    return rotateSelection(state.startDefinition, state.startResolved, state.targets, state.axis, angle, state.pivot);
+  function rotateEdit(state: Drag & { kind: 'rotate' }, angle: number, copy = state.copy): EditResult {
+    return rigidRotate(state.startDefinition, state.startResolved, state.targets, state.axis, angle, state.pivot, copy);
+  }
+  function pushPullEdit(
+    definition: PartDefinition, resolved: ResolvedPart, handle: Handle, distance: number, copy: boolean,
+  ): EditResult {
+    return copy ? pushPullNewBody(definition, resolved, handle, distance) : pushPullFace(definition, resolved, handle, distance);
   }
   const moveLabel = (delta: Vec3) => `Abstand ${formatMm(length(delta))} mm`;
 
@@ -342,11 +472,33 @@ function ModelScene(props: ModelCanvasProps & { container: MutableRefObject<HTML
           if (second === undefined) return 'Rechteck: Breite;Tiefe eingeben, zum Beispiel 1200;600.';
           return finishRect(sketch, first, second, false);
         }
+        if (sketch?.kind === 'circle') {
+          const radius = Math.abs(first);
+          if (radius < 1) return 'Kreis: Radius in mm eingeben, optional Radius;Segmente.';
+          const segments = second !== undefined && Number.isInteger(second) ? second : sketch.segments;
+          return finishCircle(sketch, radius, segments, false);
+        }
+        if (sketch?.kind === 'ngon') {
+          if (second !== undefined) {
+            if (!isPolygonSideCount(second)) return 'Vieleck: Radius oder „Radius;Seiten“ eingeben (3–64 Seiten).';
+            sketch.sides = second;
+            polygonSides.current = second;
+          }
+          const radius = Math.abs(first);
+          if (radius < 1) return 'Vieleck: Radius in mm eingeben, optional Radius;Seiten.';
+          return finishNgon(sketch, radius, false);
+        }
+        if (current.tool === 'polygon' && !sketch && isPolygonSideCount(first) && second === undefined) {
+          polygonSides.current = first;
+          current.onStatus(`${first}-Eck: Mittelpunkt klicken, dann Radius.`);
+          current.onReadout({ label: 'Seiten', value: `${first}` });
+          return undefined;
+        }
         if (sketch?.kind === 'beam') {
           const direction = sketch.cursor && length(sub(sketch.cursor, sketch.from)) > 0 ? normalize(sub(sketch.cursor, sketch.from)) : { x: 1, y: 0, z: 0 };
           return finishBeam(sketch.from, add(sketch.from, scale(direction, first)), false);
         }
-        if (sketch?.kind === 'polygon' && sketch.points.length) {
+        if (sketch?.kind === 'line' && sketch.points.length) {
           const from = sketch.points[sketch.points.length - 1]!;
           const direction = sketch.cursor && length(sub(sketch.cursor, from)) > 0 ? normalize(sub(sketch.cursor, from)) : { x: 1, y: 0, z: 0 };
           sketch.points.push(add(from, scale(direction, first)));
@@ -354,9 +506,10 @@ function ModelScene(props: ModelCanvasProps & { container: MutableRefObject<HTML
           return undefined;
         }
         if (running?.kind === 'pushpull') {
-          const outcome = running.handle.measure
-            ? setHandleMeasure(running.startDefinition, running.startResolved, running.handle, first)
-            : pushPullFace(running.startDefinition, running.startResolved, running.handle, first);
+          const distance = running.copy || !running.handle.measure
+            ? first
+            : first - running.handle.measure.value;
+          const outcome = pushPullEdit(running.startDefinition, running.startResolved, running.handle, distance, running.copy);
           endDrag(false, outcome);
           return outcome.ok ? undefined : outcome.message;
         }
@@ -374,12 +527,11 @@ function ModelScene(props: ModelCanvasProps & { container: MutableRefObject<HTML
         const step = last.current;
         if (!step) return 'Erst eine Bearbeitung beginnen; dann setzt die Eingabe ihr Maß.';
         if (step.kind === 'pushpull') {
-          const { handle, startDefinition, startResolved } = step.target;
-          const outcome = handle.measure
-            ? setHandleMeasure(startDefinition, startResolved, handle, first)
-            : pushPullFace(startDefinition, startResolved, handle, first);
+          const { handle, startDefinition, startResolved, copy } = step.target;
+          const distance = copy || !handle.measure ? first : first - handle.measure.value;
+          const outcome = pushPullEdit(startDefinition, startResolved, handle, distance, copy);
           if (!outcome.ok) return outcome.message;
-          current.onCommit({ definition: outcome.definition, label: 'Drücken/Ziehen' }, true);
+          current.onCommit({ definition: outcome.definition, label: copy ? 'Drücken/Ziehen (neu)' : 'Drücken/Ziehen' }, true);
           return undefined;
         }
         if (step.kind === 'move') {
@@ -398,6 +550,22 @@ function ModelScene(props: ModelCanvasProps & { container: MutableRefObject<HTML
           if (second === undefined) return 'Rechteck: Breite;Tiefe eingeben, zum Beispiel 1200;600.';
           return finishRect(step.draw, first, second, true, step.startDefinition);
         }
+        if (step.kind === 'circle') {
+          const radius = Math.abs(first);
+          if (radius < 1) return 'Kreis: Radius in mm eingeben, optional Radius;Segmente.';
+          const segments = second !== undefined && Number.isInteger(second) ? second : step.draw.segments;
+          return finishCircle(step.draw, radius, segments, true, step.startDefinition);
+        }
+        if (step.kind === 'ngon') {
+          if (second !== undefined) {
+            if (!isPolygonSideCount(second)) return 'Vieleck: Radius oder „Radius;Seiten“ eingeben (3–64 Seiten).';
+            step.draw.sides = second;
+            polygonSides.current = second;
+          }
+          const radius = Math.abs(first);
+          if (radius < 1) return 'Vieleck: Radius in mm eingeben, optional Radius;Seiten.';
+          return finishNgon(step.draw, radius, true, step.startDefinition);
+        }
         if (step.kind === 'beam') return finishBeam(step.from, add(step.from, scale(step.direction, first)), true, step.startDefinition);
         return undefined;
       },
@@ -410,17 +578,72 @@ function ModelScene(props: ModelCanvasProps & { container: MutableRefObject<HTML
     const v = cross(sketch.normal, sketch.u);
     const span = sketch.opposite ? sub(sketch.opposite, sketch.anchor) : { x: 1, y: 0, z: 1 };
     const du = dot(span, sketch.u), dv = dot(span, v);
-    const along = width === undefined ? du : width * (Math.sign(du) || 1);
-    const across = depth === undefined ? dv : depth * (Math.sign(dv) || 1);
+    let along = width === undefined ? du : width * (Math.sign(du) || 1);
+    let across = depth === undefined ? dv : depth * (Math.sign(dv) || 1);
+    if (sketch.square && width === undefined && depth === undefined) {
+      const locked = squareLockedExtents(along, across, { shift: true, tolerance: 0 });
+      along = locked.along;
+      across = locked.across;
+    }
     const opposite = add(sketch.anchor, add(scale(sketch.u, along), scale(v, across)));
     const start = base ?? current.definition;
     const outcome = addFaceFromRect(start, { corner: sketch.anchor, opposite, u: sketch.u, normal: sketch.normal }, current.defaultMaterials.sheet);
     if (!outcome.ok) return outcome.message;
-    current.onCommit({ definition: outcome.definition, select: { kind: 'body', key: outcome.key }, label: 'Rechteck' }, amend);
-    last.current = { kind: 'rect', startDefinition: start, draw: { ...sketch, opposite }, key: outcome.key };
+    const isSquare = Math.abs(Math.abs(along) - Math.abs(across)) < 1e-6;
+    current.onCommit({ definition: outcome.definition, select: { kind: 'body', key: outcome.key }, label: isSquare ? 'Quadrat' : 'Rechteck' }, amend);
+    last.current = { kind: 'rect', startDefinition: start, draw: { ...sketch, opposite, square: isSquare }, key: outcome.key };
     draw.current = undefined;
     setOverlay({});
     current.onReadout({ label: 'Maße', value: `${formatMm(Math.abs(along))};${formatMm(Math.abs(across))}` });
+    if (isSquare) current.onStatus('Quadrat');
+    return undefined;
+  }
+
+  function finishCircle(
+    sketch: Draw & { kind: 'circle' },
+    radius: number,
+    segments: number | undefined,
+    amend: boolean,
+    base?: PartDefinition,
+  ): string | undefined {
+    const current = latest.current;
+    const start = base ?? current.definition;
+    const outcome = addFaceFromCircle(
+      start,
+      { centre: sketch.centre, radius: Math.abs(radius), normal: sketch.normal, ...(segments !== undefined ? { segments } : {}) },
+      current.defaultMaterials.sheet,
+    );
+    if (!outcome.ok) return outcome.message;
+    current.onCommit({ definition: outcome.definition, select: { kind: 'body', key: outcome.key }, label: 'Kreis' }, amend);
+    last.current = {
+      kind: 'circle', startDefinition: start,
+      draw: { ...sketch, cursor: add(sketch.centre, scale(planeAxes(sketch.normal), Math.abs(radius))), segments },
+      radius: Math.abs(radius), key: outcome.key,
+    };
+    draw.current = undefined;
+    setOverlay({});
+    current.onReadout({
+      label: segments !== undefined ? 'Radius;Segmente' : 'Radius',
+      value: segments !== undefined ? `${formatMm(Math.abs(radius))};${segments}` : formatMm(Math.abs(radius)),
+    });
+    return undefined;
+  }
+
+  function finishNgon(sketch: Draw & { kind: 'ngon' }, radius: number, amend: boolean, base?: PartDefinition): string | undefined {
+    const current = latest.current;
+    const start = base ?? current.definition;
+    const points = regularPolygonPoints(sketch.centre, Math.abs(radius), sketch.sides, sketch.normal);
+    const outcome = addSheetFromOutline(start, { points, normal: sketch.normal }, current.defaultMaterials.sheet);
+    if (!outcome.ok) return outcome.message;
+    current.onCommit({ definition: outcome.definition, select: { kind: 'body', key: outcome.key }, label: 'Vieleck' }, amend);
+    last.current = {
+      kind: 'ngon', startDefinition: start,
+      draw: { ...sketch, cursor: add(sketch.centre, scale(planeAxes(sketch.normal), Math.abs(radius))) },
+      radius: Math.abs(radius), key: outcome.key,
+    };
+    draw.current = undefined;
+    setOverlay({});
+    current.onReadout({ label: 'Radius;Seiten', value: `${formatMm(Math.abs(radius))};${sketch.sides}` });
     return undefined;
   }
 
@@ -437,11 +660,11 @@ function ModelScene(props: ModelCanvasProps & { container: MutableRefObject<HTML
     return undefined;
   }
 
-  function finishPolygon(sketch: Draw & { kind: 'polygon' }) {
+  function finishLine(sketch: Draw & { kind: 'line' }) {
     const current = latest.current;
     const outcome = addSheetFromOutline(current.definition, { points: sketch.points, normal: sketch.normal }, current.defaultMaterials.sheet);
     if (!outcome.ok) { current.onStatus(outcome.message); return; }
-    current.onCommit({ definition: outcome.definition, select: { kind: 'body', key: outcome.key }, label: current.tool === 'line' ? 'Linie' : 'Vieleck' }, false);
+    current.onCommit({ definition: outcome.definition, select: { kind: 'body', key: outcome.key }, label: 'Linie' }, false);
     draw.current = undefined;
     setOverlay({});
   }
@@ -451,27 +674,41 @@ function ModelScene(props: ModelCanvasProps & { container: MutableRefObject<HTML
     if (!state) return;
     drag.current = undefined;
     if (state.kind === 'window') { setOverlay({}); return; }
-    if (controls) controls.enabled = true;
+    if (view.current.controls) view.current.controls.enabled = true;
     const current = latest.current;
     if (cancel || !state.moved && !outcome) {
+      clearMeshPreview();
       if (state.moved) current.onCancel();
       setOverlay({});
       return;
     }
     const finalOutcome = outcome ?? (state.kind === 'move' ? moveEdit(state, state.delta)
       : state.kind === 'rotate' ? rotateEdit(state, state.angle)
-        : pushPullFace(state.startDefinition, state.startResolved, state.handle, state.delta));
+        : pushPullEdit(state.startDefinition, state.startResolved, state.handle, state.delta, state.copy));
     if (!finalOutcome.ok) {
+      clearMeshPreview();
       current.onStatus(finalOutcome.message);
       current.onCancel();
       setOverlay({});
       return;
     }
-    const label = state.kind === 'move' ? 'Verschieben' : state.kind === 'rotate' ? 'Drehen' : 'Drücken/Ziehen';
-    current.onCommit({ definition: finalOutcome.definition, label }, false);
+    const label = state.kind === 'move'
+      ? (state.copy ? 'Kopieren' : 'Verschieben')
+      : state.kind === 'rotate'
+        ? (state.copy ? 'Drehen (Kopie)' : 'Drehen')
+        : (state.copy ? 'Drücken/Ziehen (neu)' : 'Drücken/Ziehen');
+    // Commit (and eager canvas resolve) before dropping the mesh preview, otherwise the
+    // finish click flashes the pre-gesture solid for a frame.
+    flushSync(() => {
+      current.onCommit({ definition: finalOutcome.definition, label }, false);
+    });
+    clearMeshPreview();
     if (state.kind === 'move') last.current = { kind: 'move', target: state, direction: length(state.delta) > 0 ? normalize(state.delta) : { x: 1, y: 0, z: 0 } };
     else if (state.kind === 'rotate') last.current = { kind: 'rotate', target: state };
-    else last.current = { kind: 'pushpull', target: state };
+    else {
+      last.current = { kind: 'pushpull', target: state };
+      lastPushPull.current = state.delta;
+    }
     setOverlay(previous => ({ label: previous.label }));
   }
 
@@ -486,10 +723,38 @@ function ModelScene(props: ModelCanvasProps & { container: MutableRefObject<HTML
       const du = dot(span, sketch.u), dv = dot(span, v);
       const a = sketch.anchor, b = add(a, scale(sketch.u, du)), c = add(b, scale(v, dv)), d = add(a, scale(v, dv));
       lines.push({ points: [a, b, c, d, a], color: '#286a62', width: 2 });
-      label = { at: c, text: `${formatMm(Math.abs(du))} × ${formatMm(Math.abs(dv))} mm` };
+      label = {
+        at: c,
+        text: sketch.square
+          ? `Quadrat ${formatMm(Math.abs(du))} mm`
+          : `${formatMm(Math.abs(du))} × ${formatMm(Math.abs(dv))} mm`,
+      };
       latest.current.onReadout({ label: 'Maße', value: `${formatMm(Math.abs(du))};${formatMm(Math.abs(dv))}` });
+      if (sketch.square) latest.current.onStatus('Quadrat');
     }
-    if (sketch.kind === 'polygon') {
+    if (sketch.kind === 'circle' && sketch.cursor) {
+      const radius = length(sub(sketch.cursor, sketch.centre));
+      if (radius >= 1) {
+        lines.push({ points: circlePreviewPoints(sketch.centre, radius, sketch.normal), color: '#286a62', width: 2 });
+        lines.push({ points: [sketch.centre, sketch.cursor], color: '#286a62', dashed: true, width: 1.5 });
+        label = { at: sketch.cursor, text: `⌀ ${formatMm(radius * 2)} mm` };
+        latest.current.onReadout({
+          label: sketch.segments !== undefined ? 'Radius;Segmente' : 'Radius',
+          value: sketch.segments !== undefined ? `${formatMm(radius)};${sketch.segments}` : formatMm(radius),
+        });
+      }
+    }
+    if (sketch.kind === 'ngon' && sketch.cursor) {
+      const radius = length(sub(sketch.cursor, sketch.centre));
+      if (radius >= 1) {
+        const points = regularPolygonPoints(sketch.centre, radius, sketch.sides, sketch.normal);
+        lines.push({ points: [...points, points[0]!], color: '#286a62', width: 2 });
+        lines.push({ points: [sketch.centre, sketch.cursor], color: '#286a62', dashed: true, width: 1.5 });
+        label = { at: sketch.cursor, text: `${sketch.sides}-Eck · r ${formatMm(radius)} mm` };
+        latest.current.onReadout({ label: 'Radius;Seiten', value: `${formatMm(radius)};${sketch.sides}` });
+      }
+    }
+    if (sketch.kind === 'line') {
       const points = sketch.cursor ? [...sketch.points, sketch.cursor] : sketch.points;
       if (points.length > 1) lines.push({ points, color: '#286a62', width: 2 });
       if (sketch.cursor && sketch.points.length) {
@@ -516,11 +781,17 @@ function ModelScene(props: ModelCanvasProps & { container: MutableRefObject<HTML
     if (!target || !wrapper) return;
     let down: { x: number; y: number; button: number } | undefined;
 
-    function snapFor(event: PointerEvent, from?: Vec3, plane?: { origin: Vec3; normal: Vec3 }, exclude?: ReadonlySet<string>) {
+    function snapFor(
+      event: PointerEvent,
+      from?: Vec3,
+      plane?: { origin: Vec3; normal: Vec3 },
+      exclude?: ReadonlySet<string>,
+      cached?: InferenceCandidates,
+    ) {
       const hit = pick(event.clientX, event.clientY, exclude);
       const base = hit.solid ? hit.point! : rayPlane(hit.ray, plane?.origin ?? { x: 0, y: 0, z: 0 }, plane?.normal ?? { x: 0, y: 1, z: 0 }) ?? hit.ray.origin;
       const tolerance = SNAP_PIXELS * pixelMm(base);
-      const candidates = inferenceCandidates(latest.current.resolved ?? { solids: [] }, exclude);
+      const candidates = cached ?? inferenceCandidates(latest.current.resolved ?? { solids: [] }, exclude);
       const snap = snapPoint({
         candidates, ray: hit.ray, tolerance, from, plane, bypass: event.altKey,
         ...(hit.solid && !plane ? { hit: { point: hit.point!, normal: hit.normal!, solid: hit.solid.id } } : {}),
@@ -565,7 +836,7 @@ function ModelScene(props: ModelCanvasProps & { container: MutableRefObject<HTML
         state.x1 = event.clientX; state.y1 = event.clientY;
         const canvas = target.getBoundingClientRect();
         if (Math.hypot(state.x1 - state.x0, state.y1 - state.y0) >= CLICK_PIXELS) {
-          setMarquee({
+          latest.current.onMarquee({
             x: Math.min(state.x0, state.x1) - canvas.left, y: Math.min(state.y0, state.y1) - canvas.top,
             w: Math.abs(state.x1 - state.x0), h: Math.abs(state.y1 - state.y0), crossing: state.x1 < state.x0,
           });
@@ -592,17 +863,33 @@ function ModelScene(props: ModelCanvasProps & { container: MutableRefObject<HTML
             ...(hit.solid ? { hit: { point: hit.point!, normal: hit.normal!, solid: hit.solid.id } } : {}),
             tolerance: SNAP_PIXELS * pixelMm(onPlane), bypass: event.altKey,
           });
-          const outcome = pushPullFace(state.startDefinition, state.startResolved, state.handle, delta);
+          state.copy = event.ctrlKey || event.metaKey;
           const measure = state.handle.measure;
-          const text = measure ? `${measure.label} ${formatMm(measure.value + delta)} mm` : `${formatMm(delta)} mm`;
-          if (outcome.ok) {
+          // Mesh-only preview: never rewrite the draft during the drag (that re-resolved the
+          // whole Tisch and flashed „nicht gespeichert“ on every pointer move).
+          const preview = !state.copy ? pushPullPreviewScale(state.handle, delta) : undefined;
+          const valid = state.copy ? Math.abs(delta) >= 1 : !!preview;
+          const text = state.copy
+            ? `Neu ${formatMm(delta)} mm`
+            : measure ? `${measure.label} ${formatMm(measure.value + delta)} mm` : `${formatMm(delta)} mm`;
+          if (valid) {
             state.delta = delta;
-            current.onStatus(undefined);
-            current.onPreview(outcome.definition);
-            current.onReadout({ label: measure?.label ?? 'Abstand', value: formatMm(measure ? measure.value + delta : delta) });
-          } else current.onStatus(outcome.message);
+            if (preview) {
+              applyMeshPreview(new Set([state.handle.solid]), scaleAlongAxisMatrix(preview.axis, preview.factor, preview.pivot));
+            } else clearMeshPreview();
+            current.onReadout({
+              label: state.copy ? 'Neu' : (measure?.label ?? 'Abstand'),
+              value: formatMm(state.copy || !measure ? delta : measure.value + delta),
+            });
+          } else {
+            clearMeshPreview();
+          }
           const tip = add(state.handle.position, scale(state.handle.axis, state.delta));
-          setOverlay({ ...(snap ? { snap } : {}), label: { at: tip, text, locked: !outcome.ok }, lines: [{ points: [state.handle.position, tip], color: '#b77c37', dashed: true }] });
+          setOverlay({
+            ...(snap ? { snap } : {}),
+            label: { at: tip, text, locked: !valid },
+            lines: [{ points: [state.handle.position, tip], color: '#b77c37', dashed: true }],
+          });
           return;
         }
         if (state.kind === 'move') {
@@ -610,7 +897,7 @@ function ModelScene(props: ModelCanvasProps & { container: MutableRefObject<HTML
           let point: Vec3;
           let snap: Snap | undefined;
           if (event.shiftKey) {
-            const hinted = snapFor(event, state.start, undefined, state.exclude).snap;
+            const hinted = snapFor(event, state.start, undefined, state.exclude, state.candidates).snap;
             if (hinted?.axis) { state.axis = hinted.axis; state.shiftLocked = true; }
           } else if (state.shiftLocked) {
             state.axis = undefined;
@@ -619,59 +906,100 @@ function ModelScene(props: ModelCanvasProps & { container: MutableRefObject<HTML
           if (state.axis) {
             point = pointOnAxis(rayAt(event.clientX, event.clientY).ray, state.start, AXIS_VECTORS[state.axis], 1, event.altKey);
           } else {
-            const found = snapFor(event, state.start, undefined, state.exclude);
+            const found = snapFor(event, state.start, undefined, state.exclude, state.candidates);
             snap = found.snap;
             point = found.snap?.point ?? state.start;
             if (!found.hit.solid && !found.snap?.solid && found.snap?.kind !== 'axis') point = inPlane(point, plane);
           }
           state.copy = event.ctrlKey || event.metaKey;
           const delta = sub(point, state.start);
-          const outcome = moveEdit(state, delta);
-          if (outcome.ok) { state.delta = delta; current.onStatus(undefined); current.onPreview(outcome.definition); }
-          else current.onStatus(outcome.message);
+          state.delta = delta;
+          applyMeshPreview(state.previewIds, movePreviewMatrix(delta));
+          current.onStatus(undefined);
           current.onReadout({ label: state.copy ? 'Kopie' : 'Abstand', value: formatMm(length(delta)) });
           const color = state.axis ? AXIS_COLORS[state.axis] : snap?.axis ? AXIS_COLORS[snap.axis] : '#b77c37';
           setOverlay({ ...(snap ? { snap } : {}), lines: [{ points: [state.start, point], color, dashed: true }], label: { at: point, text: moveLabel(delta) } });
           return;
         }
-        const { ray } = rayAt(event.clientX, event.clientY);
-        const onPlane = rayPlane(ray, state.pivot, state.axis);
+        const plane = { origin: state.pivot, normal: state.axis };
+        const { snap } = snapFor(event, state.pivot, plane);
+        const onPlane = snap
+          ? inPlane(snap.point, plane)
+          : rayPlane(rayAt(event.clientX, event.clientY).ray, state.pivot, state.axis);
         if (!onPlane) return;
         const angle = snapAngle(angleAbout(state.axis, state.from, sub(onPlane, state.pivot)), event.altKey);
-        const outcome = rotateEdit(state, angle);
-        if (outcome.ok) { state.angle = angle; current.onStatus(undefined); current.onPreview(outcome.definition); }
-        else current.onStatus(outcome.message);
-        current.onReadout({ label: 'Winkel', value: `${angle}` });
+        state.copy = event.ctrlKey || event.metaKey;
+        state.angle = angle;
+        applyMeshPreview(state.previewIds, rotatePreviewMatrix(state.axis, angle, state.pivot));
+        current.onStatus(undefined);
+        current.onReadout({ label: state.copy ? 'Kopie' : 'Winkel', value: `${angle}` });
         const axisName = axisOf(state.axis) ?? 'y';
-        setOverlay({ pivot: state.pivot, lines: [{ points: [state.pivot, add(state.pivot, state.from)], color: '#9aa6ad', dashed: true }, { points: [state.pivot, onPlane], color: AXIS_COLORS[axisName] }], label: { at: onPlane, text: `${angle}°` } });
+        setOverlay({
+          ...(snap ? { snap } : {}),
+          pivot: state.pivot,
+          lines: [
+            { points: [state.pivot, add(state.pivot, state.from)], color: '#9aa6ad', dashed: true },
+            { points: [state.pivot, onPlane], color: AXIS_COLORS[axisName] },
+          ],
+          label: { at: onPlane, text: `${angle}°` },
+        });
         return;
       }
 
+      // Middle/right button: orbit/pan — skip hover thrash.
+      if (event.buttons & 6) return;
+
       const active = current.tool;
       const sketch = draw.current;
-      if (active === 'rect' || active === 'line' || active === 'polygon' || active === 'beam' || active === 'tape') {
+      if (active === 'rect' || active === 'line' || active === 'polygon' || active === 'circle' || active === 'beam' || active === 'tape') {
         if (current.readOnly && active !== 'tape') return;
-        const plane = sketch && (sketch.kind === 'rect' || sketch.kind === 'polygon')
-          ? { origin: sketch.kind === 'rect' ? sketch.anchor : sketch.points[0]!, normal: sketch.normal } : undefined;
-        const from = sketch?.kind === 'rect' ? sketch.anchor : sketch?.kind === 'polygon' ? sketch.points[sketch.points.length - 1] : sketch && 'from' in sketch ? sketch.from : undefined;
+        const plane = sketch && (sketch.kind === 'rect' || sketch.kind === 'line' || sketch.kind === 'circle' || sketch.kind === 'ngon')
+          ? {
+            origin: sketch.kind === 'rect' ? sketch.anchor
+              : sketch.kind === 'line' ? sketch.points[0]!
+                : sketch.centre,
+            normal: sketch.normal,
+          }
+          : undefined;
+        const from = sketch?.kind === 'rect' ? sketch.anchor
+          : sketch?.kind === 'line' ? sketch.points[sketch.points.length - 1]
+            : sketch && 'from' in sketch ? sketch.from
+              : sketch && (sketch.kind === 'circle' || sketch.kind === 'ngon') ? sketch.centre
+                : undefined;
         const { snap } = snapFor(event, from, plane);
         if (!snap) return;
         const point = plane ? inPlane(snap.point, plane) : snap.point;
-        if (sketch?.kind === 'rect') sketch.opposite = point;
-        else if (sketch?.kind === 'polygon') sketch.cursor = point;
+        if (sketch?.kind === 'rect') {
+          const v = cross(sketch.normal, sketch.u);
+          const span = sub(point, sketch.anchor);
+          const locked = squareLockedExtents(dot(span, sketch.u), dot(span, v), {
+            shift: event.shiftKey,
+            tolerance: SNAP_PIXELS * pixelMm(point),
+          });
+          sketch.opposite = add(sketch.anchor, add(scale(sketch.u, locked.along), scale(v, locked.across)));
+          sketch.square = locked.square;
+          if (!locked.square) current.onStatus('Gegenecke klicken oder Maße eintippen, zum Beispiel 1200;600.');
+        } else if (sketch?.kind === 'line') sketch.cursor = point;
+        else if (sketch && (sketch.kind === 'circle' || sketch.kind === 'ngon')) sketch.cursor = point;
         else if (sketch && (sketch.kind === 'beam' || (sketch.kind === 'tape' && !sketch.done))) sketch.cursor = point;
         updateDrawOverlay(snap);
         return;
       }
-      if (active === 'pushpull' || active === 'select' || active === 'move' || active === 'rotate' || active === 'interact') {
+      if (active === 'move' || active === 'rotate') {
+        const { snap, hit } = snapFor(event);
+        updateHover(hit.solid ? { solid: hit.solid.id } : {});
+        setOverlay(snap ? { snap } : {});
+        return;
+      }
+      if (active === 'pushpull' || active === 'select' || active === 'interact') {
         const hit = pick(event.clientX, event.clientY);
-        if (!hit.solid) { setHover({}); return; }
+        if (!hit.solid) { updateHover({}); return; }
         const solid = hit.solid;
         if (active === 'pushpull' && !solid.path.length) {
-          const handle = handleForPick(handles, solid.id, hit.side!, hit.point!);
+          const handle = handleForPick(handlesRef.current, solid.id, hit.side!, hit.point!);
           const locks = handle && current.resolved ? handleLocks(current.definition, current.resolved, handle) : [];
-          setHover({ solid: solid.id, face: { solid, side: hit.side!, ...(handle?.kind === 'edge' ? { edge: handle } : {}) }, ...(locks.length ? { locked: locks[0]!.formula } : {}) });
-        } else setHover({ solid: solid.id });
+          updateHover({ solid: solid.id, face: { solid, side: hit.side!, ...(handle?.kind === 'edge' ? { edge: handle } : {}) }, ...(locks.length ? { locked: locks[0]!.formula } : {}) });
+        } else updateHover({ solid: solid.id });
       }
     }
 
@@ -702,7 +1030,7 @@ function ModelScene(props: ModelCanvasProps & { container: MutableRefObject<HTML
       const state = drag.current;
       if (state?.kind === 'window') {
         drag.current = undefined;
-        setMarquee(undefined);
+        latest.current.onMarquee(undefined);
         if (start && Math.hypot(event.clientX - state.x0, event.clientY - state.y0) > CLICK_PIXELS) {
           latest.current.onSelectMany(solidsInWindow(state));
           return;
@@ -719,8 +1047,9 @@ function ModelScene(props: ModelCanvasProps & { container: MutableRefObject<HTML
         const running = drag.current;
         if (running && running.kind !== 'window') {
           if (active === 'rotate' && running.kind === 'rotate' && running.phase === 'from') {
-            const { ray } = rayAt(event.clientX, event.clientY);
-            const onPlane = rayPlane(ray, running.pivot, running.axis);
+            const plane = { origin: running.pivot, normal: running.axis };
+            const { snap } = snapFor(event, running.pivot, plane);
+            const onPlane = snap ? inPlane(snap.point, plane) : rayPlane(rayAt(event.clientX, event.clientY).ray, running.pivot, running.axis);
             if (onPlane) running.from = sub(onPlane, running.pivot);
             if (length(running.from) < 1e-6) running.from = { x: 1, y: 0, z: 0 };
             running.phase = 'to';
@@ -729,7 +1058,25 @@ function ModelScene(props: ModelCanvasProps & { container: MutableRefObject<HTML
             current.onStatus('Endpunkt der Drehung klicken oder Winkel eintippen.');
             return;
           }
-          if (running.kind === 'move') running.copy = event.ctrlKey || event.metaKey;
+          // SketchUp: double-click a face repeats the last push/pull distance.
+          if (
+            running.kind === 'pushpull'
+            && !running.moved
+            && lastPushPull.current !== undefined
+            && performance.now() - lastClick.current.time < 400
+            && lastClick.current.solid === running.handle.solid
+          ) {
+            const distance = lastPushPull.current;
+            running.delta = distance;
+            running.moved = true;
+            running.copy = event.ctrlKey || event.metaKey;
+            lastClick.current = { time: 0 };
+            endDrag(false, pushPullEdit(running.startDefinition, running.startResolved, running.handle, distance, running.copy));
+            return;
+          }
+          if (running.kind === 'move' || running.kind === 'rotate' || running.kind === 'pushpull') {
+            running.copy = event.ctrlKey || event.metaKey;
+          }
           endDrag(false);
           return;
         }
@@ -738,7 +1085,47 @@ function ModelScene(props: ModelCanvasProps & { container: MutableRefObject<HTML
         const solid = hit.solid;
         if (solid && now - lastClick.current.time < 400 && lastClick.current.solid === solid.id) {
           const childKey = childKeyOf(solid);
-          if (childKey && !current.readOnly) current.onEnterChild(childKey);
+          if (childKey && !current.readOnly) {
+            current.onEnterChild(childKey);
+            lastClick.current = { time: 0 };
+            drag.current = undefined;
+            return;
+          }
+          if (
+            active === 'pushpull'
+            && !childKey
+            && hit.side
+            && lastPushPull.current !== undefined
+            && current.resolved
+          ) {
+            const handle = handleForPick(handlesRef.current, solid.id, hit.side, hit.point!);
+            if (handle && handle.kind !== 'point' && handle.kind !== 'rotation') {
+              const copy = event.ctrlKey || event.metaKey;
+              const locks = copy ? [] : handleLocks(current.definition, current.resolved, handle);
+              if (!locks.length) {
+                const distance = lastPushPull.current;
+                const outcome = pushPullEdit(current.definition, current.resolved, handle, distance, copy);
+                lastClick.current = { time: 0 };
+                if (outcome.ok) {
+                  current.onCommit({ definition: outcome.definition, label: copy ? 'Drücken/Ziehen (neu)' : 'Drücken/Ziehen' }, false);
+                  last.current = {
+                    kind: 'pushpull',
+                    target: {
+                      kind: 'pushpull', handle, origin: hit.point!, startDefinition: current.definition, startResolved: current.resolved,
+                      candidates: { points: [], edges: [] }, plane: { origin: hit.point!, normal: handle.axis },
+                      delta: distance, moved: true, pointer: { x: event.clientX, y: event.clientY }, copy,
+                    },
+                  };
+                  lastPushPull.current = distance;
+                  current.onReadout({
+                    label: copy ? 'Neu' : (handle.measure?.label ?? 'Abstand'),
+                    value: formatMm(copy || !handle.measure ? distance : handle.measure.value + distance),
+                  });
+                } else current.onStatus(outcome.message);
+                return;
+              }
+            }
+          }
           lastClick.current = { time: 0 };
           drag.current = undefined;
           return;
@@ -755,53 +1142,58 @@ function ModelScene(props: ModelCanvasProps & { container: MutableRefObject<HTML
         const pointer = { x: event.clientX, y: event.clientY };
         if (active === 'pushpull') {
           if (!solid || childKey || !hit.side) { current.onStatus(childKey ? 'Gruppe mit Doppelklick öffnen, um ihre Flächen zu ziehen.' : 'Eine Fläche anklicken.'); return; }
-          const handle = handleForPick(handles, solid.id, hit.side, hit.point!);
+          const handle = handleForPick(handlesRef.current, solid.id, hit.side, hit.point!);
           if (!handle || handle.kind === 'point' || handle.kind === 'rotation') return;
-          const locks = handleLocks(current.definition, model, handle);
+          const copy = event.ctrlKey || event.metaKey;
+          const locks = copy ? [] : handleLocks(current.definition, model, handle);
           if (locks.length) {
             current.onStatus(`Gesperrt durch die Formel ${locks.map(item => `${item.path} = ${item.formula}`).join(', ')}.`);
             setOverlay({ label: { at: handle.position, text: `${handle.measure?.label ?? handle.label}: ${locks[0]!.formula}`, locked: true } });
             return;
           }
-          const cameraDirection = normalize(sub(toLocal(cameraObject.getWorldDirection(new Vector3()).add(cameraObject.position)), toLocal(cameraObject.position.clone())));
+          const cam = view.current.cameraObject;
+          const cameraDirection = normalize(sub(toLocal(cam.getWorldDirection(new Vector3()).add(cam.position)), toLocal(cam.position.clone())));
           let side = cross(cameraDirection, handle.axis);
           if (length(side) < 1e-6) side = { x: 1, y: 0, z: 0 };
           const normal = normalize(cross(handle.axis, normalize(side)));
           drag.current = {
             kind: 'pushpull', handle, origin: hit.point!, startDefinition: current.definition, startResolved: model,
-            candidates: inferenceCandidates(model, exclude), plane: { origin: hit.point!, normal }, delta: 0, moved: false, pointer,
+            candidates: inferenceCandidates(model, exclude), plane: { origin: hit.point!, normal },
+            delta: 0, moved: false, pointer, copy,
           };
-          current.onStatus('Neue Lage anklicken oder Maß eintippen und Enter.');
+          current.onStatus(copy
+            ? 'Neuer Körper: Lage anklicken oder Maß eintippen. Strg halten.'
+            : 'Neue Lage anklicken oder Maß eintippen und Enter. Strg erzeugt einen neuen Körper.');
           return;
         }
         if (active === 'move') {
           const { snap } = snapFor(event);
-          const nearPoint = handles.find(handle => handle.kind === 'point' && selectedIds.has(handle.solid)
-            && Math.hypot(screenOf(handle.position).x - event.clientX, screenOf(handle.position).y - event.clientY) <= SNAP_PIXELS);
-          const start = nearPoint ? nearPoint.position : snap?.point ?? hit.point;
-          if (!start) return;
-          const targets = nearPoint && solid ? { bodies: solid.path.length ? [] : [solid.body], children: childKey ? [childKey] : [] } : targetsFor(solid);
-          if (!nearPoint && !targets.bodies.length && !targets.children.length) { current.onStatus('Erst etwas auswählen.'); return; }
+          const start = snap?.point;
+          if (!start) { current.onStatus('Bezugspunkt aus der Inferenz wählen.'); return; }
+          const targets = targetsFor(solid);
+          if (!targets.bodies.length && !targets.children.length) { current.onStatus('Erst etwas auswählen.'); return; }
+          const previewIds = solidIdsForTargets(model, targets);
           drag.current = {
-            kind: 'move', targets, ...(nearPoint ? { vertex: nearPoint } : {}), start, startDefinition: current.definition, startResolved: model,
-            candidates: inferenceCandidates(model, nearPoint ? new Set() : exclude), delta: { x: 0, y: 0, z: 0 }, moved: false, pointer, exclude, copy: false,
+            kind: 'move', targets, previewIds, start, startDefinition: current.definition, startResolved: model,
+            candidates: inferenceCandidates(model, exclude), delta: { x: 0, y: 0, z: 0 }, moved: false, pointer, exclude, copy: false,
           };
-          current.onStatus('Zielpunkt klicken. Pfeiltasten oder Umschalt sperren die Achse, Strg kopiert.');
+          current.onStatus(`${snap.label}: Zielpunkt klicken. Pfeiltasten oder Umschalt sperren die Achse, Strg kopiert.`);
           return;
         }
-        const axisName = solid ? (axisOf(hit.normal ?? { x: 0, y: 1, z: 0 }, 0.9) ?? 'y') : 'y';
-        const axis = AXIS_VECTORS[axisName];
-        const snapped = snapFor(event).snap;
-        const centre = solid ? (handles.find(handle => handle.solid === solid.id && handle.kind === 'rotation')?.position ?? hit.point!) : (snapped?.point ?? { x: 0, y: 0, z: 0 });
-        const pivot = snapped && (snapped.kind === 'endpoint' || snapped.kind === 'midpoint' || snapped.kind === 'origin') ? snapped.point : centre;
-        const targets = targetsFor(solid);
-        if (!targets.bodies.length && !targets.children.length) { current.onStatus('Erst etwas auswählen.'); return; }
-        drag.current = {
-          kind: 'rotate', targets, phase: 'from', pivot, axis, home: axis, from: { x: 1, y: 0, z: 0 },
-          startDefinition: current.definition, startResolved: model, angle: 0, moved: false, pointer,
-        };
-        current.onStatus('Startpunkt der Drehung klicken. Pfeiltasten wählen die Achse.');
-        return;
+        if (active === 'rotate') {
+          const { snap } = snapFor(event);
+          if (!snap) { current.onStatus('Drehpunkt aus der Inferenz wählen.'); return; }
+          const axisName = solid ? (axisOf(hit.normal ?? { x: 0, y: 1, z: 0 }, 0.9) ?? 'y') : 'y';
+          const axis = AXIS_VECTORS[axisName];
+          const targets = targetsFor(solid);
+          if (!targets.bodies.length && !targets.children.length) { current.onStatus('Erst etwas auswählen.'); return; }
+          drag.current = {
+            kind: 'rotate', targets, previewIds: solidIdsForTargets(model, targets), phase: 'from', pivot: snap.point, axis, home: axis,
+            from: { x: 1, y: 0, z: 0 }, startDefinition: current.definition, startResolved: model, angle: 0, moved: false, pointer, copy: false,
+          };
+          current.onStatus(`${snap.label}: Startpunkt der Drehung klicken. Pfeiltasten wählen die Achse.`);
+          return;
+        }
       }
       if (active === 'interact') {
         const hit = pick(event.clientX, event.clientY);
@@ -827,8 +1219,19 @@ function ModelScene(props: ModelCanvasProps & { container: MutableRefObject<HTML
       }
       if (active === 'rect') {
         if (sketch?.kind === 'rect') {
-          const { snap } = snapFor(event, sketch.anchor, { origin: sketch.anchor, normal: sketch.normal });
-          if (snap) sketch.opposite = inPlane(snap.point, { origin: sketch.anchor, normal: sketch.normal });
+          const plane = { origin: sketch.anchor, normal: sketch.normal };
+          const { snap } = snapFor(event, sketch.anchor, plane);
+          if (snap) {
+            const point = inPlane(snap.point, plane);
+            const v = cross(sketch.normal, sketch.u);
+            const span = sub(point, sketch.anchor);
+            const locked = squareLockedExtents(dot(span, sketch.u), dot(span, v), {
+              shift: event.shiftKey,
+              tolerance: SNAP_PIXELS * pixelMm(point),
+            });
+            sketch.opposite = add(sketch.anchor, add(scale(sketch.u, locked.along), scale(v, locked.across)));
+            sketch.square = locked.square;
+          }
           const message = finishRect(sketch, undefined, undefined, false);
           if (message) current.onStatus(message);
           return;
@@ -836,16 +1239,52 @@ function ModelScene(props: ModelCanvasProps & { container: MutableRefObject<HTML
         const { snap } = snapFor(event);
         if (!snap) return;
         const normal = drawingNormal(snap.kind === 'face' ? snap.normal : undefined);
-        draw.current = { kind: 'rect', anchor: snap.point, normal, u: planeAxes(normal) };
-        current.onStatus('Gegenecke klicken oder Maße eintippen, zum Beispiel 1200;600.');
+        draw.current = { kind: 'rect', anchor: snap.point, normal, homeNormal: normal, u: planeAxes(normal) };
+        current.onStatus('Gegenecke klicken oder Maße eintippen. Pfeiltasten sperren die Ebene (senkrecht = in die Luft).');
         updateDrawOverlay(snap);
         return;
       }
-      if (active === 'polygon' || active === 'line') {
-        if (sketch?.kind === 'polygon') {
+      if (active === 'circle') {
+        if (sketch?.kind === 'circle') {
+          const plane = { origin: sketch.centre, normal: sketch.normal };
+          const { snap } = snapFor(event, sketch.centre, plane);
+          if (snap) sketch.cursor = inPlane(snap.point, plane);
+          const radius = sketch.cursor ? length(sub(sketch.cursor, sketch.centre)) : 0;
+          const message = finishCircle(sketch, radius, sketch.segments, false);
+          if (message) current.onStatus(message);
+          return;
+        }
+        const { snap } = snapFor(event);
+        if (!snap) return;
+        const normal = drawingNormal(snap.kind === 'face' ? snap.normal : undefined);
+        draw.current = { kind: 'circle', centre: snap.point, normal, homeNormal: normal };
+        current.onStatus('Radius klicken oder eintippen. Pfeiltasten sperren die Ebene.');
+        updateDrawOverlay(snap);
+        return;
+      }
+      if (active === 'polygon') {
+        if (sketch?.kind === 'ngon') {
+          const plane = { origin: sketch.centre, normal: sketch.normal };
+          const { snap } = snapFor(event, sketch.centre, plane);
+          if (snap) sketch.cursor = inPlane(snap.point, plane);
+          const radius = sketch.cursor ? length(sub(sketch.cursor, sketch.centre)) : 0;
+          const message = finishNgon(sketch, radius, false);
+          if (message) current.onStatus(message);
+          return;
+        }
+        const { snap } = snapFor(event);
+        if (!snap) return;
+        const normal = drawingNormal(snap.kind === 'face' ? snap.normal : undefined);
+        draw.current = { kind: 'ngon', centre: snap.point, normal, homeNormal: normal, sides: polygonSides.current };
+        current.onStatus(`${polygonSides.current}-Eck: Radius klicken. Pfeiltasten sperren die Ebene.`);
+        updateDrawOverlay(snap);
+        return;
+      }
+      if (active === 'line') {
+        if (sketch?.kind === 'line') {
           const plane = { origin: sketch.points[0]!, normal: sketch.normal };
           const first = screenOf(sketch.points[0]!);
-          if (sketch.points.length >= 3 && Math.hypot(first.x - event.clientX, first.y - event.clientY) <= SNAP_PIXELS) { finishPolygon(sketch); return; }
+          if (sketch.points.length >= 3 && Math.hypot(first.x - event.clientX, first.y - event.clientY) <= SNAP_PIXELS) { finishLine(sketch); return; }
           const { snap } = snapFor(event, sketch.points[sketch.points.length - 1], plane);
           if (snap) sketch.points.push(inPlane(snap.point, plane));
           updateDrawOverlay(snap);
@@ -853,8 +1292,9 @@ function ModelScene(props: ModelCanvasProps & { container: MutableRefObject<HTML
         }
         const { snap } = snapFor(event);
         if (!snap) return;
-        draw.current = { kind: 'polygon', normal: drawingNormal(snap.kind === 'face' ? snap.normal : undefined), points: [snap.point] };
-        current.onStatus(active === 'line' ? 'Nächsten Punkt klicken. Schließen erzeugt die Fläche.' : 'Weitere Eckpunkte klicken; ersten Punkt oder Enter zum Schließen.');
+        const normal = drawingNormal(snap.kind === 'face' ? snap.normal : undefined);
+        draw.current = { kind: 'line', normal, homeNormal: normal, points: [snap.point] };
+        current.onStatus('Nächsten Punkt klicken. Pfeiltasten sperren die Ebene. Schließen erzeugt die Fläche.');
         updateDrawOverlay(snap);
         return;
       }
@@ -874,8 +1314,8 @@ function ModelScene(props: ModelCanvasProps & { container: MutableRefObject<HTML
 
     function onCancel(event: PointerEvent) {
       down = undefined;
-      if (controls) controls.enabled = true;
-      setMarquee(undefined);
+      if (view.current.controls) view.current.controls.enabled = true;
+      latest.current.onMarquee(undefined);
       if (drag.current) endDrag(true);
       if (target.hasPointerCapture(event.pointerId)) target.releasePointerCapture(event.pointerId);
     }
@@ -889,28 +1329,50 @@ function ModelScene(props: ModelCanvasProps & { container: MutableRefObject<HTML
       }
       if (state?.kind === 'move' && event.key.startsWith('Arrow')) {
         event.preventDefault();
-        const next: AxisName | undefined = event.key === 'ArrowRight' ? 'x' : event.key === 'ArrowLeft' ? 'z' : event.key === 'ArrowUp' ? 'y' : undefined;
+        const next = axisFromArrowKey(event.key);
         state.shiftLocked = false;
         state.axis = next && state.axis !== next ? next : undefined;
         return;
       }
       if (state?.kind === 'rotate' && event.key.startsWith('Arrow')) {
         event.preventDefault();
-        const axis: AxisName = event.key === 'ArrowRight' ? 'x' : event.key === 'ArrowLeft' ? 'z' : 'y';
+        const axis = axisFromArrowKey(event.key) ?? 'y';
         state.axis = axisOf(state.axis) === axis ? state.home : AXIS_VECTORS[axis];
         state.from = sub(rayPlane({ origin: add(state.pivot, scale(state.axis, 1000)), direction: scale(state.axis, -1) }, state.pivot, state.axis) ?? state.pivot, state.pivot);
         if (length(state.from) < 1e-6) state.from = axis === 'y' ? { x: 1, y: 0, z: 0 } : { x: 0, y: 1, z: 0 };
         return;
       }
       const sketch = draw.current;
-      if (sketch?.kind === 'polygon' && (event.key === 'Enter' || event.key === 'Backspace') && !(event.target instanceof HTMLInputElement)) {
+      if (
+        sketch
+        && (sketch.kind === 'rect' || sketch.kind === 'circle' || sketch.kind === 'ngon' || sketch.kind === 'line')
+        && event.key.startsWith('Arrow')
+        && !isTypingTarget(event.target)
+      ) {
+        const next = axisFromArrowKey(event.key);
+        if (!next) return;
         event.preventDefault();
-        if (event.key === 'Enter' && sketch.points.length >= 3) finishPolygon(sketch);
+        const lock = sketch.planeLock === next ? undefined : next;
+        sketch.planeLock = lock;
+        sketch.normal = lock ? drawingPlaneNormal(lock) : sketch.homeNormal;
+        if (sketch.kind === 'rect') sketch.u = planeAxes(sketch.normal);
+        latest.current.onStatus(lock
+          ? `Ebene: ${drawingPlaneLockLabel(lock)}. Nochmal dieselbe Pfeiltaste löst.`
+          : 'Ebene gelöst — wieder Boden oder Startfläche.');
+        updateDrawOverlay();
+        return;
+      }
+      if (sketch?.kind === 'line' && (event.key === 'Enter' || event.key === 'Backspace') && !(event.target instanceof HTMLInputElement)) {
+        event.preventDefault();
+        if (event.key === 'Enter' && sketch.points.length >= 3) finishLine(sketch);
         if (event.key === 'Backspace') { sketch.points.pop(); if (!sketch.points.length) draw.current = undefined; updateDrawOverlay(); }
       }
     }
 
-    function onLeave() { setHover({}); }
+    function onLeave() {
+      updateHover({});
+      if (!drag.current && !draw.current) setOverlay({});
+    }
     target.addEventListener('pointerdown', onDown);
     target.addEventListener('pointermove', onMove);
     target.addEventListener('pointerup', onUp);
@@ -925,7 +1387,8 @@ function ModelScene(props: ModelCanvasProps & { container: MutableRefObject<HTML
       target.removeEventListener('pointerleave', onLeave);
       window.removeEventListener('keydown', onKey);
     };
-  });
+    // Live tool/definition/resolved/selection live in latest + handlesRef/selectedIdsRef/view.
+  }, [gl.domElement]);
 
   useEffect(() => { invalidate(); }, [overlay, hover, resolved, selection, multi, invalidate]);
 
@@ -943,29 +1406,25 @@ function ModelScene(props: ModelCanvasProps & { container: MutableRefObject<HTML
   }, [handles, selectedIds]);
 
   return <>
-    {marquee && props.overlay.current && createPortal(
-      <div className={marquee.crossing ? 'model-marquee crossing' : 'model-marquee'} data-testid="designer-marquee"
-        style={{ left: marquee.x, top: marquee.y, width: marquee.w, height: marquee.h }} />,
-      props.overlay.current,
-    )}
     <ReferenceGrid />
     {surrounding && <group scale={MM}>
       {surrounding.resolved.solids.filter(solid => !surrounding.hide(solid)).map(solid =>
-        <SolidMesh key={`ctx:${solid.id}`} solid={solid} color={colors.get(solid.material) ?? FALLBACK_COLOR} dimmed />)}
+        <SolidMesh workspaceId={props.workspaceId} assets={props.assets} key={`ctx:${solid.id}`} solid={solid} color={colors.get(solid.material) ?? FALLBACK_COLOR} dimmed />)}
     </group>}
     <group scale={MM}>
       <group ref={model} matrixAutoUpdate={false} matrix={frameMatrix}>
-        {resolved?.solids.map(solid => <SolidMesh key={solid.id} solid={solid} color={colors.get(solid.material) ?? FALLBACK_COLOR}
+        {resolved?.solids.map(solid => <SolidMesh workspaceId={props.workspaceId} assets={props.assets} key={solid.id} solid={solid} color={colors.get(solid.material) ?? FALLBACK_COLOR}
           selected={selectedIds.has(solid.id)} hovered={hover.solid === solid.id}
           register={object => { if (object) meshes.current.set(solid.id, object); else meshes.current.delete(solid.id); }} />)}
         {hover.face && <FaceOutline solid={hover.face.solid} side={hover.face.side} edge={hover.face.edge} locked={!!hover.locked} />}
         {overlay.lines?.map((line, index) => <Line key={index} points={line.points.map(point => [point.x, point.y, point.z] as [number, number, number])}
           color={line.color} lineWidth={line.width ?? 1.5} dashed={line.dashed} dashSize={20} gapSize={12} depthTest={false} renderOrder={5} />)}
-        {overlay.snap && <Html portal={props.overlay as MutableRefObject<HTMLElement>} position={[overlay.snap.point.x, overlay.snap.point.y, overlay.snap.point.z]} center zIndexRange={[20, 10]}
+        {overlay.snap && <Html portal={props.overlay as MutableRefObject<HTMLElement>} position={[overlay.snap.point.x, overlay.snap.point.y, overlay.snap.point.z]} zIndexRange={[20, 10]}
           style={{ pointerEvents: 'none' }}>
           <span className={`snap-marker snap-${overlay.snap.kind}`} data-testid="designer-snap"
-            style={overlay.snap.axis ? { borderColor: AXIS_COLORS[overlay.snap.axis], color: AXIS_COLORS[overlay.snap.axis] } : undefined}>
-            <i /> {overlay.snap.label}
+            style={overlay.snap.axis ? { color: AXIS_COLORS[overlay.snap.axis] } : undefined}>
+            <i />
+            <span className="snap-label">{overlay.snap.label}</span>
           </span>
         </Html>}
         {overlay.pivot && <mesh position={[overlay.pivot.x, overlay.pivot.y, overlay.pivot.z]} renderOrder={6}>
@@ -1035,8 +1494,8 @@ function releaseGeometry(key: string) {
   }
 }
 
-function SolidMesh({ solid, color, selected, hovered, dimmed, register }: {
-  solid: ResolvedSolid; color: string; selected?: boolean; hovered?: boolean; dimmed?: boolean; register?: (object: Object3D | null) => void;
+function SolidMesh({ workspaceId, assets, solid, color, selected, hovered, dimmed, register }: {
+  workspaceId: string; assets: readonly Asset[]; solid: ResolvedSolid; color: string; selected?: boolean; hovered?: boolean; dimmed?: boolean; register?: (object: Object3D | null) => void;
 }) {
   const [shared, setShared] = useState<{ key: string; geometry: BufferGeometry; edges: EdgesGeometry }>();
   const shapeKey = useMemo(() => {
@@ -1057,8 +1516,9 @@ function SolidMesh({ solid, color, selected, hovered, dimmed, register }: {
   }), [color, dimmed, selected, hovered, solid.displayOnly]);
   useEffect(() => () => material.dispose(), [material]);
   if (!shared) return null;
-  return <group>
-    <mesh ref={register} geometry={shared.geometry} material={material} userData={{ solidId: solid.id }} castShadow={!dimmed} receiveShadow
+  return <group ref={register} userData={{ solidId: solid.id }}>
+    {solid.kind === 'box' && solid.assetId && <WorkspaceMesh workspaceId={workspaceId} asset={assets.find(asset => asset.id === solid.assetId)} solid={solid} />}
+    <mesh geometry={shared.geometry} material={material} visible={!(solid.kind === 'box' && solid.assetId)} userData={{ solidId: solid.id }} castShadow={!dimmed} receiveShadow
       raycast={dimmed ? () => null : undefined} dispose={null} />
     <lineSegments geometry={shared.edges} raycast={() => null} dispose={null}>
       <lineBasicMaterial color={selected ? '#9a5b12' : '#33434e'} transparent opacity={dimmed ? 0.15 : 0.55} />

@@ -1,10 +1,11 @@
+import { expandCatalogSearch, parseCatalogEntries, polyHavenIdSchema, modelCatalogItemSchema } from '../../shared/polyHaven.js';
 import { z } from 'zod';
 import { MAX_MODEL_BYTES } from '../../shared/assets.js';
 import {
   POLYHAVEN_API, isPolyHavenDownloadUrl, millimetresFromPolyHavenModel, modelCatalogSchema,
   pickPolyHavenGlb, type ModelCatalogItem,
 } from '../../shared/polyHaven.js';
-import { surfaceCatalogItemSchema, surfaceCatalogSchema, type SurfaceCatalogItem } from '../../shared/surfaceRegistry.js';
+import { surfaceCatalogItemSchema, surfaceCatalogSchema, type SurfaceCatalogItem, type SurfaceMapKind } from '../../shared/surfaceRegistry.js';
 
 const textureAssetSchema = z.looseObject({
   name: z.string(),
@@ -30,7 +31,7 @@ function textureItem(id: string, raw: z.infer<typeof textureAssetSchema>): Surfa
 }
 
 function modelItem(id: string, raw: z.infer<typeof modelAssetSchema>): ModelCatalogItem {
-  return { id, name: raw.name.slice(0, 160), thumbnailUrl: raw.thumbnail_url, categories: raw.categories.slice(0, 30) };
+  return modelCatalogItemSchema.parse({ id, name: raw.name.slice(0, 160), thumbnailUrl: raw.thumbnail_url, categories: raw.categories.slice(0, 30) });
 }
 
 async function json(url: string, fetcher: typeof fetch) {
@@ -44,7 +45,7 @@ export async function searchLocalTextures(query: string, fetcher: typeof fetch =
   const url = words
     ? `${POLYHAVEN_API}/search?${new URLSearchParams({ q: words, t: 'textures' })}`
     : `${POLYHAVEN_API}/assets?type=textures`;
-  const assets = z.record(z.string(), textureAssetSchema).parse(await json(url, fetcher));
+  const assets = textureEntries(await expandCatalogSearch(await json(url, fetcher), () => json(`${POLYHAVEN_API}/assets?type=textures`, fetcher)));
   return surfaceCatalogSchema.parse(Object.entries(assets).slice(0, 48).map(([id, asset]) => textureItem(id, asset)));
 }
 
@@ -53,20 +54,21 @@ export async function searchLocalModels(query: string, fetcher: typeof fetch = f
   const url = words
     ? `${POLYHAVEN_API}/search?${new URLSearchParams({ q: words, t: 'models' })}`
     : `${POLYHAVEN_API}/assets?t=models`;
-  const assets = z.record(z.string(), modelAssetSchema).parse(await json(url, fetcher));
+  const assets = modelEntries(await expandCatalogSearch(await json(url, fetcher), () => json(`${POLYHAVEN_API}/assets?t=models`, fetcher)));
   return modelCatalogSchema.parse(Object.entries(assets).slice(0, 48).map(([id, asset]) => modelItem(id, asset)));
 }
 
 export async function downloadLocalModel(assetId: string, fetcher: typeof fetch = fetch) {
+  polyHavenIdSchema.parse(assetId);
   const [files, listed] = await Promise.all([
     json(`${POLYHAVEN_API}/files/${encodeURIComponent(assetId)}`, fetcher),
-    json(`${POLYHAVEN_API}/assets?t=models`, fetcher).then(value => z.record(z.string(), modelAssetSchema).parse(value)),
+    json(`${POLYHAVEN_API}/assets?t=models`, fetcher).then(value => modelEntries(value)),
   ]);
   const asset = listed[assetId];
   if (!asset) throw new Error('Poly Haven model was not found');
   const glb = pickPolyHavenGlb(files);
   if (!glb || !isPolyHavenDownloadUrl(glb.url) || glb.size > MAX_MODEL_BYTES) throw new Error('Poly Haven model has no GLB');
-  const response = await fetcher(glb.url);
+  const response = await fetcher(glb.url, { redirect: 'error' });
   if (!response.ok) throw new Error(`Poly Haven download returned ${response.status}`);
   const bytes = new Uint8Array(await response.arrayBuffer());
   if (bytes.byteLength > MAX_MODEL_BYTES) throw new Error('Model is too large');
@@ -76,16 +78,42 @@ export async function downloadLocalModel(assetId: string, fetcher: typeof fetch 
 const jpgSchema = z.object({ size: z.number().int().positive(), url: z.url() });
 
 export async function downloadLocalTexture(assetId: string, resolution: '1k' | '2k', fetcher: typeof fetch = fetch) {
-  const listed = z.record(z.string(), textureAssetSchema).parse(await json(`${POLYHAVEN_API}/assets?type=textures`, fetcher));
+  polyHavenIdSchema.parse(assetId);
+  const listed = textureEntries(await json(`${POLYHAVEN_API}/assets?type=textures`, fetcher));
   const asset = listed[assetId];
   if (!asset) throw new Error('Poly Haven material was not found');
   const files = z.record(z.string(), z.unknown()).parse(await json(`${POLYHAVEN_API}/files/${encodeURIComponent(assetId)}`, fetcher));
-  const diffuse = files.Diffuse;
-  const variant = diffuse && typeof diffuse === 'object' ? (diffuse as Record<string, unknown>)[resolution] : undefined;
-  const jpg = variant && typeof variant === 'object' ? jpgSchema.parse((variant as Record<string, unknown>).jpg) : undefined;
-  if (!jpg || !isPolyHavenDownloadUrl(jpg.url)) throw new Error('Material has no compatible base color map');
-  const response = await fetcher(jpg.url);
-  if (!response.ok) throw new Error(`Poly Haven download returned ${response.status}`);
-  const bytes = new Uint8Array(await response.arrayBuffer());
-  return { item: textureItem(assetId, asset), bytes, mediaType: 'image/jpeg' as const };
+  const candidates: Array<[SurfaceMapKind, string]> = [['baseColor', 'Diffuse'], ['normal', 'nor_gl'], ['orm', 'arm']];
+  if (!files.arm) candidates.push(['roughness', 'Rough'], ['metalness', 'Metal'], ['occlusion', 'AO']);
+  const maps: Partial<Record<SurfaceMapKind, Uint8Array>> = {};
+  for (const [kind, name] of candidates) {
+    const map = files[name];
+    const variant = map && typeof map === 'object' ? (map as Record<string, unknown>)[resolution] : undefined;
+    if (!variant || typeof variant !== 'object') continue;
+    const jpg = jpgSchema.parse((variant as Record<string, unknown>).jpg);
+    if (!isPolyHavenDownloadUrl(jpg.url) || jpg.size > 16 * 1024 * 1024) throw new Error('Invalid texture download');
+    const response = await fetcher(jpg.url, { redirect: 'error' });
+    if (!response.ok) throw new Error(`Poly Haven download returned ${response.status}`);
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.byteLength > 16 * 1024 * 1024) throw new Error('Texture is too large');
+    maps[kind] = bytes;
+  }
+  if (!maps.baseColor) throw new Error('Material has no compatible base color map');
+  return { item: textureItem(assetId, asset), maps, bytes: maps.baseColor, mediaType: 'image/jpeg' as const };
+}
+
+function modelEntries(input: unknown) {
+  return parseCatalogEntries(input, (id, value) => {
+    const raw = modelAssetSchema.parse(value);
+    modelItem(id, raw);
+    return raw;
+  });
+}
+
+function textureEntries(input: unknown) {
+  return parseCatalogEntries(input, (id, value) => {
+    const raw = textureAssetSchema.parse(value);
+    textureItem(id, raw);
+    return raw;
+  });
 }

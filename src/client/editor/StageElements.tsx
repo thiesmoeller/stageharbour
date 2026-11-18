@@ -102,7 +102,7 @@ function ModelMesh({ prop, definition }: { prop: Prop; definition: Extract<Asset
   // Match the editable millimetre dimensions on each axis.
   const scale: [number, number, number] = [prop.width / 1000 / size.x, prop.height / 1000 / size.y, prop.depth / 1000 / size.z];
   if (scale.some(value => !(value > 0) || !Number.isFinite(value))) throw new Error('Model has no usable bounds');
-  return <group rotation={[0, Math.PI, 0]} scale={scale}>
+  return <group rotation={(prop.modelRotation ?? definition.rotation) ? (prop.modelRotation ?? definition.rotation)!.map(value => value * Math.PI / 180) as [number, number, number] : [0, Math.PI, 0]} scale={scale}>
     <primitive object={object} position={[-center.x, -bounds.min.y, -center.z]} dispose={null} />
   </group>;
 }

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { OrthographicCamera, PerspectiveCamera, Vector3, type Camera } from 'three';
 import {
-  DEFAULT_STAGE_BOUNDS, boundsCorners, boundsFromMillimetres, boundsRadius, frameOrthographic, framePerspective,
+  DEFAULT_STAGE_BOUNDS, adaptiveClipPlanes, boundsCorners, boundsFromMillimetres, boundsRadius, frameOrthographic, framePerspective,
   isUsableBounds, resolveStageCamera, stageViewCamera, stageViewEye, type StageBounds, type StageLookCamera, type Viewport,
 } from '../src/client/stage/cameraFraming.js';
 
@@ -48,8 +48,25 @@ test('perspective framing distance follows the bounding sphere and field of view
   const distance = new Vector3(...look.position).distanceTo(new Vector3(...look.target));
   close(distance, boundsRadius(partBounds) / Math.sin(20 * Math.PI / 180));
   assert.deepEqual(look.target, [0, 0.6, 0]);
+  assert.equal(look.near, 0.01);
+  assert.ok(look.far >= 1000 && look.far >= distance + boundsRadius(partBounds) * 4);
   const narrow = framePerspective(partBounds, { aspect: 0.5, fov: 40, margin: 1 });
   assert.ok(new Vector3(...narrow.position).distanceTo(new Vector3(...narrow.target)) > distance, 'portrait viewports back off further');
+});
+
+test('adaptive clip planes keep a closer-than-fit camera from putting the bounds sphere behind near', () => {
+  const look = framePerspective(partBounds, { aspect: 1, fov: 40, margin: 1 });
+  const fitDistance = new Vector3(...look.position).distanceTo(new Vector3(...look.target));
+  const radius = boundsRadius(partBounds);
+  // Closer than fit, but still outside the sphere so a near plane can be judged against it.
+  const closeDistance = fitDistance * 0.5;
+  const { near, far } = adaptiveClipPlanes(closeDistance);
+  assert.ok(near < closeDistance - radius, `near ${near} would clip sphere front at ${closeDistance - radius}`);
+  assert.ok(far > closeDistance + radius, `far ${far} would clip sphere back at ${closeDistance + radius}`);
+  // The old fit-time near (distance − radius×2) would clip after zooming in.
+  const staleNear = Math.max(0.01, fitDistance - radius * 2);
+  assert.ok(staleNear >= closeDistance - radius, 'fixture: stale fit near must be the clipping case');
+  assert.ok(near < staleNear);
 });
 
 test('orthographic framing fits the bounding sphere into the shorter viewport side', () => {

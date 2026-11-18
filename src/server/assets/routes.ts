@@ -1,3 +1,4 @@
+import { meshAssetDependencies } from '../../shared/parts/assetDependencies.js';
 import { randomUUID } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
@@ -7,7 +8,7 @@ import { assetListSchema, assetSchema, createAssetSchema, renameAssetSchema } fr
 import { errorSchema, workspaceParamsSchema } from '../../shared/contracts.js';
 import { importPolyHavenModelSchema, modelCatalogSchema } from '../../shared/polyHaven.js';
 import type { Database } from '../db/connection.js';
-import { assetFile, inventoryAsset } from '../db/schema.js';
+import { assetFile, inventoryAsset, partRevision } from '../db/schema.js';
 import type { FileStorage } from '../exports/storage.js';
 import { AccessError, type createAccess } from '../identity/access.js';
 import { MAX_MODEL_BYTES, validateGlb } from './glb.js';
@@ -69,6 +70,10 @@ export function registerAssetRoutes(
     const { user } = await editor(request, request.params.workspaceId);
     return db.transaction(async tx => {
       await leases.requireHeld(tx, request.params.workspaceId, 'inventory', request.params.workspaceId, user.id);
+      const revisions = await tx.select({ definition: partRevision.definition }).from(partRevision).where(eq(partRevision.workspaceId, request.params.workspaceId));
+      if (revisions.some(row => meshAssetDependencies(row.definition).includes(request.params.assetId))) {
+        throw new AccessError(400, 'Das Modell wird von einer Bauteilrevision verwendet und kann nicht entfernt werden.');
+      }
       const rows = await tx.update(inventoryAsset).set({ archived: true }).where(and(eq(inventoryAsset.workspaceId, request.params.workspaceId), eq(inventoryAsset.id, request.params.assetId))).returning({ id: inventoryAsset.id });
       if (!rows.length) throw new AccessError(404, 'Inventarobjekt nicht verfügbar.');
       return { ok: true as const };

@@ -1,7 +1,7 @@
 import {
   BODY_MATERIAL_KINDS, DEFAULT_FABRIC_THICKNESS_MM, MATERIAL_KIND_LABELS, MAX_PART_COORDINATE_MM, MIN_BODY_DIMENSION_MM, PART_LIMITS,
   inlineGroup, matchVariant, normalizeParameterValue, partRefKey, variantValues,
-  type BeamBody, type BoxBody, type FormulaVec2, type FormulaVec3, type PartBody, type PartChild, type PartContext,
+  type BeamBody, type MeshBody, type BoxBody, type FormulaVec2, type FormulaVec3, type PartBody, type PartChild, type PartContext,
   type PartDefinition, type PartFaceSide, type PartMaterial, type PartRef, type PartRepeat, type PartTraits,
   type ProfileShape, type SheetBody, type SheetHole, type StockMode,
 } from './definition.js';
@@ -47,7 +47,7 @@ type SolidBase = {
 };
 
 /** Oriented box: `size` lies along the axes of `rotation`, centred on `center`. */
-export type ResolvedBox = SolidBase & { kind: 'box'; center: Vec3; size: Vec3; rotation: Quat };
+export type ResolvedBox = SolidBase & { kind: 'box'; center: Vec3; size: Vec3; rotation: Quat; assetId?: string };
 
 /**
  * A beam is an oriented box whose local +Y runs from `from` to `to`; `size.x` is the section
@@ -367,8 +367,29 @@ export function archSegmentCount(radius: number): number {
   return Math.max(12, Math.min(48, Math.ceil(Math.PI * radius / 40)));
 }
 
+/**
+ * Chord count for a full circle outline. An explicit `segments` value is clamped to
+ * `PART_LIMITS.polygonPoints`; otherwise the count grows with radius from ~24 up to that limit
+ * (same chord length target as `archSegmentCount`, doubled for a full turn).
+ */
+export function circleSegmentCount(radius: number, segments?: number): number {
+  if (segments !== undefined) {
+    return Math.max(3, Math.min(PART_LIMITS.polygonPoints, Math.round(segments)));
+  }
+  return Math.max(24, Math.min(PART_LIMITS.polygonPoints, Math.ceil(2 * Math.PI * radius / 40)));
+}
+
 function rectPoints(x: number, y: number, width: number, height: number): Vec2[] {
   return [{ x, y }, { x: x + width, y }, { x: x + width, y: y + height }, { x, y: y + height }];
+}
+
+function circlePoints(cx: number, cy: number, r: number, segments: number): Vec2[] {
+  const points: Vec2[] = [];
+  for (let i = 0; i < segments; i++) {
+    const angle = 2 * Math.PI * i / segments;
+    points.push({ x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) });
+  }
+  return points;
 }
 
 function archPoints(x: number, y: number, width: number, height: number): Vec2[] {
@@ -500,7 +521,7 @@ function solidBase(node: NodeBuilder, body: PartBody, index: number[]): SolidBas
   };
 }
 
-function resolveBox(node: NodeBuilder, body: BoxBody, material: PartMaterial | undefined, scope: Scope, index: number[], offset: Vec3) {
+function resolveBox(node: NodeBuilder, body: BoxBody | MeshBody, material: PartMaterial | undefined, scope: Scope, index: number[], offset: Vec3) {
   const subject = { body: body.key };
   const size = evaluateVec3(body.size, scope, subject, 'size', node.issues);
   const placed = pose(body, scope, subject, node.issues);
@@ -512,7 +533,7 @@ function resolveBox(node: NodeBuilder, body: BoxBody, material: PartMaterial | u
   ];
   const center = add(placed.translation, offset);
   if (small.some(Boolean) || !withinReach([center, size], subject, node.issues)) return;
-  node.solids.push({ ...solidBase(node, body, index), kind: 'box', center, size, rotation: placed.rotation });
+  node.solids.push({ ...solidBase(node, body, index), kind: 'box', center, size, rotation: placed.rotation, ...(body.kind === 'mesh' ? { assetId: body.assetId } : {}) });
   if (material?.kind === 'hardware' && !body.displayOnly) node.hardware.push({ material: material.key, quantity: 1, kgPerPiece: material.weightKgPerPiece });
 }
 
@@ -561,6 +582,21 @@ function resolveSheet(node: NodeBuilder, body: SheetBody, material: PartMaterial
   if (body.outline.shape === 'rect') {
     const rect = evaluateRect(body.outline, scope, subject, 'outline.', issues);
     authored = rect && rectPoints(rect.x, rect.y, rect.width, rect.height);
+  } else if (body.outline.shape === 'circle') {
+    const field = (name: string) => ({ ...subject, field: `outline.${name}` });
+    const cx = evaluate(body.outline.cx, scope, field('cx'), issues);
+    const cy = evaluate(body.outline.cy, scope, field('cy'), issues);
+    const r = evaluate(body.outline.r, scope, field('r'), issues);
+    const segmentsValue = body.outline.segments === undefined
+      ? undefined
+      : evaluate(body.outline.segments, scope, field('segments'), issues);
+    if (cx !== undefined && cy !== undefined && r !== undefined
+      && (body.outline.segments === undefined || segmentsValue !== undefined)
+      && !tooSmall(r, 'Radius', field('r'), issues)) {
+      const count = circleSegmentCount(r, segmentsValue);
+      const points = circlePoints(cx, cy, r, count);
+      authored = validLoop(points, { ...subject, field: 'outline' }, issues) ? withWinding(points, true) : undefined;
+    }
   } else {
     const points = cleanLoop(evaluatePoints(body.outline.points, scope, subject, 'outline.points', issues));
     authored = points && validLoop(points, { ...subject, field: 'outline' }, issues) ? withWinding(points, true) : undefined;
@@ -862,11 +898,11 @@ function resolveNode(definition: PartDefinition, configuration: PartConfiguratio
   const room = () => hasRoom(node, 1);
 
   for (const body of definition.bodies) {
-    const material = materialFor(body, run.context, issues);
+    const material = body.kind === 'mesh' ? undefined : materialFor(body, run.context, issues);
     forEachInstance(body.repeat, scope, { body: body.key }, issues, (instanceScope, index, offset) => {
       if (body.when !== undefined && !evaluate(body.when, instanceScope, { body: body.key, field: 'when' }, issues)) return;
       if (!room()) return;
-      if (body.kind === 'box') resolveBox(node, body, material, instanceScope, index, offset);
+      if (body.kind === 'box' || body.kind === 'mesh') resolveBox(node, body, material, instanceScope, index, offset);
       else if (body.kind === 'beam') resolveBeam(node, body, material, instanceScope, index, offset);
       else resolveSheet(node, body, material, instanceScope, index, offset);
     });

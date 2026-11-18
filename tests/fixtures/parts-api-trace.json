@@ -7814,7 +7814,7 @@
     "request": "GET /api/schemas/part-library.schema.json",
     "status": 200,
     "body": {
-      "sha256": "2a7ef36945621807a204ffe112f7ccef0d31a8077b15eb3b79f1eea81fb0a6fa"
+      "sha256": "511483e4e57be7fa6be7df4aa5d71e46e1015c327f177fa570f72e9622c06d7b"
     }
   },
   {

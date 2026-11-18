@@ -127,6 +127,37 @@ test('formulas must parse and use known names only', () => {
   assertRejected(repeated, 'bodies.0.repeat.count', /„i“/);
 });
 
+test('a sheet outline may be a circle with formula centre, radius and optional segments', () => {
+  const base = panel();
+  const circle = {
+    ...base,
+    bodies: [{
+      kind: 'sheet' as const, key: 'platte', material: 'sperrholz-12', plane: 'xy' as const, at: [0, 0, 0] as [number, number, number],
+      outline: { shape: 'circle' as const, cx: 'B / 2', cy: 'H / 2', r: 'B / 4', segments: 32 },
+    }],
+  };
+  assert.deepEqual(messages(circle), []);
+  assert.deepEqual(partDefinitionSchema.parse(circle), circle);
+
+  const withoutSegments = {
+    ...base,
+    bodies: [{
+      kind: 'sheet' as const, key: 'platte', material: 'sperrholz-12', plane: 'xy' as const, at: [0, 0, 0] as [number, number, number],
+      outline: { shape: 'circle' as const, cx: 0, cy: 0, r: 200 },
+    }],
+  };
+  assert.deepEqual(messages(withoutSegments), []);
+  assert.deepEqual(partDefinitionSchema.parse(withoutSegments), withoutSegments);
+
+  assertRejected({
+    ...base,
+    bodies: [{
+      kind: 'sheet', key: 'platte', material: 'sperrholz-12', plane: 'xy', at: [0, 0, 0],
+      outline: { shape: 'circle', cx: 0, cy: 0, r: 'radius' },
+    }],
+  }, 'bodies.0.outline.r', /„radius“/);
+});
+
 test('names that would shadow formula functions or object internals are refused', () => {
   const named = (key: string) => ({
     ...panel(),

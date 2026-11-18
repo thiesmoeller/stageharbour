@@ -6,7 +6,7 @@ export type PartIssueCode =
   | 'schema' | 'duplicate-key' | 'reserved-name' | 'parameter-domain' | 'variant-value' | 'forward-reference'
   | 'formula' | 'unknown-name' | 'trait-reference' | 'empty-part'
   | 'unknown-parameter' | 'wrong-scope' | 'value-adjusted' | 'unknown-variant' | 'variant-unmatched'
-  | 'unknown-material' | 'material-kind' | 'body-too-small' | 'out-of-range' | 'outline-invalid'
+  | 'unknown-asset' | 'unknown-material' | 'material-kind' | 'body-too-small' | 'out-of-range' | 'outline-invalid'
   | 'hole-outside' | 'hole-overlap' | 'hole-splits-sheet' | 'hole-covers-sheet' | 'hole-unsupported'
   | 'repeat-count' | 'too-many-solids' | 'unknown-part' | 'child-cycle' | 'child-depth'
   | 'surface-not-horizontal' | 'connector-axis' | 'hardware-quantity' | 'display-only-untied';

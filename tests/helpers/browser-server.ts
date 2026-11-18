@@ -52,7 +52,9 @@ const modelCatalog: ModelCatalogClient = {
 };
 
 const mail = createFakeMailTransport();
-const fixture = await testDatabase('http://127.0.0.1:4173', { FEEDBACK_TO_EMAIL: 'maintainer@example.test' });
+const port = Number(process.env.PLAYWRIGHT_PORT ?? 4173);
+const origin = `http://127.0.0.1:${port}`;
+const fixture = await testDatabase(origin, { FEEDBACK_TO_EMAIL: 'maintainer@example.test' });
 await bootstrapAdministrator(fixture.db, fixture.config, testAdministrator);
 const editorId = randomUUID();
 await fixture.db.insert(user).values({ id: editorId, name: testEditor.name, email: testEditor.email });
@@ -83,4 +85,4 @@ const app = await createApp(fixture.db, fixture.config, {
 });
 app.addHook('onClose', fixture.dispose);
 for (const signal of ['SIGINT', 'SIGTERM'] as const) process.once(signal, () => { void app.close(); });
-await app.listen({ host: '127.0.0.1', port: 4173 });
+await app.listen({ host: '127.0.0.1', port });

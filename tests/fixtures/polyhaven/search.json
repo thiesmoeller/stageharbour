@@ -1,0 +1,20 @@
+{
+  "query": "wood",
+  "type": "textures",
+  "model": "qwen3-0.6b/v1",
+  "minScore": 0.35,
+  "hybrid": true,
+  "total": 666,
+  "considered": 869,
+  "keywordMatches": 146,
+  "results": [
+    {
+      "slug": "wooden_floor_02",
+      "score": 0.5688
+    },
+    {
+      "slug": "old_wooden_floor_02",
+      "score": 0.5586
+    }
+  ]
+}

@@ -187,8 +187,8 @@ function BodyEditor({ body, index, definition, onChange, resolved, issues, mater
   };
 
   let specific: ReactNode;
-  if (body.kind === 'box') {
-    const box = body as BoxBody;
+  if (body.kind === 'box' || body.kind === 'mesh') {
+    const box = body;
     specific = <>
       {vec('Größe (Breite, Höhe, Tiefe)', 'size', box.size, size => set({ ...box, size }))}
       {vec('Mittelpunkt', 'at', box.at, at => set({ ...box, at }))}
@@ -238,20 +238,48 @@ function BodyEditor({ body, index, definition, onChange, resolved, issues, mater
       <fieldset className="designer-subsection">
         <legend>Kontur</legend>
         <label className="designer-field">Form
-          <select value={sheet.outline.shape} disabled={disabled} onChange={event => set({
-            ...sheet,
-            outline: event.target.value === 'polygon'
-              ? { shape: 'polygon', points: [[0, 0], [500, 0], [500, 500], [0, 500]] }
-              : { shape: 'rect', x: 0, y: 0, width: 500, height: 500 },
-          })}>
-            <option value="rect">Rechteck</option><option value="polygon">Vieleck</option>
+          <select value={sheet.outline.shape} disabled={disabled} onChange={event => {
+            const shape = event.target.value as typeof sheet.outline.shape;
+            set({
+              ...sheet,
+              outline: shape === 'polygon'
+                ? { shape, points: [[0, 0], [500, 0], [500, 500], [0, 500]] }
+                : shape === 'circle'
+                  ? { shape, cx: 250, cy: 250, r: 250 }
+                  : { shape: 'rect', x: 0, y: 0, width: 500, height: 500 },
+            });
+          }}>
+            <option value="rect">Rechteck</option><option value="circle">Kreis</option><option value="polygon">Vieleck</option>
           </select>
         </label>
-        {sheet.outline.shape === 'rect'
-          ? <RectFields value={sheet.outline} prefix="outline." scope={scope} issues={own} disabled={disabled}
-            onChange={rect => set({ ...sheet, outline: { shape: 'rect', ...rect } })} />
-          : <PointsEditor label="Eckpunkte" points={sheet.outline.points} field="outline.points" scope={scope} issues={own} disabled={disabled}
-            onChange={points => set({ ...sheet, outline: { shape: 'polygon', points } })} />}
+        {(() => {
+          const outline = sheet.outline;
+          if (outline.shape === 'rect') {
+            return <RectFields value={outline} prefix="outline." scope={scope} issues={own} disabled={disabled}
+              onChange={rect => set({ ...sheet, outline: { shape: 'rect', ...rect } })} />;
+          }
+          if (outline.shape === 'polygon') {
+            return <PointsEditor label="Eckpunkte" points={outline.points} field="outline.points" scope={scope} issues={own} disabled={disabled}
+              onChange={points => set({ ...sheet, outline: { shape: 'polygon', points } })} />;
+          }
+          return <div className="designer-grid-2">
+            <FormulaField label="Mitte u" value={outline.cx} scope={scope} disabled={disabled}
+              issues={fieldIssues(own, 'outline.cx')} testId="field-outline.cx"
+              onChange={cx => set({ ...sheet, outline: { ...outline, cx } })} />
+            <FormulaField label="Mitte v" value={outline.cy} scope={scope} disabled={disabled}
+              issues={fieldIssues(own, 'outline.cy')} testId="field-outline.cy"
+              onChange={cy => set({ ...sheet, outline: { ...outline, cy } })} />
+            <FormulaField label="Radius" value={outline.r} scope={scope} disabled={disabled}
+              issues={fieldIssues(own, 'outline.r')} testId="field-outline.r"
+              onChange={r => set({ ...sheet, outline: { ...outline, r } })} />
+            <OptionalFormulaField label="Segmente" hint="sonst aus dem Radius" value={outline.segments} fallback={32}
+              scope={scope} disabled={disabled} issues={fieldIssues(own, 'outline.segments')}
+              onChange={segments => {
+                const { segments: _old, ...rest } = outline;
+                set({ ...sheet, outline: segments === undefined ? rest : { ...rest, segments } });
+              }} />
+          </div>;
+        })()}
         <IssueLines issues={own.filter(item => item.field === 'outline')} />
       </fieldset>
       {holes.map((hole, holeIndex) => <HoleEditor key={holeIndex} hole={hole} scope={scope} issues={holeIssues(hole.key)} disabled={disabled}
@@ -271,9 +299,9 @@ function BodyEditor({ body, index, definition, onChange, resolved, issues, mater
       <TextField label="Bezeichnung" value={body.label ?? ''} disabled={disabled} testId="body-label"
         onChange={label => set(without(body, 'label', label.trim() ? label : undefined))} />
     </div>
-    <MaterialSelect kind={BODY_MATERIAL_KINDS[body.kind]} value={body.material} materials={materials} disabled={disabled}
-      onChange={material => set({ ...body, material })} />
-    <label className="checkbox-line"><input type="checkbox" checked={!!body.displayOnly} disabled={disabled} data-testid="body-display-only"
+    {body.kind !== 'mesh' && <MaterialSelect kind={BODY_MATERIAL_KINDS[body.kind]} value={body.material} materials={materials} disabled={disabled}
+      onChange={material => set({ ...body, material })} />}
+    <label className="checkbox-line"><input type="checkbox" checked={!!body.displayOnly} disabled={disabled || body.kind === 'mesh'} data-testid="body-display-only"
       onChange={event => set(without(body, 'displayOnly', event.target.checked ? true : undefined))} />Nur Darstellung (nicht gezählt, nicht gewogen)</label>
     <OptionalFormulaField label="Nur wenn" hint="Körper entsteht, wenn ungleich 0" value={body.when} fallback="1" scope={scope} disabled={disabled}
       issues={fieldIssues(own, 'when')} onChange={when => set(without(body, 'when', when))} />

@@ -45,7 +45,7 @@ export const modelSourceSchema = z.discriminatedUnion('kind', [
 export const assetDefinitionSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('wall'), template: wallFieldsStoredSchema.omit({ id: true, label: true, x: true, y: true, rotation: true }) }),
   z.strictObject({ kind: z.literal('brace'), template: braceSchema.omit({ id: true, label: true, x: true, y: true, rotation: true }) }),
-  z.strictObject({ kind: z.literal('model'), width: dimension, height: dimension, depth: dimension, source: modelSourceSchema }),
+  z.strictObject({ kind: z.literal('model'), rotation: vector.optional(), width: dimension, height: dimension, depth: dimension, source: modelSourceSchema }),
 ]);
 export const createAssetSchema = z.strictObject({ name: z.string().trim().min(1).max(120), definition: assetDefinitionSchema });
 export const renameAssetSchema = z.strictObject({ name: z.string().trim().min(1).max(120) });

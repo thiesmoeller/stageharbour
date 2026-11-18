@@ -587,6 +587,7 @@ export function Editor({ initial, workspaceId, readOnly: permissionReadOnly, can
       ...newPlaceholder('box', crypto.randomUUID(), Math.round(point.x), Math.round(point.y)),
       label: requisite.name,
       assetId: requisite.id,
+      modelRotation: definition.rotation,
       width: definition.width,
       depth: definition.depth,
       height: definition.height,

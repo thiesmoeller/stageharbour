@@ -8,12 +8,14 @@ import { AttributesPanel } from './AttributesPanel.js';
 import { BodyList } from './BodyList.js';
 import { CutListPanel, IssueList } from './CutListPanel.js';
 import { OptionsPanel } from './OptionsPanel.js';
+import { PartViewsSvg } from './PartViewsSvg.js';
 import { selectionOfIssue, type DesignerSelection } from './draft.js';
 
 export const INSPECTOR_TABS = [
   { id: 'options', label: 'Optionen' },
   { id: 'attributes', label: 'Attribute' },
   { id: 'outline', label: 'Gliederung' },
+  { id: 'views', label: 'Ansichten' },
   { id: 'cutlist', label: 'Zuschnitt' },
   { id: 'issues', label: 'Prüfung' },
 ] as const;
@@ -70,7 +72,9 @@ export function PartEditor(props: PartEditorProps) {
           const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
           if (!step) return;
           event.preventDefault();
-          onTab(INSPECTOR_TABS[(index + step + INSPECTOR_TABS.length) % INSPECTOR_TABS.length]!.id);
+          const next = INSPECTOR_TABS[(index + step + INSPECTOR_TABS.length) % INSPECTOR_TABS.length]!.id;
+          onTab(next);
+          document.getElementById(`${id}-${next}-tab`)?.focus();
         }}>
         {item.label}{item.id === 'issues' && errorCount > 0 && <span className="tab-badge" aria-label={`${errorCount} Fehler`}>{errorCount}</span>}
       </button>)}
@@ -82,11 +86,12 @@ export function PartEditor(props: PartEditorProps) {
       disabled={disabled} selection={selection} library={props.library} childDefinition={props.childDefinition} onUpgradeChild={props.onUpgradeChild}
       previewValues={props.previewValues} onPreviewValue={props.onPreviewValue}
       promote={props.promote} onPromote={props.onPromote} onPromoteField={props.onPromoteField} onDismissPromote={props.onDismissPromote} />)}
-    {panel('outline', <>
+    {panel('outline', tab === 'outline' ? <>
       {props.grouping}
       <BodyList definition={definition} onChange={onChange} selection={selection} onSelect={onSelect} materials={materials}
         library={props.library} onAddChild={props.onAddChild} disabled={disabled} />
-    </>, 'designer-section-outline')}
+    </> : null, 'designer-section-outline')}
+    {panel('views', <PartViewsSvg resolved={resolved} materials={materials} selection={selection} onSelect={onSelect} />, 'designer-section-views')}
     {panel('cutlist', <CutListPanel resolved={resolved} materials={materials} />, 'designer-section-cutlist')}
     {panel('issues', <>
       {!hasErrors(issues) && !issues.length && <p className="muted">Keine Hinweise.</p>}

@@ -1,3 +1,4 @@
+import { expandCatalogSearch, parseCatalogEntries, polyHavenIdSchema } from '../../shared/polyHaven.js';
 import { z } from 'zod';
 import {
   surfaceCatalogItemSchema, surfaceCatalogSchema, type SurfaceCatalogItem, type SurfaceMapKind,
@@ -15,7 +16,11 @@ const assetSchema = z.looseObject({
   dimensions: z.tuple([z.number(), z.number()]),
   thumbnail_url: z.url(),
 });
-const assetsSchema = z.record(z.string(), assetSchema);
+const assetsSchema = { parse: (input: unknown) => parseCatalogEntries(input, (id, value) => {
+  const raw = assetSchema.parse(value);
+  item(id, raw);
+  return raw;
+}) };
 const downloadSchema = z.looseObject({
   size: z.number().int().positive().max(MAX_SURFACE_TEXTURE_BYTES),
   url: z.url(),
@@ -49,7 +54,7 @@ function item(id: string, raw: z.infer<typeof assetSchema>): SurfaceCatalogItem 
 }
 
 export function createPolyHavenClient(fetcher: typeof fetch = fetch): SurfaceCatalogClient {
-  let cached: { expires: number; assets: z.infer<typeof assetsSchema> } | undefined;
+  let cached: { expires: number; assets: Record<string, z.infer<typeof assetSchema>> } | undefined;
 
   async function json(url: string) {
     const response = await fetcher(url, {
@@ -74,7 +79,7 @@ export function createPolyHavenClient(fetcher: typeof fetch = fetch): SurfaceCat
     }
     if (expectedSize > MAX_SURFACE_TEXTURE_BYTES) throw new Error('Texture is too large');
     const response = await fetcher(url, {
-      headers: { 'User-Agent': USER_AGENT },
+      headers: { 'User-Agent': USER_AGENT }, redirect: 'error',
       signal: AbortSignal.timeout(30_000),
     });
     if (!response.ok || !response.body) throw new Error(`Poly Haven download returned ${response.status}`);
@@ -99,7 +104,7 @@ export function createPolyHavenClient(fetcher: typeof fetch = fetch): SurfaceCat
       const words = query.trim();
       if (words) {
         try {
-          const searched = assetsSchema.parse(await json(`${API}/search?${new URLSearchParams({ q: words, t: 'textures' })}`));
+          const searched = assetsSchema.parse(await expandCatalogSearch(await json(`${API}/search?${new URLSearchParams({ q: words, t: 'textures' })}`), allAssets));
           return surfaceCatalogSchema.parse(Object.entries(searched).slice(0, 48).map(([id, asset]) => item(id, asset)));
         } catch {
           // /search is optional; the cached asset list still answers the same query.
@@ -117,6 +122,7 @@ export function createPolyHavenClient(fetcher: typeof fetch = fetch): SurfaceCat
     },
 
     async download(assetId, resolution) {
+      polyHavenIdSchema.parse(assetId);
       const [assets, rawFiles] = await Promise.all([
         allAssets(),
         json(`${API}/files/${encodeURIComponent(assetId)}`),

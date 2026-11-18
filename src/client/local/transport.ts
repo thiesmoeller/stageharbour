@@ -1,4 +1,5 @@
-import { assetListSchema, assetSchema, createAssetSchema } from '../../shared/assets.js';
+import { assetListSchema, assetSchema, createAssetSchema, renameAssetSchema } from '../../shared/assets.js';
+import { meshAssetDependencies } from '../../shared/parts/assetDependencies.js';
 import { validateGlbBytes } from '../../shared/glbBytes.js';
 import { importCatalogSurfaceSchema, surfaceRecordSchema } from '../../shared/surfaceRegistry.js';
 import { importPolyHavenModelSchema, modelCatalogSchema } from '../../shared/polyHaven.js';
@@ -57,6 +58,14 @@ import type { LocalStore } from './store.js';
 
 function fail(status: number, message: string): never {
   throw new ApiError(status, message);
+}
+
+function sameOriginPath(path: string): string {
+  if (!/^https?:\/\//i.test(path) || typeof window === 'undefined') return path;
+  try {
+    const url = new URL(path);
+    return url.origin === window.location.origin ? url.pathname + url.search : path;
+  } catch { return path; }
 }
 
 function nextId(): string {
@@ -1076,6 +1085,29 @@ export function createLocalTransport(store: LocalStore, options: PartsHandlerOpt
       await store.mutate(draft => { draft.assets.push(asset); });
       return asset;
     }
+    // Rename and archive mirror src/server/assets/routes.ts so the demo behaves like the server.
+    params = match(path, '/api/workspaces/:workspaceId/assets/:assetId');
+    if (params && method === 'PATCH') {
+      const snapshot = store.getSnapshot();
+      requireWorkspace(snapshot, params.workspaceId!);
+      const { name } = renameAssetSchema.parse(body);
+      const target = snapshot.assets.find(item => item.id === params!.assetId && !item.archived);
+      if (!target) fail(404, 'Inventarobjekt nicht verfügbar.');
+      await store.mutate(draft => { draft.assets.find(item => item.id === target.id)!.name = name; });
+      return { ...target, name };
+    }
+    if (params && method === 'DELETE') {
+      const snapshot = store.getSnapshot();
+      requireWorkspace(snapshot, params.workspaceId!);
+      const assetId = params.assetId!;
+      // Every stored revision keeps its mesh assets alive, exactly like the server guard.
+      if (snapshot.catalog.revisions.some(item => meshAssetDependencies(item.definition).includes(assetId))) {
+        fail(400, 'Das Modell wird von einer Bauteilrevision verwendet und kann nicht entfernt werden.');
+      }
+      if (!snapshot.assets.some(item => item.id === assetId)) fail(404, 'Inventarobjekt nicht verfügbar.');
+      await store.mutate(draft => { draft.assets.find(item => item.id === assetId)!.archived = true; });
+      return { ok: true as const };
+    }
 
     params = match(path, '/api/workspaces/:workspaceId/surfaces/catalog/poly-haven');
     if (params && method === 'GET') {
@@ -1092,8 +1124,12 @@ export function createLocalTransport(store: LocalStore, options: PartsHandlerOpt
       let texture;
       try { texture = await downloadLocalTexture(importedBody.assetId, importedBody.resolution); }
       catch { fail(503, 'Das Poly-Haven-Material konnte nicht geladen werden.'); }
-      const fileId = crypto.randomUUID();
-      await putLocalBlob(`${params.workspaceId}/surface/${fileId}`, texture.bytes.buffer.slice(texture.bytes.byteOffset, texture.bytes.byteOffset + texture.bytes.byteLength));
+      const maps: Record<string, string> = {};
+      for (const [kind, bytes] of Object.entries(texture.maps)) {
+        const fileId = crypto.randomUUID();
+        await putLocalBlob(`${params.workspaceId}/surface/${fileId}`, new Uint8Array(bytes).buffer);
+        maps[kind] = fileId;
+      }
       const record = surfaceRecordSchema.parse({
         id: crypto.randomUUID(),
         workspaceId: params.workspaceId,
@@ -1105,7 +1141,7 @@ export function createLocalTransport(store: LocalStore, options: PartsHandlerOpt
         definition: {
           tileWidthMm: texture.item.tileWidthMm,
           tileHeightMm: texture.item.tileHeightMm,
-          maps: { baseColor: fileId },
+          maps,
         },
       });
       await store.mutate(draft => { draft.surfaces.push(record); });
@@ -1173,7 +1209,9 @@ export function createLocalTransport(store: LocalStore, options: PartsHandlerOpt
       await putLocalBlob(`${params.workspaceId}/${fileId}`, bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
       return { fileId };
     },
-    async getBlob(path) {
+    async getBlob(rawPath) {
+      // The stage viewer asks for same-origin absolute URLs; the local routes are origin-relative.
+      const path = sameOriginPath(rawPath);
       const file = match(pathOnly(path), '/api/workspaces/:workspaceId/assets/files/:fileId');
       if (file) {
         requireWorkspace(store.getSnapshot(), file.workspaceId!);

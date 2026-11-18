@@ -385,7 +385,9 @@ function Workspace({ me, branding, onBranding, onDirty, location }: {
   me: Me; branding: Branding; onBranding: (value: Branding) => void; onDirty: (value: boolean) => void; location: WorkspaceLocation;
 }) {
   const section = location.section;
-  const editing = ('sceneId' in location && !!location.sceneId) || ('venueId' in location && !!location.venueId);
+  const editing = ('sceneId' in location && !!location.sceneId)
+    || ('venueId' in location && !!location.venueId)
+    || (section === 'designer' && 'partId' in location && !!location.partId);
   const isAdmin = can(me.workspace.role, 'members');
   const showAccount = localCapabilities.identity;
   const showAdmin = localCapabilities.members && localCapabilities.brandingAdmin && isAdmin;

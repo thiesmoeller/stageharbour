@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createPartContext, type PartBody, type PartDefinition, type PartParameter } from '../src/shared/parts/definition.js';
 import {
-  addBeam, addBoxFromRect, addSheetFromOutline, handleLocks, moveBody, moveChild, moveVertex, pushPullFace, rotateBody, rotateChild,
-  setHandleMeasure, type EditResult,
+  addBeam, addBoxFromRect, addFaceFromCircle, addSheetFromOutline, handleLocks, moveBody, moveChild, moveVertex, pushPullFace,
+  pushPullNewBody, rotateBody, rotateChild, setHandleMeasure, type EditResult,
 } from '../src/shared/parts/directEdit.js';
 import { handleForPick, partHandles, type Handle } from '../src/shared/parts/handles.js';
 import { add, quatFromAxisAngle, rotate, scale, sub, type Vec3 } from '../src/shared/parts/math.js';
@@ -109,6 +109,48 @@ test('a number is overwritten with the new number', () => {
   const next = ok(pushPullFace(definition, resolved(definition), top, 100));
   assert.deepEqual(next.bodies[0], { kind: 'box', key: 'k', material: 'holz-koerper', size: [400, 400, 200], at: [0, 200, 0] });
   assert.deepEqual(definition.bodies[0], { kind: 'box', key: 'k', material: 'holz-koerper', size: [400, 300, 200], at: [0, 150, 0] }, 'the input stays');
+});
+
+test('Ctrl+push/pull leaves the face and adds a new body extruded from it', () => {
+  const definition = part([{ kind: 'box', key: 'k', material: 'holz-koerper', size: [400, 300, 200], at: [0, 150, 0] }]);
+  const before = definition.bodies[0];
+  const top = handle(definition, 'k:side:top');
+  const next = ok(pushPullNewBody(definition, resolved(definition), top, 100));
+  assert.deepEqual(next.bodies[0], before, 'the original body stays');
+  assert.equal(next.bodies.length, 2);
+  const added = next.bodies[1] as Extract<PartBody, { kind: 'box' }>;
+  assert.equal(added.kind, 'box');
+  assert.equal(added.material, 'holz-koerper');
+  assert.deepEqual(added.size, [400, 100, 200]);
+  assert.deepEqual(added.at, [0, 350, 0]);
+  const topAfter = partHandles(next, resolved(next)).find(item => item.id === `${added.key}:side:bottom`);
+  assert.ok(topAfter);
+  assert.ok(near(topAfter.position, top.position), 'new body sits on the original face');
+});
+
+test('Ctrl+push/pull on a sheet face keeps the outline as a new thick sheet', () => {
+  const definition = part([{
+    kind: 'sheet', key: 'p', material: 'sperrholz-12', plane: 'xz', anchor: 'face', at: [0, 100, 0],
+    outline: { shape: 'polygon', points: [[0, 0], [500, 0], [400, 300], [50, 250]] },
+  }]);
+  const back = handle(definition, 'p:side:back');
+  const next = ok(pushPullNewBody(definition, resolved(definition), back, 80));
+  assert.equal(next.bodies.length, 2);
+  assert.deepEqual(next.bodies[0], definition.bodies[0]);
+  const added = next.bodies[1] as Extract<PartBody, { kind: 'sheet' }>;
+  assert.equal(added.kind, 'sheet');
+  assert.equal(added.thickness, 80);
+  assert.deepEqual(added.outline, (definition.bodies[0] as Extract<PartBody, { kind: 'sheet' }>).outline);
+});
+
+test('Ctrl+push/pull refuses edges and tiny distances', () => {
+  const sheet = part([{
+    kind: 'sheet', key: 'p', material: 'sperrholz-12', plane: 'xy', at: [0, 0, 0],
+    outline: { shape: 'rect', x: 0, y: 0, width: 400, height: 600 },
+  }]);
+  assert.equal(pushPullNewBody(sheet, resolved(sheet), handle(sheet, 'p:edge:right'), 50).ok, false);
+  const box = part([{ kind: 'box', key: 'k', material: 'holz-koerper', size: [400, 300, 200], at: [0, 150, 0] }]);
+  assert.equal(pushPullNewBody(box, resolved(box), handle(box, 'k:side:top'), 0.5).ok, false);
 });
 
 test('a bare parameter name moves the parameter, and a formula that follows the drag is no lock', () => {
@@ -290,6 +332,28 @@ test('a pick on a sheet rim grabs the nearest edge', () => {
   assert.equal(handleForPick(handles, 'p', 'back', { x: 100, y: 3, z: 12 })?.name, 'side:back');
 });
 
+test('a circle sheet exposes centre and radius handles, not every chord vertex', () => {
+  const definition = part([{
+    kind: 'sheet', key: 'p', material: 'sperrholz-12', plane: 'xy', at: [0, 0, 0],
+    outline: { shape: 'circle', cx: 100, cy: 50, r: 200 },
+  }]);
+  const handles = partHandles(definition, resolved(definition));
+  const centre = handles.find(item => item.name === 'point:centre');
+  const radius = handles.find(item => item.name === 'edge:radius');
+  assert.ok(centre, 'centre handle');
+  assert.ok(radius, 'radius handle');
+  assert.deepEqual(centre.position, { x: 100, y: 50, z: 6 });
+  assert.deepEqual(radius.position, { x: 300, y: 50, z: 6 });
+  assert.deepEqual(radius.measure, { label: 'Radius', value: 200, path: ['outline', 'r'] });
+  assert.ok(!handles.some(item => item.name.startsWith('point:') && item.name !== 'point:centre'));
+  assert.ok(!handles.some(item => /^edge:\d+$/.test(item.name)));
+
+  const next = ok(moveVertex(definition, resolved(definition), centre, { x: 20, y: -10, z: 0 }));
+  assert.deepEqual((next.bodies[0] as Extract<PartBody, { kind: 'sheet' }>).outline, { shape: 'circle', cx: 120, cy: 40, r: 200 });
+  const grown = ok(pushPullFace(next, resolved(next), radius!, 30));
+  assert.deepEqual((grown.bodies[0] as Extract<PartBody, { kind: 'sheet' }>).outline, { shape: 'circle', cx: 120, cy: 40, r: 230 });
+});
+
 test('drawn boxes, outlines and beams become bodies with plain numbers', () => {
   let definition = part([]);
   const box = addBoxFromRect(definition, { corner: { x: -200, y: 0, z: -100 }, opposite: { x: 300, y: 0, z: 200 }, u: { x: 1, y: 0, z: 0 }, normal: { x: 0, y: 1, z: 0 }, height: 20 }, 'holz-koerper');
@@ -316,4 +380,34 @@ test('drawn boxes, outlines and beams become bodies with plain numbers', () => {
   const beam = addBeam(part([]), { x: 0, y: 0, z: 0 }, { x: 0, y: 1200.0004, z: 0 }, 'latte-40x40');
   assert.ok(beam.ok);
   assert.deepEqual(beam.definition.bodies[0], { kind: 'beam', key: 'latte', material: 'latte-40x40', from: [0, 0, 0], to: [0, 1200, 0] });
+});
+
+test('addFaceFromCircle creates a sheet with a circle outline', () => {
+  const result = addFaceFromCircle(
+    part([]),
+    { centre: { x: 100, y: 0, z: 50 }, radius: 200, normal: { x: 0, y: 1, z: 0 } },
+    'sperrholz-12',
+  );
+  assert.ok(result.ok);
+  assert.deepEqual(result.definition.bodies[0], {
+    kind: 'sheet', key: 'platte', material: 'sperrholz-12', plane: 'xz', anchor: 'back', at: [0, 0, 0],
+    outline: { shape: 'circle', cx: 100, cy: 50, r: 200 },
+  });
+  const solid = resolved(result.definition).solids[0]!;
+  assert.equal(solid.kind, 'sheet');
+  assert.ok(solid.kind === 'sheet' && Math.abs(solid.netAreaMm2 - Math.PI * 200 * 200) / (Math.PI * 200 * 200) < 0.01);
+
+  const withSegments = addFaceFromCircle(
+    part([]),
+    { centre: { x: 0, y: 0, z: 0 }, radius: 100, normal: { x: 0, y: 1, z: 0 }, segments: 12 },
+    'sperrholz-12',
+  );
+  assert.ok(withSegments.ok);
+  assert.deepEqual(
+    (withSegments.definition.bodies[0] as { outline: { shape: string; segments?: number } }).outline,
+    { shape: 'circle', cx: 0, cy: 0, r: 100, segments: 12 },
+  );
+
+  assert.equal(addFaceFromCircle(part([]), { centre: { x: 0, y: 0, z: 0 }, radius: 0.5, normal: { x: 0, y: 1, z: 0 } }, 'sperrholz-12').ok, false);
+  assert.equal(addFaceFromCircle(part([]), { centre: { x: 0, y: 0, z: 0 }, radius: 100, normal: { x: 1, y: 1, z: 0 } }, 'sperrholz-12').ok, false);
 });
