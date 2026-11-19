@@ -10,8 +10,8 @@ import {
 } from 'three';
 import type { PartDefinition, PartFaceSide, PartMaterial } from '../../../shared/parts/definition.js';
 import {
-  addBeam, addFaceFromCircle, addFaceFromRect, addSheetFromOutline, handleLocks, pushPullFace, pushPullNewBody,
-  type AddResult, type EditResult, type SelectionTargets,
+  addBeam, addFaceFromCircle, addFaceFromRect, addSheetFromOutline, alignedSolidAxis, handleLocks, pushPullFace, pushPullNewBody,
+  splitBody, type AddResult, type EditResult, type SelectionTargets,
 } from '../../../shared/parts/directEdit.js';
 import { BOX_SIDE_SLOTS, SHEET_SIDE_SLOTS, buildSolidGeometry } from '../../../shared/parts/geometry.js';
 import { handleForPick, partHandles, type Handle } from '../../../shared/parts/handles.js';
@@ -19,7 +19,7 @@ import {
   AXIS_COLORS, AXIS_VECTORS, angleAbout, axisOf, inferenceCandidates, pointOnAxis, rayPlane, snapAlongAxis, snapAngle, snapPoint,
   type AxisName, type InferenceCandidates, type Ray, type Snap,
 } from '../../../shared/parts/inference.js';
-import { add, boundsOf, cross, dot, length, normalize, quatAxes, scale, sub, type RigidTransform, type Vec3 } from '../../../shared/parts/math.js';
+import { add, boundsOf, cross, dot, length, normalize, quatAxes, rotate, scale, sub, type RigidTransform, type Vec3 } from '../../../shared/parts/math.js';
 import { solidFace, solidVertices, type ResolvedPart, type ResolvedSolid } from '../../../shared/parts/resolve.js';
 import type { StageBounds } from '../../stage/cameraFraming.js';
 import { StageCanvas } from '../../stage/StageCanvas.js';
@@ -36,8 +36,29 @@ import { isTypingTarget, MODEL_TOOLS, type ModelToolId } from './tools.js';
 const MM = 0.001;
 const FALLBACK_COLOR = '#c9cfd2';
 const SNAP_PIXELS = 10;
+/** Marquee / accidental-drag threshold. */
 const CLICK_PIXELS = 4;
+/** First click of a two-click tool: Ctrl+click is twitchy; 4 px silently dropped too many face picks. */
+const TOOL_CLICK_PIXELS = 16;
 const HIGHLIGHT = '#e59a2f';
+
+/**
+ * Ctrl+Neu needs a face handle. Exact side if we hit one; otherwise the face looking at the
+ * camera (thin Tischplatte rims often raycast as `edge` even when the user aimed at the top).
+ */
+function handleForNewBody(
+  handles: readonly Handle[],
+  solidId: string,
+  side: PartFaceSide,
+  towardCamera: Vec3,
+): Handle | undefined {
+  const faces = handles.filter(item => item.solid === solidId && item.kind === 'face');
+  const exact = faces.find(item => item.side === side);
+  if (exact) return exact;
+  if (!faces.length) return undefined;
+  return faces.reduce((best, item) =>
+    (dot(item.axis, towardCamera) > dot(best.axis, towardCamera) ? item : best));
+}
 
 const SIDE_OF_SLOT: Record<'box' | 'sheet', readonly PartFaceSide[]> = {
   box: Object.entries(BOX_SIDE_SLOTS).sort((a, b) => a[1] - b[1]).map(([side]) => side as PartFaceSide),
@@ -190,6 +211,11 @@ type Draw =
   | { kind: 'circle'; centre: Vec3; normal: Vec3; homeNormal: Vec3; planeLock?: AxisName; cursor?: Vec3; segments?: number }
   | { kind: 'ngon'; centre: Vec3; normal: Vec3; homeNormal: Vec3; planeLock?: AxisName; sides: number; cursor?: Vec3 }
   | { kind: 'line'; normal: Vec3; homeNormal: Vec3; planeLock?: AxisName; points: Vec3[]; cursor?: Vec3 }
+  | {
+    kind: 'split'; body: string; axis: Vec3; index: 0 | 1 | 2; option: number; options: SplitAxisOption[];
+    center: Vec3; min: number; max: number; cut: number;
+    u: Vec3; v: Vec3; halfU: number; halfV: number;
+  }
   | { kind: 'beam'; from: Vec3; cursor?: Vec3 }
   | { kind: 'tape'; from: Vec3; cursor?: Vec3; done?: boolean };
 
@@ -209,6 +235,91 @@ function drawingNormal(normal: Vec3 | undefined): Vec3 {
   if (!axis || !normal) return { x: 0, y: 1, z: 0 };
   const sign = Math.sign(dot(normal, AXIS_VECTORS[axis]));
   return scale(AXIS_VECTORS[axis], sign || 1);
+}
+
+type SplitAxisOption = { index: 0 | 1 | 2; axis: Vec3; label: string };
+
+function solidSplitSize(solid: Extract<ResolvedSolid, { kind: 'box' | 'sheet' }>): readonly [number, number, number] {
+  if (solid.kind === 'box') return [solid.size.x, solid.size.y, solid.size.z];
+  const xs = solid.outline.map(p => p.x), ys = solid.outline.map(p => p.y);
+  return [Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys), solid.thickness];
+}
+
+/** Cut axes the Teilen tool may use: three for a box, two in-plane for a sheet (never thickness). */
+function splitAxisOptions(solid: Extract<ResolvedSolid, { kind: 'box' | 'sheet' }>): SplitAxisOption[] {
+  const axes = quatAxes(solid.rotation);
+  const size = solidSplitSize(solid);
+  const labels = solid.kind === 'box'
+    ? ['Breite (X)', 'Höhe (Y)', 'Tiefe (Z)']
+    : ['Breite in der Fläche', 'Höhe in der Fläche', 'Stärke (Dicke)'];
+  // Sheets: include thickness so a pulled-up “Würfel” can be split in its tall direction too.
+  return ([0, 1, 2] as const).filter(i => size[i]! >= 2).map(i => ({
+    index: i,
+    axis: i === 0 ? axes.x : i === 1 ? axes.y : axes.z,
+    label: labels[i]!,
+  }));
+}
+
+function splitDraftFromOption(
+  solid: Extract<ResolvedSolid, { kind: 'box' | 'sheet' }>,
+  options: SplitAxisOption[],
+  optionIndex: number,
+  cut = 0,
+): Draw & { kind: 'split' } {
+  const option = options[((optionIndex % options.length) + options.length) % options.length]!;
+  const axes = quatAxes(solid.rotation);
+  const size = solidSplitSize(solid);
+  const extent = size[option.index]!;
+  const center = solid.kind === 'box'
+    ? solid.center
+    : add(solid.origin, rotate(solid.rotation, {
+      x: (Math.min(...solid.outline.map(p => p.x)) + Math.max(...solid.outline.map(p => p.x))) / 2,
+      y: (Math.min(...solid.outline.map(p => p.y)) + Math.max(...solid.outline.map(p => p.y))) / 2,
+      z: solid.thickness / 2,
+    }));
+  const half = extent / 2;
+  const others = ([0, 1, 2] as const).filter(i => i !== option.index) as [0 | 1 | 2, 0 | 1 | 2];
+  const axisOfIndex = (i: 0 | 1 | 2) => (i === 0 ? axes.x : i === 1 ? axes.y : axes.z);
+  const clamped = Math.min(half - 1, Math.max(-half + 1, cut));
+  return {
+    kind: 'split', body: solid.body, axis: option.axis, index: option.index,
+    option: options.indexOf(option), options, center,
+    min: -half, max: half, cut: clamped,
+    u: axisOfIndex(others[0]), v: axisOfIndex(others[1]),
+    halfU: size[others[0]]! / 2, halfV: size[others[1]]! / 2,
+  };
+}
+
+/** Draft for the Teilen tool: cut plane through `solid`; `preferred` picks the nearest valid axis. */
+function splitDraft(solid: ResolvedSolid, preferred: Vec3): (Draw & { kind: 'split' }) | { error: string } {
+  if (solid.path.length) return { error: 'Gruppe mit Doppelklick öffnen, um zu teilen.' };
+  if (solid.kind !== 'box' && solid.kind !== 'sheet') {
+    return { error: 'Nur Quader und rechteckige Platten lassen sich teilen.' };
+  }
+  const options = splitAxisOptions(solid);
+  if (!options.length) return { error: 'Der Körper ist zu dünn zum Teilen.' };
+  const n = normalize(preferred);
+  let best = 0;
+  let bestScore = -1;
+  options.forEach((option, index) => {
+    const score = Math.abs(dot(n, option.axis));
+    if (score > bestScore) { bestScore = score; best = index; }
+  });
+  return splitDraftFromOption(solid, options, best);
+}
+
+function splitStatus(sketch: Draw & { kind: 'split' }): string {
+  const current = sketch.options[sketch.option]!;
+  return `Schnitt: ${current.label} (${sketch.option + 1}/${sketch.options.length}). Pfeiltasten wechseln. Lage klicken oder Abstand eintippen.`;
+}
+
+function splitPlanePoints(sketch: Draw & { kind: 'split' }): Vec3[] {
+  const o = add(sketch.center, scale(sketch.axis, sketch.cut));
+  const a = add(o, add(scale(sketch.u, -sketch.halfU), scale(sketch.v, -sketch.halfV)));
+  const b = add(o, add(scale(sketch.u, sketch.halfU), scale(sketch.v, -sketch.halfV)));
+  const c = add(o, add(scale(sketch.u, sketch.halfU), scale(sketch.v, sketch.halfV)));
+  const d = add(o, add(scale(sketch.u, -sketch.halfU), scale(sketch.v, sketch.halfV)));
+  return [a, b, c, d, a];
 }
 
 function faceLoop(solid: ResolvedSolid, side: PartFaceSide): Vec3[] | undefined {
@@ -459,6 +570,55 @@ function ModelScene(props: ModelCanvasProps & {
     return copy ? pushPullNewBody(definition, resolved, handle, distance) : pushPullFace(definition, resolved, handle, distance);
   }
   const moveLabel = (delta: Vec3) => `Abstand ${formatMm(length(delta))} mm`;
+  const copyModifier = (event: { ctrlKey: boolean; metaKey: boolean }) => event.ctrlKey || event.metaKey;
+
+  /** Live overlay for an in-progress Drücken/Ziehen (mesh scale or Ctrl+Neu ghost). */
+  function paintPushPull(state: Drag & { kind: 'pushpull' }, snap?: Snap) {
+    const measure = state.handle.measure;
+    const collapses = measure !== undefined && measure.value + state.delta <= 1e-3;
+    const preview = !state.copy && !collapses ? pushPullPreviewScale(state.handle, state.delta) : undefined;
+    const valid = !collapses && (preview !== undefined || Math.abs(state.delta) >= 1);
+    const tip = add(state.handle.position, scale(state.handle.axis, state.delta));
+    const text = state.copy
+      ? `Neu ${formatMm(state.delta)} mm`
+      : measure ? `${measure.label} ${formatMm(measure.value + state.delta)} mm` : `${formatMm(state.delta)} mm`;
+    if (preview) applyMeshPreview(new Set([state.handle.solid]), scaleAlongAxisMatrix(preview.axis, preview.factor, preview.pivot));
+    else clearMeshPreview();
+    const ghostSolid = state.copy && state.handle.kind === 'face' && state.handle.side
+      ? state.startResolved.solids.find(item => item.id === state.handle.solid)
+      : undefined;
+    const ghostLines = ghostSolid && state.handle.side && Math.abs(state.delta) >= 1
+      ? pushPullNewBodyPreview(state.handle.axis, state.delta, solidFace(ghostSolid, state.handle.side))
+        .map(line => ({ ...line, color: '#286a62', dashed: true as const }))
+      : [];
+    latest.current.onReadout({
+      label: state.copy ? 'Neu' : (measure?.label ?? 'Abstand'),
+      value: formatMm(state.copy || !measure ? state.delta : measure.value + state.delta),
+    });
+    setOverlay({
+      ...(snap ? { snap } : {}),
+      label: { at: tip, text, locked: !valid },
+      lines: [
+        { points: [state.handle.position, tip], color: '#b77c37', dashed: true },
+        ...ghostLines,
+      ],
+    });
+  }
+
+  /** Latch Ctrl/Meta for copy/new-body; returns false when a push/pull edge cannot become a new body. */
+  function latchCopy(state: Drag & { copy: boolean }): boolean {
+    if (state.copy) return true;
+    if (state.kind === 'pushpull' && state.handle.kind !== 'face') {
+      latest.current.onStatus('Neuer Körper nur von einer Fläche — bitte die Fläche anklicken, nicht die Kante.');
+      return false;
+    }
+    state.copy = true;
+    if (state.kind === 'pushpull') {
+      latest.current.onStatus('Neuer Körper: Lage anklicken oder Maß eintippen.');
+      if (state.moved) paintPushPull(state);
+    }
+    return true;
+  }
 
   // The value box drives the running operation, else redoes the last one with the typed value.
   useEffect(() => {
@@ -497,6 +657,12 @@ function ModelScene(props: ModelCanvasProps & {
         if (sketch?.kind === 'beam') {
           const direction = sketch.cursor && length(sub(sketch.cursor, sketch.from)) > 0 ? normalize(sub(sketch.cursor, sketch.from)) : { x: 1, y: 0, z: 0 };
           return finishBeam(sketch.from, add(sketch.from, scale(direction, first)), false);
+        }
+        if (sketch?.kind === 'split') {
+          // Typed value = Abstand von der negativen Seite (min) entlang der Schnittachse.
+          const fromMin = first;
+          sketch.cut = Math.min(sketch.max - 1, Math.max(sketch.min + 1, sketch.min + fromMin));
+          return finishSplit(sketch);
         }
         if (sketch?.kind === 'line' && sketch.points.length) {
           const from = sketch.points[sketch.points.length - 1]!;
@@ -660,6 +826,24 @@ function ModelScene(props: ModelCanvasProps & {
     return undefined;
   }
 
+  function finishSplit(sketch: Draw & { kind: 'split' }): string | undefined {
+    const current = latest.current;
+    if (!current.resolved) return 'Kein Modell geladen.';
+    const point = add(sketch.center, scale(sketch.axis, sketch.cut));
+    const outcome = splitBody(current.definition, current.resolved, sketch.body, sketch.axis, point);
+    if (!outcome.ok) return outcome.message;
+    current.onCommit({
+      definition: outcome.definition,
+      select: { kind: 'body', key: outcome.keys[0]! },
+      label: 'Teilen',
+    }, false);
+    draw.current = undefined;
+    setOverlay({});
+    current.onReadout(undefined);
+    current.onStatus(`Geteilt in „${outcome.keys[0]}“ und „${outcome.keys[1]}“.`);
+    return undefined;
+  }
+
   function finishLine(sketch: Draw & { kind: 'line' }) {
     const current = latest.current;
     const outcome = addSheetFromOutline(current.definition, { points: sketch.points, normal: sketch.normal }, current.defaultMaterials.sheet);
@@ -679,6 +863,12 @@ function ModelScene(props: ModelCanvasProps & {
     if (cancel || !state.moved && !outcome) {
       clearMeshPreview();
       if (state.moved) current.onCancel();
+      setOverlay({});
+      return;
+    }
+    if (!outcome && state.kind === 'pushpull' && state.copy && Math.abs(state.delta) < 1) {
+      clearMeshPreview();
+      current.onStatus('Neuer Körper: bitte weiter ziehen oder ein Maß eintippen (mindestens 1 mm).');
       setOverlay({});
       return;
     }
@@ -768,6 +958,14 @@ function ModelScene(props: ModelCanvasProps & {
       const distance = length(sub(sketch.cursor, sketch.from));
       label = { at: sketch.cursor, text: `${formatMm(distance)} mm` };
       latest.current.onReadout({ label: sketch.kind === 'tape' ? 'Abstand' : 'Länge', value: formatMm(distance) });
+    }
+    if (sketch.kind === 'split') {
+      const points = splitPlanePoints(sketch);
+      lines.push({ points, color: '#c0392b', width: 2 });
+      const fromMin = sketch.cut - sketch.min;
+      const mid = add(sketch.center, scale(sketch.axis, sketch.cut));
+      label = { at: mid, text: `Schnitt ${formatMm(fromMin)} mm` };
+      latest.current.onReadout({ label: 'Abstand', value: formatMm(fromMin) });
     }
     if (snap?.axis && 'from' in sketch) lines.push({ points: [sketch.from, snap.point], color: AXIS_COLORS[snap.axis], width: 1.5 });
     setOverlay({ snap, lines, label });
@@ -863,46 +1061,15 @@ function ModelScene(props: ModelCanvasProps & {
             ...(hit.solid ? { hit: { point: hit.point!, normal: hit.normal!, solid: hit.solid.id } } : {}),
             tolerance: SNAP_PIXELS * pixelMm(onPlane), bypass: event.altKey,
           });
-          state.copy = event.ctrlKey || event.metaKey;
+          // Sticky from pointer modifiers; keydown also latches (see onKey) when Ctrl is tapped without moving.
+          if (copyModifier(event)) latchCopy(state);
           const measure = state.handle.measure;
-          // Mesh-only preview: never rewrite the draft during the drag (that re-resolved the
-          // whole Tisch and flashed „nicht gespeichert“ on every pointer move).
           const collapses = measure !== undefined && measure.value + delta <= 1e-3;
           const preview = !state.copy && !collapses ? pushPullPreviewScale(state.handle, delta) : undefined;
-          // Measured faces need a scale preview; unmeasured edges (drawn polygons) and Ctrl+Neu
-          // still accept a free millimetre delta so the second click can commit.
           const valid = !collapses && (preview !== undefined || Math.abs(delta) >= 1);
-          const text = state.copy
-            ? `Neu ${formatMm(delta)} mm`
-            : measure ? `${measure.label} ${formatMm(measure.value + delta)} mm` : `${formatMm(delta)} mm`;
-          if (valid) {
-            state.delta = delta;
-            if (preview) {
-              applyMeshPreview(new Set([state.handle.solid]), scaleAlongAxisMatrix(preview.axis, preview.factor, preview.pivot));
-            } else clearMeshPreview();
-            current.onReadout({
-              label: state.copy ? 'Neu' : (measure?.label ?? 'Abstand'),
-              value: formatMm(state.copy || !measure ? delta : measure.value + delta),
-            });
-          } else {
-            clearMeshPreview();
-          }
-          const tip = add(state.handle.position, scale(state.handle.axis, state.delta));
-          const ghostSolid = state.copy && state.handle.side
-            ? state.startResolved.solids.find(item => item.id === state.handle.solid)
-            : undefined;
-          const ghostLines = ghostSolid && state.handle.side && Math.abs(state.delta) >= 1
-            ? pushPullNewBodyPreview(state.handle.axis, state.delta, solidFace(ghostSolid, state.handle.side))
-              .map(line => ({ ...line, color: '#286a62', dashed: true as const }))
-            : [];
-          setOverlay({
-            ...(snap ? { snap } : {}),
-            label: { at: tip, text, locked: !valid },
-            lines: [
-              { points: [state.handle.position, tip], color: '#b77c37', dashed: true },
-              ...ghostLines,
-            ],
-          });
+          // Keep the last valid delta so a tiny jitter cannot wipe a usable pull before the second click.
+          if (valid) state.delta = delta;
+          paintPushPull(state, snap);
           return;
         }
         if (state.kind === 'move') {
@@ -924,7 +1091,7 @@ function ModelScene(props: ModelCanvasProps & {
             point = found.snap?.point ?? state.start;
             if (!found.hit.solid && !found.snap?.solid && found.snap?.kind !== 'axis') point = inPlane(point, plane);
           }
-          state.copy = event.ctrlKey || event.metaKey;
+          if (copyModifier(event)) latchCopy(state);
           const delta = sub(point, state.start);
           state.delta = delta;
           applyMeshPreview(state.previewIds, movePreviewMatrix(delta));
@@ -941,7 +1108,7 @@ function ModelScene(props: ModelCanvasProps & {
           : rayPlane(rayAt(event.clientX, event.clientY).ray, state.pivot, state.axis);
         if (!onPlane) return;
         const angle = snapAngle(angleAbout(state.axis, state.from, sub(onPlane, state.pivot)), event.altKey);
-        state.copy = event.ctrlKey || event.metaKey;
+        if (copyModifier(event)) latchCopy(state);
         state.angle = angle;
         applyMeshPreview(state.previewIds, rotatePreviewMatrix(state.axis, angle, state.pivot));
         current.onStatus(undefined);
@@ -964,6 +1131,17 @@ function ModelScene(props: ModelCanvasProps & {
 
       const active = current.tool;
       const sketch = draw.current;
+      if (active === 'split' && sketch?.kind === 'split') {
+        if (current.readOnly) return;
+        const hit = pick(event.clientX, event.clientY);
+        const point = hit.point
+          ?? rayPlane(hit.ray, sketch.center, sketch.axis)
+          ?? hit.ray.origin;
+        const local = dot(sub(point, sketch.center), sketch.axis);
+        sketch.cut = Math.min(sketch.max - 1, Math.max(sketch.min + 1, local));
+        updateDrawOverlay();
+        return;
+      }
       if (active === 'rect' || active === 'line' || active === 'polygon' || active === 'circle' || active === 'beam' || active === 'tape') {
         if (current.readOnly && active !== 'tape') return;
         const plane = sketch && (sketch.kind === 'rect' || sketch.kind === 'line' || sketch.kind === 'circle' || sketch.kind === 'ngon')
@@ -1049,7 +1227,12 @@ function ModelScene(props: ModelCanvasProps & {
           return;
         }
       }
-      if (!start || Math.hypot(event.clientX - start.x, event.clientY - start.y) > CLICK_PIXELS) return;
+      // Second click of push/pull (etc.): always finish — press jitter must not abort the commit.
+      if (state && state.kind !== 'window') {
+        click(event);
+        return;
+      }
+      if (!start || Math.hypot(event.clientX - start.x, event.clientY - start.y) > TOOL_CLICK_PIXELS) return;
       click(event);
     }
 
@@ -1082,13 +1265,13 @@ function ModelScene(props: ModelCanvasProps & {
             const distance = lastPushPull.current;
             running.delta = distance;
             running.moved = true;
-            running.copy = event.ctrlKey || event.metaKey;
+            if (copyModifier(event)) latchCopy(running);
             lastClick.current = { time: 0 };
             endDrag(false, pushPullEdit(running.startDefinition, running.startResolved, running.handle, distance, running.copy));
             return;
           }
           if (running.kind === 'move' || running.kind === 'rotate' || running.kind === 'pushpull') {
-            running.copy = event.ctrlKey || event.metaKey;
+            if (copyModifier(event)) latchCopy(running);
           }
           endDrag(false);
           return;
@@ -1111,9 +1294,18 @@ function ModelScene(props: ModelCanvasProps & {
             && lastPushPull.current !== undefined
             && current.resolved
           ) {
-            const handle = handleForPick(handlesRef.current, solid.id, hit.side, hit.point!);
+            const copy = copyModifier(event);
+            const cam = view.current.cameraObject;
+            const towardCamera = scale(normalize(sub(toLocal(cam.getWorldDirection(new Vector3()).add(cam.position)), toLocal(cam.position.clone()))), -1);
+            const handle = copy
+              ? handleForNewBody(handlesRef.current, solid.id, hit.side, towardCamera)
+              : handleForPick(handlesRef.current, solid.id, hit.side, hit.point!);
             if (handle && handle.kind !== 'point' && handle.kind !== 'rotation') {
-              const copy = event.ctrlKey || event.metaKey;
+              if (copy && handle.kind !== 'face') {
+                current.onStatus('Neuer Körper nur von einer Fläche — bitte die Fläche anklicken, nicht die Kante.');
+                lastClick.current = { time: 0 };
+                return;
+              }
               const locks = copy ? [] : handleLocks(current.definition, current.resolved, handle);
               if (!locks.length) {
                 const distance = lastPushPull.current;
@@ -1155,17 +1347,25 @@ function ModelScene(props: ModelCanvasProps & {
         const pointer = { x: event.clientX, y: event.clientY };
         if (active === 'pushpull') {
           if (!solid || childKey || !hit.side) { current.onStatus(childKey ? 'Gruppe mit Doppelklick öffnen, um ihre Flächen zu ziehen.' : 'Eine Fläche anklicken.'); return; }
-          const handle = handleForPick(handlesRef.current, solid.id, hit.side, hit.point!);
+          const copy = copyModifier(event);
+          const cam = view.current.cameraObject;
+          const cameraDirection = normalize(sub(toLocal(cam.getWorldDirection(new Vector3()).add(cam.position)), toLocal(cam.position.clone())));
+          const towardCamera = scale(cameraDirection, -1);
+          // Ctrl+Neu: map rim hits on the thin Neu-Tischplatte to the face facing the camera.
+          const handle = copy
+            ? handleForNewBody(handlesRef.current, solid.id, hit.side, towardCamera)
+            : handleForPick(handlesRef.current, solid.id, hit.side, hit.point!);
           if (!handle || handle.kind === 'point' || handle.kind === 'rotation') return;
-          const copy = event.ctrlKey || event.metaKey;
+          if (copy && handle.kind !== 'face') {
+            current.onStatus('Neuer Körper nur von einer Fläche — bitte die Fläche anklicken, nicht die Kante.');
+            return;
+          }
           const locks = copy ? [] : handleLocks(current.definition, model, handle);
           if (locks.length) {
             current.onStatus(`Gesperrt durch die Formel ${locks.map(item => `${item.path} = ${item.formula}`).join(', ')}.`);
             setOverlay({ label: { at: handle.position, text: `${handle.measure?.label ?? handle.label}: ${locks[0]!.formula}`, locked: true } });
             return;
           }
-          const cam = view.current.cameraObject;
-          const cameraDirection = normalize(sub(toLocal(cam.getWorldDirection(new Vector3()).add(cam.position)), toLocal(cam.position.clone())));
           let side = cross(cameraDirection, handle.axis);
           if (length(side) < 1e-6) side = { x: 1, y: 0, z: 0 };
           const normal = normalize(cross(handle.axis, normalize(side)));
@@ -1175,8 +1375,8 @@ function ModelScene(props: ModelCanvasProps & {
             delta: 0, moved: false, pointer, copy,
           };
           current.onStatus(copy
-            ? 'Neuer Körper: Lage anklicken oder Maß eintippen. Strg halten.'
-            : 'Neue Lage anklicken oder Maß eintippen und Enter. Strg erzeugt einen neuen Körper.');
+            ? 'Neuer Körper: Lage anklicken oder Maß eintippen.'
+            : 'Neue Lage anklicken oder Maß eintippen und Enter. Strg (auch nachträglich) erzeugt einen neuen Körper.');
           return;
         }
         if (active === 'move') {
@@ -1228,6 +1428,24 @@ function ModelScene(props: ModelCanvasProps & {
           draw.current = { kind: 'tape', from: snap.point };
           updateDrawOverlay(snap);
         }
+        return;
+      }
+      if (active === 'split') {
+        if (current.readOnly) return;
+        if (sketch?.kind === 'split') {
+          // Second click always places the cut. Direction only changes via Pfeiltasten —
+          // face-normal switching stole Stärke cuts when the pointer hit a side face.
+          const message = finishSplit(sketch);
+          if (message) current.onStatus(message);
+          return;
+        }
+        const hit = pick(event.clientX, event.clientY);
+        if (!hit.solid) { current.onStatus('Quader oder rechteckige Platte anklicken.'); return; }
+        const draft = splitDraft(hit.solid, hit.normal ?? { x: 0, y: 1, z: 0 });
+        if ('error' in draft) { current.onStatus(draft.error); return; }
+        draw.current = draft;
+        current.onStatus(splitStatus(draft));
+        updateDrawOverlay();
         return;
       }
       if (active === 'rect') {
@@ -1340,6 +1558,11 @@ function ModelScene(props: ModelCanvasProps & {
         if (draw.current) { event.preventDefault(); event.stopImmediatePropagation(); draw.current = undefined; setOverlay({}); latest.current.onStatus(undefined); }
         return;
       }
+      // Latch Ctrl/Meta on keydown so a tap without pointer-move still enables Neu/Kopie.
+      if ((event.key === 'Control' || event.key === 'Meta') && state && 'copy' in state && !event.repeat) {
+        latchCopy(state);
+        return;
+      }
       if (state?.kind === 'move' && event.key.startsWith('Arrow')) {
         event.preventDefault();
         const next = axisFromArrowKey(event.key);
@@ -1356,6 +1579,17 @@ function ModelScene(props: ModelCanvasProps & {
         return;
       }
       const sketch = draw.current;
+      if (sketch?.kind === 'split' && event.key.startsWith('Arrow') && !isTypingTarget(event.target)) {
+        event.preventDefault();
+        const solid = latest.current.resolved?.solids.find(item => item.body === sketch.body && !item.path.length);
+        if (!solid || (solid.kind !== 'box' && solid.kind !== 'sheet')) return;
+        const step = event.key === 'ArrowLeft' || event.key === 'ArrowDown' ? -1 : 1;
+        const draft = splitDraftFromOption(solid, sketch.options, sketch.option + step, sketch.cut);
+        draw.current = draft;
+        latest.current.onStatus(splitStatus(draft));
+        updateDrawOverlay();
+        return;
+      }
       if (
         sketch
         && (sketch.kind === 'rect' || sketch.kind === 'circle' || sketch.kind === 'ngon' || sketch.kind === 'line')

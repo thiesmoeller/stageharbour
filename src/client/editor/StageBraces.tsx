@@ -12,7 +12,10 @@ const MATERIALS = {
 
 const SOLID = { cast: true, receive: true };
 
-/** One Stützdreieck in millimetres: timber members and ballast, drawn with the shared batches. */
+/**
+ * One Stützdreieck in millimetres: timber members and ballast, drawn with the shared batches.
+ * Orphan under layout-v2: `stageModel` leaves `braces` empty and braces are catalog parts via StageParts.
+ */
 export function StageBrace({ brace }: { brace: BraceSolid }) {
   const materials = useFlatMaterials(MATERIALS);
   const instances = useMemo(() => {

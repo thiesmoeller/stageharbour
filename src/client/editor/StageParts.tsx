@@ -1,7 +1,6 @@
-import { WorkspaceMesh } from '../stage/WorkspaceMesh.js';
-import { useContext, useMemo } from 'react';
-import { Euler, Matrix4, MeshStandardMaterial, Quaternion, Vector3 } from 'three';
+import { useContext, useEffect, useMemo } from 'react';
 import type { ThreeEvent } from '@react-three/fiber';
+import { Euler, Matrix4, MeshStandardMaterial, Quaternion, Vector3 } from 'three';
 import type { ResolvedLayoutObject } from '../../shared/layoutObjects.js';
 import { buildPartGeometry, placementMatrix } from '../../shared/parts/geometry.js';
 import { STARTER_PART_IDS } from '../../shared/parts/starter/index.js';
@@ -10,10 +9,11 @@ import { layoutStageDeckModules } from '../../shared/stageDeck.js';
 import { UNIT_PLANE } from '../stage/geometryCache.js';
 import type { StageInstance } from '../stage/instancing.js';
 import { useStageInstances, type StageInstanceOwner } from '../stage/StageInstances.js';
+import { WorkspaceMesh } from '../stage/WorkspaceMesh.js';
 import { StageInteraction } from './StageElements.js';
 
-const material = new MeshStandardMaterial({ color: '#55745f', roughness: 0.72, metalness: 0.04 });
-const selectedMaterial = new MeshStandardMaterial({ color: '#b67c35', roughness: 0.65, metalness: 0.03 });
+const FALLBACK_COLOR = '#c9cfd2';
+const SELECTED_EMISSIVE = '#b67c35';
 const seamMaterial = new MeshStandardMaterial({
   color: '#d7e0cc', roughness: 0.55, metalness: 0.08,
   polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
@@ -44,31 +44,48 @@ function deckSeams(item: ResolvedLayoutObject, base: Matrix4): StageInstance[] {
 }
 
 function PartInstance({ item }: { item: ResolvedLayoutObject }) {
-  const { selectedIds, onSelect, workspaceId, assets } = useContext(StageInteraction);
+  const { selectedIds, onSelect, workspaceId, assets, materials } = useContext(StageInteraction);
   const selected = selectedIds.includes(item.object.id);
-  const geometryKey = useMemo(() => `part:${item.object.part.id}@${item.object.part.revision}:${JSON.stringify({
-    variant: item.object.variant,
-    values: item.object.values,
-    state: item.object.state,
-  })}`, [item.object.part.id, item.object.part.revision, item.object.variant, item.object.values, item.object.state]);
-  const buildGeometry = useMemo(() => () => buildPartGeometry({ ...item.resolved, solids: item.resolved.solids.filter(solid => !(solid.kind === 'box' && solid.assetId)) }).geometry, [item.resolved]);
-  const instances = useMemo(() => {
-    const matrix = placementMatrix({
-      x: item.object.x,
-      y: item.object.y,
-      rotation: item.object.rotation,
-      elevation: item.elevation,
+  const meshSolids = useMemo(
+    () => item.resolved.solids.filter(solid => !(solid.kind === 'box' && solid.assetId)),
+    [item.resolved],
+  );
+  const partGeometry = useMemo(
+    () => buildPartGeometry({ solids: meshSolids, faces: item.resolved.faces }),
+    [meshSolids, item.resolved.faces],
+  );
+  useEffect(() => () => partGeometry.geometry.dispose(), [partGeometry]);
+
+  const colors = useMemo(
+    () => new Map(materials.map(material => [material.key, material.color])),
+    [materials],
+  );
+  /** Slot groups are per stock material (and face); approximate displayOnly via those keys (e.g. Spanngurt). */
+  const displayOnlyMaterials = useMemo(
+    () => new Set(meshSolids.filter(solid => solid.displayOnly).map(solid => solid.material)),
+    [meshSolids],
+  );
+  const surfaces = useMemo(() => partGeometry.slots.map(slot => {
+    const displayOnly = displayOnlyMaterials.has(slot.material);
+    return new MeshStandardMaterial({
+      color: colors.get(slot.material) ?? FALLBACK_COLOR,
+      roughness: 0.82,
+      metalness: 0,
+      emissive: selected ? SELECTED_EMISSIVE : '#000000',
+      emissiveIntensity: selected ? 0.45 : 0,
+      ...(displayOnly ? { transparent: true, opacity: 0.7, depthWrite: false } : {}),
     });
-    const body: StageInstance = {
-      geometryKey,
-      buildGeometry,
-      material: selected ? selectedMaterial : material,
-      matrix,
-      castShadow: true,
-      receiveShadow: true,
-    };
-    return [body, ...deckSeams(item, matrix)];
-  }, [geometryKey, buildGeometry, selected, item]);
+  }), [partGeometry.slots, colors, displayOnlyMaterials, selected]);
+  useEffect(() => () => surfaces.forEach(material => material.dispose()), [surfaces]);
+
+  const matrix = useMemo(() => placementMatrix({
+    x: item.object.x,
+    y: item.object.y,
+    rotation: item.object.rotation,
+    elevation: item.elevation,
+  }), [item.object.x, item.object.y, item.object.rotation, item.elevation]);
+
+  const seams = useMemo(() => deckSeams(item, matrix), [item, matrix]);
   const pushPullKind = scenePushPullKind(item.definition);
   const owner = useMemo<StageInstanceOwner>(() => ({
     userData: {
@@ -80,15 +97,16 @@ function PartInstance({ item }: { item: ResolvedLayoutObject }) {
       onSelect?.(item.object.id, event.shiftKey || event.ctrlKey || event.metaKey);
     },
   }), [item.object.id, onSelect, pushPullKind]);
-  useStageInstances(instances, owner);
-  return <group matrixAutoUpdate={false} matrix={placementMatrix({ x: item.object.x, y: item.object.y, rotation: item.object.rotation, elevation: item.elevation })}
-    onClick={owner.onClick}>
+  useStageInstances(seams, owner);
+
+  return <group matrixAutoUpdate={false} matrix={matrix} onClick={owner.onClick} userData={owner.userData}>
+    <mesh geometry={partGeometry.geometry} material={surfaces} castShadow receiveShadow dispose={null} />
     {item.resolved.solids.map(solid => solid.kind === 'box' && solid.assetId
       ? <WorkspaceMesh key={solid.id} workspaceId={workspaceId} asset={assets.find(asset => asset.id === solid.assetId)} solid={solid} /> : null)}
   </group>;
 }
 
-/** One generic 3D path for every placed catalog part; equal configurations share cached geometry and an instance batch. */
+/** One multi-material mesh per placed catalog part; deck seams stay instanced. */
 export function StageParts({ objects }: { objects: readonly ResolvedLayoutObject[] }) {
   return <>{objects.map(item => <PartInstance key={item.object.id} item={item} />)}</>;
 }

@@ -150,7 +150,7 @@
         "id": "5a17e9a0-0000-4000-8000-000000000001",
         "name": "Stützdreieck",
         "category": "Stützen",
-        "latestRevision": 1,
+        "latestRevision": 2,
         "archived": false,
         "favourite": false,
         "variants": [
@@ -416,7 +416,7 @@
         "id": "5a17e9a0-0000-4000-8000-000000000001",
         "name": "Stützdreieck",
         "category": "Stützen",
-        "latestRevision": 1,
+        "latestRevision": 2,
         "archived": false,
         "favourite": false,
         "variants": [
@@ -1021,10 +1021,10 @@
     "request": "GET /api/workspaces/<workspace>/parts/5a17e9a0-0000-4000-8000-000000000003/revisions/1",
     "status": 200,
     "body": {
+      "partId": "5a17e9a0-0000-4000-8000-000000000003",
       "revision": 1,
       "createdAt": "<time>",
       "authorName": null,
-      "partId": "5a17e9a0-0000-4000-8000-000000000003",
       "definition": {
         "id": "5a17e9a0-0000-4000-8000-000000000003",
         "revision": 1,
@@ -1680,9 +1680,9 @@
           "severity": "error",
           "code": "body-too-small",
           "message": "Körper „latte“: Länge 0 mm unterschreitet das Mindestmaß von 1 mm. Tritt auf bei B = 0.",
-          "parameter": "B",
           "body": "latte",
-          "field": "to"
+          "field": "to",
+          "parameter": "B"
         }
       ]
     }
@@ -1927,10 +1927,10 @@
     "request": "GET /api/workspaces/<workspace>/parts/c47a1090-0000-4000-8000-000000000001/revisions/1",
     "status": 200,
     "body": {
+      "partId": "c47a1090-0000-4000-8000-000000000001",
       "revision": 1,
       "createdAt": "<time>",
       "authorName": "<author>",
-      "partId": "c47a1090-0000-4000-8000-000000000001",
       "definition": {
         "id": "c47a1090-0000-4000-8000-000000000001",
         "revision": 1,
@@ -1994,10 +1994,10 @@
     "request": "GET /api/workspaces/<workspace>/parts/c47a1090-0000-4000-8000-000000000001/revisions/2",
     "status": 200,
     "body": {
+      "partId": "c47a1090-0000-4000-8000-000000000001",
       "revision": 2,
       "createdAt": "<time>",
       "authorName": "<author>",
-      "partId": "c47a1090-0000-4000-8000-000000000001",
       "definition": {
         "id": "c47a1090-0000-4000-8000-000000000001",
         "revision": 2,
@@ -2321,7 +2321,7 @@
         "id": "5a17e9a0-0000-4000-8000-000000000001",
         "name": "Stützdreieck",
         "category": "Stützen",
-        "latestRevision": 1,
+        "latestRevision": 2,
         "archived": false,
         "favourite": false,
         "variants": [
@@ -2607,7 +2607,7 @@
         "id": "5a17e9a0-0000-4000-8000-000000000001",
         "name": "Stützdreieck",
         "category": "Stützen",
-        "latestRevision": 1,
+        "latestRevision": 2,
         "archived": false,
         "favourite": false,
         "variants": [
@@ -4263,6 +4263,7 @@
             "revision": 1,
             "name": "Person",
             "category": "Darsteller",
+            "description": "Stehende Figur aus Quaderkörpern für Größenvergleiche auf der Bühne.",
             "parameters": [
               {
                 "key": "B",
@@ -4292,7 +4293,7 @@
                 "key": "H",
                 "label": "Höhe",
                 "type": "length",
-                "default": 1750,
+                "default": 1790,
                 "scope": "placement",
                 "range": {
                   "min": 50,
@@ -4301,25 +4302,105 @@
                 }
               }
             ],
+            "derived": [
+              {
+                "key": "legH",
+                "formula": "H * 0.48"
+              },
+              {
+                "key": "torsoH",
+                "formula": "H * 0.4"
+              },
+              {
+                "key": "head",
+                "formula": "H * 0.12"
+              },
+              {
+                "key": "armW",
+                "formula": "B * 0.12"
+              }
+            ],
             "bodies": [
               {
-                "key": "koerper",
+                "key": "bein",
+                "material": "stoff-koerper",
+                "repeat": {
+                  "count": 2,
+                  "step": [
+                    "B * 0.28",
+                    0,
+                    0
+                  ]
+                },
+                "kind": "box",
+                "size": [
+                  "B * 0.18",
+                  "legH",
+                  "T * 0.35"
+                ],
+                "at": [
+                  "-B * 0.14",
+                  "legH / 2",
+                  0
+                ]
+              },
+              {
+                "key": "rumpf",
                 "material": "stoff-koerper",
                 "kind": "box",
                 "size": [
-                  "B",
-                  "H",
-                  "T"
+                  "B * 0.42",
+                  "torsoH",
+                  "T * 0.4"
                 ],
                 "at": [
                   0,
-                  "H / 2",
+                  "legH + torsoH / 2",
+                  0
+                ]
+              },
+              {
+                "key": "arm",
+                "material": "stoff-koerper",
+                "repeat": {
+                  "count": 2,
+                  "step": [
+                    "B * 0.42 + armW",
+                    0,
+                    0
+                  ]
+                },
+                "kind": "box",
+                "size": [
+                  "armW",
+                  "torsoH * 0.9",
+                  "T * 0.22"
+                ],
+                "at": [
+                  "-(B * 0.42 / 2 + armW / 2)",
+                  "legH + torsoH * 0.45",
+                  0
+                ]
+              },
+              {
+                "key": "kopf",
+                "material": "stoff-koerper",
+                "kind": "box",
+                "size": [
+                  "head",
+                  "head",
+                  "head"
+                ],
+                "at": [
+                  0,
+                  "legH + torsoH + head / 2",
                   0
                 ]
               }
             ],
             "traits": {
-              "stock": "none"
+              "stock": "none",
+              "planSymbol": "solids"
             }
           },
           {
@@ -4955,10 +5036,10 @@
           },
           {
             "id": "5a17e9a0-0000-4000-8000-000000000001",
-            "revision": 1,
+            "revision": 2,
             "name": "Stützdreieck",
             "category": "Stützen",
-            "description": "Dreieck aus Latte 40 × 40: Wandstiel, Bodenschwelle und Strebe. Beschwerung als Zubehör.",
+            "description": "Dreieck aus Latte 40 × 40: Wandstiel, Bodenschwelle und Strebe. Betonplatten liegen sichtbar auf der Bodenschwelle; ab zwei Platten hält sie ein Spanngurt.",
             "parameters": [
               {
                 "key": "B",
@@ -5033,24 +5114,24 @@
                 "key": "standard",
                 "label": "50 × 120 cm",
                 "values": {
-                  "H": 1200,
-                  "T": 500
+                  "T": 500,
+                  "H": 1200
                 }
               },
               {
                 "key": "niedrig",
                 "label": "40 × 90 cm",
                 "values": {
-                  "H": 900,
-                  "T": 400
+                  "T": 400,
+                  "H": 900
                 }
               },
               {
                 "key": "hoch",
                 "label": "80 × 240 cm",
                 "values": {
-                  "H": 2400,
-                  "T": 800
+                  "T": 800,
+                  "H": 2400
                 }
               }
             ],
@@ -5079,6 +5160,26 @@
                 "key": "spitzeZ",
                 "label": "Achse Schwellenende",
                 "formula": "D / 2 - s / 2"
+              },
+              {
+                "key": "platte",
+                "label": "Kante Betonplatte",
+                "formula": 400
+              },
+              {
+                "key": "platteH",
+                "label": "Stärke Betonplatte",
+                "formula": 50
+              },
+              {
+                "key": "platteZ",
+                "label": "Mitte der Platten",
+                "formula": "max(-D / 2 + platte / 2, D / 2 - s - platte / 2)"
+              },
+              {
+                "key": "gurtH",
+                "label": "Höhe des Gurts",
+                "formula": "s + 2 * platteH"
               }
             ],
             "bodies": [
@@ -5141,6 +5242,75 @@
                   "B",
                   "s"
                 ]
+              },
+              {
+                "key": "betonplatte",
+                "label": "Betonplatte",
+                "material": "betonplatte-400",
+                "repeat": {
+                  "count": "ballast",
+                  "step": [
+                    0,
+                    "platteH",
+                    0
+                  ],
+                  "index": "lage"
+                },
+                "kind": "box",
+                "size": [
+                  "platte",
+                  "platteH",
+                  "platte"
+                ],
+                "at": [
+                  0,
+                  "s + platteH / 2",
+                  "platteZ"
+                ]
+              },
+              {
+                "key": "gurt-oben",
+                "label": "Spanngurt oben",
+                "material": "spanngurt-25",
+                "when": "ballast >= 2",
+                "displayOnly": true,
+                "kind": "box",
+                "size": [
+                  "platte + 4",
+                  2,
+                  25
+                ],
+                "at": [
+                  0,
+                  "gurtH + 1",
+                  "platteZ"
+                ]
+              },
+              {
+                "key": "gurt-seite",
+                "label": "Spanngurt Seite",
+                "material": "spanngurt-25",
+                "when": "ballast >= 2",
+                "repeat": {
+                  "count": 2,
+                  "step": [
+                    "platte + 2",
+                    0,
+                    0
+                  ]
+                },
+                "displayOnly": true,
+                "kind": "box",
+                "size": [
+                  2,
+                  "gurtH + 2",
+                  25
+                ],
+                "at": [
+                  "-platte / 2 - 1",
+                  "gurtH / 2 + 1",
+                  "platteZ"
+                ]
               }
             ],
             "connectors": [
@@ -5164,10 +5334,6 @@
               "stock": "count"
             },
             "hardware": [
-              {
-                "material": "betonplatte-400",
-                "quantity": "ballast"
-              },
               {
                 "material": "spanngurt-25",
                 "quantity": 1,
@@ -5255,24 +5421,24 @@
                 "key": "standard",
                 "label": "50 × 120 cm",
                 "values": {
-                  "H": 1200,
-                  "T": 500
+                  "T": 500,
+                  "H": 1200
                 }
               },
               {
                 "key": "niedrig",
                 "label": "40 × 90 cm",
                 "values": {
-                  "H": 900,
-                  "T": 400
+                  "T": 400,
+                  "H": 900
                 }
               },
               {
                 "key": "hoch",
                 "label": "80 × 240 cm",
                 "values": {
-                  "H": 2400,
-                  "T": 800
+                  "T": 800,
+                  "H": 2400
                 }
               }
             ],
@@ -6308,8 +6474,8 @@
                 "values": {
                   "B": "if(shape == 1, tuerB, tuer_hrechtsB)",
                   "H": "if(shape == 1, tuerH, tuer_hrechtsH)",
-                  "open": "open",
-                  "hinge": "if(shape == 1, -1, 1)"
+                  "hinge": "if(shape == 1, -1, 1)",
+                  "open": "open"
                 },
                 "at": [
                   "-W / 2 + if(shape == 1, tuerLeft + tuerB / 2, tuer_hrechtsLeft + tuer_hrechtsB / 2)",
@@ -7048,11 +7214,9 @@
     "status": 201,
     "body": {
       "id": "<id4>",
-      "label": "K-01",
       "partId": "c47a1090-0000-4000-8000-000000000001",
-      "partName": "Kiste Eins, importiert",
+      "label": "K-01",
       "variantKey": "klein",
-      "variantLabel": "Klein",
       "values": {},
       "usable": true,
       "notes": "Linke Kante bestoßen",
@@ -7066,9 +7230,11 @@
         }
       ],
       "finish": null,
-      "archived": false,
       "createdAt": "<time>",
-      "updatedAt": "<time>"
+      "updatedAt": "<time>",
+      "partName": "Kiste Eins, importiert",
+      "variantLabel": "Klein",
+      "archived": false
     }
   },
   {
@@ -7078,19 +7244,19 @@
     "status": 201,
     "body": {
       "id": "<id5>",
-      "label": "K-02",
       "partId": "c47a1090-0000-4000-8000-000000000001",
-      "partName": "Kiste Eins, importiert",
+      "label": "K-02",
       "variantKey": "gross",
-      "variantLabel": "Groß",
       "values": {},
       "usable": true,
       "notes": null,
       "cutouts": [],
       "finish": null,
-      "archived": false,
       "createdAt": "<time>",
-      "updatedAt": "<time>"
+      "updatedAt": "<time>",
+      "partName": "Kiste Eins, importiert",
+      "variantLabel": "Groß",
+      "archived": false
     }
   },
   {
@@ -7174,9 +7340,7 @@
       "id": "<id5>",
       "label": "K-02",
       "partId": "c47a1090-0000-4000-8000-000000000001",
-      "partName": "Kiste Eins, importiert",
       "variantKey": "klein",
-      "variantLabel": "Klein",
       "values": {},
       "usable": false,
       "notes": "Verliehen",
@@ -7193,9 +7357,11 @@
         "description": "Weiß gestrichen",
         "confirmedAt": "<time>"
       },
-      "archived": false,
       "createdAt": "<time>",
-      "updatedAt": "<time>"
+      "updatedAt": "<time>",
+      "partName": "Kiste Eins, importiert",
+      "variantLabel": "Klein",
+      "archived": false
     }
   },
   {
@@ -7252,17 +7418,17 @@
       "id": "<id5>",
       "label": "K-02",
       "partId": "c47a1090-0000-4000-8000-000000000001",
-      "partName": "Kiste Eins, importiert",
       "variantKey": "klein",
-      "variantLabel": "Klein",
       "values": {},
       "usable": false,
       "notes": "Verliehen",
       "cutouts": [],
       "finish": null,
-      "archived": false,
       "createdAt": "<time>",
-      "updatedAt": "<time>"
+      "updatedAt": "<time>",
+      "partName": "Kiste Eins, importiert",
+      "variantLabel": "Klein",
+      "archived": false
     }
   },
   {
@@ -7274,17 +7440,17 @@
       "id": "<id5>",
       "label": "K-02",
       "partId": "c47a1090-0000-4000-8000-000000000001",
-      "partName": "Kiste Eins, importiert",
       "variantKey": "klein",
-      "variantLabel": "Klein",
       "values": {},
       "usable": false,
       "notes": "Verliehen",
       "cutouts": [],
       "finish": null,
-      "archived": true,
       "createdAt": "<time>",
-      "updatedAt": "<time>"
+      "updatedAt": "<time>",
+      "partName": "Kiste Eins, importiert",
+      "variantLabel": "Klein",
+      "archived": true
     }
   },
   {
@@ -7306,9 +7472,7 @@
         "id": "<id4>",
         "label": "K-01",
         "partId": "c47a1090-0000-4000-8000-000000000001",
-        "partName": "Kiste Eins, importiert",
         "variantKey": "klein",
-        "variantLabel": "Klein",
         "values": {},
         "usable": true,
         "notes": "Linke Kante bestoßen",
@@ -7322,9 +7486,11 @@
           }
         ],
         "finish": null,
-        "archived": false,
         "createdAt": "<time>",
-        "updatedAt": "<time>"
+        "updatedAt": "<time>",
+        "partName": "Kiste Eins, importiert",
+        "variantLabel": "Klein",
+        "archived": false
       }
     ]
   },
@@ -7338,9 +7504,7 @@
         "id": "<id4>",
         "label": "K-01",
         "partId": "c47a1090-0000-4000-8000-000000000001",
-        "partName": "Kiste Eins, importiert",
         "variantKey": "klein",
-        "variantLabel": "Klein",
         "values": {},
         "usable": true,
         "notes": "Linke Kante bestoßen",
@@ -7354,25 +7518,27 @@
           }
         ],
         "finish": null,
-        "archived": false,
         "createdAt": "<time>",
-        "updatedAt": "<time>"
+        "updatedAt": "<time>",
+        "partName": "Kiste Eins, importiert",
+        "variantLabel": "Klein",
+        "archived": false
       },
       {
         "id": "<id5>",
         "label": "K-02",
         "partId": "c47a1090-0000-4000-8000-000000000001",
-        "partName": "Kiste Eins, importiert",
         "variantKey": "klein",
-        "variantLabel": "Klein",
         "values": {},
         "usable": false,
         "notes": "Verliehen",
         "cutouts": [],
         "finish": null,
-        "archived": true,
         "createdAt": "<time>",
-        "updatedAt": "<time>"
+        "updatedAt": "<time>",
+        "partName": "Kiste Eins, importiert",
+        "variantLabel": "Klein",
+        "archived": true
       }
     ]
   },
@@ -7383,19 +7549,19 @@
     "status": 201,
     "body": {
       "id": "<id6>",
-      "label": "K-02",
       "partId": "c47a1090-0000-4000-8000-000000000001",
-      "partName": "Kiste Eins, importiert",
+      "label": "K-02",
       "variantKey": "klein",
-      "variantLabel": "Klein",
       "values": {},
       "usable": true,
       "notes": null,
       "cutouts": [],
       "finish": null,
-      "archived": false,
       "createdAt": "<time>",
-      "updatedAt": "<time>"
+      "updatedAt": "<time>",
+      "partName": "Kiste Eins, importiert",
+      "variantLabel": "Klein",
+      "archived": false
     }
   },
   {
@@ -7434,17 +7600,17 @@
       "id": "<id6>",
       "label": "K-02",
       "partId": "c47a1090-0000-4000-8000-000000000001",
-      "partName": "Kiste Eins, importiert",
       "variantKey": "klein",
-      "variantLabel": "Klein",
       "values": {},
       "usable": true,
       "notes": null,
       "cutouts": [],
       "finish": null,
-      "archived": true,
       "createdAt": "<time>",
-      "updatedAt": "<time>"
+      "updatedAt": "<time>",
+      "partName": "Kiste Eins, importiert",
+      "variantLabel": "Klein",
+      "archived": true
     }
   },
   {
@@ -7456,17 +7622,17 @@
       "id": "<id5>",
       "label": "K-02",
       "partId": "c47a1090-0000-4000-8000-000000000001",
-      "partName": "Kiste Eins, importiert",
       "variantKey": "klein",
-      "variantLabel": "Klein",
       "values": {},
       "usable": false,
       "notes": "Verliehen",
       "cutouts": [],
       "finish": null,
-      "archived": false,
       "createdAt": "<time>",
-      "updatedAt": "<time>"
+      "updatedAt": "<time>",
+      "partName": "Kiste Eins, importiert",
+      "variantLabel": "Klein",
+      "archived": false
     }
   },
   {
@@ -7479,9 +7645,7 @@
         "id": "<id4>",
         "label": "K-01",
         "partId": "c47a1090-0000-4000-8000-000000000001",
-        "partName": "Kiste Eins, importiert",
         "variantKey": "klein",
-        "variantLabel": "Klein",
         "values": {},
         "usable": true,
         "notes": "Linke Kante bestoßen",
@@ -7495,41 +7659,43 @@
           }
         ],
         "finish": null,
-        "archived": false,
         "createdAt": "<time>",
-        "updatedAt": "<time>"
+        "updatedAt": "<time>",
+        "partName": "Kiste Eins, importiert",
+        "variantLabel": "Klein",
+        "archived": false
       },
       {
         "id": "<id5>",
         "label": "K-02",
         "partId": "c47a1090-0000-4000-8000-000000000001",
-        "partName": "Kiste Eins, importiert",
         "variantKey": "klein",
-        "variantLabel": "Klein",
         "values": {},
         "usable": false,
         "notes": "Verliehen",
         "cutouts": [],
         "finish": null,
-        "archived": false,
         "createdAt": "<time>",
-        "updatedAt": "<time>"
+        "updatedAt": "<time>",
+        "partName": "Kiste Eins, importiert",
+        "variantLabel": "Klein",
+        "archived": false
       },
       {
         "id": "<id6>",
         "label": "K-02",
         "partId": "c47a1090-0000-4000-8000-000000000001",
-        "partName": "Kiste Eins, importiert",
         "variantKey": "klein",
-        "variantLabel": "Klein",
         "values": {},
         "usable": true,
         "notes": null,
         "cutouts": [],
         "finish": null,
-        "archived": true,
         "createdAt": "<time>",
-        "updatedAt": "<time>"
+        "updatedAt": "<time>",
+        "partName": "Kiste Eins, importiert",
+        "variantLabel": "Klein",
+        "archived": true
       }
     ]
   },
@@ -7559,10 +7725,10 @@
       "materialKey": "gummifuss-50",
       "partId": null,
       "variantKey": null,
-      "name": "Gummifuß 50 × 50 mm",
-      "variantLabel": null,
       "quantity": 40,
-      "updatedAt": "<time>"
+      "updatedAt": "<time>",
+      "name": "Gummifuß 50 × 50 mm",
+      "variantLabel": null
     }
   },
   {
@@ -7575,10 +7741,10 @@
       "materialKey": "gummifuss-50",
       "partId": null,
       "variantKey": null,
-      "name": "Gummifuß 50 × 50 mm",
-      "variantLabel": null,
       "quantity": 35,
-      "updatedAt": "<time>"
+      "updatedAt": "<time>",
+      "name": "Gummifuß 50 × 50 mm",
+      "variantLabel": null
     }
   },
   {
@@ -7591,10 +7757,10 @@
       "materialKey": null,
       "partId": "5a17e9a0-0000-4000-8000-000000000002",
       "variantKey": "600",
-      "name": "Steckfuß",
-      "variantLabel": "60 cm",
       "quantity": 12,
-      "updatedAt": "<time>"
+      "updatedAt": "<time>",
+      "name": "Steckfuß",
+      "variantLabel": "60 cm"
     }
   },
   {
@@ -7625,10 +7791,10 @@
       "materialKey": null,
       "partId": "5a17e9a0-0000-4000-8000-000000000001",
       "variantKey": "standard",
-      "name": "Stützdreieck",
-      "variantLabel": "50 × 120 cm",
       "quantity": 3,
-      "updatedAt": "<time>"
+      "updatedAt": "<time>",
+      "name": "Stützdreieck",
+      "variantLabel": "50 × 120 cm"
     }
   },
   {
@@ -7705,30 +7871,30 @@
         "materialKey": "gummifuss-50",
         "partId": null,
         "variantKey": null,
-        "name": "Gummifuß 50 × 50 mm",
-        "variantLabel": null,
         "quantity": 35,
-        "updatedAt": "<time>"
+        "updatedAt": "<time>",
+        "name": "Gummifuß 50 × 50 mm",
+        "variantLabel": null
       },
       {
         "id": "<id8>",
         "materialKey": null,
         "partId": "5a17e9a0-0000-4000-8000-000000000002",
         "variantKey": "600",
-        "name": "Steckfuß",
-        "variantLabel": "60 cm",
         "quantity": 12,
-        "updatedAt": "<time>"
+        "updatedAt": "<time>",
+        "name": "Steckfuß",
+        "variantLabel": "60 cm"
       },
       {
         "id": "<id9>",
         "materialKey": null,
         "partId": "5a17e9a0-0000-4000-8000-000000000001",
         "variantKey": "standard",
-        "name": "Stützdreieck",
-        "variantLabel": "50 × 120 cm",
         "quantity": 3,
-        "updatedAt": "<time>"
+        "updatedAt": "<time>",
+        "name": "Stützdreieck",
+        "variantLabel": "50 × 120 cm"
       }
     ]
   },
@@ -7755,10 +7921,10 @@
       "materialKey": "schraube-test",
       "partId": null,
       "variantKey": null,
-      "name": "Schraube",
-      "variantLabel": null,
       "quantity": 200,
-      "updatedAt": "<time>"
+      "updatedAt": "<time>",
+      "name": "Schraube",
+      "variantLabel": null
     }
   },
   {
@@ -7781,30 +7947,30 @@
         "materialKey": "gummifuss-50",
         "partId": null,
         "variantKey": null,
-        "name": "Gummifuß 50 × 50 mm",
-        "variantLabel": null,
         "quantity": 35,
-        "updatedAt": "<time>"
+        "updatedAt": "<time>",
+        "name": "Gummifuß 50 × 50 mm",
+        "variantLabel": null
       },
       {
         "id": "<id8>",
         "materialKey": null,
         "partId": "5a17e9a0-0000-4000-8000-000000000002",
         "variantKey": "600",
-        "name": "Steckfuß",
-        "variantLabel": "60 cm",
         "quantity": 12,
-        "updatedAt": "<time>"
+        "updatedAt": "<time>",
+        "name": "Steckfuß",
+        "variantLabel": "60 cm"
       },
       {
         "id": "<id9>",
         "materialKey": null,
         "partId": "5a17e9a0-0000-4000-8000-000000000001",
         "variantKey": "standard",
-        "name": "Stützdreieck",
-        "variantLabel": "50 × 120 cm",
         "quantity": 3,
-        "updatedAt": "<time>"
+        "updatedAt": "<time>",
+        "name": "Stützdreieck",
+        "variantLabel": "50 × 120 cm"
       }
     ]
   },
@@ -8048,7 +8214,7 @@
         "id": "5a17e9a0-0000-4000-8000-000000000001",
         "name": "Stützdreieck",
         "category": "Stützen",
-        "latestRevision": 1,
+        "latestRevision": 2,
         "archived": false,
         "favourite": false,
         "variants": [

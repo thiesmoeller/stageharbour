@@ -131,7 +131,7 @@ test('a 2 mm change in migrated geometry is caught against the golden', () => {
 
 test('reviewed intentional v2 golden differences stay explicit', () => {
   const expected = {
-    'kitchen-sink': { footprints: 13, solids: 158, surfaces: 1 },
+    'kitchen-sink': { footprints: 10, solids: 155, surfaces: 1 },
     warnings: { footprints: 3, solids: 19, surfaces: 0 },
     'wall-types': { footprints: 22, solids: 40, surfaces: 0 },
     'stage-decks': { footprints: 0, solids: 517, surfaces: 0 },

@@ -66,6 +66,7 @@ export function stageModel(layout: Layout, venue: Pick<VenueGeometry, 'width' | 
       const resolved = resolveWall(wall, venue.wallTypes ?? []);
       return wallSolid({ ...resolved, doorOpenPercent: effectiveVenueDoorOpen(wall, layout) }, surfaceElevation(surfaces, wall.supportingSurfaceId));
     }),
+    // Layout-v2 braces are catalog objects drawn by StageParts, not model.braces.
     braces: [],
     placeholders: sceneAndVenuePlaceholders(layout, venue).map(item => placeholderSolid(item, surfaceElevation(surfaces, item.supportingSurfaceId))),
     platforms: surfaces.filter(surface => surface.id !== AUDIENCE_FLOOR_ID),

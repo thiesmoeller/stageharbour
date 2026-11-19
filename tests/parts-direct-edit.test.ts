@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createPartContext, type PartBody, type PartDefinition, type PartParameter } from '../src/shared/parts/definition.js';
 import {
-  addBeam, addBoxFromRect, addFaceFromCircle, addSheetFromOutline, handleLocks, moveBody, moveChild, moveVertex, pushPullFace,
-  pushPullNewBody, rotateBody, rotateChild, setHandleMeasure, type EditResult,
+  addBeam, addBoxFromRect, addFaceFromCircle, addFaceFromRect, addSheetFromOutline, handleLocks, moveBody, moveChild, moveVertex, pushPullFace,
+  pushPullNewBody, rotateBody, rotateChild, setHandleMeasure, splitBody, type EditResult,
 } from '../src/shared/parts/directEdit.js';
 import { handleForPick, partHandles, type Handle } from '../src/shared/parts/handles.js';
 import { add, quatFromAxisAngle, rotate, scale, sub, type Vec3 } from '../src/shared/parts/math.js';
@@ -140,7 +140,45 @@ test('Ctrl+push/pull on a sheet face keeps the outline as a new thick sheet', ()
   const added = next.bodies[1] as Extract<PartBody, { kind: 'sheet' }>;
   assert.equal(added.kind, 'sheet');
   assert.equal(added.thickness, 80);
-  assert.deepEqual(added.outline, (definition.bodies[0] as Extract<PartBody, { kind: 'sheet' }>).outline);
+  assert.equal(added.outline.shape, 'polygon');
+  if (added.outline.shape === 'polygon') {
+    assert.equal(added.outline.points.length, 4);
+    assert.equal(typeof added.outline.points[0]![0], 'number');
+  }
+});
+
+test('Ctrl+push/pull on a formula table top bakes the outline so sides pull independently', () => {
+  const definition = part(
+    [{
+      kind: 'sheet', key: 'platte', material: 'sperrholz-12', plane: 'xz', at: [0, 'H', 0],
+      outline: { shape: 'rect', x: '-B / 2', y: '-T / 2', width: 'B', height: 'T' },
+    }],
+    {
+      parameters: [
+        length('B', 1000), length('T', 600), length('H', 500),
+      ],
+    },
+  );
+  const front = handle(definition, 'platte:side:front');
+  const next = ok(pushPullNewBody(definition, resolved(definition), front, 120));
+  const added = next.bodies[1] as Extract<PartBody, { kind: 'sheet' }>;
+  assert.equal(added.outline.shape, 'rect');
+  if (added.outline.shape === 'rect') {
+    assert.equal(added.outline.x, -500);
+    assert.equal(added.outline.y, -300);
+    assert.equal(added.outline.width, 1000);
+    assert.equal(added.outline.height, 600);
+  }
+  const edge = partHandles(next, resolved(next)).find(item => item.body === added.key && item.name === 'edge:right');
+  assert.ok(edge);
+  const pulled = ok(pushPullFace(next, resolved(next), edge!, -100));
+  const pulledPlate = pulled.bodies[0] as Extract<PartBody, { kind: 'sheet' }>;
+  const pulledBlock = pulled.bodies.find(item => item.key === added.key) as Extract<PartBody, { kind: 'sheet' }>;
+  assert.equal(pulledPlate.outline.shape, 'rect');
+  if (pulledPlate.outline.shape === 'rect') assert.equal(pulledPlate.outline.width, 'B');
+  assert.equal(pulledBlock.outline.shape, 'rect');
+  if (pulledBlock.outline.shape === 'rect') assert.equal(pulledBlock.outline.width, 900);
+  assert.equal(pulled.parameters.find(item => item.key === 'B')?.default, 1000);
 });
 
 test('Ctrl+push/pull refuses edges and tiny distances', () => {
@@ -445,4 +483,112 @@ test('addFaceFromCircle creates a sheet with a circle outline', () => {
 
   assert.equal(addFaceFromCircle(part([]), { centre: { x: 0, y: 0, z: 0 }, radius: 0.5, normal: { x: 0, y: 1, z: 0 } }, 'sperrholz-12').ok, false);
   assert.equal(addFaceFromCircle(part([]), { centre: { x: 0, y: 0, z: 0 }, radius: 100, normal: { x: 1, y: 1, z: 0 } }, 'sperrholz-12').ok, false);
+});
+
+test('splitBody cuts a box into two push-pullable halves', () => {
+  const box = addBoxFromRect(part([]), {
+    corner: { x: 0, y: 0, z: 0 }, opposite: { x: 400, y: 0, z: 200 }, u: { x: 1, y: 0, z: 0 }, normal: { x: 0, y: 1, z: 0 }, height: 100,
+  }, 'holz-koerper');
+  assert.ok(box.ok);
+  const before = resolved(box.definition);
+  const split = splitBody(box.definition, before, box.key, { x: 1, y: 0, z: 0 }, { x: 150, y: 50, z: 100 });
+  assert.ok(split.ok, split.ok ? '' : split.message);
+  assert.equal(split.definition.bodies.length, 2);
+  assert.notEqual(split.keys[0], split.keys[1]);
+  const a = split.definition.bodies[0] as Extract<PartBody, { kind: 'box' }>;
+  const b = split.definition.bodies[1] as Extract<PartBody, { kind: 'box' }>;
+  assert.equal(a.size[0], 150);
+  assert.equal(b.size[0], 250);
+  assert.equal(a.size[1], 100);
+  assert.equal(b.size[1], 100);
+  const after = resolved(split.definition);
+  assert.equal(after.solids.length, 2);
+  const top = partHandles(split.definition, after).find(item => item.body === split.keys[0] && item.name === 'side:top');
+  assert.ok(top);
+  const taller = ok(pushPullFace(split.definition, after, top!, 40));
+  const grown = taller.bodies.find(item => item.key === split.keys[0]) as Extract<PartBody, { kind: 'box' }>;
+  const other = taller.bodies.find(item => item.key === split.keys[1]) as Extract<PartBody, { kind: 'box' }>;
+  assert.equal(grown.size[1], 140);
+  assert.equal(other.size[1], 100);
+});
+
+test('splitBody cuts a rect sheet along width or height', () => {
+  const definition = part([{
+    kind: 'sheet', key: 'platte', material: 'sperrholz-12', plane: 'xz', at: [0, 0, 0],
+    outline: { shape: 'rect', x: -300, y: -200, width: 600, height: 400 },
+  }]);
+  const before = resolved(definition);
+  const split = splitBody(definition, before, 'platte', { x: 1, y: 0, z: 0 }, { x: 0, y: 0, z: 0 });
+  assert.ok(split.ok, split.ok ? '' : split.message);
+  const a = split.definition.bodies[0] as Extract<PartBody, { kind: 'sheet' }>;
+  const b = split.definition.bodies[1] as Extract<PartBody, { kind: 'sheet' }>;
+  assert.equal(a.outline.shape, 'rect');
+  assert.equal(b.outline.shape, 'rect');
+  if (a.outline.shape === 'rect' && b.outline.shape === 'rect') {
+    assert.equal(a.outline.width, 300);
+    assert.equal(b.outline.width, 300);
+    assert.equal(a.outline.height, 400);
+    assert.equal(b.outline.height, 400);
+  }
+  const drawn = addFaceFromRect(part([]), {
+    corner: { x: 0, y: 0, z: 0 }, opposite: { x: 800, y: 0, z: 400 }, u: { x: 1, y: 0, z: 0 }, normal: { x: 0, y: 1, z: 0 },
+  }, 'sperrholz-12');
+  assert.ok(drawn.ok);
+  const drawnResolved = resolved(drawn.definition);
+  const drawnSplit = splitBody(drawn.definition, drawnResolved, drawn.key, { x: 1, y: 0, z: 0 }, { x: 300, y: 0, z: 200 });
+  assert.ok(drawnSplit.ok, drawnSplit.ok ? '' : drawnSplit.message);
+  assert.equal(drawnSplit.definition.bodies.length, 2);
+});
+
+test('split halves get distinct keys — push/pull one leaves the other', () => {
+  const definition = part([{
+    kind: 'sheet', key: 'platte', material: 'sperrholz-12', plane: 'xz', at: [0, 0, 0], thickness: 1000,
+    outline: { shape: 'rect', x: -300, y: -250, width: 600, height: 500 },
+  }]);
+  const before = resolved(definition);
+  // Vertical cut through thickness → stacked halves (like the pulled-up Würfel).
+  const split = splitBody(definition, before, 'platte', { x: 0, y: 1, z: 0 }, { x: 0, y: -400, z: 0 });
+  assert.ok(split.ok, split.ok ? '' : split.message);
+  assert.notEqual(split.keys[0], split.keys[1]);
+  const first = split.definition.bodies[0] as Extract<PartBody, { kind: 'sheet' }>;
+  const second = split.definition.bodies[1] as Extract<PartBody, { kind: 'sheet' }>;
+  assert.notEqual(first.at, second.at);
+  assert.notEqual(first.key, second.key);
+  const mid = resolved(split.definition);
+  assert.equal(new Set(mid.solids.map(solid => solid.id)).size, 2);
+  // Pull the upper half's back face; the lower half must keep its at/thickness.
+  const upper = partHandles(split.definition, mid).find(item => item.body === split.keys[1] && item.name === 'side:back');
+  assert.ok(upper);
+  const pulled = ok(pushPullFace(split.definition, mid, upper!, 80));
+  const pulledFirst = pulled.bodies.find(item => item.key === split.keys[0]) as Extract<PartBody, { kind: 'sheet' }>;
+  const pulledSecond = pulled.bodies.find(item => item.key === split.keys[1]) as Extract<PartBody, { kind: 'sheet' }>;
+  assert.deepEqual(pulledFirst.at, first.at);
+  assert.equal(pulledFirst.thickness, first.thickness);
+  assert.notDeepEqual(
+    { at: pulledSecond.at, thickness: pulledSecond.thickness },
+    { at: second.at, thickness: second.thickness },
+  );
+});
+
+test('splitBody cuts a thick sheet along its thickness (pulled-up Würfel)', () => {
+  const definition = part([{
+    kind: 'sheet', key: 'platte', material: 'sperrholz-12', plane: 'xz', at: [0, 0, 0], thickness: 1000,
+    outline: { shape: 'rect', x: -300, y: -250, width: 600, height: 500 },
+  }]);
+  const before = resolved(definition);
+  const solid = before.solids[0];
+  assert.ok(solid && solid.kind === 'sheet');
+  if (!solid || solid.kind !== 'sheet') return;
+  assert.equal(solid.thickness, 1000);
+  // xz sheets grow thickness along −Y; a point 400 mm along that axis sits at y = −400.
+  const split = splitBody(definition, before, 'platte', { x: 0, y: 1, z: 0 }, { x: 0, y: -400, z: 0 });
+  assert.ok(split.ok, split.ok ? '' : split.message);
+  const a = split.definition.bodies[0] as Extract<PartBody, { kind: 'sheet' }>;
+  const b = split.definition.bodies[1] as Extract<PartBody, { kind: 'sheet' }>;
+  assert.equal(a.thickness, 400);
+  assert.equal(b.thickness, 600);
+  const after = resolved(split.definition);
+  assert.equal(after.solids.length, 2);
+  const heights = after.solids.map(solid => (solid.kind === 'sheet' ? solid.thickness : 0)).sort((x, y) => x - y);
+  assert.deepEqual(heights, [400, 600]);
 });

@@ -227,3 +227,73 @@ test('designer groups a body into a sub-part, edits it in place and explodes it 
 
   expect(errors).toEqual([]);
 });
+
+test('designer Ctrl+Drücken/Ziehen adds a new body and leaves the original', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await signInToPlans(page);
+  await openDesigner(page);
+  // The Neu starter is a thin formula-driven Tischplatte — the flaky real-world case.
+  await page.getByTestId('designer-library').getByRole('button', { name: 'Neu', exact: true }).click();
+  await expect(page.getByTestId('designer-title')).toHaveText('Neues Bauteil');
+  await expect(preview(page)).toHaveAttribute('data-solids', '5');
+
+  await page.locator('body').press('p');
+  await expect(preview(page)).toHaveAttribute('data-tool', 'pushpull');
+  const top = await point(page, id => id === 'platte:side:front' || id === 'platte:side:back');
+  // Ctrl on first click with pointer jitter (>4 px used to drop the click entirely).
+  await page.keyboard.down('Control');
+  await page.mouse.move(top.x, top.y);
+  await page.mouse.down();
+  await page.mouse.move(top.x + 10, top.y + 4);
+  await page.mouse.up();
+  await page.keyboard.up('Control');
+  await expect(page.getByTestId('designer-model-status')).toContainText('Neuer Körper');
+  // Typed measure: the thin plate is ~1 px thick on screen, so a mouse pull often stays under 1 mm.
+  await page.keyboard.type('120');
+  await page.keyboard.press('Enter');
+  await expect(preview(page)).toHaveAttribute('data-solids', '6');
+  await expect(page.getByTestId('designer-model-status')).toContainText('Drücken/Ziehen (neu)');
+
+  expect(errors).toEqual([]);
+});
+
+test('designer splits a box into two bodies with Teilen', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await signInToPlans(page);
+  await openDesigner(page);
+  await page.getByTestId('designer-library').getByRole('button', { name: 'Neu', exact: true }).click();
+  await page.getByTestId('designer-tab-outline').click();
+  const outline = page.getByTestId('designer-section-outline');
+  await outline.getByRole('button', { name: 'Platte entfernen' }).click();
+  await outline.getByRole('button', { name: 'Bein entfernen' }).click();
+
+  await page.locator('body').press('r');
+  const origin = await pointOnCanvas(page, id => id === 'origin');
+  const corner = await pointOnCanvas(page, id => id === 'ground-xz');
+  await page.mouse.click(origin.x, origin.y);
+  await page.mouse.click(corner.x, corner.y);
+  await page.keyboard.type('800;400');
+  await page.keyboard.press('Enter');
+  await page.locator('body').press('p');
+  const top = await point(page, id => id.endsWith(':side:front'));
+  await page.mouse.click(top.x, top.y);
+  await page.mouse.click(top.x, top.y - 60);
+  await page.keyboard.type('400');
+  await page.keyboard.press('Enter');
+  await expect(preview(page)).toHaveAttribute('data-solids', '1');
+
+  // Drawn rect + pull is a thick sheet; Teilen splits its outline (Pfeiltaste → Breite).
+  await page.locator('body').press('k');
+  await expect(preview(page)).toHaveAttribute('data-tool', 'split');
+  await expect(page.getByTestId('designer-tool-split')).toHaveAttribute('aria-pressed', 'true');
+  const face = await point(page, id => id.endsWith(':side:front') || id.endsWith(':side:back'));
+  await page.mouse.click(face.x, face.y);
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.type('300');
+  await page.keyboard.press('Enter');
+  await expect(preview(page)).toHaveAttribute('data-solids', '2');
+
+  expect(errors).toEqual([]);
+});

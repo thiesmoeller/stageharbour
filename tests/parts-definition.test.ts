@@ -89,8 +89,8 @@ test('duplicate keys are rejected', () => {
   const library = { ...STARTER_LIBRARY, materials: [...STARTER_MATERIALS, STARTER_MATERIALS[0]] };
   assert.equal(partLibrarySchema.safeParse(library).success, false);
   assert.equal(partLibrarySchema.safeParse({ ...STARTER_LIBRARY, parts: [...STARTER_PARTS, STARTER_BRACE] }).success, false);
-  // The same part in a second revision is a different entry.
-  assert.equal(partLibrarySchema.safeParse({ ...STARTER_LIBRARY, parts: [...STARTER_PARTS, { ...STARTER_BRACE, revision: 2 }] }).success, true);
+  // The same part in a further revision is a different entry.
+  assert.equal(partLibrarySchema.safeParse({ ...STARTER_LIBRARY, parts: [...STARTER_PARTS, { ...STARTER_BRACE, revision: STARTER_BRACE.revision + 1 }] }).success, true);
 });
 
 test('derived values may only use what is computed before them', () => {
@@ -264,7 +264,8 @@ test('formula sites and dependencies cover every element', () => {
   assert.deepEqual([...(dependencies.get('child:fuss') ?? [])].sort(), ['B', 'BO', 'H', 'HO', 'T', 'TO']);
   assert.deepEqual(dependencies.get('derived:fussX'), ['BO', 'B']);
   assert.deepEqual(dependencies.get('connector:kante-vorn')?.slice().sort(), ['B', 'BO', 'H', 'HO', 'T', 'TO']);
-  assert.deepEqual(definitionDependencies(STARTER_BRACE).get('hardware:betonplatte-400'), ['ballast']);
+  assert.ok((definitionDependencies(STARTER_BRACE).get('body:betonplatte') ?? []).includes('ballast'));
+  assert.deepEqual(definitionDependencies(STARTER_BRACE).get('hardware:spanngurt-25'), ['ballast']);
 });
 
 test('a context looks materials up by key and parts by id and revision', () => {

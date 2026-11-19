@@ -7,6 +7,7 @@ import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { Asset, AssetDefinition } from '../../shared/assets.js';
 import type { HangPlan } from '../../shared/hangPlan.js';
 import { resolveFixtureOutput } from '../../shared/lightBoard.js';
+import type { PartMaterial } from '../../shared/parts/definition.js';
 import type { Placeholder as Prop } from '../../shared/placeholders.js';
 import type { PlanDisplayOptions } from '../../shared/planDisplay.js';
 import { defaultPlanDisplay } from '../../shared/planDisplay.js';
@@ -32,9 +33,13 @@ export type StageInteractionValue = {
   selectedFixtureId?: string | null;
   onFixtureSelect?: (id: string, additive: boolean) => void;
   lightBoardLive?: LightBoardLive;
+  /** Library colours for catalog part meshes in StageParts. */
+  materials: PartMaterial[];
 };
 
-export const StageInteraction = createContext<StageInteractionValue>({ assets: [], workspaceId: '', mirrorWidth: 0, selectedIds: [], planDisplay: defaultPlanDisplay });
+export const StageInteraction = createContext<StageInteractionValue>({
+  assets: [], workspaceId: '', mirrorWidth: 0, selectedIds: [], planDisplay: defaultPlanDisplay, materials: [],
+});
 
 /** Millimetre content lives in a metre scene. */
 const MM = 0.001;

@@ -178,7 +178,7 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
     />}
     </DockPortal>
     <span data-testid="stage-mesh-solids" data-count={meshSolidCount} hidden />
-    <Suspense fallback={<p role="status">Raumsicht wird geladen …</p>}><RaumsichtCanvas model={model} layout={layout} venue={venue} resolvedObjects={resolvedObjects} audience={audience} view={view} assets={assets} workspaceId={workspaceId} lighting={lighting} planDisplay={planDisplay} onCaptureReady={onCaptureReady ?? onFeedbackCaptureReady} aimOnly={exportAim}
+    <Suspense fallback={<p role="status">Raumsicht wird geladen …</p>}><RaumsichtCanvas model={model} layout={layout} venue={venue} resolvedObjects={resolvedObjects} audience={audience} view={view} assets={assets} workspaceId={workspaceId} materials={catalog.materials} lighting={lighting} planDisplay={planDisplay} onCaptureReady={onCaptureReady ?? onFeedbackCaptureReady} aimOnly={exportAim}
       enhanced={!simple}
       selectedFixtureId={boardOpen ? selectedFixtureId : null}
       onFixtureSelect={boardOpen ? id => selectFixture(id) : undefined}
@@ -219,6 +219,13 @@ export function StageView({ layout, venue, assets = [], workspaceId = '', onLigh
     <StagePlaceholderList placeholders={model.placeholders} />
     <ul aria-label="Bauteile in der Raumsicht">{resolvedObjects.map(item => <li key={item.object.id}
       data-testid={`stage-object-${item.object.id}`}>{item.object.label}: {item.resolved.name}</li>)}</ul>
+    {/* DOM probes for StageParts multi-material meshes (drei Html is not reliably queryable in e2e). */}
+    <div hidden aria-hidden="true">{resolvedObjects.map(item => {
+      const meshSolids = item.resolved.solids.filter(solid => !(solid.kind === 'box' && solid.assetId));
+      const slots = new Set(meshSolids.map(solid => solid.material)).size;
+      return <span key={item.object.id} data-testid="stage-part" data-object-id={item.object.id}
+        data-solids={item.resolved.solids.length} data-slots={slots} />;
+    })}</div>
     <StageLevelList model={model} />
     <StageOverheadList boxes={venue.overheadBoxes ?? []} trusses={venue.trusses ?? []} />
     <StageCurtainList curtains={curtains} />
