@@ -4,6 +4,7 @@ import type { Brace } from '../../shared/layout.js';
 import type { PlanDisplayOptions } from '../../shared/planDisplay.js';
 import { defaultPlanDisplay } from '../../shared/planDisplay.js';
 
+/** Orphan under layout-v2: plan braces are catalog objects; nothing imports this layer anymore. */
 export function BraceLayer({ braces, selectedId, groupedIds, preview, readOnly, overlappingIds, display = defaultPlanDisplay, onPointerDown }: {
   braces: Brace[]; selectedId?: string; groupedIds?: Set<string>; preview?: Brace; readOnly: boolean;
   overlappingIds?: ReadonlySet<string>;

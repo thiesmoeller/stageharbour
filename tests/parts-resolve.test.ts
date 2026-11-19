@@ -576,7 +576,10 @@ test('variants and scopes', () => {
   const standard = resolvePart(STARTER_BRACE, {}, STARTER_CONTEXT);
   assert.equal(standard.variant, 'standard');
   assert.deepEqual(standard.values, { B: 40, T: 500, H: 1200, TO: 0, HO: 0, ballast: 0 });
-  assert.deepEqual(standard.derived, { D: 500, L: 1200, s: 40, wandZ: -230, spitzeZ: 230 });
+  assert.deepEqual(standard.derived, {
+    D: 500, L: 1200, s: 40, wandZ: -230, spitzeZ: 230,
+    platte: 400, platteH: 50, platteZ: 10, gurtH: 140,
+  });
   assert.equal(standard.stock, 'count');
   assert.equal(standard.planSymbol, 'footprint');
   assert.deepEqual(standard.part, refOf(STARTER_BRACE));

@@ -6,8 +6,8 @@ const LEG_HEIGHTS_MM = [200, 400, 600, 800, 1000, 1200];
 
 /** Triangle of 40 × 40 Latte behind a wall: stile, floor rail and diagonal. */
 export const STARTER_BRACE: PartDefinition = {
-  id: id(1), revision: 1, name: 'Stützdreieck', category: 'Stützen',
-  description: 'Dreieck aus Latte 40 × 40: Wandstiel, Bodenschwelle und Strebe. Beschwerung als Zubehör.',
+  id: id(1), revision: 2, name: 'Stützdreieck', category: 'Stützen',
+  description: 'Dreieck aus Latte 40 × 40: Wandstiel, Bodenschwelle und Strebe. Betonplatten liegen sichtbar auf der Bodenschwelle; ab zwei Platten hält sie ein Spanngurt.',
   parameters: [
     { key: 'B', label: 'Breite', type: 'length', default: 40, scope: 'placement', range: { min: 1, max: 10000 } },
     { key: 'T', label: 'Tiefe', type: 'length', default: 500, scope: 'variant', range: { min: 200, max: 1500 } },
@@ -27,20 +27,35 @@ export const STARTER_BRACE: PartDefinition = {
     { key: 's', label: 'Lattenstärke', formula: 40 },
     { key: 'wandZ', label: 'Achse Wandstiel', formula: '-D / 2 + s / 2' },
     { key: 'spitzeZ', label: 'Achse Schwellenende', formula: 'D / 2 - s / 2' },
+    { key: 'platte', label: 'Kante Betonplatte', formula: 400 },
+    { key: 'platteH', label: 'Stärke Betonplatte', formula: 50 },
+    { key: 'platteZ', label: 'Mitte der Platten', formula: 'max(-D / 2 + platte / 2, D / 2 - s - platte / 2)' },
+    { key: 'gurtH', label: 'Höhe des Gurts', formula: 's + 2 * platteH' },
   ],
   bodies: [
     { kind: 'beam', key: 'stiel', label: 'Wandstiel', material: 'latte-40x40', section: ['B', 's'], from: [0, 0, 'wandZ'], to: [0, 'L', 'wandZ'] },
     { kind: 'beam', key: 'schwelle', label: 'Bodenschwelle', material: 'latte-40x40', section: ['B', 's'], from: [0, 's / 2', '-D / 2'], to: [0, 's / 2', 'D / 2'] },
     { kind: 'beam', key: 'strebe', label: 'Strebe', material: 'latte-40x40', section: ['B', 's'], from: [0, 's / 2', 'spitzeZ'], to: [0, 'L - s / 2', 'wandZ'] },
+    {
+      kind: 'box', key: 'betonplatte', label: 'Betonplatte', material: 'betonplatte-400',
+      size: ['platte', 'platteH', 'platte'], at: [0, 's + platteH / 2', 'platteZ'],
+      repeat: { count: 'ballast', step: [0, 'platteH', 0], index: 'lage' },
+    },
+    {
+      kind: 'box', key: 'gurt-oben', label: 'Spanngurt oben', material: 'spanngurt-25', displayOnly: true, when: 'ballast >= 2',
+      size: ['platte + 4', 2, 25], at: [0, 'gurtH + 1', 'platteZ'],
+    },
+    {
+      kind: 'box', key: 'gurt-seite', label: 'Spanngurt Seite', material: 'spanngurt-25', displayOnly: true, when: 'ballast >= 2',
+      size: [2, 'gurtH + 2', 25], at: ['-platte / 2 - 1', 'gurtH / 2 + 1', 'platteZ'],
+      repeat: { count: 2, step: ['platte + 2', 0, 0] },
+    },
   ],
   connectors: [
     { key: 'wand', label: 'Wandseite', kind: 'brace-mount', at: [0, 0, '-D / 2'], axis: [0, 0, -1] },
   ],
   traits: { stock: 'count' },
-  hardware: [
-    { material: 'betonplatte-400', quantity: 'ballast' },
-    { material: 'spanngurt-25', quantity: 1, when: 'ballast >= 2' },
-  ],
+  hardware: [{ material: 'spanngurt-25', quantity: 1, when: 'ballast >= 2' }],
 };
 
 /** Leg of a Bühnenelement, named by the deck height it gives. */
@@ -357,7 +372,48 @@ export const STARTER_CHAIR: PartDefinition = {
   traits: { stock: 'none', planSymbol: 'solids' },
 };
 
-export const STARTER_PERSON = boxPart(8, 'Person', 'Darsteller', { width: 500, depth: 400, height: 1750 });
+/** Standing figure of boxes for scale on stage; total height defaults to 1790 mm. */
+export const STARTER_PERSON: PartDefinition = {
+  id: id(8), revision: 1, name: 'Person', category: 'Darsteller',
+  description: 'Stehende Figur aus Quaderkörpern für Größenvergleiche auf der Bühne.',
+  parameters: [
+    { key: 'B', label: 'Breite', type: 'length', default: 500, scope: 'placement', range: { min: 50, max: 10000, step: 10 } },
+    { key: 'T', label: 'Tiefe', type: 'length', default: 400, scope: 'placement', range: { min: 50, max: 10000, step: 10 } },
+    { key: 'H', label: 'Höhe', type: 'length', default: 1790, scope: 'placement', range: { min: 50, max: 10000, step: 10 } },
+  ],
+  derived: [
+    { key: 'legH', formula: 'H * 0.48' },
+    { key: 'torsoH', formula: 'H * 0.4' },
+    { key: 'head', formula: 'H * 0.12' },
+    { key: 'armW', formula: 'B * 0.12' },
+  ],
+  bodies: [
+    {
+      kind: 'box', key: 'bein', material: 'stoff-koerper',
+      size: ['B * 0.18', 'legH', 'T * 0.35'],
+      at: ['-B * 0.14', 'legH / 2', 0],
+      repeat: { count: 2, step: ['B * 0.28', 0, 0] },
+    },
+    {
+      kind: 'box', key: 'rumpf', material: 'stoff-koerper',
+      size: ['B * 0.42', 'torsoH', 'T * 0.4'],
+      at: [0, 'legH + torsoH / 2', 0],
+    },
+    {
+      kind: 'box', key: 'arm', material: 'stoff-koerper',
+      size: ['armW', 'torsoH * 0.9', 'T * 0.22'],
+      at: ['-(B * 0.42 / 2 + armW / 2)', 'legH + torsoH * 0.45', 0],
+      repeat: { count: 2, step: ['B * 0.42 + armW', 0, 0] },
+    },
+    {
+      kind: 'box', key: 'kopf', material: 'stoff-koerper',
+      size: ['head', 'head', 'head'],
+      at: [0, 'legH + torsoH + head / 2', 0],
+    },
+  ],
+  traits: { stock: 'none', planSymbol: 'solids' },
+};
+
 export const STARTER_SPEAKER = boxPart(9, 'Lautsprecher', 'Technik', { width: 400, depth: 350, height: 600 });
 export const STARTER_BOX = boxPart(10, 'Kiste', 'Requisite', { width: 600, depth: 600, height: 600 });
 
@@ -461,42 +517,19 @@ export const STARTER_PIPE_CLOTH_FLAT: PartDefinition = {
 };
 
 /**
- * Stützdreieck whose ballast is drawn: Betonplatten as stacked hardware boxes (Kopien = ballast)
- * and the Spanngurt as „nur Darstellung“ bodies. The original Stützdreieck stays unchanged, as
- * placed braces and the Bühnenbild ballast count refer to it.
+ * Same drawn ballast as STARTER_BRACE, kept as a separate library entry so older scenes that
+ * placed this part still resolve. Placed braces and the Bühnenbild ballast count use STARTER_BRACE.
  */
 export const STARTER_BRACE_BALLAST: PartDefinition = {
   id: id(15), revision: 1, name: 'Stützdreieck mit Beschwerung', category: 'Stützen',
   description: 'Stützdreieck aus Latte 40 × 40, die Betonplatten liegen sichtbar auf der Bodenschwelle; ab zwei Platten hält sie ein Spanngurt.',
   parameters: STARTER_BRACE.parameters,
   variants: STARTER_BRACE.variants,
-  derived: [
-    ...STARTER_BRACE.derived!,
-    { key: 'platte', label: 'Kante Betonplatte', formula: 400 },
-    { key: 'platteH', label: 'Stärke Betonplatte', formula: 50 },
-    { key: 'platteZ', label: 'Mitte der Platten', formula: 'max(-D / 2 + platte / 2, D / 2 - s - platte / 2)' },
-    { key: 'gurtH', label: 'Höhe des Gurts', formula: 's + 2 * platteH' },
-  ],
-  bodies: [
-    ...STARTER_BRACE.bodies,
-    {
-      kind: 'box', key: 'betonplatte', label: 'Betonplatte', material: 'betonplatte-400',
-      size: ['platte', 'platteH', 'platte'], at: [0, 's + platteH / 2', 'platteZ'],
-      repeat: { count: 'ballast', step: [0, 'platteH', 0], index: 'lage' },
-    },
-    {
-      kind: 'box', key: 'gurt-oben', label: 'Spanngurt oben', material: 'spanngurt-25', displayOnly: true, when: 'ballast >= 2',
-      size: ['platte + 4', 2, 25], at: [0, 'gurtH + 1', 'platteZ'],
-    },
-    {
-      kind: 'box', key: 'gurt-seite', label: 'Spanngurt Seite', material: 'spanngurt-25', displayOnly: true, when: 'ballast >= 2',
-      size: [2, 'gurtH + 2', 25], at: ['-platte / 2 - 1', 'gurtH / 2 + 1', 'platteZ'],
-      repeat: { count: 2, step: ['platte + 2', 0, 0] },
-    },
-  ],
+  derived: STARTER_BRACE.derived,
+  bodies: STARTER_BRACE.bodies,
   connectors: STARTER_BRACE.connectors,
-  traits: { stock: 'count' },
-  hardware: [{ material: 'spanngurt-25', quantity: 1, when: 'ballast >= 2' }],
+  traits: STARTER_BRACE.traits,
+  hardware: STARTER_BRACE.hardware,
 };
 
 export const STARTER_PARTS: PartDefinition[] = [

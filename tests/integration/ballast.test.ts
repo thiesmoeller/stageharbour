@@ -6,7 +6,7 @@ import { createApp } from '../../src/server/app.js';
 import { bootstrapAdministrator } from '../../src/server/identity/bootstrap.js';
 import { membership } from '../../src/server/db/schema.js';
 import type { LayoutObject, Scene } from '../../src/shared/layout.js';
-import { STARTER_PART_IDS } from '../../src/shared/parts/starter/index.js';
+import { STARTER_BRACE, STARTER_PART_IDS } from '../../src/shared/parts/starter/index.js';
 import { testAdministrator, testDatabase } from '../helpers/database.js';
 
 let fixture: Awaited<ReturnType<typeof testDatabase>>;
@@ -45,7 +45,7 @@ test('requirements count maxima across saved scenes and separate venues', async 
   const scene = response.json<Scene>();
   await app.inject({ method: 'POST', url: `${base}/scenes/${scene.id}/lease`, headers });
   const brace: LayoutObject = {
-    id: randomUUID(), label: 'Stützdreieck', part: { id: STARTER_PART_IDS.brace, revision: 1 },
+    id: randomUUID(), label: 'Stützdreieck', part: { id: STARTER_PART_IDS.brace, revision: STARTER_BRACE.revision },
     values: { ballast: 2 }, x: 2000, y: 2000, rotation: 0,
   };
   const saved = await app.inject({ method: 'PUT', url: `${base}/scenes/${scene.id}/layout`, headers,

@@ -71,7 +71,11 @@ export async function placeWallAt(page: Page, x = 4000, y = 3000) {
 }
 
 /** Tool-rail categories whose list holds the parts that are not the category's first choice. */
-const TOOL_CATEGORY: Record<string, string> = { 'Treppe einsetzen': 'Podeste', 'Tür einsetzen': 'Wände', 'Stuhl einsetzen': 'Möbel' };
+const TOOL_CATEGORY: Record<string, string> = {
+  'Treppe einsetzen': 'Podeste',
+  'Tür einsetzen': 'Wände',
+  'Stuhl einsetzen': 'Möbel',
+};
 
 /** Pick a part from the tool rail: directly, or from its category list. */
 export async function chooseTool(page: Page, name: string) {
@@ -90,6 +94,8 @@ export async function placeNamedObjectAt(page: Page, name: string, x = 4000, y =
     'Tisch hinzufügen': 'Tisch einsetzen',
     'Podest hinzufügen': 'Bühnenelement · 2 × 1 m einsetzen',
     'Treppe hinzufügen': 'Treppe einsetzen',
+    'Person hinzufügen': 'Person einsetzen',
+    'Stuhl hinzufügen': 'Stuhl einsetzen',
   };
   await chooseTool(page, replacement[name] ?? name);
   await commitObjectPlacement(page, x, y);

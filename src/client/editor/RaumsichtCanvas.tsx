@@ -7,6 +7,7 @@ import { focusTowardPoint, patchFixtureFocus, type HangPlan } from '../../shared
 import type { Layout, VenueGeometry } from '../../shared/layout.js';
 import type { ResolvedLayoutObject } from '../../shared/layoutObjects.js';
 import { defaultLighting, type StageLightingSettings } from '../../shared/lighting.js';
+import type { PartMaterial } from '../../shared/parts/definition.js';
 import type { PlanDisplayOptions } from '../../shared/planDisplay.js';
 import { defaultPlanDisplay } from '../../shared/planDisplay.js';
 import type { StageModel } from '../../shared/transforms.js';
@@ -202,8 +203,11 @@ class WebGlBoundary extends Component<{ children: ReactNode }, { failed: boolean
 const SOLID_DISPLAY: SurfaceDisplay = { shading: 'solid', textures: false };
 const RENDERED_DISPLAY: SurfaceDisplay = { shading: 'rendered', textures: true };
 
-export default function RaumsichtCanvas({ model, layout, venue, resolvedObjects, audience, view = audience ? 'audience' : 'orbit', assets, workspaceId, lighting = defaultLighting, planDisplay = defaultPlanDisplay, onCaptureReady, aimOnly = false, enhanced = true, selectedFixtureId, onFixtureSelect, focusAimMode, onHangPlanChange, lightBoardLive, showFixturePools = false, toolbarHost = null, ...editing }: {
-  model: StageModel; layout: Layout; venue: VenueGeometry; resolvedObjects: readonly ResolvedLayoutObject[]; audience: boolean; view?: StageViewPreset; assets: Asset[]; workspaceId: string; lighting?: StageLightingSettings;
+export default function RaumsichtCanvas({ model, layout, venue, resolvedObjects, audience, view = audience ? 'audience' : 'orbit', assets, workspaceId, materials = [], lighting = defaultLighting, planDisplay = defaultPlanDisplay, onCaptureReady, aimOnly = false, enhanced = true, selectedFixtureId, onFixtureSelect, focusAimMode, onHangPlanChange, lightBoardLive, showFixturePools = false, toolbarHost = null, ...editing }: {
+  model: StageModel; layout: Layout; venue: VenueGeometry; resolvedObjects: readonly ResolvedLayoutObject[]; audience: boolean; view?: StageViewPreset; assets: Asset[]; workspaceId: string;
+  /** Catalog materials from `useLayoutParts` — colours for StageParts. */
+  materials?: PartMaterial[];
+  lighting?: StageLightingSettings;
   planDisplay?: PlanDisplayOptions;
   onCaptureReady?: (handle: StageCaptureHandle | null) => void;
   aimOnly?: boolean;
@@ -266,8 +270,9 @@ export default function RaumsichtCanvas({ model, layout, venue, resolvedObjects,
     hangPlan, planDisplay, stageWidth: venue.width, stageDepth: venue.depth,
     selectedFixtureId, onFixtureSelect: onFixtureSelect ? (id: string) => onFixtureSelect(id) : undefined,
     lightBoardLive: hangLit ? lightBoardLive : undefined,
+    materials,
   }), [assets, workspaceId, mirrorWidth, model, editing.venueEditable, editing.selectedIds, editing.onSelect, hangPlan, planDisplay,
-    venue.width, venue.depth, selectedFixtureId, onFixtureSelect, hangLit, lightBoardLive]);
+    venue.width, venue.depth, selectedFixtureId, onFixtureSelect, hangLit, lightBoardLive, materials]);
   const tools = !aimOnly ? <>
     <button type="button" className="quiet" aria-pressed={mode === 'select'} onClick={() => setMode('select')} title="3D auswählen" aria-label="3D auswählen"><ToolIcon name="select" /></button>
     <button type="button" className="quiet" disabled={!editing.pivot} onClick={() => frame(true)} title="Auswahl einpassen" aria-label="Auswahl einpassen"><ToolIcon name="expand" /></button>

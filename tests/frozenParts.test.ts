@@ -11,7 +11,8 @@ import { elevationOutline, planFigure, planSymbol } from '../src/shared/partDraw
 import { STARTER_LIBRARY, STARTER_PART_IDS } from '../src/shared/parts/starter/index.js';
 import { snapshotPlanSymbols } from '../src/shared/planFeatures.js';
 
-const ref = (id: string) => ({ id, revision: 1 });
+const freshIndex = () => createLayoutPartIndex(structuredClone(STARTER_LIBRARY));
+const ref = (id: string) => ({ id, revision: freshIndex().latestRevision(id)! });
 const wall = (label: string, x: number, variant = 'plain', extra: Partial<LayoutObject> = {}): LayoutObject => ({
   id: randomUUID(), label, part: ref(STARTER_PART_IDS.wall), variant, values: { B: 1200, H: 2400, D: 28 },
   x, y: 3000, rotation: 0, ...extra,
@@ -32,8 +33,6 @@ function studioTitles(layout: DocumentLayout) {
     text: paints.flatMap(paint => paint.op === 'text' ? [paint.text] : []).join('\n'),
   };
 }
-
-const freshIndex = () => createLayoutPartIndex(structuredClone(STARTER_LIBRARY));
 
 test('a frozen snapshot inlines the exact revisions, child parts and materials its objects use', () => {
   const door = wall('Tür', 1200, 'doorLeft');

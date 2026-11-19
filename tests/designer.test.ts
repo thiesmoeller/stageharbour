@@ -155,7 +155,7 @@ test('removing a body drops the traits that named it; issues map back to the ele
   assert.deepEqual(issuesForSelection(resolved.issues, { kind: 'body', key: 'bein' }), []);
   assert.deepEqual(selectionOfIssue(field[0]!, broken), { kind: 'body', key: 'platte' });
   assert.deepEqual(selectionOfIssue({ path: 'fuss[0,1]' }, STARTER_DECK), { kind: 'child', key: 'fuss' });
-  assert.deepEqual(selectionOfIssue({ hardware: 'spanngurt-25' }, STARTER_BRACE), { kind: 'hardware', index: 1 });
+  assert.deepEqual(selectionOfIssue({ hardware: 'spanngurt-25' }, STARTER_BRACE), { kind: 'hardware', index: 0 });
 });
 
 test('geometry is shared while used and disposed after it falls out of the idle window', () => {

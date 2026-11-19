@@ -3,7 +3,8 @@ export const MODEL_TOOLS = [
   { id: 'select', label: 'Auswählen', key: ' ', keyLabel: 'Leertaste', hint: 'Anklicken wählt. Umschalt fügt hinzu, Strg schaltet um. Strg+A wählt alles. Ziehen von links wählt innen, von rechts schneidet. Doppelklick öffnet eine Gruppe.' },
   { id: 'move', label: 'Verschieben', key: 'm', keyLabel: 'M', hint: 'Bezugspunkt aus der Inferenz (Ecke, Mitte, …) klicken, dann Zielpunkt. Pfeiltasten oder Umschalt sperren eine Achse. Strg beim Ziel kopiert.' },
   { id: 'rotate', label: 'Drehen', key: 'q', keyLabel: 'Q', hint: 'Drehpunkt aus der Inferenz, dann Start- und Endpunkt. Pfeiltasten wählen die Achse: rot X, grün Y, blau Z. Strg beim Endpunkt kopiert.' },
-  { id: 'pushpull', label: 'Drücken/Ziehen', key: 'p', keyLabel: 'P', hint: 'Fläche anklicken, dann die neue Lage. Maß eintippen und Enter. Doppelklick wiederholt den letzten Abstand. Strg erzeugt einen neuen Körper von der Fläche.' },
+  { id: 'pushpull', label: 'Drücken/Ziehen', key: 'p', keyLabel: 'P', hint: 'Fläche anklicken, dann die neue Lage. Maß eintippen und Enter. Doppelklick wiederholt den letzten Abstand. Strg (auch nachträglich) erzeugt einen neuen Körper von der Fläche — nicht von der Kante.' },
+  { id: 'split', label: 'Teilen', key: 'k', keyLabel: 'K', hint: 'Quader oder rechteckige Platte anklicken. Pfeiltasten blättern durch alle Schnittrichtungen (bei gezogenen Platten inkl. Stärke/Höhe). Lage klicken oder Abstand eintippen.' },
   { id: 'rect', label: 'Rechteck', key: 'r', keyLabel: 'R', hint: 'Zwei Ecken auf Boden oder Fläche. Pfeiltasten sperren die Ebene (Hoch = waagrecht, Links/Rechts = senkrecht in die Luft). „1200;600“ und Enter. Umschalt sperrt ein Quadrat.' },
   { id: 'line', label: 'Linie', key: 'l', keyLabel: 'L', hint: 'Punkte nacheinander klicken. Pfeiltasten sperren die Zeichenebene. Schließen erzeugt eine Fläche. Rücktaste nimmt den letzten Punkt zurück.' },
   { id: 'circle', label: 'Kreis', key: 'c', keyLabel: 'C', hint: 'Mittelpunkt, dann Radius. Pfeiltasten sperren die Ebene (senkrecht = in die Luft). Radius eintippen; optional „Radius;Segmente“.' },
@@ -14,7 +15,7 @@ export const MODEL_TOOLS = [
 ] as const;
 
 export type ModelToolId = (typeof MODEL_TOOLS)[number]['id'];
-export const DRAWING_TOOLS: readonly ModelToolId[] = ['move', 'rotate', 'pushpull', 'rect', 'line', 'circle', 'polygon', 'beam'];
+export const DRAWING_TOOLS: readonly ModelToolId[] = ['move', 'rotate', 'pushpull', 'split', 'rect', 'line', 'circle', 'polygon', 'beam'];
 
 export function toolForKey(key: string): ModelToolId | undefined {
   const lower = key.toLowerCase();

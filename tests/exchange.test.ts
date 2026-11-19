@@ -27,7 +27,10 @@ const venue: VenueGeometry = venueGeometrySchema.parse({
 });
 
 function part(serial: number, label: string, partId: string, extra: Partial<LayoutObject>): LayoutObject {
-  return { id: id(serial), label, part: { id: partId, revision: 1 }, x: 0, y: 0, rotation: 0, support: FLOOR, ...extra };
+  return {
+    id: id(serial), label, part: { id: partId, revision: catalog.latestRevision(partId) ?? 1 },
+    x: 0, y: 0, rotation: 0, support: FLOOR, ...extra,
+  };
 }
 
 const layout: Layout = layoutSchema.parse({

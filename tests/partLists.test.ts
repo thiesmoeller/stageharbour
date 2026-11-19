@@ -8,7 +8,7 @@ import { combineLists, sceneLists, stockItemFits, type StockInventory } from '..
 import { STARTER_LIBRARY, STARTER_PART_IDS } from '../src/shared/parts/starter/index.js';
 
 const index = createLayoutPartIndex(STARTER_LIBRARY);
-const ref = (id: string) => ({ id, revision: 1 });
+const ref = (id: string) => ({ id, revision: index.latestRevision(id)! });
 
 function wall(label: string, x: number, extra: Partial<LayoutObject> = {}): LayoutObject {
   return {

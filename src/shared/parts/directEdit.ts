@@ -277,6 +277,24 @@ export function pushPullNewBody(definition: PartDefinition, resolved: Resolved, 
   return added.ok ? { ok: true, definition: added.definition, parameters: [] } : added;
 }
 
+/** Resolved outline as plain numbers so the new body is not tied to the source's B/T formulas. */
+function bakedSheetOutline(solid: ResolvedSheet): SheetBody['outline'] {
+  const bounds = axisAlignedRectBounds(solid.outline);
+  if (bounds) {
+    return {
+      shape: 'rect',
+      x: roundMm(bounds.minU),
+      y: roundMm(bounds.minV),
+      width: roundMm(bounds.maxU - bounds.minU),
+      height: roundMm(bounds.maxV - bounds.minV),
+    };
+  }
+  return {
+    shape: 'polygon',
+    points: solid.outline.map(point => [roundMm(point.x), roundMm(point.y)] as [number, number]),
+  };
+}
+
 /** A new sheet whose front sits on the pulled face and whose thickness is `|distance|`. */
 function extrudeNewSheet(
   definition: PartDefinition,
@@ -294,11 +312,20 @@ function extrudeNewSheet(
   const solidOrigin = dot(axes.z, outward) >= 0 ? faceOrigin : add(faceOrigin, scale(outward, thickness));
   const anchor = body.anchor ?? 'face';
   const at = add(solidOrigin, scale(axes.z, -ANCHOR_OFFSET[anchor] * thickness));
+  // Bake pose + outline to numbers: cloning formulas (Neu-Tisch `B`/`T`) would lock side pulls to the table.
   const copy: SheetBody = {
-    ...structuredClone(body),
+    kind: 'sheet',
     key: uniqueElementKey(definition, body.key),
+    material: body.material,
+    plane: body.plane,
+    anchor,
     thickness,
     at: rounded(at),
+    outline: bakedSheetOutline(solid),
+    ...(body.label ? { label: body.label } : {}),
+    ...(body.displayOnly ? { displayOnly: true } : {}),
+    ...(body.rotation ? { rotation: structuredClone(body.rotation) } : {}),
+    ...(body.pivot ? { pivot: structuredClone(body.pivot) } : {}),
   };
   return withBody(definition, copy);
 }
@@ -619,6 +646,187 @@ export function addBeam(definition: PartDefinition, from: Vec3, to: Vec3, materi
   if (length(sub(to, from)) < 1) return fail('invalid', 'Die Latte ist zu kurz.');
   const body: BeamBody = { kind: 'beam', key: uniqueElementKey(definition, 'latte'), material, from: rounded(from), to: rounded(to) };
   return withBody(definition, body);
+}
+
+export type SplitResult =
+  | { ok: true; definition: PartDefinition; keys: [string, string] }
+  | EditFailure;
+
+const AXIS_ALIGN = 0.9;
+
+/** Local axis of a solid that best matches `direction`, or `undefined` when none is close enough. */
+export function alignedSolidAxis(solid: ResolvedSolid, direction: Vec3): { axis: Vec3; index: 0 | 1 | 2 } | undefined {
+  const n = normalize(direction);
+  const axes = quatAxes(solid.rotation);
+  const candidates: { axis: Vec3; index: 0 | 1 | 2; score: number }[] = [
+    { axis: axes.x, index: 0, score: Math.abs(dot(n, axes.x)) },
+    { axis: axes.y, index: 1, score: Math.abs(dot(n, axes.y)) },
+    { axis: axes.z, index: 2, score: Math.abs(dot(n, axes.z)) },
+  ];
+  candidates.sort((a, b) => b.score - a.score);
+  const best = candidates[0]!;
+  if (best.score < AXIS_ALIGN) return undefined;
+  const sign = Math.sign(dot(n, best.axis)) || 1;
+  return { axis: scale(best.axis, sign), index: best.index };
+}
+
+function retargetTraits(definition: PartDefinition, from: string, to: string): PartDefinition['traits'] {
+  const traits = { ...definition.traits };
+  if (traits.surface?.body === from) traits.surface = { body: to };
+  if (traits.faces) traits.faces = traits.faces.map(face => face.body === from ? { ...face, body: to } : face);
+  return traits;
+}
+
+/**
+ * Axis-aligned through-cut: replace one box or rect sheet with two bodies that can be
+ * Drücken/Ziehen independently. `cutNormal` picks the split axis; `cutPoint` places the plane.
+ */
+export function splitBody(
+  definition: PartDefinition,
+  resolved: Resolved,
+  bodyKey: string,
+  cutNormal: Vec3,
+  cutPoint: Vec3,
+): SplitResult {
+  const index = definition.bodies.findIndex(item => item.key === bodyKey);
+  const body = definition.bodies[index];
+  const solid = resolved.solids.find(item => item.body === bodyKey && item.path.length === 0);
+  if (!body || !solid || body.kind === 'mesh') return fail('missing', 'Der Körper fehlt oder lässt sich nicht teilen.');
+  if (body.repeat) return fail('invalid', 'Kopierte Körper lassen sich nicht teilen — bitte die Wiederholung auflösen.');
+  const aligned = alignedSolidAxis(solid, cutNormal);
+  if (!aligned) return fail('invalid', 'Die Teilung muss waagrecht oder senkrecht zu einer Kante liegen.');
+
+  if (body.kind === 'box' && solid.kind === 'box') {
+    const sizeVec = [solid.size.x, solid.size.y, solid.size.z] as const;
+    const extent = sizeVec[aligned.index]!;
+    if (extent < 2) return fail('invalid', 'Der Körper ist zu dünn zum Teilen.');
+    const local = dot(sub(cutPoint, solid.center), aligned.axis);
+    const half = extent / 2;
+    const cut = Math.min(half - 1, Math.max(-half + 1, local));
+    const sizeA = roundMm(cut + half);
+    const sizeB = roundMm(half - cut);
+    if (sizeA < 1 || sizeB < 1) return fail('invalid', 'Beide Teile müssen mindestens 1 mm dick sein.');
+    const centerA = add(solid.center, scale(aligned.axis, -half + sizeA / 2));
+    const centerB = add(solid.center, scale(aligned.axis, half - sizeB / 2));
+    const sizeA3 = [...sizeVec] as [number, number, number];
+    const sizeB3 = [...sizeVec] as [number, number, number];
+    sizeA3[aligned.index] = sizeA;
+    sizeB3[aligned.index] = sizeB;
+    // Keep the original key on the first half; reserve it so the second half gets `…-2`.
+    const keyA = body.key;
+    const keyB = uniqueElementKey(definition, body.key);
+    const boxMeta = () => ({
+      kind: 'box' as const, material: body.material,
+      ...(body.label ? { label: body.label } : {}),
+      ...(body.displayOnly ? { displayOnly: true } : {}),
+      ...(body.rotation ? { rotation: structuredClone(body.rotation) } : {}),
+      ...(body.pivot ? { pivot: structuredClone(body.pivot) } : {}),
+    });
+    const a: BoxBody = { ...boxMeta(), key: keyA, size: rounded({ x: sizeA3[0], y: sizeA3[1], z: sizeA3[2] }), at: rounded(centerA) };
+    const b: BoxBody = { ...boxMeta(), key: keyB, size: rounded({ x: sizeB3[0], y: sizeB3[1], z: sizeB3[2] }), at: rounded(centerB) };
+    const bodies = [...definition.bodies.slice(0, index), a, b, ...definition.bodies.slice(index + 1)];
+    return { ok: true, definition: { ...definition, bodies, traits: retargetTraits(definition, body.key, keyA) }, keys: [keyA, keyB] };
+  }
+
+  if (body.kind === 'sheet' && solid.kind === 'sheet') {
+    if (body.holes?.length) return fail('invalid', 'Platten mit Ausschnitten lassen sich so nicht teilen.');
+    // Sheet local: axes.x = outline u, axes.y = outline v, axes.z = thickness (front → back).
+    const bounds = axisAlignedRectBounds(solid.outline);
+    if (!bounds) return fail('invalid', 'Nur rechteckige Platten lassen sich teilen.');
+    const { minU, maxU, minV, maxV } = bounds;
+    const width = maxU - minU, height = maxV - minV;
+    const local = rotate(conjugate(solid.rotation), sub(cutPoint, solid.origin));
+    // Keep the original key on the first half; reserve it so the second half gets `…-2`.
+    const keyA = body.key;
+    const keyB = uniqueElementKey(definition, body.key);
+    // Every nested field must be cloned — shared `at`/`outline` arrays stay aliased through
+    // structuredClone in setFields, so a push/pull on one half would move the other.
+    const sheetMeta = () => ({
+      kind: 'sheet' as const, material: body.material, plane: body.plane,
+      ...(body.label ? { label: body.label } : {}),
+      ...(body.rotation ? { rotation: structuredClone(body.rotation) } : {}),
+      ...(body.pivot ? { pivot: structuredClone(body.pivot) } : {}),
+      ...(body.displayOnly ? { displayOnly: true } : {}),
+    });
+    const rectOutline = (x: number, y: number, w: number, h: number) => (
+      { shape: 'rect' as const, x, y, width: w, height: h }
+    );
+
+    if (aligned.index === 2) {
+      const T = solid.thickness;
+      if (T < 2) return fail('invalid', 'Die Platte ist zu dünn zum Teilen.');
+      const axes = quatAxes(solid.rotation);
+      // Always measure front → back along the sheet's +thickness, ignoring preferred-normal flip.
+      const along = dot(sub(cutPoint, solid.origin), axes.z);
+      const cut = Math.min(T - 1, Math.max(1, along));
+      const thickA = roundMm(cut);
+      const thickB = roundMm(T - cut);
+      if (thickA < 1 || thickB < 1) return fail('invalid', 'Beide Teile müssen mindestens 1 mm dick sein.');
+      // Front-anchored stacks: A keeps the front face, B starts where A ends.
+      const a: SheetBody = {
+        ...sheetMeta(), key: keyA, anchor: 'face', thickness: thickA,
+        outline: rectOutline(roundMm(minU), roundMm(minV), roundMm(width), roundMm(height)),
+        at: rounded(solid.origin),
+      };
+      const b: SheetBody = {
+        ...sheetMeta(), key: keyB, anchor: 'face', thickness: thickB,
+        outline: rectOutline(roundMm(minU), roundMm(minV), roundMm(width), roundMm(height)),
+        at: rounded(add(solid.origin, scale(axes.z, thickA))),
+      };
+      const nextBodies = [...definition.bodies.slice(0, index), a, b, ...definition.bodies.slice(index + 1)];
+      return { ok: true, definition: { ...definition, bodies: nextBodies, traits: retargetTraits(definition, body.key, keyA) }, keys: [keyA, keyB] };
+    }
+
+    const cutU = aligned.index === 0 ? local.x : local.y;
+    const min = aligned.index === 0 ? minU : minV;
+    const max = aligned.index === 0 ? maxU : maxV;
+    const span = max - min;
+    if (span < 2) return fail('invalid', 'Die Platte ist zu schmal zum Teilen.');
+    const cut = Math.min(max - 1, Math.max(min + 1, cutU));
+    const spanA = roundMm(cut - min);
+    const spanB = roundMm(max - cut);
+    if (spanA < 1 || spanB < 1) return fail('invalid', 'Beide Teile müssen mindestens 1 mm breit sein.');
+    const outlineA = aligned.index === 0
+      ? rectOutline(roundMm(min), roundMm(minV), spanA, roundMm(height))
+      : rectOutline(roundMm(minU), roundMm(min), roundMm(width), spanA);
+    const outlineB = aligned.index === 0
+      ? rectOutline(roundMm(cut), roundMm(minV), spanB, roundMm(height))
+      : rectOutline(roundMm(minU), roundMm(cut), roundMm(width), spanB);
+    const thickness = typeof body.thickness === 'number' ? body.thickness : solid.thickness;
+    const a: SheetBody = {
+      ...sheetMeta(), key: keyA, outline: outlineA, at: structuredClone(body.at), thickness,
+      ...(body.anchor ? { anchor: body.anchor } : {}),
+    };
+    const b: SheetBody = {
+      ...sheetMeta(), key: keyB, outline: outlineB, at: structuredClone(body.at), thickness,
+      ...(body.anchor ? { anchor: body.anchor } : {}),
+    };
+    const nextBodies = [...definition.bodies.slice(0, index), a, b, ...definition.bodies.slice(index + 1)];
+    return { ok: true, definition: { ...definition, bodies: nextBodies, traits: retargetTraits(definition, body.key, keyA) }, keys: [keyA, keyB] };
+  }
+
+  return fail('invalid', 'Nur Quader und rechteckige Platten lassen sich teilen.');
+}
+
+function conjugate(q: Quat): Quat {
+  return { x: -q.x, y: -q.y, z: -q.z, w: q.w };
+}
+
+/** Bounds of an axis-aligned rectangle in sheet UV, from a rect outline or a 4-corner polygon. */
+function axisAlignedRectBounds(outline: readonly Vec2[]): { minU: number; maxU: number; minV: number; maxV: number } | undefined {
+  if (outline.length < 3) return undefined;
+  const xs = outline.map(p => p.x), ys = outline.map(p => p.y);
+  const minU = Math.min(...xs), maxU = Math.max(...xs);
+  const minV = Math.min(...ys), maxV = Math.max(...ys);
+  if (!(maxU - minU >= 1 && maxV - minV >= 1)) return undefined;
+  // Every vertex must sit on the AABB rim (axis-aligned rectangle, not a diamond).
+  const onRim = (p: Vec2) => {
+    const onVertical = (Math.abs(p.x - minU) <= EPS || Math.abs(p.x - maxU) <= EPS) && p.y >= minV - EPS && p.y <= maxV + EPS;
+    const onHorizontal = (Math.abs(p.y - minV) <= EPS || Math.abs(p.y - maxV) <= EPS) && p.x >= minU - EPS && p.x <= maxU + EPS;
+    return onVertical || onHorizontal;
+  };
+  if (!outline.every(onRim)) return undefined;
+  return { minU, maxU, minV, maxV };
 }
 
 const formulaNames = (definition: PartDefinition) => new Set([

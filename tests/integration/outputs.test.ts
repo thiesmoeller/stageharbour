@@ -11,7 +11,7 @@ import { frozenLists } from '../../src/shared/frozenParts.js';
 import type { LayoutObject, Scene } from '../../src/shared/layout.js';
 import type { BuildLists } from '../../src/shared/partLists.js';
 import { STARTER_MATERIALS } from '../../src/shared/parts/starter/materials.js';
-import { STARTER_PART_IDS } from '../../src/shared/parts/starter/index.js';
+import { STARTER_BRACE, STARTER_DOOR, STARTER_PART_IDS, STARTER_WALL } from '../../src/shared/parts/starter/index.js';
 import type { ProductionStockDemand } from '../../src/shared/stockDemand.js';
 import { testAdministrator, testDatabase } from '../helpers/database.js';
 
@@ -23,13 +23,14 @@ let first: Scene;
 let second: Scene;
 let pieceId: string;
 
-const ref = (id: string) => ({ id, revision: 1 });
+const ref = (id: string, revision: number) => ({ id, revision });
 const wall = (variant: string, x: number, extra: Partial<LayoutObject> = {}): LayoutObject => ({
-  id: randomUUID(), label: `Wand ${variant}`, part: ref(STARTER_PART_IDS.wall), variant,
+  id: randomUUID(), label: `Wand ${variant}`, part: ref(STARTER_PART_IDS.wall, STARTER_WALL.revision), variant,
   values: { B: 1200, H: 2400, D: 28 }, x, y: 3000, rotation: 0, ...extra,
 });
 const brace = (x: number, ballast: number): LayoutObject => ({
-  id: randomUUID(), label: 'Stützdreieck', part: ref(STARTER_PART_IDS.brace), values: { ballast }, x, y: 3600, rotation: 0,
+  id: randomUUID(), label: 'Stützdreieck', part: ref(STARTER_PART_IDS.brace, STARTER_BRACE.revision), values: { ballast },
+  x, y: 3600, rotation: 0,
 });
 
 async function pdfText(bytes: Buffer) {
@@ -131,8 +132,11 @@ test('an issued package inlines its part definitions and keeps its lists after l
   assert.equal(scenes.length, 2);
   const snapshot = constructionSnapshotSchema.parse(scenes.find(item => item.sceneId === first.id)!.snapshot);
   assert.equal(snapshot.schemaVersion, CONSTRUCTION_SNAPSHOT_VERSION);
-  assert.deepEqual(snapshot.library.parts.map(part => `${part.id}@${part.revision}`).sort(),
-    [STARTER_PART_IDS.wall, STARTER_PART_IDS.door, STARTER_PART_IDS.brace].map(id => `${id}@1`).sort());
+  assert.deepEqual(snapshot.library.parts.map(part => `${part.id}@${part.revision}`).sort(), [
+    `${STARTER_WALL.id}@${STARTER_WALL.revision}`,
+    `${STARTER_DOOR.id}@${STARTER_DOOR.revision}`,
+    `${STARTER_BRACE.id}@${STARTER_BRACE.revision}`,
+  ].sort());
   assert.ok(snapshot.library.materials.some(material => material.key === 'tischlerplatte-28'));
   assert.deepEqual(snapshot.stock.items.map(item => item.label), ['W-01']);
   const frozenWeight = frozenLists(snapshot).weightKg;
